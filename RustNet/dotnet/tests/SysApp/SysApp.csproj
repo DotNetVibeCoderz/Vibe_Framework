@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Hal\RustNet.Hal.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.IO\RustNet.IO.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Net\RustNet.Net.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Buses\RustNet.Buses.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Data\RustNet.Data.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Serialization\RustNet.Serialization.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Devices\RustNet.Devices.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Diagnostics\RustNet.Diagnostics.csproj" />
+  </ItemGroup>
+</Project>

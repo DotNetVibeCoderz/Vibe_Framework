@@ -1,0 +1,13 @@
+[package]
+name = "rustnet-secureboot"
+description = "Signed firmware/app image format and boot-time verification"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-crypto.workspace = true
+
+[dev-dependencies]
+rsa.workspace = true
+rand.workspace = true

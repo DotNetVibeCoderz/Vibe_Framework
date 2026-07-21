@@ -1,0 +1,14 @@
+[package]
+name = "rustnet-ota"
+description = "OTA update engine: A/B slots, signature verification, rollback"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-crypto.workspace = true
+rustnet-secureboot.workspace = true
+
+[dev-dependencies]
+rsa.workspace = true
+rand.workspace = true

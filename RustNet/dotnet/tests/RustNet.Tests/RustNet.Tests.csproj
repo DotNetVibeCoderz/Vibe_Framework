@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
+    <ProjectReference Include="..\..\tools\RustNet.Deploy\RustNet.Deploy.csproj" />
+    <ProjectReference Include="..\..\tools\RustNet.Debugger\RustNet.Debugger.csproj" />
+    <ProjectReference Include="..\..\tools\RustNet.Cli\RustNet.Cli.csproj" />
+    <ProjectReference Include="..\SampleApp\SampleApp.csproj" />
+    <ProjectReference Include="..\SysApp\SysApp.csproj" />
+    <ProjectReference Include="..\LangApp\LangApp.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Cloud\RustNet.Cloud.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Drawing\RustNet.Drawing.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+  </ItemGroup>
+</Project>

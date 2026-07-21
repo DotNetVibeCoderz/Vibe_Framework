@@ -1,0 +1,10 @@
+[package]
+name = "rustnet-fs"
+description = "Virtual filesystem: FAT (SD/flash), in-memory FS, optional encryption"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-crypto.workspace = true
+fatfs.workspace = true

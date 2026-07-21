@@ -1,0 +1,34 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RustNet.Buses/RustNet.Buses.csproj" />
+    <Project Path="src/RustNet.Cloud/RustNet.Cloud.csproj" />
+    <Project Path="src/RustNet.Core/RustNet.Core.csproj" />
+    <Project Path="src/RustNet.Data/RustNet.Data.csproj" />
+    <Project Path="src/RustNet.Devices/RustNet.Devices.csproj" />
+    <Project Path="src/RustNet.Drawing/RustNet.Drawing.csproj" />
+    <Project Path="src/RustNet.Diagnostics/RustNet.Diagnostics.csproj" />
+    <Project Path="src/RustNet.Graphics/RustNet.Graphics.csproj" />
+    <Project Path="src/RustNet.Hal/RustNet.Hal.csproj" />
+    <Project Path="src/RustNet.IO/RustNet.IO.csproj" />
+    <Project Path="src/RustNet.Media/RustNet.Media.csproj" />
+    <Project Path="src/RustNet.Net/RustNet.Net.csproj" />
+    <Project Path="src/RustNet.Resources/RustNet.Resources.csproj" />
+    <Project Path="src/RustNet.Serialization/RustNet.Serialization.csproj" />
+    <Project Path="src/RustNet.UI/RustNet.UI.csproj" />
+    <Project Path="src/RustNet.Usb/RustNet.Usb.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RustNet.Tests/RustNet.Tests.csproj" />
+    <Project Path="tests/SampleApp/SampleApp.csproj" />
+    <Project Path="tests/SysApp/SysApp.csproj" />
+    <Project Path="tests/LangApp/LangApp.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/RustNet.Cli/RustNet.Cli.csproj" />
+    <Project Path="tools/RustNet.Debugger/RustNet.Debugger.csproj" />
+    <Project Path="tools/RustNet.Deploy/RustNet.Deploy.csproj" />
+    <Project Path="tools/RustNet.MetadataProcessor/RustNet.MetadataProcessor.csproj" />
+    <Project Path="tools/RustNet.Workbench/RustNet.Workbench.csproj" />
+    <Project Path="tools/RustNet.Designer/RustNet.Designer.csproj" />
+  </Folder>
+</Solution>

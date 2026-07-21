@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet device core: internal-call plumbing, system services, threading.</Description>
+  </PropertyGroup>
+</Project>

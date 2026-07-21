@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet field-bus protocols: CAN, Modbus RTU/TCP master, 1-Wire.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+  </ItemGroup>
+</Project>

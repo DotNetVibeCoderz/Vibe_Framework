@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>rustnet-debugger</AssemblyName>
+    <Description>RustNet Debug Adapter Protocol (DAP) server: bridges VSCode to the on-device interpreter debugger over RNDP.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Deploy\RustNet.Deploy.csproj" />
+    <ProjectReference Include="..\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
+  </ItemGroup>
+</Project>

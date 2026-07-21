@@ -1,0 +1,8 @@
+[package]
+name = "rustnet-sched"
+description = "Cooperative async task scheduler for the RustNet runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

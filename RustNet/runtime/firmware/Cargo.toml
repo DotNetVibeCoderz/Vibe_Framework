@@ -1,0 +1,51 @@
+[package]
+name = "rustnet-firmware"
+description = "RustNet device firmware: runtime host, services, RNDP protocol server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rustnet-firmware"
+path = "src/main.rs"
+
+[lib]
+name = "rustnet_firmware"
+path = "src/lib.rs"
+
+[features]
+default = ["chip-host"]
+# Chip variants: exactly one is linked into a firmware image. The non-host
+# variants currently reuse the simulator board and mark the integration
+# point for each vendor SDK/PAC.
+# Host builds pull in the heavyweight `image` codecs; constrained targets
+# (e.g. ESP32/Xtensa, whose LLVM backend can't compile the JPEG transform)
+# leave them out and the PNG/JPEG intrinsics report NotSupported.
+chip-host = ["image-codecs"]
+chip-esp32 = []
+chip-stm32 = []
+chip-ti = []
+chip-nxp = []
+chip-esp32c3 = []
+chip-k210 = []
+image-codecs = ["dep:image"]
+
+[dependencies]
+rustnet-hal = { workspace = true, features = ["std"] }
+rustnet-hal-host.workspace = true
+rustnet-sched.workspace = true
+rustnet-diag.workspace = true
+rustnet-core = { workspace = true, features = ["std"] }
+rustnet-crypto.workspace = true
+rustnet-secureboot.workspace = true
+rustnet-ota.workspace = true
+rustnet-fs.workspace = true
+rustnet-net.workspace = true
+rustnet-db.workspace = true
+rustnet-gfx.workspace = true
+rustnet-usb.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"], optional = true }
+
+[dev-dependencies]
+rsa.workspace = true
+rand.workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "rustnet-core"
+description = "RustNet .NET IL runtime: RNX loader, interpreter, GC, host intrinsics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+libm = "0.2"
+
+[features]
+default = ["std"]
+# Disable for the bare-metal (no_std + alloc) profile.
+std = []

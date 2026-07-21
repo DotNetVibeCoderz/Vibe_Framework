@@ -1,0 +1,13 @@
+[package]
+name = "rustnet-hal"
+description = "RustNet unified hardware abstraction layer traits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[features]
+default = ["std"]
+# Disable for the bare-metal (no_std + alloc) profile.
+std = []

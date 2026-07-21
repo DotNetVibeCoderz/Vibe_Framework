@@ -1,0 +1,12 @@
+target/
+bin/
+obj/
+node_modules/
+out/
+*.user
+.vs/
+.idea/
+*.rnx
+!tests/fixtures/**/*.rnx
+artifacts/
+TestResults/

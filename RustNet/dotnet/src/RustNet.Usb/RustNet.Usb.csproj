@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet.Usb: USB device (client/CDC-ACM) and host (enumerate + bulk transfer) support. Chip-gated.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+[package]
+name = "rustnet-hal-host"
+description = "Host (desktop) simulator implementation of the RustNet HAL"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-hal = { workspace = true, features = ["std"] }

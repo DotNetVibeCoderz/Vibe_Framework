@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet embedded SQL database: in-memory or persisted to flash/SD/USB.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\RustNet.Serialization\RustNet.Serialization.csproj" />
+  </ItemGroup>
+</Project>

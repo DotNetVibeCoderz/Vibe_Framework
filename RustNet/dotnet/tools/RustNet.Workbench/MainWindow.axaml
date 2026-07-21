@@ -1,0 +1,194 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RustNet.Workbench.MainWindow"
+        Title="RustNet Workbench"
+        Width="1000" Height="720"
+        WindowStartupLocation="CenterScreen">
+  <DockPanel Margin="10">
+
+    <!-- Connection bar -->
+    <Border DockPanel.Dock="Top" Padding="0 0 0 10">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Left" Text="RustNet Workbench" FontSize="20" FontWeight="Bold"
+                   VerticalAlignment="Center" Margin="0 0 20 0"/>
+        <Button DockPanel.Dock="Right" x:Name="BtnConnect" Content="Connect" Click="OnConnect" Margin="6 0 0 0"/>
+        <TextBox DockPanel.Dock="Right" x:Name="TxtDevice" Text="tcp:127.0.0.1:7878" Width="220"
+                 Watermark="tcp:host:port or serial:COM3"/>
+        <TextBlock x:Name="LblStatus" Text="not connected" VerticalAlignment="Center"
+                   HorizontalAlignment="Right" Margin="0 0 12 0" Foreground="Gray"/>
+      </DockPanel>
+    </Border>
+
+    <TabControl>
+
+      <TabItem Header="Device">
+        <StackPanel Spacing="8" Margin="8">
+          <TextBlock Text="Device information" FontWeight="Bold"/>
+          <TextBox x:Name="TxtInfo" IsReadOnly="True" Height="120" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Refresh" Click="OnRefreshInfo"/>
+            <Button Content="Reboot device" Click="OnReboot"/>
+          </StackPanel>
+          <Separator/>
+          <TextBlock Text="Secure provisioning" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="TxtKeyDir" Width="380" Watermark="key directory (for generate / provision)"/>
+            <Button Content="Generate keypair" Click="OnGenerateKeys"/>
+            <Button Content="Provision device" Click="OnProvision"/>
+          </StackPanel>
+          <TextBlock x:Name="LblKeysInfo" Foreground="Gray"/>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Apps">
+        <DockPanel Margin="8">
+          <StackPanel DockPanel.Dock="Top" Spacing="8">
+            <TextBlock Text="Flash application (.dll is compiled + signed automatically)" FontWeight="Bold"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="TxtAppPath" Width="320" Watermark="path to app .dll or .rnx"/>
+              <TextBox x:Name="TxtAppName" Width="120" Watermark="app name"/>
+              <ComboBox x:Name="CmbChip" Width="110" SelectedIndex="0">
+                <ComboBoxItem>host-sim</ComboBoxItem>
+                <ComboBoxItem>esp32</ComboBoxItem>
+                <ComboBoxItem>esp32c3</ComboBoxItem>
+                <ComboBoxItem>k210</ComboBoxItem>
+                <ComboBoxItem>stm32</ComboBoxItem>
+                <ComboBoxItem>ti</ComboBoxItem>
+                <ComboBoxItem>nxp</ComboBoxItem>
+              </ComboBox>
+              <Button Content="Flash" Click="OnFlashApp"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Refresh list" Click="OnRefreshApps"/>
+              <Button Content="Start" Click="OnStartApp"/>
+              <Button Content="Stop" Click="OnStopApp"/>
+              <Button Content="Erase" Click="OnEraseApp"/>
+            </StackPanel>
+          </StackPanel>
+          <ListBox x:Name="LstApps" Margin="0 8 0 0"/>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Data">
+        <StackPanel Spacing="8" Margin="8">
+          <TextBlock Text="Upload data / assets to the device" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="TxtDataLocal" Width="340" Watermark="local file"/>
+            <TextBox x:Name="TxtDataRemote" Width="200" Watermark="remote path e.g. config.json"/>
+            <Button Content="Push" Click="OnDataPush"/>
+            <Button Content="Pull" Click="OnDataPull"/>
+          </StackPanel>
+          <TextBox x:Name="TxtDataOut" IsReadOnly="True" Height="220" TextWrapping="Wrap"
+                   Watermark="pulled content appears here"/>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Config + WiFi">
+        <StackPanel Spacing="8" Margin="8">
+          <TextBlock Text="Secure configuration (encrypted at rest on device)" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="TxtCfgKey" Width="200" Watermark="key e.g. api.token"/>
+            <TextBox x:Name="TxtCfgValue" Width="280" Watermark="value"/>
+            <Button Content="Set" Click="OnConfigSet"/>
+            <Button Content="Get" Click="OnConfigGet"/>
+          </StackPanel>
+          <Separator/>
+          <TextBlock Text="WiFi credentials" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="TxtSsid" Width="200" Watermark="SSID"/>
+            <TextBox x:Name="TxtPsk" Width="200" Watermark="password" PasswordChar="*"/>
+            <Button Content="Save to device" Click="OnWifiSave"/>
+          </StackPanel>
+          <TextBlock x:Name="LblCfgOut" Foreground="Gray"/>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Boot image">
+        <StackPanel Spacing="8" Margin="8">
+          <TextBlock Text="Boot splash (raw RGB565 file)" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="TxtBootFile" Width="320" Watermark="path to .rgb565 file"/>
+            <TextBox x:Name="TxtBootW" Width="70" Watermark="width"/>
+            <TextBox x:Name="TxtBootH" Width="70" Watermark="height"/>
+            <Button Content="Upload" Click="OnBootSet"/>
+            <Button Content="Download" Click="OnBootGet"/>
+          </StackPanel>
+          <TextBlock x:Name="LblBootOut" Foreground="Gray"/>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Display">
+        <DockPanel Margin="8">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
+            <Button Content="Capture display" Click="OnCaptureDisplay"/>
+            <TextBlock x:Name="LblDisplayInfo" VerticalAlignment="Center" Foreground="Gray"/>
+          </StackPanel>
+          <Border Margin="0 8 0 0" Background="#111" HorizontalAlignment="Stretch">
+            <Image x:Name="ImgDisplay" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None"/>
+          </Border>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Logs">
+        <DockPanel Margin="8">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
+            <Button Content="Refresh" Click="OnRefreshLogs"/>
+            <CheckBox x:Name="ChkFollow" Content="Auto-refresh (1s)"/>
+          </StackPanel>
+          <TextBox x:Name="TxtLogs" IsReadOnly="True" Margin="0 8 0 0" AcceptsReturn="True"
+                   FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"/>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="Profiler">
+        <StackPanel Spacing="8" Margin="8">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Sample now" Click="OnRefreshPerf"/>
+            <CheckBox x:Name="ChkPerfWatch" Content="Watch (1s)"/>
+          </StackPanel>
+          <TextBox x:Name="TxtPerf" IsReadOnly="True" Height="160" TextWrapping="Wrap"
+                   FontFamily="Cascadia Mono,Consolas,monospace"/>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="OTA">
+        <StackPanel Spacing="8" Margin="8">
+          <TextBlock Text="Firmware over-the-air update (signed, A/B slots, auto-rollback)" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox x:Name="TxtOtaFile" Width="320" Watermark="firmware payload file"/>
+            <TextBox x:Name="TxtOtaKey" Width="240" Watermark="private key (.key)"/>
+            <Button Content="Push update" Click="OnOtaPush"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Confirm healthy" Click="OnOtaConfirm"/>
+            <Button Content="Rollback" Click="OnOtaRollback"/>
+          </StackPanel>
+          <ProgressBar x:Name="PrgOta" Minimum="0" Maximum="100"/>
+          <TextBlock x:Name="LblOtaOut" Foreground="Gray"/>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Firmware">
+        <StackPanel Spacing="8" Margin="8">
+          <TextBlock Text="Multi-chip firmware manager" FontWeight="Bold"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ComboBox x:Name="CmbFwChip" Width="110" SelectedIndex="0">
+              <ComboBoxItem>host</ComboBoxItem>
+              <ComboBoxItem>esp32</ComboBoxItem>
+                <ComboBoxItem>esp32c3</ComboBoxItem>
+                <ComboBoxItem>k210</ComboBoxItem>
+              <ComboBoxItem>stm32</ComboBoxItem>
+              <ComboBoxItem>ti</ComboBoxItem>
+              <ComboBoxItem>nxp</ComboBoxItem>
+            </ComboBox>
+            <Button Content="Build variant (cargo)" Click="OnFwBuild"/>
+            <Button Content="List built images" Click="OnFwList"/>
+          </StackPanel>
+          <TextBox x:Name="TxtFwOut" IsReadOnly="True" Height="240" AcceptsReturn="True"
+                   FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"/>
+        </StackPanel>
+      </TabItem>
+
+    </TabControl>
+  </DockPanel>
+</Window>

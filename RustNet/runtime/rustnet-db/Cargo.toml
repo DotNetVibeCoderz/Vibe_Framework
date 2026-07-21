@@ -1,0 +1,8 @@
+[package]
+name = "rustnet-db"
+description = "Embedded SQL database engine (SQLite-style subset): in-memory or persisted to flash/SD/USB"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

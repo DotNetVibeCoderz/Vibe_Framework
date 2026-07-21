@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet community driver library: sensors, actuators, displays.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\RustNet.Hal\RustNet.Hal.csproj" />
+    <ProjectReference Include="..\RustNet.Buses\RustNet.Buses.csproj" />
+  </ItemGroup>
+</Project>

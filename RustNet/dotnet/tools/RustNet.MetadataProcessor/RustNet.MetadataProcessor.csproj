@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>rustnet-mdp</AssemblyName>
+    <RootNamespace>RustNet.MetadataProcessor</RootNamespace>
+    <Description>Compiles .NET assemblies into compact RNX modules for the RustNet runtime.</Description>
+  </PropertyGroup>
+</Project>

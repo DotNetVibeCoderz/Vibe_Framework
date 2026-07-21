@@ -1,0 +1,127 @@
+{
+  "name": "rustnet-tools",
+  "displayName": "RustNet Tools",
+  "description": "Flash, run, debug and monitor RustNet (.NET on MCU) devices from VSCode",
+  "version": "0.1.0",
+  "publisher": "rustnet",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "rustnet.deviceInfo", "title": "RustNet: Device Info" },
+      { "command": "rustnet.flashApp", "title": "RustNet: Flash Current Project" },
+      { "command": "rustnet.listApps", "title": "RustNet: List Apps" },
+      { "command": "rustnet.startApp", "title": "RustNet: Start App" },
+      { "command": "rustnet.stopApp", "title": "RustNet: Stop App" },
+      { "command": "rustnet.eraseApp", "title": "RustNet: Erase App" },
+      { "command": "rustnet.showLogs", "title": "RustNet: Show Device Logs" },
+      { "command": "rustnet.followLogs", "title": "RustNet: Follow Device Logs" },
+      { "command": "rustnet.profile", "title": "RustNet: Profiler Snapshot" },
+      { "command": "rustnet.captureDisplay", "title": "RustNet: Capture Display" },
+      { "command": "rustnet.startVirtualDevice", "title": "RustNet: Start Virtual Device" },
+      { "command": "rustnet.openSimulator", "title": "RustNet: Open Simulator Panel" },
+      { "command": "rustnet.newProject", "title": "RustNet: New Project From Template" }
+    ],
+    "configuration": {
+      "title": "RustNet",
+      "properties": {
+        "rustnet.cliPath": {
+          "type": "string",
+          "default": "rustnet",
+          "description": "Path to the rustnet CLI executable"
+        },
+        "rustnet.device": {
+          "type": "string",
+          "default": "tcp:127.0.0.1:7878",
+          "description": "Device transport: tcp:host:port or serial:COM3[:baud]"
+        },
+        "rustnet.signingKey": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the RSA private signing key (.key) used when flashing"
+        },
+        "rustnet.debuggerPath": {
+          "type": "string",
+          "default": "rustnet-debugger",
+          "description": "Path to the rustnet-debugger DAP adapter (an executable, or a .dll run via dotnet)"
+        }
+      }
+    },
+    "breakpoints": [
+      { "language": "csharp" }
+    ],
+    "debuggers": [
+      {
+        "type": "rustnet",
+        "label": "RustNet Device",
+        "languages": ["csharp"],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to the app .dll (or prebuilt .rnx)"
+              },
+              "device": {
+                "type": "string",
+                "description": "Device transport: tcp:host:port or serial:COM3[:baud]",
+                "default": "tcp:127.0.0.1:7878"
+              },
+              "key": {
+                "type": "string",
+                "description": "Path to the RSA signing key (.key)"
+              },
+              "name": {
+                "type": "string",
+                "description": "App name on the device (defaults to the dll name)"
+              },
+              "chip": {
+                "type": "string",
+                "description": "Chip family",
+                "default": "host-sim"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "rustnet",
+            "request": "launch",
+            "name": "RustNet: Debug on device",
+            "program": "${workspaceFolder}/bin/Debug/net10.0/${workspaceFolderBasename}.dll",
+            "device": "tcp:127.0.0.1:7878",
+            "key": "${workspaceFolder}/keys/rustnet-signing.key"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "RustNet: Debug on device",
+            "description": "Debug a RustNet app on a device or the virtual device",
+            "body": {
+              "type": "rustnet",
+              "request": "launch",
+              "name": "RustNet: Debug on device",
+              "program": "^\"\\${workspaceFolder}/bin/Debug/net10.0/\\${workspaceFolderBasename}.dll\"",
+              "device": "tcp:127.0.0.1:7878",
+              "key": "^\"\\${workspaceFolder}/keys/rustnet-signing.key\""
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

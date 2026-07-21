@@ -1,0 +1,60 @@
+[workspace]
+resolver = "2"
+# firmware-esp32 builds with the Espressif Xtensa toolchain (rust-toolchain
+# "esp") against ESP-IDF — it is its own workspace, excluded from the host
+# build.
+exclude = ["runtime/firmware-esp32"]
+members = [
+    "runtime/rustnet-hal",
+    "runtime/rustnet-hal-host",
+    "runtime/rustnet-hal-esp32c3",
+    "runtime/rustnet-sched",
+    "runtime/rustnet-diag",
+    "runtime/rustnet-core",
+    "runtime/rustnet-crypto",
+    "runtime/rustnet-secureboot",
+    "runtime/rustnet-ota",
+    "runtime/rustnet-fs",
+    "runtime/rustnet-net",
+    "runtime/rustnet-db",
+    "runtime/rustnet-gfx",
+    "runtime/rustnet-usb",
+    "runtime/firmware",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/rustnet/rustnet"
+
+[workspace.dependencies]
+rustnet-hal = { path = "runtime/rustnet-hal", default-features = false }
+rustnet-hal-host = { path = "runtime/rustnet-hal-host" }
+rustnet-sched = { path = "runtime/rustnet-sched" }
+rustnet-diag = { path = "runtime/rustnet-diag" }
+rustnet-core = { path = "runtime/rustnet-core", default-features = false }
+rustnet-crypto = { path = "runtime/rustnet-crypto" }
+rustnet-secureboot = { path = "runtime/rustnet-secureboot" }
+rustnet-ota = { path = "runtime/rustnet-ota" }
+rustnet-fs = { path = "runtime/rustnet-fs" }
+rustnet-net = { path = "runtime/rustnet-net" }
+rustnet-db = { path = "runtime/rustnet-db" }
+rustnet-gfx = { path = "runtime/rustnet-gfx" }
+rustnet-usb = { path = "runtime/rustnet-usb" }
+
+aes = "0.8"
+ctr = "0.9"
+cbc = "0.1"
+sha2 = "0.10"
+hmac = "0.12"
+rsa = { version = "0.9", features = ["sha2"] }
+rand = "0.8"
+fatfs = "0.3"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

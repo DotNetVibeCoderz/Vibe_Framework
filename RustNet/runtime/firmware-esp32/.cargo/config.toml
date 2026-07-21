@@ -1,0 +1,23 @@
+[build]
+target = "xtensa-esp32-espidf"
+# esp-idf-sys refuses long output paths on Windows; keep the build tree
+# short and out of the repo.
+target-dir = "C:/rnesp"
+
+[target.xtensa-esp32-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+rustflags = ["--cfg", "espidf_time64"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+MCU = "esp32"
+# Pinned ESP-IDF release; embuild downloads and manages it.
+ESP_IDF_VERSION = "v5.2.3"
+# Keep IDF + tools in ~/.espressif (short paths; shared across builds).
+ESP_IDF_TOOLS_INSTALL_DIR = "global"
+# Without this, esp-idf-sys silently ignores the defaults file and the
+# main task gets a 3.5 KB stack — far too small for the interpreter.
+ESP_IDF_SDKCONFIG_DEFAULTS = { value = "sdkconfig.defaults", relative = true }

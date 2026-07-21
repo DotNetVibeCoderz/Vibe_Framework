@@ -1,0 +1,9 @@
+[package]
+name = "rustnet-hal-esp32c3"
+description = "ESP32-C3 (RISC-V) board bring-up for the RustNet HAL: register-level GPIO now, esp-hal integration points for the rest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-hal = { workspace = true, default-features = false }

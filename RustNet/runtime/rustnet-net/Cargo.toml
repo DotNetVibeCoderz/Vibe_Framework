@@ -1,0 +1,9 @@
+[package]
+name = "rustnet-net"
+description = "Networking: TCP/UDP, HTTP client/server, MQTT client, micro web server, TLS hook"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-diag.workspace = true

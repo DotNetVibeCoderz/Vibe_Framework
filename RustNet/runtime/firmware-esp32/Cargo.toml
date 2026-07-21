@@ -1,0 +1,36 @@
+[package]
+name = "rustnet-firmware-esp32"
+description = "RustNet firmware for ESP32 (Xtensa) on ESP-IDF: the std service stack served over UART0 RNDP"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+# Standalone workspace: built with the Espressif Rust toolchain
+# (rust-toolchain.toml channel "esp"), not the host workspace.
+[workspace]
+
+[[bin]]
+name = "rustnet-firmware-esp32"
+harness = false
+
+[dependencies]
+esp-idf-svc = "0.51"
+rustnet-firmware = { path = "../firmware", default-features = false, features = ["chip-esp32"] }
+rustnet-hal = { path = "../rustnet-hal", features = ["std"] }
+rustnet-fs = { path = "../rustnet-fs" }
+rustnet-diag = { path = "../rustnet-diag" }
+
+[features]
+default = []
+# M5Stack Tough: AXP192 PMIC + ILI9342C 320x240 panel bring-up (board.rs).
+board-m5tough = []
+
+[build-dependencies]
+embuild = "0.33"
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true
+opt-level = "z"

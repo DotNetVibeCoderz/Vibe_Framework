@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>rustnet</AssemblyName>
+    <Description>RustNet command-line tools: build, sign, flash, manage and debug devices.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Deploy\RustNet.Deploy.csproj" />
+    <ProjectReference Include="..\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
+  </ItemGroup>
+</Project>

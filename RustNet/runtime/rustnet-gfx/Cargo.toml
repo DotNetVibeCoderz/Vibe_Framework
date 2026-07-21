@@ -1,0 +1,13 @@
+[package]
+name = "rustnet-gfx"
+description = "Graphics: RGB565 framebuffer, shapes, text, double buffering, display drivers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-hal = { workspace = true, features = ["std"] }
+font8x8 = "0.3"
+
+[dev-dependencies]
+rustnet-hal-host.workspace = true
