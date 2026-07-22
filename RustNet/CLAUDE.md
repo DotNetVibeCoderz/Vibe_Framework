@@ -20,6 +20,10 @@ cargo build -p rustnet-core --no-default-features --target riscv32imc-unknown-no
 # ESP32 Xtensa firmware (separate workspace, `esp` toolchain, target-dir C:/rnesp) — from runtime/firmware-esp32/
 cargo build --release                                   # generic ESP32 DevKit (UART0 RNDP)
 cargo build --release --features board-m5tough          # M5Stack Tough: AXP192 PMIC + ILI9342C panel + PSRAM
+# Flash WITH the custom partition table so the FAT "storage" partition exists —
+# without it the device falls back to in-RAM MemFs and apps/provisioning/autostart
+# do not survive reboot:
+espflash flash <elf> --partition-table runtime/firmware-esp32/partitions.csv --port COMn
 
 # .NET (libraries + tools + tests) — from dotnet/
 dotnet build dotnet/RustNet.slnx

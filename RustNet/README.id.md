@@ -84,3 +84,7 @@ generics pengguna, filter `catch when`). Milestone berikutnya: bring-up
 silikon nyata (PAC vendor ESP32/ESP32-C3/K210/Cortex-M, profil `no_std`) — lihat
 [PLAN.md](PLAN.md) untuk roadmap dan [Progress.md](Progress.md) untuk
 checklist perkembangan. Panduan bring-up chip: [docs/chips.md](docs/chips.md).
+
+## Kredit
+
+Dibuat oleh **Gravicode Studios**, dipimpin oleh **Kang Fadhil**.

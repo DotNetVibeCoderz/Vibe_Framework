@@ -24,6 +24,7 @@ public static class Program
     public static void Main()
     {
         Console.WriteLine("__NAME__ graphics primitives demo");
+        Console.WriteLine("by Gravicode Studios, led by Kang Fadhil");
         Display.Init(320, 240);
         W = Display.Width();
         H = Display.Height();
@@ -58,9 +59,10 @@ public static class Program
             Display.FillRect(i * sw, 8, sw - 2, 24, Hue(i * 255 / n));
         }
         Border(Color.FromRgb(60, 60, 90));
-        CenterText(H / 2 - 24, "RustNet", Color.White, 4);
-        CenterText(H / 2 + 12, "Graphics Primitives", Color.Cyan, 2);
-        CenterText(H - 24, "low-level drawing showcase", Color.FromRgb(140, 140, 160), 1);
+        CenterText(H / 2 - 28, "RustNet", Color.White, 4);
+        CenterText(H / 2 + 8, "Graphics Primitives", Color.Cyan, 2);
+        CenterText(H - 30, "low-level drawing showcase", Color.FromRgb(140, 140, 160), 1);
+        CenterText(H - 16, "by Gravicode Studios - Kang Fadhil", Color.FromRgb(110, 190, 255), 1);
         Display.Present();
         Sleep.Ms(2200);
     }

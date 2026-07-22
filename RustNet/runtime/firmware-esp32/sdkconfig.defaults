@@ -1,5 +1,21 @@
 # RustNet on ESP32: generous stacks for the IL interpreter's recursion,
 # quiet console (UART0 carries RNDP frames, not logs).
+#
+# Custom partition table with a FAT "storage" partition (partitions.csv) — the
+# default single-app table has none, so mount_fat() falls back to in-RAM MemFs
+# and apps + provisioning vanish on reboot (breaking autostart). 4 MB layout
+# fits both the 4 MB WROOM DevKit and the 16 MB M5 Tough.
+#
+# NOTE: esp-idf-sys/embuild resolves CONFIG_PARTITION_TABLE_CUSTOM_FILENAME
+# relative to the CMake *build* dir, not this crate, so a bare "partitions.csv"
+# is not found — an ABSOLUTE path is required. Adjust it if the repo lives
+# elsewhere. And when flashing, pass the same table to the flasher so the device
+# actually gets the storage partition:
+#   espflash flash <elf> --partition-table runtime/firmware-esp32/partitions.csv
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="C:/Users/mifma/Documents/CodeSandbox/RustNet/runtime/firmware-esp32/partitions.csv"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=32768
 CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=16384
 CONFIG_LOG_DEFAULT_LEVEL_ERROR=y

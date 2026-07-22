@@ -146,8 +146,23 @@ internal static class DeviceCommands
                 client.EraseApp(Require(args, 1, "app name"));
                 Console.WriteLine("erased");
                 return 0;
+            case "autostart":
+            {
+                string target = Require(args, 1, "app name or 'off'");
+                if (target is "off" or "none")
+                {
+                    client.SetAutostart(null);
+                    Console.WriteLine("autostart disabled");
+                }
+                else
+                {
+                    client.SetAutostart(target);
+                    Console.WriteLine($"autostart set to '{target}'");
+                }
+                return 0;
+            }
             default:
-                Console.Error.WriteLine("usage: rustnet apps list|start|stop|erase [name]");
+                Console.Error.WriteLine("usage: rustnet apps list|start|stop|erase [name] | autostart <name>|off");
                 return 2;
         }
     }

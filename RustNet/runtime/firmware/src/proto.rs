@@ -19,6 +19,9 @@ pub const CMD_FLASH_APP: u8 = 0x11;
 pub const CMD_ERASE_APP: u8 = 0x12;
 pub const CMD_START_APP: u8 = 0x13;
 pub const CMD_STOP_APP: u8 = 0x14;
+/// Set (payload = app name) or clear (empty payload) the app that auto-runs on
+/// power-up / reboot.
+pub const CMD_SET_AUTOSTART: u8 = 0x15;
 pub const CMD_FLASH_DATA: u8 = 0x20;
 pub const CMD_READ_DATA: u8 = 0x21;
 pub const CMD_SET_CONFIG: u8 = 0x30;

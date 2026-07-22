@@ -86,6 +86,11 @@ public sealed class RndpClient(IDeviceTransport transport) : IDisposable
 
     public void StopApp() => Expect(Cmd.StopApp, Array.Empty<byte>());
 
+    /// <summary>Set the app that auto-runs on power-up/reboot, or pass null/empty
+    /// to disable autostart.</summary>
+    public void SetAutostart(string? name) =>
+        Expect(Cmd.SetAutostart, string.IsNullOrEmpty(name) ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(name));
+
     public void FlashData(string remotePath, byte[] data)
     {
         byte[] pathBytes = Encoding.UTF8.GetBytes(remotePath);

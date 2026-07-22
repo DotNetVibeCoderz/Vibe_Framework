@@ -62,6 +62,9 @@ fn main() {
 
     let service = Arc::new(Mutex::new(DeviceService::new(state)));
 
+    // Resume the autostart app (if configured) after a power-up / reset.
+    service.lock().unwrap().try_autostart();
+
     // WiFi + TCP RNDP when credentials are stored (rustnet wifi set).
     let (ssid, psk) = {
         let svc = service.lock().unwrap();

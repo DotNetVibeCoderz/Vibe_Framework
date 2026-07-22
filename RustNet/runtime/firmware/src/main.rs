@@ -64,6 +64,8 @@ fn main() {
     let state = SharedState::new(chip::make_board(), fs);
     let logger = state.logger.clone();
     let service = Arc::new(Mutex::new(DeviceService::new(state)));
+    // Resume the autostart app (if configured) across a restart.
+    service.lock().unwrap().try_autostart();
 
     if stdio {
         // USB-CDC/UART-shaped transport: RNDP frames over stdin/stdout.

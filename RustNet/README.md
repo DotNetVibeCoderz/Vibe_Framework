@@ -83,3 +83,7 @@ matrices). Real-silicon bring-up (ESP32/ESP32-C3/K210/Cortex-M vendor
 PACs, `no_std` profile) is the next milestone — see [PLAN.md](PLAN.md)
 for the roadmap and [Progress.md](Progress.md) for the live checklist.
 Chip bring-up guide: [docs/chips.md](docs/chips.md).
+
+## Credits
+
+Made by **Gravicode Studios**, led by **Kang Fadhil**.

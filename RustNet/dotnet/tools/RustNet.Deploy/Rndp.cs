@@ -11,6 +11,7 @@ public static class Cmd
     public const byte EraseApp = 0x12;
     public const byte StartApp = 0x13;
     public const byte StopApp = 0x14;
+    public const byte SetAutostart = 0x15;
     public const byte FlashData = 0x20;
     public const byte ReadData = 0x21;
     public const byte SetConfig = 0x30;

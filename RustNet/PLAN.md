@@ -284,6 +284,22 @@ drivers ship through the package registry, not the core repo.
 Machine learning and navigation for capable MCUs. TFLite is gated to boards
 with enough compute/RAM; the lightweight ML and NMEA paths run anywhere.
 
+- [x] **Persistent app autostart** — a flashed app is **automatically executed
+      on power-up / reboot**, no host reconnect. Starting an app (`flash --start`
+      / `apps start`) marks it as the autostart app; the firmware relaunches it
+      on boot. `rustnet apps autostart <name>|off` toggles it explicitly; a
+      boot-loop guard skips autostart after 3 consecutive unattended boots (any
+      flash/start clears the counter) so a crashing app cannot brick the device.
+      **Verified live on the M5 Tough**: the demo auto-resumes after an
+      `espflash reset` with no host `--start`. Two persistence fixes were
+      needed: `DirFs::write` now `fsync`s (FAT metadata was lingering in RAM),
+      and the ESP32 must be built + flashed with the custom partition table
+      (`partitions.csv` — a FAT "storage" partition; the default table has none,
+      so the device was silently falling back to in-RAM MemFs). Flash with
+      `espflash flash <elf> --partition-table runtime/firmware-esp32/partitions.csv`.
+      TODO: make the build's partition-table path portable (esp-idf-sys needs an
+      absolute `CONFIG_PARTITION_TABLE_CUSTOM_FILENAME`); teach `rustnet firmware
+      flash` to pass `--partition-table` automatically.
 - [ ] **TensorFlow Lite for Microcontrollers** — `RustNet.AI.TensorFlow`:
       load a `.tflite` model (embed via `RustNet.Resources`), run inference
       on int8/float tensors; backed by a Rust host bridge to TFLite-Micro on

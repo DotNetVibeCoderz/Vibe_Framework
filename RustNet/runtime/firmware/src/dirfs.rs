@@ -2,6 +2,7 @@
 //! directory; the ESP32 firmware reuses it over a mounted FAT partition.
 
 use rustnet_fs::{DirEntry, FsError, FsResult, Vfs};
+use std::io::Write;
 use std::path::PathBuf;
 
 /// Directory-backed Vfs so the virtual device persists across restarts.
@@ -34,7 +35,15 @@ impl Vfs for DirFs {
         if let Some(parent) = p.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        std::fs::write(p, data).map_err(|e| FsError::Io(e.to_string()))
+        // fsync the file: on the ESP32 this backs a FAT partition whose FATFS
+        // directory/allocation metadata otherwise lingers in a RAM cache, so an
+        // abrupt reset would leave the volume inconsistent (and `format_if_
+        // mount_failed` would then wipe it). sync_all() forces it durable so
+        // flashed apps + provisioning survive a power cycle (autostart).
+        let mut f = std::fs::File::create(&p).map_err(|e| FsError::Io(e.to_string()))?;
+        f.write_all(data).map_err(|e| FsError::Io(e.to_string()))?;
+        f.sync_all().map_err(|e| FsError::Io(e.to_string()))?;
+        Ok(())
     }
 
     fn append(&mut self, path: &str, data: &[u8]) -> FsResult<()> {

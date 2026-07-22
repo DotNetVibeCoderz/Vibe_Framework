@@ -49,3 +49,7 @@ device, capture the framebuffer instead:
 ```bash
 rustnet display capture -o demo.ppm
 ```
+
+---
+
+Made by **Gravicode Studios**, led by **Kang Fadhil**.

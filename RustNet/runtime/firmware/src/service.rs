@@ -75,8 +75,9 @@ impl DeviceService {
             CMD_INFO => {
                 let perf = self.state.perf.snapshot();
                 let apps = self.app_names()?.len();
+                let autostart = self.config_get("autostart").ok().flatten().filter(|n| !n.is_empty());
                 let json = format!(
-                    r#"{{"chip":"{}","board":"{}","version":"{}","protocol":{},"uptime_ms":{},"heap_used":{},"apps":{},"wifi":{},"active_app":{},"running":{}}}"#,
+                    r#"{{"chip":"{}","board":"{}","version":"{}","protocol":{},"uptime_ms":{},"heap_used":{},"apps":{},"wifi":{},"active_app":{},"running":{},"autostart":{}}}"#,
                     chip::chip_family().name(),
                     chip::board_name(),
                     FW_VERSION,
@@ -87,6 +88,7 @@ impl DeviceService {
                     chip::has_wifi(),
                     self.active_app.as_deref().map(|a| format!("\"{a}\"")).unwrap_or("null".into()),
                     self.runner.as_ref().map(|r| r.is_running()).unwrap_or(false),
+                    autostart.map(|a| format!("\"{a}\"")).unwrap_or("null".into()),
                 );
                 Ok(json.into_bytes())
             }
@@ -149,6 +151,9 @@ impl DeviceService {
                 if self.active_app.is_none() {
                     self.active_app = Some(name.clone());
                 }
+                // A fresh flash means a human is at the controls — clear any
+                // autostart crash-loop counter.
+                self.reset_autostart_fails();
                 self.state.logger.info("flash", format!("app '{name}' flashed ({} bytes)", container.len()));
                 Ok(Vec::new())
             }
@@ -167,31 +172,37 @@ impl DeviceService {
                 if self.active_app.as_deref() == Some(name.as_str()) {
                     self.active_app = None;
                 }
+                // Erasing the autostart app disables autostart.
+                if self.config_get("autostart").ok().flatten().as_deref() == Some(name.as_str()) {
+                    let _ = self.config_set("autostart", "");
+                }
                 self.state.logger.info("flash", format!("app '{name}' erased"));
                 Ok(Vec::new())
             }
             CMD_START_APP => {
                 let name = String::from_utf8_lossy(p).to_string();
                 validate_name(&name)?;
-                self.stop_app();
-                let container = self
-                    .state
-                    .fs
-                    .lock()
-                    .unwrap()
-                    .read(&format!("/apps/{name}.rnsb"))
-                    .map_err(|_| format!("app '{name}' not found"))?;
-                let key = self.pub_key().ok_or("device not provisioned")?;
-                let image = verify(&container, &key, chip::chip_family())
-                    .map_err(|e| format!("signature check failed: {e}"))?;
-                let runner = AppRunner::start(
-                    &name,
-                    image.payload.to_vec(),
-                    self.state.clone(),
-                    self.debug.clone(),
-                )?;
-                self.runner = Some(runner);
-                self.active_app = Some(name);
+                self.launch_app(&name)?;
+                // An explicit start makes this the autostart app and clears the
+                // crash-loop counter (a human just chose to run it).
+                let _ = self.config_set("autostart", &name);
+                self.reset_autostart_fails();
+                Ok(Vec::new())
+            }
+            CMD_SET_AUTOSTART => {
+                if p.is_empty() {
+                    self.config_set("autostart", "")?;
+                    self.state.logger.info("boot", "autostart disabled");
+                } else {
+                    let name = String::from_utf8_lossy(p).to_string();
+                    validate_name(&name)?;
+                    if self.state.fs.lock().unwrap().read(&format!("/apps/{name}.rnsb")).is_err() {
+                        return Err(format!("app '{name}' not found"));
+                    }
+                    self.config_set("autostart", &name)?;
+                    self.reset_autostart_fails();
+                    self.state.logger.info("boot", format!("autostart set to '{name}'"));
+                }
                 Ok(Vec::new())
             }
             CMD_STOP_APP => {
@@ -460,6 +471,69 @@ impl DeviceService {
         }
     }
 
+    /// Load, verify and run a stored app. Shared by the start command and the
+    /// boot-time autostart path.
+    fn launch_app(&mut self, name: &str) -> Result<(), String> {
+        self.stop_app();
+        let container = self
+            .state
+            .fs
+            .lock()
+            .unwrap()
+            .read(&format!("/apps/{name}.rnsb"))
+            .map_err(|_| format!("app '{name}' not found"))?;
+        let key = self.pub_key().ok_or("device not provisioned")?;
+        let image = verify(&container, &key, chip::chip_family())
+            .map_err(|e| format!("signature check failed: {e}"))?;
+        let runner = AppRunner::start(
+            name,
+            image.payload.to_vec(),
+            self.state.clone(),
+            self.debug.clone(),
+        )?;
+        self.runner = Some(runner);
+        self.active_app = Some(name.to_string());
+        Ok(())
+    }
+
+    /// Guard against an autostart app that crashes the whole device: this counts
+    /// consecutive unattended boots. Reset by any explicit flash/start/autostart.
+    const MAX_AUTOSTART_FAILS: u32 = 3;
+
+    fn autostart_fails(&self) -> u32 {
+        self.config_get("autostart_fails").ok().flatten().and_then(|v| v.parse().ok()).unwrap_or(0)
+    }
+
+    fn reset_autostart_fails(&self) {
+        let _ = self.config_set("autostart_fails", "0");
+    }
+
+    /// Launch the configured autostart app on boot, if any. Called once after
+    /// the service is constructed, from every transport's boot sequence.
+    /// A crash-loop guard skips autostart after several consecutive boots with
+    /// no human intervention (so a bad app never bricks the device).
+    pub fn try_autostart(&mut self) {
+        let Some(name) = self.config_get("autostart").ok().flatten().filter(|n| !n.is_empty())
+        else {
+            return;
+        };
+        let fails = self.autostart_fails();
+        if fails >= Self::MAX_AUTOSTART_FAILS {
+            self.state.logger.warn(
+                "boot",
+                format!("autostart '{name}' skipped after {fails} failed boots — flash or start it to re-enable"),
+            );
+            return;
+        }
+        // Count this attempt *before* launching; a device reboot loop keeps
+        // incrementing until the guard trips. A human command resets it.
+        let _ = self.config_set("autostart_fails", &(fails + 1).to_string());
+        match self.launch_app(&name) {
+            Ok(()) => self.state.logger.info("boot", format!("autostart '{name}' running")),
+            Err(e) => self.state.logger.warn("boot", format!("autostart '{name}' failed: {e}")),
+        }
+    }
+
     fn app_names(&self) -> Result<Vec<String>, String> {
         let entries = self.state.fs.lock().unwrap().list("/apps").map_err(|e| e.to_string())?;
         Ok(entries
@@ -653,6 +727,53 @@ mod tests {
         assert_eq!(resp.code, ST_ERR);
         let msg = String::from_utf8_lossy(&resp.payload).to_string();
         assert!(msg.contains("signature"), "{msg}");
+    }
+
+    #[test]
+    fn autostart_resumes_app_after_reboot() {
+        let mut svc = make_service();
+        let keys = provision(&mut svc);
+        flash_demo(&mut svc, keys, "demo");
+
+        // Starting an app marks it as the autostart app.
+        assert_eq!(svc.handle(&Frame::new(CMD_START_APP, b"demo".to_vec())).code, ST_OK);
+        assert_eq!(svc.config_get("autostart").unwrap().as_deref(), Some("demo"));
+        svc.stop_app();
+
+        // Simulate a reboot: a fresh service sharing the same persisted storage.
+        let fs = svc.state.fs.clone();
+        let mut state2 = SharedState::new(Box::new(HostBoard::new()), Box::new(MemFs::new()));
+        state2.fs = fs;
+        let mut svc2 = DeviceService::new(state2);
+        assert!(svc2.active_app.is_none(), "fresh service has no active app yet");
+
+        svc2.try_autostart();
+        assert_eq!(svc2.active_app.as_deref(), Some("demo"), "autostart launched the app");
+        assert!(svc2.runner.is_some());
+    }
+
+    #[test]
+    fn autostart_guard_trips_after_repeated_boots() {
+        let mut svc = make_service();
+        let keys = provision(&mut svc);
+        flash_demo(&mut svc, keys, "demo");
+        svc.config_set("autostart", "demo").unwrap();
+
+        // Each unattended boot increments the fail counter; after the limit,
+        // autostart is skipped so a crash-looping app cannot brick the device.
+        for _ in 0..DeviceService::MAX_AUTOSTART_FAILS {
+            svc.stop_app();
+            svc.try_autostart();
+        }
+        assert_eq!(svc.autostart_fails(), DeviceService::MAX_AUTOSTART_FAILS);
+        svc.stop_app();
+        svc.active_app = None;
+        svc.try_autostart();
+        assert!(svc.active_app.is_none(), "autostart skipped once the guard trips");
+
+        // An explicit start clears the guard.
+        assert_eq!(svc.handle(&Frame::new(CMD_START_APP, b"demo".to_vec())).code, ST_OK);
+        assert_eq!(svc.autostart_fails(), 0);
     }
 
     #[test]
