@@ -21,10 +21,16 @@ espup install --targets esp32        # installs the "esp" toolchain
 ```bash
 cd runtime/firmware-esp32
 cargo build --release                # first build downloads ESP-IDF (~10-20 min)
-espflash flash --port COM4 target/xtensa-esp32-espidf/release/rustnet-firmware-esp32
+# Output lands in the short target-dir from .cargo/config.toml, NOT ./target —
+# esp-idf-sys refuses long build paths on Windows. Always pass the partition
+# table, or the FAT `storage` partition is missing and nothing survives reboot.
+espflash flash C:/rnesp/xtensa-esp32-espidf/release/rustnet-firmware-esp32 \
+    --partition-table partitions.csv --port COM4
 ```
 
-Then, from the repo root:
+Then, from the repo root (full step-by-step walkthrough, including app
+creation and troubleshooting: `docs/deploy-esp32.md`, or
+`docs/deploy-esp32.id.md` in Indonesian):
 
 ```bash
 rustnet probe --port COM4 --log                       # watch it boot

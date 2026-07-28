@@ -24,7 +24,11 @@ ESP32-WROOM-32 devkit: `rustnet provision/flash/logs --device
 serial:COM4`, RSA-2048 signature verification on-chip, and C# apps —
 including the full v0.4 language matrix with async/await — executing on
 the chip; GPIO is live (LED blink from managed code). See
-`runtime/firmware-esp32/README.md` for the toolchain and flash steps.
+`runtime/firmware-esp32/README.md` for the toolchain and flash steps, and
+**`docs/deploy-esp32.md`** (Indonesian: `docs/deploy-esp32.id.md`) for the
+full step-by-step deployment walkthrough. For the M5Stack Tough — the
+first board with a live panel — see **`docs/deploy-m5tough.md`**
+(Indonesian: `docs/deploy-m5tough.id.md`).
 
 Hard-won build facts: `ESP_IDF_SDKCONFIG_DEFAULTS` must be set
 explicitly or the defaults file is silently ignored (3.5 KB main-task

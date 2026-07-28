@@ -24,6 +24,12 @@ dotnet build dotnet/RustNet.slnx       # libraries + tools
 The virtual device is the real firmware with the RNDP protocol served
 over TCP instead of USB/UART — every tool works identically against it.
 
+Deploying to **real ESP32 silicon** instead? Follow
+[`deploy-esp32.md`](deploy-esp32.md) (Indonesian:
+[`deploy-esp32.id.md`](deploy-esp32.id.md)) — same flow, but the firmware
+is flashed with `espflash`, commands take `--device serial:COMx`, and
+apps must be signed with `--chip esp32`.
+
 ## 3. Provision device security
 
 ```bash

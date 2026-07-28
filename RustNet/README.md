@@ -82,7 +82,9 @@ test suites (94 Rust + 10 .NET tests, including three end-to-end feature
 matrices). Real-silicon bring-up (ESP32/ESP32-C3/K210/Cortex-M vendor
 PACs, `no_std` profile) is the next milestone — see [PLAN.md](PLAN.md)
 for the roadmap and [Progress.md](Progress.md) for the live checklist.
-Chip bring-up guide: [docs/chips.md](docs/chips.md).
+Chip bring-up guide: [docs/chips.md](docs/chips.md). Deploying an app,
+step by step: [ESP32-WROOM-32](docs/deploy-esp32.md) ·
+[M5Stack Tough](docs/deploy-m5tough.md) (live 320×240 panel).
 
 ## Credits
 
