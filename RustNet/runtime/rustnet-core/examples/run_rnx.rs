@@ -11,10 +11,18 @@ struct DevHost {
     console: String,
     files: HashMap<String, Vec<u8>>,
     clock: u64,
+    /// App-defined `[InternalCall]` hooks — a firmware answers these, so they
+    /// are answered benignly here and reported at exit rather than aborting
+    /// the run.
+    unknown: Vec<String>,
 }
 
 impl RuntimeHost for DevHost {
     fn console_write(&mut self, text: &str) {
+        // Stream rather than buffer: an embedded-style app often never
+        // returns, and output that only appears at exit never appears at all.
+        print!("{text}");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
         self.console.push_str(text);
     }
     fn now_ms(&mut self) -> u64 {
@@ -61,7 +69,12 @@ impl RuntimeHost for DevHost {
             }
             n if n.starts_with("RustNet.Net.Wifi::") => Ok(HostValue::Bool(true)),
             n if n.starts_with("RustNet.Sys.") => Ok(HostValue::I32(4100)),
-            other => Err(format!("unknown internal call: {other}")),
+            other => {
+                if !self.unknown.iter().any(|n| n == other) {
+                    self.unknown.push(other.to_string());
+                }
+                Ok(if other.ends_with("()") { HostValue::I32(0) } else { HostValue::Void })
+            }
         }
     }
 }
@@ -79,7 +92,9 @@ fn main() {
     );
     let mut interp = Interpreter::new(&module, DevHost::default());
     let exit = interp.run_to_completion();
-    print!("{}", interp.host.console);
+    for name in &interp.host.unknown {
+        eprintln!("[note] answered benignly (a firmware must implement it): {name}");
+    }
     match exit {
         RunExit::Completed => eprintln!("[exit: completed, {} instructions]", interp.instructions),
         other => {

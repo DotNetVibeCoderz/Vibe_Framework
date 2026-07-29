@@ -86,7 +86,8 @@ silikon nyata (PAC vendor ESP32/ESP32-C3/K210/Cortex-M, profil `no_std`) — lih
 checklist perkembangan. Panduan bring-up chip: [docs/chips.md](docs/chips.md).
 Langkah demi langkah deploy aplikasi:
 [ESP32-WROOM-32](docs/deploy-esp32.id.md) ·
-[M5Stack Tough](docs/deploy-m5tough.id.md) (panel 320×240 hidup).
+[M5Stack Tough](docs/deploy-m5tough.id.md) (panel 320×240 hidup) ·
+[Netduino 3 WiFi](docs/deploy-netduino3.id.md) (C# di bare-metal ARM).
 
 ## Kredit
 

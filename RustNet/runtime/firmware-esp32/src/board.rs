@@ -1233,6 +1233,80 @@ impl M5Display {
     }
 }
 
+// ------------------------------------------------- WiFi station interface --
+//
+// Read-only view of the station the *firmware* joined at boot (see
+// `main.rs::wifi::start`). Bring-up/-down stay unsupported on purpose: the
+// radio is owned by the boot path, which reads credentials from device config,
+// so an app must not be able to tear it down — RNDP itself may be riding on it.
+pub struct IdfStaNetif;
+
+impl rustnet_hal::netif::NetInterface for IdfStaNetif {
+    fn kind(&self) -> rustnet_hal::netif::NetIfKind {
+        rustnet_hal::netif::NetIfKind::Wifi
+    }
+    fn bring_up(&mut self, _config: &rustnet_hal::netif::NetIfConfig) -> HalResult<()> {
+        // integration point: esp_wifi_set_config + esp_wifi_connect. The boot
+        // path owns the join today (`rustnet wifi --ssid <s> --psk <p>`).
+        Err(HalError::NotSupported)
+    }
+    fn bring_down(&mut self) -> HalResult<()> {
+        Err(HalError::NotSupported)
+    }
+    fn status(&mut self) -> HalResult<rustnet_hal::netif::NetIfStatus> {
+        let mut status = rustnet_hal::netif::NetIfStatus::default();
+
+        // Association: SSID and signal come from the AP record. A failure here
+        // just means "not associated" — report a down interface, not an error,
+        // so a status call is always safe to make.
+        let mut ap: sys::wifi_ap_record_t = unsafe { core::mem::zeroed() };
+        if unsafe { sys::esp_wifi_sta_get_ap_info(&mut ap) } != sys::ESP_OK {
+            return Ok(status);
+        }
+        let ssid_len = ap.ssid.iter().position(|&b| b == 0).unwrap_or(ap.ssid.len());
+        status.ssid = String::from_utf8_lossy(&ap.ssid[..ssid_len]).into_owned();
+        status.rssi_dbm = ap.rssi as i32;
+        status.up = true;
+
+        let mut mac = [0u8; 6];
+        if unsafe { sys::esp_wifi_get_mac(sys::wifi_interface_t_WIFI_IF_STA, mac.as_mut_ptr()) }
+            == sys::ESP_OK
+        {
+            status.mac = format_mac(&mac);
+        }
+
+        // Address: the STA netif is registered under a well-known key.
+        let handle = unsafe {
+            sys::esp_netif_get_handle_from_ifkey(c"WIFI_STA_DEF".as_ptr())
+        };
+        if !handle.is_null() {
+            let mut info: sys::esp_netif_ip_info_t = unsafe { core::mem::zeroed() };
+            if unsafe { sys::esp_netif_get_ip_info(handle, &mut info) } == sys::ESP_OK {
+                status.ip = format_ipv4(info.ip.addr);
+                status.gateway = format_ipv4(info.gw.addr);
+            }
+        }
+        Ok(status)
+    }
+}
+
+/// `esp_ip4_addr.addr` holds the octets in ascending byte order.
+fn format_ipv4(addr: u32) -> String {
+    let o = addr.to_le_bytes();
+    format!("{}.{}.{}.{}", o[0], o[1], o[2], o[3])
+}
+
+fn format_mac(mac: &[u8; 6]) -> String {
+    let mut out = String::with_capacity(17);
+    for (i, b) in mac.iter().enumerate() {
+        if i > 0 {
+            out.push(':');
+        }
+        out.push_str(&format!("{b:02X}"));
+    }
+    out
+}
+
 pub struct Esp32IdfBoard {
     pins: Vec<IdfPin>,
     delay: IdfDelay,
@@ -1246,6 +1320,7 @@ pub struct Esp32IdfBoard {
     uarts: std::collections::HashMap<u8, IdfUart>,
     can: IdfCan,
     signals: std::collections::HashMap<u32, IdfSignal>,
+    sta: IdfStaNetif,
     #[cfg(feature = "board-m5tough")]
     display: Option<M5Display>,
 }
@@ -1276,6 +1351,7 @@ impl Esp32IdfBoard {
             uarts: std::collections::HashMap::new(),
             can: IdfCan { installed: false, loopback: false },
             signals: std::collections::HashMap::new(),
+            sta: IdfStaNetif,
             #[cfg(feature = "board-m5tough")]
             display: None,
         }
@@ -1371,9 +1447,15 @@ impl Board for Esp32IdfBoard {
     }
     fn netif(
         &mut self,
-        _kind: rustnet_hal::netif::NetIfKind,
+        kind: rustnet_hal::netif::NetIfKind,
     ) -> HalResult<&mut dyn rustnet_hal::netif::NetInterface> {
-        Err(HalError::NotSupported) // integration point: esp-idf-svc EspWifi
+        match kind {
+            rustnet_hal::netif::NetIfKind::Wifi => {
+                Ok(&mut self.sta as &mut dyn rustnet_hal::netif::NetInterface)
+            }
+            // integration point: esp_eth for Ethernet, PPPoS for ppp/cellular.
+            _ => Err(HalError::NotSupported),
+        }
     }
     fn signal(&mut self, pin: u32) -> HalResult<&mut dyn rustnet_hal::signal::SignalControl> {
         if pin >= PIN_COUNT {

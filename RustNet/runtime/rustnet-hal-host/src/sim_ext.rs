@@ -420,11 +420,18 @@ impl NetInterface for SimNetIf {
             self.status.rssi_dbm = -67;
             self.status.operator_name = "RustNet-Cell".into();
         }
+        if self.kind == NetIfKind::Wifi {
+            self.status.rssi_dbm = -55;
+            // Echo back the network we were told to join, so the simulated
+            // interface reports the same SSID a real one would.
+            self.status.ssid = config.ssid.clone();
+        }
         Ok(())
     }
     fn bring_down(&mut self) -> HalResult<()> {
         self.status.up = false;
         self.status.ip.clear();
+        self.status.ssid.clear();
         Ok(())
     }
     fn status(&mut self) -> HalResult<NetIfStatus> {

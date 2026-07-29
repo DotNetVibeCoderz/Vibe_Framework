@@ -1,0 +1,64 @@
+[package]
+name = "rustnet-firmware-stm32"
+description = "RustNet firmware for STM32F4 (bare-metal Cortex-M4F): board bring-up exercising the rustnet-hal-stm32 GPIO/USART/delay surface"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace: bare-metal `thumbv7em-none-eabihf` with cortex-m-rt,
+# not the host workspace.
+[workspace]
+
+[dependencies]
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+# panic-halt replaced by an in-tree handler that signals on the LED.
+# The HAL trait surface needs `alloc` (GpioPin::on_edge takes a Box), so a
+# bare-metal RustNet port must supply a global allocator.
+embedded-alloc = "0.6"
+# Used only to configure the clock tree and provide the reset vector; every
+# peripheral access below goes through the RustNet HAL traits. The target part
+# is selected by the board feature, not pinned here.
+stm32f4xx-hal = "0.22"
+rustnet-hal = { path = "../rustnet-hal", default-features = false }
+rustnet-hal-stm32 = { path = "../rustnet-hal-stm32" }
+rustnet-rndp = { path = "../rustnet-rndp" }
+# Signature verification on-device. default-features off keeps std out;
+# everything these need works on alloc alone.
+rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false }
+# The IL interpreter, no_std + alloc. This is the whole RustNet runtime as far
+# as executing a C# app goes; the std-bound service crates (RNDP, FS, OTA) are
+# not involved, since the app is embedded in the image rather than flashed.
+rustnet-core = { path = "../rustnet-core", default-features = false }
+# USB CDC, so the Netduino can serve RNDP over its own USB socket instead of
+# needing a USB-serial adapter on the header. Optional: the Nucleo has no USB
+# connector wired to the target, and pulls none of this in.
+usb-device = { version = "0.3", optional = true }
+usbd-serial = { version = "0.2", optional = true }
+
+[features]
+default = ["board-nucleo-f401re", "app-blink"]
+
+# Which embedded application the image carries. Exactly one.
+# Blink: the minimal proof — one GPIO pin, ~21 KB peak heap.
+app-blink = []
+# LanguageTour: exercises collections, LINQ, lambdas, interfaces, generics
+# and exception filters, reporting the result on the LED. ~49 KB peak heap,
+# so it needs a board with more than the F401RE's reserve.
+app-language-tour = []
+
+# Nucleo-F401RE: STM32F401RET6, HSI-derived 84 MHz, LD2 on PA5, console on
+# USART2 (PA2/PA3). 512 KB flash / 96 KB RAM.
+board-nucleo-f401re = ["stm32f4xx-hal/stm32f401"]
+# Netduino 3 WiFi: STM32F427VIT6, 25 MHz HSE to 168 MHz, USR_LED on PA10,
+# console on UART7 (PE7/PE8, the goPort2 header). 2 MB flash / 256 KB RAM.
+board-netduino3-wifi = [
+    "stm32f4xx-hal/stm32f427",
+    "stm32f4xx-hal/usb_fs",
+    "dep:usb-device",
+    "dep:usbd-serial",
+]
+
+[profile.release]
+opt-level = "s"
+lto = true
+debug = true          # keep symbols for probe-rs backtraces

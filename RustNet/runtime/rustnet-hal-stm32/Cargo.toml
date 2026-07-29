@@ -1,0 +1,9 @@
+[package]
+name = "rustnet-hal-stm32"
+description = "STM32F4 (ARM Cortex-M4F) board bring-up for the RustNet HAL: register-level GPIO, USART and DWT delay; integration points named for the rest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-hal = { workspace = true, default-features = false }

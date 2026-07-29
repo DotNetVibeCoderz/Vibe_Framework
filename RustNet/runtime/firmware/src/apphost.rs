@@ -837,15 +837,67 @@ impl RuntimeHost for FirmwareHost {
             "RustNet.Net.Wifi::Connect(string,string)" => {
                 let ssid = Self::arg_str(a, 0)?;
                 let psk = Self::arg_str(a, 1)?;
-                let mut wifi = self.state.wifi.lock().unwrap();
-                wifi.ssid = Some(ssid.clone());
-                wifi.psk = Some(psk);
-                wifi.connected = !ssid.is_empty();
+                let connected = {
+                    let mut wifi = self.state.wifi.lock().unwrap();
+                    wifi.ssid = Some(ssid.clone());
+                    wifi.psk = Some(psk.clone());
+                    wifi.connected = !ssid.is_empty();
+                    wifi.connected
+                };
+                // Also hand the join to the board's WiFi interface, so
+                // `GetSsid`/`GetIp` report it. `NotSupported` is expected and
+                // harmless on targets whose firmware joins the radio itself
+                // (ESP32) — this call stays bookkeeping there.
+                if connected {
+                    use rustnet_hal::netif::{NetIfConfig, NetIfKind};
+                    let cfg = NetIfConfig {
+                        ssid: ssid.clone(),
+                        password: psk,
+                        ..Default::default()
+                    };
+                    let mut board = self.state.board.lock().unwrap();
+                    match board.netif(NetIfKind::Wifi).and_then(|n| n.bring_up(&cfg)) {
+                        Ok(()) | Err(rustnet_hal::HalError::NotSupported) => {}
+                        Err(e) => self
+                            .state
+                            .logger
+                            .warn("wifi", format!("interface bring-up failed: {e}")),
+                    }
+                }
                 self.state.logger.info("wifi", format!("connected to '{ssid}'"));
-                Ok(HostValue::Bool(wifi.connected))
+                Ok(HostValue::Bool(connected))
             }
             "RustNet.Net.Wifi::IsConnected()" => {
                 Ok(HostValue::Bool(self.state.wifi.lock().unwrap().connected))
+            }
+            "RustNet.Net.Wifi::GetSsid()" => {
+                use rustnet_hal::netif::NetIfKind;
+                // Ask the interface first: on targets where the firmware joins
+                // at boot it is the only component that knows the truth. Fall
+                // back to whatever `Connect` recorded.
+                let reported = {
+                    let mut board = self.state.board.lock().unwrap();
+                    board
+                        .netif(NetIfKind::Wifi)
+                        .and_then(|n| n.status())
+                        .map(|s| s.ssid)
+                        .unwrap_or_default()
+                };
+                if !reported.is_empty() {
+                    return Ok(HostValue::Str(reported));
+                }
+                let recorded = self.state.wifi.lock().unwrap().ssid.clone();
+                Ok(HostValue::Str(recorded.unwrap_or_default()))
+            }
+            "RustNet.Net.Wifi::GetIp()" => {
+                use rustnet_hal::netif::NetIfKind;
+                let mut board = self.state.board.lock().unwrap();
+                let ip = board
+                    .netif(NetIfKind::Wifi)
+                    .and_then(|n| n.status())
+                    .map(|s| s.ip)
+                    .map_err(|e| e.to_string())?;
+                Ok(HostValue::Str(ip))
             }
             // ---- MQTT ----
             "RustNet.Net.Mqtt::Connect(string,string)" => {

@@ -239,6 +239,37 @@ mod tests {
     }
 
     #[test]
+    fn netif_wifi_reports_ssid_and_ip() {
+        use rustnet_hal::netif::{NetIfConfig, NetIfKind};
+        let mut board = HostBoard::new();
+        let wifi = board.netif(NetIfKind::Wifi).unwrap();
+        // Nothing joined yet: no SSID, no address.
+        let st = wifi.status().unwrap();
+        assert!(!st.up);
+        assert_eq!(st.ssid, "");
+        assert_eq!(st.ip, "");
+
+        wifi.bring_up(&NetIfConfig {
+            ssid: "RustNet-Test-AP".into(),
+            password: "hunter2".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        let st = wifi.status().unwrap();
+        assert!(st.up);
+        assert_eq!(st.ssid, "RustNet-Test-AP");
+        assert_eq!(st.ip, "192.168.1.40");
+        assert!(st.rssi_dbm < 0);
+
+        // Dropping the link clears both, so a stale SSID can't be reported.
+        wifi.bring_down().unwrap();
+        let st = wifi.status().unwrap();
+        assert!(!st.up);
+        assert_eq!(st.ssid, "");
+        assert_eq!(st.ip, "");
+    }
+
+    #[test]
     fn signal_generate_capture_echo() {
         let mut board = HostBoard::new();
         board.signal_inject_capture(5, vec![500, 1500, 500]);

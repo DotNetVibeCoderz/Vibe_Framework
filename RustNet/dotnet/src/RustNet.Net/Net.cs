@@ -69,6 +69,22 @@ public static class Wifi
 
     [InternalCall]
     public static bool IsConnected() => throw new RuntimeOnlyException();
+
+    /// <summary>
+    /// The network actually associated, as reported by the interface — not an
+    /// echo of what <see cref="Connect"/> was given. On targets where the
+    /// firmware joins the radio at boot (ESP32), this is the only way for an
+    /// app to learn the real SSID. Empty when not associated.
+    /// </summary>
+    [InternalCall]
+    public static string GetSsid() => throw new RuntimeOnlyException();
+
+    /// <summary>
+    /// Current IPv4 address as "a.b.c.d", empty while unassigned. Throws if
+    /// the board exposes no WiFi interface.
+    /// </summary>
+    [InternalCall]
+    public static string GetIp() => throw new RuntimeOnlyException();
 }
 
 /// <summary>MQTT 3.1.1 client (single connection per app).</summary>

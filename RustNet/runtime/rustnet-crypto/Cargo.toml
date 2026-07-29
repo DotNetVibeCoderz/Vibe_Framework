@@ -5,6 +5,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# Host builds keep std, for `std::error::Error` and the faster big-integer
+# paths. Bare-metal firmware takes `default-features = false`; everything the
+# crate exposes works on alloc alone.
+default = ["std"]
+std = ["rsa/std", "sha2/std", "hmac/std"]
+
 [dependencies]
 aes.workspace = true
 ctr.workspace = true

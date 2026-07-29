@@ -1,13 +1,15 @@
 [workspace]
 resolver = "2"
 # firmware-esp32 builds with the Espressif Xtensa toolchain (rust-toolchain
-# "esp") against ESP-IDF — it is its own workspace, excluded from the host
-# build.
-exclude = ["runtime/firmware-esp32"]
+# "esp") against ESP-IDF, and firmware-stm32 targets bare-metal Cortex-M via
+# cortex-m-rt — each is its own workspace, excluded from the host build.
+exclude = ["runtime/firmware-esp32", "runtime/firmware-stm32"]
 members = [
     "runtime/rustnet-hal",
     "runtime/rustnet-hal-host",
     "runtime/rustnet-hal-esp32c3",
+    "runtime/rustnet-hal-stm32",
+    "runtime/rustnet-rndp",
     "runtime/rustnet-sched",
     "runtime/rustnet-diag",
     "runtime/rustnet-core",
@@ -31,10 +33,15 @@ repository = "https://github.com/rustnet/rustnet"
 [workspace.dependencies]
 rustnet-hal = { path = "runtime/rustnet-hal", default-features = false }
 rustnet-hal-host = { path = "runtime/rustnet-hal-host" }
+rustnet-rndp = { path = "runtime/rustnet-rndp" }
 rustnet-sched = { path = "runtime/rustnet-sched" }
 rustnet-diag = { path = "runtime/rustnet-diag" }
 rustnet-core = { path = "runtime/rustnet-core", default-features = false }
-rustnet-crypto = { path = "runtime/rustnet-crypto" }
+# default-features off at the workspace level, because a member cannot turn
+# them off otherwise: Cargo ignores `default-features = false` on a
+# `workspace = true` dependency unless the workspace declaration says so.
+# Host consumers opt back in with features = ["std"].
+rustnet-crypto = { path = "runtime/rustnet-crypto", default-features = false }
 rustnet-secureboot = { path = "runtime/rustnet-secureboot" }
 rustnet-ota = { path = "runtime/rustnet-ota" }
 rustnet-fs = { path = "runtime/rustnet-fs" }
@@ -43,12 +50,14 @@ rustnet-db = { path = "runtime/rustnet-db" }
 rustnet-gfx = { path = "runtime/rustnet-gfx" }
 rustnet-usb = { path = "runtime/rustnet-usb" }
 
-aes = "0.8"
-ctr = "0.9"
+aes = { version = "0.8", default-features = false }
+ctr = { version = "0.9", default-features = false }
 cbc = "0.1"
-sha2 = "0.10"
-hmac = "0.12"
-rsa = { version = "0.9", features = ["sha2"] }
+sha2 = { version = "0.10", default-features = false }
+hmac = { version = "0.12", default-features = false }
+# default-features off so the crypto crates reach bare metal; the `std`
+# feature on rustnet-crypto puts std back for host builds.
+rsa = { version = "0.9", default-features = false, features = ["sha2"] }
 rand = "0.8"
 fatfs = "0.3"
 

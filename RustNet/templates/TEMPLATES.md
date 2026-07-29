@@ -12,6 +12,7 @@ Instantiate with `rustnet new <template> <ProjectName>`.
 | graphics-primitives | Low-level primitives showcase (nanoFramework-style): lines, filled circles/triangles/ellipses, rounded rects, gradients, clipping, matrix-rain — adapts to panel size, runs live on the M5Stack Tough |
 | filesystem-test | Filesystem smoke test: write/read/append/list/delete |
 | wifi-mqtt | Connects WiFi, publishes sensor telemetry over MQTT |
+| mqtt-dashboard | Live MQTT session drawn on the device panel: telemetry out, command topic in, status lamp, counters and a scrolling inbox — reconnects on its own, runs on the M5Stack Tough |
 | datalogger-db | 1-Wire DS18B20 → on-flash SQL database, RTC timestamps, watchdog, JSON summary |
 | can-gateway | CAN frames bridged into Modbus holding registers; Ethernet up |
 | ui-dashboard | XML-defined display UI (WPF/Glide-style) bound to live ADC readings |

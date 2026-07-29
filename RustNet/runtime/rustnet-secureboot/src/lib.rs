@@ -8,6 +8,16 @@
 //! | u32 sig_len | payload | signature(PKCS#1 v1.5 SHA-256 over header+payload)
 //! ```
 
+//! `no_std + alloc` without the default `std` feature, so bare-metal firmware
+//! verifies a container with exactly the code the host tools use.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+
 use rustnet_crypto::{rsa_sign, rsa_verify, CryptoError};
 
 pub const MAGIC: &[u8; 4] = b"RNSB";

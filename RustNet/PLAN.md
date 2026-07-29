@@ -99,8 +99,56 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         Built with `--features board-m5tough`; **verified live on the M5 Tough
         (COM5)** running the `graphics-primitives` demo — backlight + full
         colour showcase confirmed on-screen
-- [ ] bare-metal firmware executor (no_std service loop); ESP32-C3
-      (esp-hal), K210, STM32/TI/NXP Cortex-M boards
+- [~] bare-metal firmware executor (no_std service loop) — **done for
+      STM32F4** (see below); ESP32-C3 (esp-hal) and K210 still pending
+- [x] **STM32F4 (Cortex-M4F) runs RustNet on bare metal** — the first target
+      with no OS underneath it at all. `runtime/rustnet-hal-stm32` implements
+      the HAL straight on the chip's registers with no dependency beyond
+      `rustnet-hal`, so it stays inside the host workspace and its test run
+      while also building for `thumbv7em-none-eabihf`;
+      `runtime/firmware-stm32` is the bare-metal binary. Verified on a
+      **Nucleo-F401RE** (over SWD, with the GPIO/USART registers read back to
+      confirm the HAL wrote what it claimed) and a **Netduino 3 WiFi**
+      (STM32F427VIT6, over DFU):
+  - [x] **C# executing on-chip** — `rustnet-core` is already `no_std + alloc`,
+        so the interpreter links directly; the whole `RuntimeHost` surface is
+        four methods. A language-tour demo passes all nine of its checks on
+        silicon: string interpolation, `List<T>`+foreach, `Dictionary`, LINQ
+        `Where`/`Select`/`Sum`/`OrderBy`, lambdas, interface dispatch with a
+        `ToString` override, user generics, `catch when`
+  - [x] **the no_std service loop** — answers the tools, then hands the
+        interpreter a slice of fuel. No RTOS, no executor. Receive is
+        interrupt-driven of necessity: the F4 USART has no receive FIFO, so a
+        polled reader drops most of every frame while a slice runs
+  - [x] **`rustnet provision` / `flash` over the wire** — RSA-2048 verified
+        **on-chip** (67 ms at 84 MHz, 35 ms at 168 MHz).
+        `rustnet-crypto` and `rustnet-secureboot` gained a default `std`
+        feature and now build for `thumbv7em-none-eabihf`
+  - [x] **persistence in a reserved flash sector** — the provisioned key and
+        the uploaded application survive a power cycle, so an uploaded app
+        **starts again by itself**. `ExtMemory` already described NOR flash
+        exactly, so the HAL needed no new trait; `memory.x` keeps the sector
+        out of the FLASH region so the linker can never place code where the
+        firmware erases
+  - [x] **RNDP over the Netduino's own USB, as CDC** — one cable carries DFU
+        for the firmware and RNDP for everything after it, no adapter. One PLL
+        gives both the 168 MHz core and USB's 48 MHz from the single 25 MHz
+        crystal
+  - [~] **microSD block device** (`sdcard.rs`) — SPI is live in the HAL and the
+        card identifies completely (CMD8 echo, ACMD41, OCR, CSD), but blocks are
+        unreadable at every clock rate with the card reporting no error: a
+        healthy controller in front of dead storage. Written but unproven;
+        needs a second card
+  - [ ] a real filesystem — the reserved sector holds fixed records, not paths,
+        so `RustNet.IO.FileSystem` is still unimplemented here. `rustnet-fs`
+        already has a `FatVolume` that implements `Vfs`, and `fatfs` has an
+        `alloc` feature, so this is mostly the same `no_std` port the crypto
+        crates took
+  - [ ] **WiFi** — the Netduino's radio is a TI CC3100 on SPI1, which speaks
+        SimpleLink's proprietary binary protocol rather than AT commands.
+        There is no Rust driver for it, and nanoFramework's own port of this
+        board ships without WiFi. An ESP-AT companion on a spare UART is the
+        cheaper route to `NetInterface` here
 
 ---
 

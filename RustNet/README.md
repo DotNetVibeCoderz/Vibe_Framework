@@ -84,7 +84,8 @@ PACs, `no_std` profile) is the next milestone — see [PLAN.md](PLAN.md)
 for the roadmap and [Progress.md](Progress.md) for the live checklist.
 Chip bring-up guide: [docs/chips.md](docs/chips.md). Deploying an app,
 step by step: [ESP32-WROOM-32](docs/deploy-esp32.md) ·
-[M5Stack Tough](docs/deploy-m5tough.md) (live 320×240 panel).
+[M5Stack Tough](docs/deploy-m5tough.md) (live 320×240 panel) ·
+[Netduino 3 WiFi](docs/deploy-netduino3.md) (C# on bare-metal ARM).
 
 ## Credits
 

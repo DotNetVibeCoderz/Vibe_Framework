@@ -8,5 +8,12 @@ out/
 .idea/
 *.rnx
 !tests/fixtures/**/*.rnx
+# Embedded in the STM32 firmware image via include_bytes!, so it is a build
+# input rather than an artifact — a Rust-only checkout must not need dotnet.
+!runtime/firmware-stm32/demo/*.rnx
 artifacts/
 TestResults/
+.claude/worktrees/
+
+# Signing keypairs. The private half must never be committed.
+keys/

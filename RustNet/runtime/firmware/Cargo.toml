@@ -33,10 +33,11 @@ image-codecs = ["dep:image"]
 [dependencies]
 rustnet-hal = { workspace = true, features = ["std"] }
 rustnet-hal-host.workspace = true
+rustnet-rndp.workspace = true
 rustnet-sched.workspace = true
 rustnet-diag.workspace = true
 rustnet-core = { workspace = true, features = ["std"] }
-rustnet-crypto.workspace = true
+rustnet-crypto = { workspace = true, features = ["std"] }
 rustnet-secureboot.workspace = true
 rustnet-ota.workspace = true
 rustnet-fs.workspace = true

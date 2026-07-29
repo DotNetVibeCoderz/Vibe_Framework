@@ -2,6 +2,16 @@
 //! sign/verify (PKCS#1 v1.5 + SHA-256, matching `RSA.SignData` defaults in
 //! the .NET tooling). Chip variants can swap these for hardware
 //! acceleration behind the same functions.
+//!
+//! `no_std + alloc` without the default `std` feature, so bare-metal firmware
+//! can verify a signed image with the same code the host tools use.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 
 use aes::cipher::{KeyIvInit, StreamCipher};
 use hmac::{Hmac, Mac};
@@ -29,6 +39,7 @@ impl core::fmt::Display for CryptoError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for CryptoError {}
 
 // ---- hashing ----

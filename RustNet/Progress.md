@@ -4,6 +4,16 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
 ✅ = implemented + verified by tests on the virtual device.
 🟡 = structure in place, real-silicon/vendor work pending.
 
+## Bare metal (STM32F4)
+- [x] **C# running on Cortex-M4F with no OS** — `rustnet-hal-stm32` (register-level GPIO/USART/SPI/DWT delay, no deps beyond `rustnet-hal`) + `runtime/firmware-stm32`; verified on a Nucleo-F401RE over SWD and a Netduino 3 WiFi over DFU ✅
+- [x] **no_std service loop** — answers RNDP, then gives the interpreter a fuel slice; interrupt-driven receive because the F4 USART has no FIFO ✅
+- [x] **`provision` + `flash` over the wire**, RSA-2048 verified on-chip; `rustnet-crypto`/`rustnet-secureboot` now build for `thumbv7em-none-eabihf` ✅
+- [x] **Persistence in a reserved flash sector** — key and app survive a power cycle, so an uploaded app restarts by itself ✅
+- [x] **RNDP over the Netduino's native USB (CDC)** — no serial adapter; one PLL feeds both the 168 MHz core and USB's 48 MHz ✅
+- [~] microSD block device — card identifies but its storage is unreadable; driver written, unproven, needs a second card 🟡
+- [ ] Real filesystem on this target (`RustNet.IO.FileSystem`) — `rustnet-fs`'s `FatVolume` plus a `no_std` port of `fatfs`
+- [ ] WiFi (CC3100) — see Networking
+
 ## Communication protocols (add)
 - [~] **RNDP over BLE** (v1.0) — `BleTransport` fragments the RNDP byte stream
   into ATT-MTU GATT packets + reassembles (framing unchanged); `ble:<address>`
@@ -21,6 +31,10 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
 - [x] Cellular interface (APN, operator, RSSI) ✅
 - [x] WiFi (pre-existing) + HTTP/MQTT/web server ✅
 - [ ] Real-silicon network stacks (lwIP/AT-modem) 🟡
+- [ ] STM32F4 `NetInterface` — the Netduino's CC3100 needs TI's SimpleLink
+      protocol ported (no Rust driver exists; nanoFramework's own port of the
+      board ships without WiFi). An ESP-AT companion on a spare UART is the
+      cheaper path 🟡
 
 ## Database
 - [x] Embedded SQL engine (`rustnet-db`): CREATE/INSERT/SELECT/UPDATE/DELETE, WHERE/ORDER BY/LIMIT, aggregates, LIKE, `?` params ✅
