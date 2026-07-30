@@ -638,8 +638,16 @@ public static class Ui
         WriteAttrInt(sb, "columns", e.Columns, 1);
         WriteAttrInt(sb, "selected", e.Selected, -1);
         WriteAttrInt(sb, "scroll", e.ScrollOffset, 0);
+        WriteAttrInt(sb, "pad", e.Padding, 2);
+        WriteAttrInt(sb, "gap", e.Gap, 2);
         WriteAttr(sb, "fg", Hex(e.Foreground), Hex(UiColors.White));
         WriteAttr(sb, "bg", Hex(e.Background), Hex(UiColors.Black));
+        WriteAttr(sb, "border", Hex(e.Border), Hex(UiColors.Gray));
+        WriteAttr(sb, "group", e.Group, "");
+        if (e.Horizontal)
+        {
+            sb.Append(" orient=\"horizontal\"");
+        }
         if (e.Checked)
         {
             sb.Append(" checked=\"true\"");

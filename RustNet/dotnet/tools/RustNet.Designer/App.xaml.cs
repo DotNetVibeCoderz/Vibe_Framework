@@ -21,6 +21,15 @@ public partial class App : Application
             return;
         }
 
+        // Headless: one assistant turn on stdout, so the model path can be
+        // exercised (and scripted) without the window.
+        if (e.Args.Length >= 1 && Array.IndexOf(e.Args, "--ask") >= 0)
+        {
+            int code = Assistant.HeadlessAsk.Run(e.Args, Console.Out);
+            Shutdown(code);
+            return;
+        }
+
         // Headless: round-trip the sample (or an input file) through the
         // designer's load/save and write the RustNet.UI XML out.
         if (e.Args.Length >= 2 && e.Args[0] == "--export")
@@ -100,7 +109,10 @@ public partial class App : Application
 
             Console.WriteLine($"selftest OK: {canvas.Children.Count} visuals, "
                 + $"{map.Count} selectable, round-trip preserved, drag-to-move works");
-            return 0;
+
+            // The assistant's own headless checks: settings, sessions, uploads,
+            // rendering, and that a kernel builds for every provider.
+            return Assistant.AssistantSelfTest.Run(Console.Out) ? 0 : 1;
         }
         catch (Exception ex)
         {

@@ -62,6 +62,9 @@ the VSCode extension's **Simulator Panel** (live display + GPIO + logs).
   [docs/serialization.md](docs/serialization.md)
 - **UI toolkit**: WPF/Glide-style element tree, XML layouts, rendered to
   the device display — [docs/ui.md](docs/ui.md)
+- **UI Designer + AI assistant**: draw a screen, or have "Jack The Code
+  Bender" design it and write the app code — [docs/designer.md](docs/designer.md),
+  [docs/assistant.md](docs/assistant.md)
 
 ## Repository layout
 
@@ -69,7 +72,7 @@ the VSCode extension's **Simulator Panel** (live display + GPIO + logs).
 |---|---|
 | `runtime/` | Rust workspace: HAL + simulator, IL interpreter + GC, scheduler, crypto, secure boot, OTA, FS, networking (+Modbus), SQL database, graphics, USB, firmware |
 | `dotnet/src/` | C# class libraries (`RustNet.Hal`, `RustNet.Buses`, `RustNet.Net`, `RustNet.Data`, `RustNet.Serialization`, `RustNet.UI`, `RustNet.IO`, `RustNet.Devices`, ...) |
-| `dotnet/tools/` | MetadataProcessor (DLL→RNX), Deploy library (TCP/serial), `rustnet` CLI, Avalonia Workbench, WPF UI Designer |
+| `dotnet/tools/` | MetadataProcessor (DLL→RNX), Deploy library (TCP/serial), `rustnet` CLI, Avalonia Workbench, WPF UI Designer with the Semantic-Kernel code assistant |
 | `dotnet/tests/` | xunit suite incl. two E2E apps (full C# → RNX → firmware → interpreter matrix) |
 | `templates/` | 10 app templates (`rustnet new <template> <Name>`) |
 | `vscode-extension/` | VSCode integration (flash, logs, profiler, display, simulator panel) |

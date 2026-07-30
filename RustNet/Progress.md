@@ -143,10 +143,39 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
   devices.txt`: canary-first staged rollout, push+confirm per device,
   abort-after-N-failures (remainder skipped), per-device reporting.
   `OtaCampaign` orchestrator + unit tests + 2-virtual-device E2E
+- [x] **UI Designer: "Jack The Code Bender" assistant** ✅ — Semantic Kernel
+  chat panel in `RustNet.Designer` (OpenAI / Anthropic / Gemini / Ollama,
+  picked at runtime, all settings in `App.config`). Kernel functions cover the
+  RustNet contracts (UI/graphics/language reference), the canvas
+  (validate/apply layout XML), the code pane, the docs and templates,
+  `find_managed_api`, Tavily search, page/file fetch, date-time and an
+  arithmetic evaluator. Multi-session transcript (create/reset/delete) with
+  image + document uploads, markdown→HTML rendering in WebView2 with
+  apply-to-canvas / send-to-code actions, and a 41-prompt gallery.
+  `--ask "<prompt>"` runs one turn headlessly on stdout; verified live against
+  OpenAI gpt-4o + Tavily (streaming, tool calls, layout applied, code generated).
+  Keys live in a gitignored `*.secrets.config`, never in the tracked App.config.
+  Headless coverage in `rustnet-designer --selftest` — incl. a kernel built for
+  every provider. `docs/assistant.md`
+- [x] **UI Designer: editors, panels and deploy** ✅ — centre tabs
+  (Design / Layout XML / Code) on a shared AvalonEdit pane with cut/copy/paste,
+  undo/redo, find, replace (match case, regex, live count, replace-all), go to
+  line and a formatter (Roslyn for C#, XDocument for XML — unparseable text is
+  left alone). Toolbox, inspector, output and assistant panels each show/hide and
+  remember their width. File commands act on the active document with dirty
+  markers and a Close. **Run to device**: `Detect` probes the virtual device and
+  every serial port and takes the chip family from the device's own `info`;
+  code → scratch project → `dotnet build` → RNX → RNSB → flash → start, layout →
+  pushed to `/data/ui.xml` (no reflash). Same libraries as the CLI, in process.
+  Full path exercised in `--selftest` against the virtual device.
+  `docs/designer.md`
+- [x] `Ui.ToXml` now round-trips container `pad`/`gap`, stack `orient`,
+  `border` colour and radio `group` ✅ — the designer saves through it, so these
+  were silently lost before
 
 ## Documentation
 - [x] PLAN.md (roadmap) ✅  Progress.md (this file) ✅
-- [x] docs/: protocols, networking, database, system, serialization, ui, dotnet-support, chips, simulator ✅
+- [x] docs/: protocols, networking, database, system, serialization, ui, dotnet-support, chips, simulator, designer, assistant ✅
 - [x] README.md (English) + README.id.md (Bahasa Indonesia) ✅
 
 ---

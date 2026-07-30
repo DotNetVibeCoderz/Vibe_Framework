@@ -17,3 +17,7 @@ TestResults/
 
 # Signing keypairs. The private half must never be committed.
 keys/
+
+# Local API keys for the Designer's assistant. App.config keeps only
+# ${ENV_VAR} placeholders; the real values live here (see the .example).
+*.secrets.config
