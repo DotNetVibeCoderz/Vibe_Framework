@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use crate::fb::Framebuffer;
 use rustnet_hal::HalError;
 

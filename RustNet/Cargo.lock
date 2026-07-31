@@ -601,6 +601,10 @@ name = "rustnet-diag"
 version = "0.1.0"
 
 [[package]]
+name = "rustnet-espat"
+version = "0.1.0"
+
+[[package]]
 name = "rustnet-firmware"
 version = "0.1.0"
 dependencies = [
@@ -621,6 +625,13 @@ dependencies = [
  "rustnet-sched",
  "rustnet-secureboot",
  "rustnet-usb",
+]
+
+[[package]]
+name = "rustnet-flashfs"
+version = "0.1.0"
+dependencies = [
+ "rustnet-hal",
 ]
 
 [[package]]
@@ -659,6 +670,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustnet-hal-k210"
+version = "0.1.0"
+dependencies = [
+ "rustnet-hal",
+]
+
+[[package]]
 name = "rustnet-hal-stm32"
 version = "0.1.0"
 dependencies = [
@@ -666,10 +684,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustnet-mqtt"
+version = "0.1.0"
+
+[[package]]
 name = "rustnet-net"
 version = "0.1.0"
 dependencies = [
  "rustnet-diag",
+ "rustnet-mqtt",
 ]
 
 [[package]]

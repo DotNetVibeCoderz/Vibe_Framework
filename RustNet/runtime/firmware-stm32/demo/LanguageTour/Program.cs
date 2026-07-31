@@ -84,7 +84,9 @@ internal static class Program
         int led = Board.UserLed();
         Gpio.SetMode(led, PinMode.Output);
 
-        Console.WriteLine("RustNet C# language tour, interpreted on bare-metal ARM");
+        // No architecture in the line: the K210 port runs this same module, and
+        // a banner that names the wrong chip is worse than one that names none.
+        Console.WriteLine("RustNet C# language tour, interpreted on bare metal");
 
         int answer = 42;
         Check("string interpolation", $"answer={answer}" == "answer=42");

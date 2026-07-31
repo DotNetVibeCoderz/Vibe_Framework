@@ -6,8 +6,17 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-rustnet-hal = { workspace = true, features = ["std"] }
-font8x8 = "0.3"
+rustnet-hal = { workspace = true, default-features = false }
+# `unicode` alone: the glyph tables this crate reads are plain consts, and
+# font8x8's `std` feature only adds `Display` impls for them.
+font8x8 = { version = "0.3", default-features = false, features = ["unicode"] }
+
+[features]
+default = ["std"]
+# Disable for the bare-metal (no_std + alloc) profile — the framebuffer is a
+# `Vec<u16>` and the driver behind a `Display` is a `Box<dyn>`, so `alloc` is
+# all this crate ever needed std for.
+std = ["rustnet-hal/std", "font8x8/std"]
 
 [dev-dependencies]
 rustnet-hal-host.workspace = true

@@ -9,13 +9,18 @@ RustNet runs **C#/.NET applications on microcontrollers** via a runtime written 
 ## Commands
 
 ```bash
-# Rust workspace (runtime + firmware) — 104 tests
+# Rust workspace (runtime + firmware) — 155 tests
 cargo test --workspace
 cargo test -p rustnet-core                  # just the IL interpreter
 cargo test -p rustnet-core iterative_fib    # single test by name
 cargo build -p rustnet-firmware             # host "virtual device" binary
 cargo build -p rustnet-firmware --no-default-features --features chip-esp32  # chip variant (no `image` codecs — Xtensa LLVM can't compile them)
 cargo build -p rustnet-core --no-default-features --target riscv32imc-unknown-none-elf  # bare-metal profile
+
+# K210 bare-metal firmware (separate workspace, riscv64gc) — from runtime/firmware-k210/
+cargo build --release                                   # Sipeed Maix Go, blink demo
+rust-objcopy -O binary target/riscv64gc-unknown-none-elf/release/rustnet-firmware-k210 fw.bin
+kflash -p COMn -b 1500000 fw.bin
 
 # ESP32 Xtensa firmware (separate workspace, `esp` toolchain, target-dir C:/rnesp) — from runtime/firmware-esp32/
 cargo build --release                                   # generic ESP32 DevKit (UART0 RNDP)
@@ -60,6 +65,11 @@ A fourth string-level contract: **canonical method names** `Ns.Type::Name(i4,str
 
 Other structure worth knowing:
 - `runtime/rustnet-hal` traits are the chip abstraction; `rustnet-hal-host` is the simulator every test and the virtual device use. Real-silicon bring-up plugs into `runtime/firmware/src/chip.rs` (feature-gated `chip-*`).
+- **Bare-metal ports** live in their own excluded workspaces and pair a register-level HAL crate (no deps beyond `rustnet-hal`, so it stays in the host test run) with a firmware binary: `rustnet-hal-stm32` + `firmware-stm32` (Cortex-M4F) and `rustnet-hal-k210` + `firmware-k210` (K210 RV64GC, Sipeed Maix Go) — **both verified on hardware**. K210 traps worth carrying forward: `mstatus.FS` is `Off` at reset so the FPU must be enabled in `#[pre_init]` or every `f64` traps as an illegal instruction; `ctrlr0`'s layout *moves* between controllers (tmod at bits 10..11 on SPI3 vs 8..9 on SPI0/1, work-mode at 8 vs 6, frame size at bit 0 vs 16); and the Maix panel is driven by **octal** SPI0 with its data lines switched onto the DVP pins by `sysctl.misc.spi_dvp_data_enable`, not by FPIOA.
+- **Bare-metal graphics and files**: `rustnet-gfx` builds `no_std + alloc` (`--no-default-features`), so a real panel sits behind the same `Framebuffer` the virtual device draws into. `rustnet-fs` is std-bound (fatfs), so bare metal uses **`rustnet-flashfs`** instead — named blobs in a log over raw NOR, backing `RustNet.IO.FileSystem`. Both are workspace members, so their logic is covered by `cargo test --workspace`.
+- **NOR flash discipline, learned the expensive way**: programming only *clears* bits, so writing into a region that is not fully erased silently ANDs into it and the damage surfaces after the next power cycle. Check blankness over the **whole span** a record will occupy, not its first bytes, and read records back after writing. Conversely, compaction must erase only the **used** span rounded to sectors — erasing a whole multi-megabyte window takes long enough to look like a dead device.
+- **K210 panel**: the MaixLCD is driven by SPI0 in octal frame format, and `spi_ctrlr0` is configured **per transfer, not per driver** — a command is an 8-bit instruction (`0x202`), its parameters 8-bit units (`0x00A`), pixels 32-bit units (`0x022`). One value for all three gives a panel that wakes, lights its backlight and then shows a flat colour forever with every call returning `Ok`. The frame must also go out in a *single* transfer, or the image comes out rotated horizontally. Both facts come from mirroring MaixPy's `components/drivers/lcd/src/st7789.c`; when a vendor's firmware drives hardware yours does not, read its driver source early.
+- **Interpreter cost model** (measured on the K210 at 390 MHz): a host call is ~220 µs because dispatch matches the canonical name as a string, and a *managed static method call* is ~65 µs — only 3× cheaper. So per-pixel work in C# is out, per-cell host calls are out, and extracting a one-line helper into a method inside a hot loop can cost more than the work it factors out.
 - **Physical display path**: `Display.Present()` renders into an in-memory `Framebuffer` (`rustnet-gfx`); the apphost calls `Board::present_frame(rgb565, w, h)` (default no-op — the virtual device is captured by tools instead). A board with a wired panel overrides it. First real panel: the **M5Stack Tough** (`runtime/firmware-esp32/src/board.rs`, feature `board-m5tough`) — AXP192 PMIC over I²C powers the LCD rails/backlight, then an ILI9342C driver streams the framebuffer over SPI2 (manual CS/DC; frames go out by DMA in 40-row bands, copied PSRAM→a DMA-capable internal bounce buffer first because SPI DMA cannot read PSRAM directly). The 320×240 RGB565 framebuffer is 150 KB, so that build enables PSRAM in `sdkconfig.defaults` (`IGNORE_NOTFOUND` keeps PSRAM-less boards booting). A 320×240 framebuffer cannot fit contiguous ESP32 DRAM — PSRAM is mandatory.
 - The firmware's `DeviceService` (`service.rs`) implements every RNDP command; `AppRunner` (`apphost.rs`) runs apps in interpreter fuel slices on a thread (stoppable, profiled, debugger pause/resume).
 - **Source-level debugging** (`docs/debugging.md`): the MetadataProcessor emits the RNX debug section (PDB sequence points → IL/line); RNDP carries debug commands (set/clear BP, continue, step, state, stack, locals); `rustnet-debugger` is a DAP adapter (maps source⇄IL via `RnxDebugInfo`) that VSCode launches to debug on the (virtual) device. On-device E2E: `DebuggerBreakpointCycle`.

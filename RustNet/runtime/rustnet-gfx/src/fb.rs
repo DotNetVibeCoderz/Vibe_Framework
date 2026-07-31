@@ -1,3 +1,5 @@
+use alloc::vec;
+use alloc::vec::Vec;
 use font8x8::legacy::BASIC_LEGACY;
 
 /// RGB565 color.

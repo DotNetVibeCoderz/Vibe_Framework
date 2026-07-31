@@ -2,6 +2,14 @@
 //! RGB565 framebuffer, 8x8 font text rendering, double buffering with
 //! dirty-rectangle flush, and display drivers (SSD1306 OLED over I2C,
 //! ST7735 TFT over SPI) built on the RustNet HAL.
+//!
+//! Builds `no_std + alloc` when the default `std` feature is disabled, which
+//! is what lets a bare-metal port put a real panel behind the same
+//! `Display`/`Framebuffer` the virtual device draws into.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
 
 mod fb;
 mod display;
@@ -10,7 +18,7 @@ pub mod drivers;
 pub use display::{Display, DisplayDriver, Rect};
 pub use fb::{Color, Framebuffer};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

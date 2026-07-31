@@ -1,0 +1,12 @@
+[package]
+name = "rustnet-flashfs"
+description = "Log-structured named-blob filesystem for raw NOR flash, no_std + alloc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Deliberately nothing else. One dependency, on the trait that describes a
+# flash region, is what keeps this crate in the host workspace and its test run
+# while also building for a bare-metal target.
+rustnet-hal = { workspace = true, default-features = false }

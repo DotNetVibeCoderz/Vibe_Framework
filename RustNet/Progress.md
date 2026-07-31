@@ -14,6 +14,30 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
 - [ ] Real filesystem on this target (`RustNet.IO.FileSystem`) — `rustnet-fs`'s `FatVolume` plus a `no_std` port of `fatfs`
 - [ ] WiFi (CC3100) — see Networking
 
+## Bare metal (Kendryte K210, RV64GC)
+Second bare-metal port, first 64-bit one. **Runs C# on hardware as of
+2026-07-31** — a Sipeed Maix Go on COM10, booting at a detected 390 MHz.
+`runtime/firmware-k210/README.md` records what the first run settled, and the
+one real bug it found.
+- [x] `rustnet-hal-k210` — FPIOA pad muxing (Kendryte's own per-function pad table), GPIOHS 32 channels with software open-drain, UARTHS + UART1..3 (fractional divisor), `mcycle` delay/clock, DesignWare SSI SPI0/1/3, SYSCTL clock readback; no deps beyond `rustnet-hal`, so it stays in the host workspace — **38 unit tests** ✅
+- [x] `runtime/firmware-k210` — `riscv64gc-unknown-none-elf` + `riscv-rt`, RAM-only link over the 6 MB SRAM, 4 MB heap, interpreter linked, RGB-LED boot diagnostics (green progress / red failure) ✅
+- [x] RNDP over UARTHS — drained from both the PLIC interrupt (source 33) and by polling, because the 8-entry FIFO is a hard 694 µs deadline at 115200 while a polling interval is only a latency choice; measured `rx_dropped: 0` and a steady-state `max_poll_gap_us` of ≈27 ms across repeated multi-kilobyte uploads ✅
+- [x] `provision` + `flash` over the wire, RSA-2048 verified on-chip, `ChipFamily::K210` already on both sides of the contract ✅
+- [x] Persistence in a 256 KB window at the top of the board's 16 MB SPI NOR — no linker guard needed, unlike the STM32: the image runs from SRAM, so this flash holds no executing code and an erase does not stall the core ✅
+- [x] **A blank check has to cover the whole record** — a stock Maix Go's flash window is erased at the front and written further in, so a four-byte probe said "blank" and a 12 KB app was programmed over live data. NOR only clears bits, so the two writes ANDed: four corrupted bytes three pages deep, in an app that ran perfectly until the next power cycle. `tail_is_blank` now checks the whole span and `write_record` reads back and compares — both fixed in the STM32 port too, which carries the same log format ✅
+- [x] **ST7789V 320×240 panel on SPI0** — octal frame format with the data lines switched onto the DVP pins; `Display.Present()` reaches glass and the demo animates at ~20 fps. The thing that took the longest: **`spi_ctrlr0` is not one value** — MaixPy reconfigures it and the frame width before *every* transfer (8-bit instruction for a command, 8-bit units for its parameters, 32-bit units for pixels), and one value for all three gives a panel that wakes, lights its backlight and then shows a flat colour forever ✅
+- [x] **`ctrlr1` must be cleared per transfer** — a receive leaves its frame count behind and the next transmit inherits it: one four-byte panel read at boot doubled every subsequent frame's cost, 64 ms to 126. Latent on SPI3 too, where reads and writes alternate constantly ✅
+- [x] **LED colours are the reverse of Sipeed's own `config_maix_go.py`** — IO12 is blue and IO13 green, confirmed by eye and then by the Maix Go datasheet's pin table. A vendor config file is not automatically authoritative ✅
+- [x] **`rustnet-gfx` builds `no_std + alloc`** — same framebuffer and primitives the virtual device draws into, so a demo that looks right in `display capture` looks right on the panel ✅
+- [x] **`rustnet-flashfs`** — named blobs in a log over raw NOR, backing the whole `RustNet.IO.FileSystem` surface on ~15 MB of the board's flash. A workspace member depending only on `rustnet-hal`, so its scan/compact logic is tested against a fake NOR that models programming as bit-clearing — the failure mode that actually bites ✅
+- [x] **`demo/Showcase`** — starfield, rotating wireframe solids over a perspective floor, and a title that catches fire; measured on the board at 15/17/6 fps and reporting its own frame times into `rustnet logs` ✅
+- [x] **The UARTHS interrupt fires** — `info` reports `rx_irqs`, which climbs into the tens of thousands during an upload. The port's biggest open question, and unanswerable before: the polled drain covers for a dead interrupt until an application is busy enough to widen the polling gap, and then uploads fail for no visible reason ✅
+- [x] **Compaction has to erase what is used, not the whole region** — a sector erase costs tens to hundreds of milliseconds, so erasing a multi-megabyte window stalled the device past the tools' timeout. Fixed in both ports ✅
+- [x] **Opening the serial port reboots the board, and DTR picks the boot mode** — reset is asserted whenever DTR and RTS differ, so the first request after connecting is lost; and pulsing RTS enters the ROM loader rather than the application. `RndpClient` now pings until answered before letting a real command through, and only resets after an unanswered probe ✅
+- [x] **The FPU has to be switched on in software** — `mstatus.FS` is `Off` at reset, so a `csrs mstatus` in `#[pre_init]`; without it a C# program dies the first time it multiplies two doubles, and the trap points at the arithmetic rather than the cause. `riscv-rt` does not do this; Kendryte's `crt.S` does ✅
+- [ ] WiFi via the on-board ESP8285 as an ESP-AT companion on UART1 — same shape the STM32F4 port needs, so one `NetInterface` would serve both
+- [ ] microSD on SPI1 (`firmware-stm32/src/sdcard.rs` is directly reusable), camera, microphone array, KPU
+
 ## Communication protocols (add)
 - [~] **RNDP over BLE** (v1.0) — `BleTransport` fragments the RNDP byte stream
   into ATT-MTU GATT packets + reassembles (framing unchanged); `ble:<address>`
@@ -129,7 +153,7 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
   demo (lines/filled shapes/gradients/clipping/matrix-rain) runs **live on the
   M5 Tough** — backlight + full-colour showcase confirmed on-screen 🎉
 - [ ] Bare-metal firmware executor (no_std service loop) 🟡
-- [ ] ESP32-C3 esp-hal fill-in, K210, Cortex-M boards 🟡
+- [ ] ESP32-C3 esp-hal fill-in, Cortex-M boards 🟡
 
 ## Tooling
 - [x] VSCode simulator panel: display framebuffer, GPIO grid, netif/bus table, log tail ✅

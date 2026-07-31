@@ -100,7 +100,8 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         (COM5)** running the `graphics-primitives` demo — backlight + full
         colour showcase confirmed on-screen
 - [~] bare-metal firmware executor (no_std service loop) — **done for
-      STM32F4** (see below); ESP32-C3 (esp-hal) and K210 still pending
+      STM32F4 and the K210** (both below, both on hardware); ESP32-C3
+      (esp-hal) still pending
 - [x] **STM32F4 (Cortex-M4F) runs RustNet on bare metal** — the first target
       with no OS underneath it at all. `runtime/rustnet-hal-stm32` implements
       the HAL straight on the chip's registers with no dependency beyond
@@ -149,6 +150,66 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         There is no Rust driver for it, and nanoFramework's own port of this
         board ships without WiFi. An ESP-AT companion on a spare UART is the
         cheaper route to `NetInterface` here
+- [~] **Kendryte K210 (RV64GC) — the second bare-metal port, and the first
+      64-bit one.** `runtime/rustnet-hal-k210` follows the STM32 pattern
+      exactly — register-level, no dependency beyond `rustnet-hal`, so it stays
+      inside the host workspace and its test run (38 unit tests) while also
+      building for `riscv64gc-unknown-none-elf`. `runtime/firmware-k210` is the
+      bare-metal binary, targeting a **Sipeed Maix Go**. **Verified on
+      hardware 2026-07-31**: boots at a detected 390 MHz, serves RNDP over
+      UARTHS, runs a signed C# app restored from SPI NOR after a power cycle,
+      keeps files in ~15 MB of that flash, and animates its 320×240 MaixLCD
+      at around 20 fps. Walkthrough: `docs/deploy-maixgo.md`; internals and
+      the hard-won facts: `runtime/firmware-k210/README.md`:
+  - [x] **the FPU has to be switched on in software.** `mstatus.FS` is `Off`
+        at reset on this core, so every floating-point instruction traps as
+        illegal until a `csrs mstatus` in `#[pre_init]` clears it.
+        `riscv-rt` does not do this; Kendryte's `crt.S` does. Skipping it
+        builds fine and boots fine, then kills a C# program the first time it
+        multiplies two doubles — with the trap pointing at the arithmetic
+        rather than at the cause. The single most important non-obvious fact
+        in the port
+  - [~] FPIOA pad muxing carrying **Kendryte's own per-function pad table**
+        rather than derived enables: a `UARTHS_TX` pad wants its driver on and
+        its input off, a GPIOHS pad wants both so the block's `output_en` can
+        pick, an I²C pad wants open-drain with a pull-up. Not guessable, so
+        transcribed, with a test asserting every entry's low byte is its own
+        function number
+  - [~] **there is no pinout on this chip** — any of the 48 pads can carry any
+        of 256 functions, so `Board::gpio(pin)` takes an FPIOA pad and
+        allocates one of GPIOHS's 32 channels on first use, and the UARTs and
+        SPI buses carry *no* default pins. On a Maix Go a plausible-looking
+        default of IO8 for UART2 would hold the on-board ESP8285 in reset
+  - [~] **the clock tree is read, not written.** The ROM has already brought
+        PLL0 up before our image runs, and re-programming a PLL that feeds the
+        executing core either works or hangs with nothing on the console to say
+        which. `Clocks::detect()` recovers what is in force, everything scales
+        off it, and the boot banner prints it — so the first hardware run is a
+        measurement, including of whether the core is at ~403 MHz or still on
+        the 26 MHz crystal
+  - [~] RNDP over UARTHS, drained from **both** the PLIC interrupt (source 33)
+        and by polling, running the same code either way. The 8-entry FIFO is a
+        hard 694 µs deadline at 115200; a polling interval is only a latency
+        choice. `info` reports `rx_dropped` and `max_poll_gap_us`, and
+        `--no-default-features` drops the interrupt entirely if it misbehaves
+        on first bring-up
+  - [~] persistence in a 256 KB window at the top of the board's 16 MB SPI NOR.
+        No linker-script guard needed, unlike the STM32: the mask ROM copies
+        the image into SRAM and runs it there, so this flash holds no executing
+        code, an erase is an ordinary SPI transaction that does not stall the
+        core, and the protection is arithmetic — the window starts megabytes
+        above the image and `SpiFlash` refuses anything outside it
+  - [~] **6 MB of SRAM changes the shape of the port.** 4 MB heap,
+        half-megabyte `rustnet flash` containers, and none of the F401RE's
+        kilobyte negotiation. A 320×240 RGB565 framebuffer — the thing that
+        forces PSRAM on an ESP32 — is a rounding error here
+  - [ ] the **ST7789V LCD on SPI0**, which would be the first
+        `Board::present_frame` on a bare-metal target and needs no PSRAM
+        bounce buffer
+  - [ ] **WiFi** via the on-board ESP8285 as an ESP-AT companion on UART1 —
+        the same shape the Netduino needs, so one `NetInterface` serves both
+  - [ ] microSD on SPI1 (`firmware-stm32/src/sdcard.rs` ports directly), the
+        camera and microphone array, and eventually the KPU
 
 ---
 

@@ -9,7 +9,98 @@ public sealed class RndpClient(IDeviceTransport transport) : IDisposable
 {
     private readonly List<byte> _rx = new();
 
-    public static RndpClient Connect(string? deviceSpec) => new(TransportFactory.Open(deviceSpec));
+    /// <summary>Interval between the PING retries that absorb a boot.</summary>
+    private const int ReadyRetryMs = 750;
+
+    /// <summary>How long a live device gets to answer before we assume it is
+    /// wedged and reset it. Two retries is enough for one that is merely busy
+    /// in a long interpreter slice.</summary>
+    private const int ProbeBeforeResetMs = 2000;
+
+    public static RndpClient Connect(string? deviceSpec, int readyTimeoutMs = 20000)
+    {
+        var client = new RndpClient(TransportFactory.Open(deviceSpec));
+        client.WaitUntilReady(readyTimeoutMs);
+        return client;
+    }
+
+    /// <summary>
+    /// Absorbs a reboot caused by opening the link, on transports that admit to
+    /// causing one. Retries PING — the one command with no side effects — until
+    /// the device answers, then discards the replies the extra pings earned.
+    /// <para>
+    /// Without this the first real request is written while the board is still
+    /// in reset and is simply lost, so the call waits out its whole timeout
+    /// against a device that came up seconds earlier and is listening. Retrying
+    /// arbitrary commands instead would not do: re-sending a FLASH_APP chunk
+    /// mid-stream corrupts the upload.
+    /// </para>
+    /// </summary>
+    public void WaitUntilReady(int timeoutMs = 20000)
+    {
+        if (!transport.ResetsDeviceOnOpen || timeoutMs <= 0)
+        {
+            return;
+        }
+        // A device that is already talking must not be disturbed: `rustnet logs`
+        // should never cost you the running app's state. So reset is a recovery
+        // step, reached only after a short unanswered wait.
+        if (PingWithin(Math.Min(timeoutMs, ProbeBeforeResetMs)))
+        {
+            return;
+        }
+        transport.ResetIntoApplication();
+        _rx.Clear();
+        if (PingWithin(timeoutMs))
+        {
+            return;
+        }
+        throw new DeviceException(
+            "device did not answer PING, before or after a reset — check the port, "
+            + "the baud rate, and that the firmware is running");
+    }
+
+    /// <summary>Ping until answered or the budget runs out.</summary>
+    private bool PingWithin(int timeoutMs)
+    {
+        byte[] ping = new RndpFrame(Cmd.Ping, []).Encode();
+        byte[] chunk = new byte[4096];
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            transport.Write(ping);
+            var next = DateTime.UtcNow.AddMilliseconds(ReadyRetryMs);
+            while (DateTime.UtcNow < next)
+            {
+                int n = transport.Read(chunk, 200);
+                if (n > 0)
+                {
+                    _rx.AddRange(chunk.AsSpan(0, n).ToArray());
+                }
+                if (TryTakeFrame() is not null)
+                {
+                    DiscardLateReplies();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Drop the replies still in flight from the readiness pings. RNDP replies
+    /// carry a status byte, not the command they answer, so a leftover PING
+    /// reply would be read as the answer to the next request.
+    /// </summary>
+    private void DiscardLateReplies()
+    {
+        byte[] chunk = new byte[4096];
+        while (transport.Read(chunk, 300) > 0)
+        {
+            // Keep reading until the line has been quiet for the whole window.
+        }
+        _rx.Clear();
+    }
 
     public RndpFrame Call(byte cmd, byte[] payload, int timeoutMs = 15000)
     {
@@ -18,11 +109,9 @@ public sealed class RndpClient(IDeviceTransport transport) : IDisposable
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
         while (DateTime.UtcNow < deadline)
         {
-            SkipToMagic();
-            int consumed = RndpFrame.TryDecode(_rx.ToArray(), out var frame);
+            var frame = TryTakeFrame();
             if (frame is not null)
             {
-                _rx.RemoveRange(0, consumed);
                 return frame;
             }
             int n = transport.Read(chunk, 500);
@@ -32,6 +121,46 @@ public sealed class RndpClient(IDeviceTransport transport) : IDisposable
             }
         }
         throw new DeviceException("device did not answer (timeout)");
+    }
+
+    /// <summary>
+    /// Pull the next whole frame out of the receive buffer, or null if one is
+    /// not there yet.
+    /// <para>
+    /// A failed CRC here means "those two bytes were not a frame start", not
+    /// "the protocol is broken": on a serial device the frames share the wire
+    /// with log text, and the line glitches while a board is held in reset, so
+    /// a stray 0x52 0x4E pair is expected rather than exceptional. Resync past
+    /// it and keep looking — the caller's timeout is what reports real silence.
+    /// </para>
+    /// </summary>
+    private RndpFrame? TryTakeFrame()
+    {
+        while (true)
+        {
+            SkipToMagic();
+            if (_rx.Count < 9)
+            {
+                return null;
+            }
+            int consumed;
+            RndpFrame? frame;
+            try
+            {
+                consumed = RndpFrame.TryDecode(_rx.ToArray(), out frame);
+            }
+            catch (InvalidDataException)
+            {
+                _rx.RemoveAt(0);
+                continue;
+            }
+            if (frame is null)
+            {
+                return null;
+            }
+            _rx.RemoveRange(0, consumed);
+            return frame;
+        }
     }
 
     /// <summary>

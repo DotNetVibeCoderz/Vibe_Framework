@@ -9,6 +9,22 @@ public interface IDeviceTransport : IDisposable
     void Write(ReadOnlySpan<byte> data);
     /// <summary>Read available bytes (blocks until at least one or timeout). Returns 0 on timeout.</summary>
     int Read(byte[] buffer, int timeoutMs);
+
+    /// <summary>
+    /// True when opening the link may reboot the device, so the first request
+    /// can be lost and has to be retried. Most USB-serial bridges wire DTR/RTS
+    /// to reset/boot pins (that is how the ESP32 and K210 ROM loaders are
+    /// entered), which means merely opening the port restarts the firmware.
+    /// </summary>
+    bool ResetsDeviceOnOpen => false;
+
+    /// <summary>
+    /// Restart the device into its application, for links that can. Used only
+    /// as a recovery step when a device does not answer at all — a board can be
+    /// left sitting in its ROM loader, or held in reset by a tool that exited
+    /// without idling the control lines.
+    /// </summary>
+    void ResetIntoApplication() { }
 }
 
 public sealed class TcpTransport : IDeviceTransport
@@ -53,6 +69,40 @@ public sealed class SerialTransport : IDeviceTransport
     {
         _port = new SerialPort(portName, baud, Parity.None, 8, StopBits.One);
         _port.Open();
+        // Both lines idle: on the boards that wire them to reset/boot pins,
+        // asserted DTR is what *holds* the device down. A tool that exited
+        // without clearing them would otherwise leave the board unreachable.
+        _port.DtrEnable = false;
+        _port.RtsEnable = false;
+    }
+
+    public bool ResetsDeviceOnOpen => true;
+
+    /// <summary>
+    /// Pulse the device's reset and let it come up running its application.
+    /// <para>
+    /// On the K210's openec bridge reset is asserted whenever DTR and RTS
+    /// <em>differ</em>, and <em>which</em> line was raised selects the boot
+    /// mode: pulsing DTR with RTS idle boots the application, while pulsing RTS
+    /// is precisely how kflash enters the ROM loader. Getting that backwards
+    /// leaves the board in an ISP that answers nothing, which looks exactly
+    /// like the dead device this method exists to rescue.
+    /// </para>
+    /// <para>
+    /// On an ESP32 the same pulse is a no-op — there DTR drives IO0 and EN is
+    /// left alone — so a working board is never disturbed by the attempt.
+    /// </para>
+    /// </summary>
+    public void ResetIntoApplication()
+    {
+        _port.DtrEnable = false;
+        _port.RtsEnable = false;
+        Thread.Sleep(50);
+        _port.DtrEnable = true;    // reset asserted, boot pin idle
+        Thread.Sleep(100);
+        _port.DtrEnable = false;   // released: boots into the application
+        Thread.Sleep(50);
+        _port.DiscardInBuffer();
     }
 
     public void Write(ReadOnlySpan<byte> data) => _port.BaseStream.Write(data);

@@ -1,0 +1,78 @@
+[package]
+name = "rustnet-firmware-k210"
+description = "RustNet firmware for the Kendryte K210 (bare-metal RV64GC): runs a C# application on-chip and serves RNDP over UARTHS. First board: Sipeed Maix Go"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace: bare-metal `riscv64gc-unknown-none-elf` with riscv-rt,
+# not the host workspace.
+[workspace]
+
+[dependencies]
+# `critical-section-single-hart` supplies the critical_section implementation
+# the allocator needs. Sound here for the reason the feature name gives: only
+# hart 0 ever leaves the startup code, so masking this hart's interrupts really
+# is mutual exclusion.
+riscv = { version = "0.11", features = ["critical-section-single-hart"] }
+riscv-rt = "0.12"
+# The HAL trait surface needs `alloc` (GpioPin::on_edge takes a Box), so a
+# bare-metal RustNet port must supply a global allocator.
+embedded-alloc = "0.6"
+rustnet-hal = { path = "../rustnet-hal", default-features = false }
+rustnet-hal-k210 = { path = "../rustnet-hal-k210" }
+rustnet-rndp = { path = "../rustnet-rndp" }
+rustnet-espat = { path = "../rustnet-espat" }
+rustnet-mqtt = { path = "../rustnet-mqtt" }
+# Signature verification on-device. default-features off keeps std out;
+# everything these need works on alloc alone.
+rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false }
+# The IL interpreter, no_std + alloc. This is the whole RustNet runtime as far
+# as executing a C# app goes; the std-bound service crates (FS, OTA, the
+# on-device debugger) are not involved.
+rustnet-core = { path = "../rustnet-core", default-features = false }
+# The framebuffer and its primitives, no_std + alloc. Same code the virtual
+# device draws into, so a demo that looks right in `display capture` looks right
+# on glass.
+rustnet-gfx = { path = "../rustnet-gfx", default-features = false }
+# Named blobs in a window of the boot flash. `rustnet-fs` is std-bound (fatfs),
+# so bare metal gets a log-structured store instead — and it lives in the host
+# workspace, so its scan/compact logic is covered by ordinary `cargo test`.
+rustnet-flashfs = { path = "../rustnet-flashfs" }
+
+[features]
+default = ["board-maix-go", "app-blink", "rx-interrupt"]
+
+# Which board the image is wired for. Exactly one.
+#
+# Sipeed Maix Go: K210 + 16 MB SPI NOR flash, RGB LED on IO14/IO12/IO13,
+# BOOT key on IO16, ESP8285 on IO6/IO7 with its enable on IO8, and an on-board
+# STM32F103 bridging USB to UARTHS on IO4/IO5.
+board-maix-go = []
+
+# Which embedded application the image carries. Exactly one. Both are the
+# prebuilt modules the STM32 port carries — see the note where they are
+# included.
+app-blink = []
+app-language-tour = []
+
+# Leave the panel dark: skip its bring-up and hold its reset asserted.
+#
+# A power experiment, not a product configuration. The ESP8285 goes silent from
+# the moment it first transmits, which on a USB-powered board points at the
+# radio's transmit peaks browning the module out — and the panel is the largest
+# other consumer on the same rail. Building without it and watching whether the
+# join completes separates "not enough current" from "the AT conversation is
+# wrong", which nothing in the protocol trace can settle.
+no-panel = []
+
+# Pull received bytes into the ring from the UARTHS interrupt as well as by
+# polling. On by default because a long interpreter fuel slice can otherwise
+# outlast the 8-byte receive FIFO. Turn it off for first bring-up if the board
+# wedges: the polled drain alone is enough to talk to the tools, it just has
+# less margin.
+rx-interrupt = []
+
+[profile.release]
+opt-level = "s"
+lto = true
+debug = true          # keep symbols for a backtrace over JTAG

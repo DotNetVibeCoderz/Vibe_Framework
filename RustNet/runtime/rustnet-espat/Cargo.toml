@@ -1,0 +1,7 @@
+[package]
+name = "rustnet-espat"
+version = "0.1.0"
+edition = "2021"
+description = "Parsing for Espressif's AT command set, as spoken to an ESP8285/ESP32 companion radio"
+
+[dependencies]

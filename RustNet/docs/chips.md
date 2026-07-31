@@ -7,7 +7,7 @@
 | host-sim | 5 | native | `chip-host` (default) | **fully working** — virtual device used by all tools/tests |
 | ESP32 | 1 | Xtensa LX6 | `runtime/firmware-esp32` (ESP-IDF std) | **RUNS RUSTNET** — verified on an ESP32-WROOM-32: RNDP over UART0, RSA-verified app flash, C# apps (incl. async/await) executing on-chip, live GPIO |
 | ESP32-C3 | 6 | **RISC-V RV32IMC** | `chip-esp32c3` | **board crate started** (`rustnet-hal-esp32c3`): register-level GPIO + cycle-counted delay compile for `riscv32imc-unknown-none-elf`; other peripherals name their esp-hal integration points |
-| Kendryte K210 | 7 | **RISC-V RV64GC** | `chip-k210` | variant builds; vendor PAC/SDK pending |
+| Kendryte K210 | 7 | **RISC-V RV64GC** | `chip-k210` + `runtime/firmware-k210` | **runs C# on hardware** — `rustnet-hal-k210` (FPIOA/GPIOHS/UARTHS/UART1-3/SPI/`mcycle` clock/SPI-NOR storage) plus a firmware that links the interpreter, serves RNDP, drives the MaixLCD panel and keeps a filesystem in the board's flash; verified on a Sipeed Maix Go |
 | STM32F4 | 2 | ARM Cortex-M4F | `chip-stm32` + `runtime/firmware-stm32` | **RUNS C# ON BARE METAL** — the `no_std` interpreter plus `rustnet-hal-stm32` (GPIO, USART, DWT delay), verified on a Nucleo-F401RE and a Netduino 3 WiFi (F427) |
 | TI / NXP | 3/4 | ARM Cortex-M | `chip-ti` / `chip-nxp` | variant builds; vendor PAC/SDK pending |
 
@@ -15,6 +15,7 @@
 cargo build -p rustnet-firmware --no-default-features --features chip-esp32c3
 cargo build -p rustnet-firmware --no-default-features --features chip-k210
 cargo build -p rustnet-hal-stm32 --target thumbv7em-none-eabihf
+cargo build -p rustnet-hal-k210  --target riscv64gc-unknown-none-elf
 ```
 
 ## STM32F4 on bare metal (verified on real silicon)
@@ -98,6 +99,89 @@ controller in front of unreadable storage. Needs a second card to confirm,
 so the driver is written but unproven. `runtime/firmware-stm32/README.md`
 has the traces.
 
+## Kendryte K210 on bare metal (verified on hardware)
+
+`runtime/rustnet-hal-k210` and `runtime/firmware-k210` are the second
+bare-metal port, and the first 64-bit one: `riscv64gc-unknown-none-elf`
+with `riscv-rt`. Both build clean, the HAL's 38 unit tests run in the host
+workspace, and as of 2026-07-31 a **Sipeed Maix Go** boots the firmware,
+answers `rustnet` over RNDP, accepts a signed C# application over the wire
+and runs it from its SPI NOR after a power cycle. The part reports
+390 MHz — the clock tree is read at boot rather than assumed, which is why
+the wrong 403 MHz default cost nothing.
+
+What is in place: FPIOA pad muxing, GPIOHS (32 channels, with software
+open-drain), UARTHS and UART1..3, an `mcycle`-based delay and monotonic
+clock, the DesignWare SSI masters, and the board's SPI NOR flash as
+`extmem(0)` so a provisioned key and an uploaded app survive a power
+cycle. The firmware links the interpreter, serves RNDP over UARTHS,
+verifies RSA-2048 containers on-chip and swaps applications over the wire.
+
+It also **draws**: the MaixLCD's 320×240 ST7789V runs off SPI0 in octal
+frame format, `Display.Present()` reaches glass, and a graphics demo
+animates at around 20 fps. And it **keeps files**: `rustnet-flashfs` backs
+`RustNet.IO.FileSystem` over ~15 MB of the same part, in a second window
+below the record one. Step-by-step: [`deploy-maixgo.md`](deploy-maixgo.md).
+
+Four things about this chip shape the port, and none of them are like the
+Cortex-M case:
+
+- **6 MB of on-chip SRAM.** The heap is 4 MB and `rustnet flash` accepts
+  half-megabyte containers. The STM32F401's constant negotiation over
+  kilobytes — a `compile_error!` stopping the bigger demo from linking
+  against the smaller board — simply does not arise, and a 320×240 RGB565
+  framebuffer is a rounding error rather than the thing that forces PSRAM
+  on an ESP32.
+- **No internal flash.** The mask ROM copies the image out of an external
+  SPI NOR part into SRAM and jumps there. So storage needs no
+  linker-script guard (the flash holds no executing code, and an erase is
+  an ordinary SPI transaction that does not stall the core), and a bad
+  image is not a brick — `kflash` talks to the ROM's ISP regardless of
+  what is in flash.
+- **The panel's SPI config is per transfer, not per driver.** In the
+  enhanced frame formats `spi_ctrlr0` says what unit the transfer carries,
+  and it changes with every one: a command is an 8-bit instruction, its
+  parameters are 8-bit units, pixels are 32-bit units. Set one value for
+  all three and the panel wakes, lights its backlight, and shows a single
+  flat colour forever while every call returns `Ok`. Mirroring MaixPy's
+  `st7789.c` is what fixed it; reading the register out of a *running*
+  MaixPy and copying that is worse than useless, because the value there
+  is whatever its last pixel write left behind.
+- **`mstatus.FS` is `Off` at reset**, so every floating-point instruction
+  traps as illegal until software turns the FPU on. `riscv-rt` does not do
+  it; Kendryte's `crt.S` does. Without the `csrs mstatus` in the port's
+  `#[pre_init]`, a C# program dies the first time it multiplies two
+  doubles and the trap points at whatever arithmetic happened to be
+  first — a long way from the cause. This is the single most important
+  non-obvious fact in the port.
+
+**There is no pinout.** Any of the 48 pads can carry any of 256
+peripheral functions, so `Board::gpio(pin)` takes an *FPIOA pad* number and
+allocates one of GPIOHS's 32 channels on first use, and the UARTs and SPI
+buses carry no default pins at all — on a Maix Go a "sensible default" of
+IO8 for UART2 flow control would hold the on-board ESP8285 in reset. Pad
+assignments come from Sipeed's own `config_maix_go.py`, the file MaixPy
+writes into the board's `config.json`.
+
+The clock tree is **read, not written**: the ROM has already brought PLL0
+up (its ISP talks over UARTHS at speed), so `Clocks::detect()` recovers
+what is in force and the boot banner prints it. That makes the first
+hardware run a measurement — including of whether the core is at ~403 MHz
+or still on the 26 MHz crystal.
+
+Receive is drained from both the PLIC interrupt (source 33) and by
+polling, running the same code either way, because UARTHS's 8-entry FIFO
+is a hard 694 µs deadline at 115200 while a polling interval is only a
+latency choice. `info` reports `rx_dropped` and `max_poll_gap_us` so which
+one is carrying the traffic is measurable, and the interrupt can be
+switched off with `--no-default-features` if it misbehaves on first
+bring-up.
+
+`runtime/firmware-k210/README.md` has the pinout, the `kflash` recipe, and
+a **what to check first** list ordered by where the risk actually sits —
+starting with "is the banner readable", which is the clock test, and "what
+does the `[storage]` JEDEC line say", which is the SPI3 test.
+
 ## ESP32 on ESP-IDF (verified on real silicon)
 
 `runtime/firmware-esp32` runs the full `DeviceService` as Rust **std** on
@@ -125,10 +209,11 @@ the profile bare-metal firmware links against. Verified in CI on the
 bare-metal RISC-V target:
 
 ```bash
-rustup target add riscv32imc-unknown-none-elf
+rustup target add riscv32imc-unknown-none-elf riscv64gc-unknown-none-elf
 cargo build -p rustnet-core        --no-default-features --target riscv32imc-unknown-none-elf
 cargo build -p rustnet-hal         --no-default-features --target riscv32imc-unknown-none-elf
 cargo build -p rustnet-hal-esp32c3                       --target riscv32imc-unknown-none-elf
+cargo build -p rustnet-hal-k210                          --target riscv64gc-unknown-none-elf
 ```
 
 Float math routes through `libm` on no_std; std hosts use native
@@ -186,7 +271,13 @@ rustnet flash app.dll --chip k210   --key priv.key --device serial:COM4
 
 - CLI/Workbench/VSCode accept `esp32c3` and `k210` chip ids everywhere a
   chip is selectable; `serial:COMx[:baud]` transports RNDP over USB-CDC/UART.
-- The RNSB container's chip byte is verified by secure boot on-device.
+- The RNSB container's chip byte is verified by secure boot on-device, and
+  `--chip` is not cosmetic: sealing for the wrong family produces a
+  perfectly good image the device then refuses.
+- `--chip k210` reaches the firmware in `runtime/firmware-k210`, which
+  verifies the container on-chip, confirms it is an App image and parses it
+  as RNX *before* accepting it — a broken module must not replace a working
+  application.
 
 ## Real-silicon bring-up checklist
 
@@ -210,6 +301,18 @@ PAC/SDK and swapping the RNDP transport to USB-CDC/UART:
 
 ESP32/ESP32-C3 notes: lwIP backs `NetInterface`, mbedTLS plugs into
 `rustnet-net::tls::TlsProvider`, TWAI is the CAN peripheral, RMT is the
-natural `SignalControl` implementation. K210 notes: no WiFi on chip
-(pair with an ESP-AT module over UART → `NetIfKind::Cellular/Ppp` style),
-display via DVP/SPI.
+natural `SignalControl` implementation.
+
+K210 notes: steps 1 and 2 are done (`rustnet-hal-k210` +
+`runtime/firmware-k210`), and step 3 does not apply — the port is
+bare-metal, single-threaded and cooperative rather than std. What remains
+is step 4, on real hardware. No WiFi on the chip itself, so `NetInterface`
+means an ESP-AT companion over a UART (a Maix Go has an ESP8285 wired to
+IO6/IO7 already, running AT 1.6.2 at 115200 and joining an access point — its enable line has to be pulsed at boot, because a K210 reset does not reach it and a wedged module stays wedged); the display is an ST7789V on SPI0 and
+works, and the camera is an OV2640 whose control channel is on **I²C2** — not
+on the SCCB master inside the DVP block, which is the trap the pad labels set.
+Its pixel path comes in over DVP and delivers 320x240 RGB565, so
+`RustNet.Media.Camera` photographs on device. The eight DVP data pins are the
+panel's eight, and counter-intuitively they stay routed to the panel during a
+capture: clearing `spi_dvp_data_enable` gives a uniform frame. There is no ADC on this part at all — that one is not a missing
+driver, it is missing silicon.

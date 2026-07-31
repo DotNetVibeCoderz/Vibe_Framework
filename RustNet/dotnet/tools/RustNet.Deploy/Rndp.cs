@@ -43,6 +43,12 @@ public sealed record RndpFrame(byte Code, byte[] Payload)
     public const byte StatusOk = 0x00;
     public const byte StatusErr = 0x01;
 
+    /// <summary>
+    /// Largest payload any command legitimately carries, and the sanity bound
+    /// that lets a decoder tell a frame from a coincidence.
+    /// </summary>
+    public const uint MaxPayload = 8 * 1024 * 1024;
+
     public bool IsOk => Code == StatusOk;
     public string PayloadText => System.Text.Encoding.UTF8.GetString(Payload);
 
@@ -90,6 +96,14 @@ public sealed record RndpFrame(byte Code, byte[] Payload)
         }
         byte code = buffer[2];
         uint len = BitConverter.ToUInt32(buffer.Slice(3, 4));
+        if (len > MaxPayload)
+        {
+            // Not a frame: a stray "RN" in log text or line noise. Reported the
+            // same way as a bad CRC so the caller can resync past it. Without
+            // the bound, a length near uint.MaxValue casts to a negative int
+            // and the payload slice throws instead.
+            throw new InvalidDataException($"implausible RNDP payload length {len}");
+        }
         int total = 2 + 1 + 4 + (int)len + 2;
         if (buffer.Length < total)
         {

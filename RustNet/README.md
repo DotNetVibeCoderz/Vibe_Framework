@@ -81,14 +81,19 @@ the VSCode extension's **Simulator Panel** (live display + GPIO + logs).
 ## Status & roadmap
 
 Everything above runs today on the virtual device and is covered by the
-test suites (94 Rust + 10 .NET tests, including three end-to-end feature
-matrices). Real-silicon bring-up (ESP32/ESP32-C3/K210/Cortex-M vendor
-PACs, `no_std` profile) is the next milestone — see [PLAN.md](PLAN.md)
-for the roadmap and [Progress.md](Progress.md) for the live checklist.
-Chip bring-up guide: [docs/chips.md](docs/chips.md). Deploying an app,
-step by step: [ESP32-WROOM-32](docs/deploy-esp32.md) ·
+test suites (175 Rust + 44 .NET tests, including three end-to-end feature
+matrices). Real-silicon bring-up is the current milestone: C# runs on
+bare-metal ARM, on the ESP32, and — since 2026-07-31 — on bare-metal
+64-bit RISC-V, where a signed app flashed over the wire survives a power
+cycle, keeps files in the board's SPI NOR, and animates a 320×240 panel at
+around 20 fps. See [PLAN.md](PLAN.md) for the roadmap and
+[Progress.md](Progress.md) for the live checklist. Chip bring-up guide:
+[docs/chips.md](docs/chips.md).
+Deploying an app, step by step: [ESP32-WROOM-32](docs/deploy-esp32.md) ·
 [M5Stack Tough](docs/deploy-m5tough.md) (live 320×240 panel) ·
-[Netduino 3 WiFi](docs/deploy-netduino3.md) (C# on bare-metal ARM).
+[Netduino 3 WiFi](docs/deploy-netduino3.md) (C# on bare-metal ARM) ·
+[Sipeed Maix Go](docs/deploy-maixgo.md) (C# on bare-metal RISC-V, with
+graphics and a filesystem).
 
 ## Credits
 

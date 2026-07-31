@@ -89,7 +89,9 @@ public static class DeviceDiscovery
     {
         try
         {
-            using RndpClient client = RndpClient.Connect(spec);
+            // Probing walks every candidate port, so the readiness wait is
+            // capped at the probe budget rather than the default boot window.
+            using RndpClient client = RndpClient.Connect(spec, ProbeTimeoutMs);
             RndpFrame frame = client.Call(Cmd.Info, Array.Empty<byte>(), ProbeTimeoutMs);
             if (!frame.IsOk)
             {

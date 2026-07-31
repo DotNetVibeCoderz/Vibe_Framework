@@ -1,14 +1,16 @@
 [workspace]
 resolver = "2"
 # firmware-esp32 builds with the Espressif Xtensa toolchain (rust-toolchain
-# "esp") against ESP-IDF, and firmware-stm32 targets bare-metal Cortex-M via
-# cortex-m-rt — each is its own workspace, excluded from the host build.
-exclude = ["runtime/firmware-esp32", "runtime/firmware-stm32"]
+# "esp") against ESP-IDF, firmware-stm32 targets bare-metal Cortex-M via
+# cortex-m-rt, and firmware-k210 targets bare-metal RV64GC via riscv-rt — each
+# is its own workspace, excluded from the host build.
+exclude = ["runtime/firmware-esp32", "runtime/firmware-stm32", "runtime/firmware-k210"]
 members = [
     "runtime/rustnet-hal",
     "runtime/rustnet-hal-host",
     "runtime/rustnet-hal-esp32c3",
     "runtime/rustnet-hal-stm32",
+    "runtime/rustnet-hal-k210",
     "runtime/rustnet-rndp",
     "runtime/rustnet-sched",
     "runtime/rustnet-diag",
@@ -17,7 +19,10 @@ members = [
     "runtime/rustnet-secureboot",
     "runtime/rustnet-ota",
     "runtime/rustnet-fs",
+    "runtime/rustnet-flashfs",
     "runtime/rustnet-net",
+    "runtime/rustnet-mqtt",
+    "runtime/rustnet-espat",
     "runtime/rustnet-db",
     "runtime/rustnet-gfx",
     "runtime/rustnet-usb",

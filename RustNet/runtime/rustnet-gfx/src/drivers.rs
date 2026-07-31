@@ -1,5 +1,7 @@
 //! Display drivers on top of the RustNet HAL bus traits.
 
+use alloc::vec::Vec;
+
 use crate::display::{DisplayDriver, Rect};
 use crate::fb::Framebuffer;
 use rustnet_hal::i2c::I2cBus;

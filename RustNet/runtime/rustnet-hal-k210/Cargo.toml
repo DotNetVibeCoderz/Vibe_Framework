@@ -1,0 +1,9 @@
+[package]
+name = "rustnet-hal-k210"
+description = "Kendryte K210 (RV64GC) board bring-up for the RustNet HAL: register-level FPIOA/GPIOHS/UART/SPI, an mcycle clock and SPI NOR flash storage; integration points named for the rest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rustnet-hal = { workspace = true, default-features = false }

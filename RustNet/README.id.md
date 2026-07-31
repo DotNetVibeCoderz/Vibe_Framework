@@ -78,16 +78,22 @@ log secara langsung).
 ## Status & roadmap
 
 Semua yang di atas berjalan hari ini di virtual device dan tercakup suite
-test (94 test Rust + 10 test .NET, termasuk tiga matriks fitur end-to-end).
+test (175 test Rust + 44 test .NET, termasuk tiga matriks fitur end-to-end).
 C# modern kini lengkap (inheritance/interface/virtual dispatch, async/await,
-generics pengguna, filter `catch when`). Milestone berikutnya: bring-up
-silikon nyata (PAC vendor ESP32/ESP32-C3/K210/Cortex-M, profil `no_std`) — lihat
+generics pengguna, filter `catch when`). Milestone yang sedang berjalan:
+bring-up silikon nyata — C# sudah jalan di bare-metal ARM, di ESP32, dan
+sejak 2026-07-31 di **bare-metal RISC-V 64-bit**, di mana aplikasi
+bertanda tangan yang dikirim lewat kabel bertahan melewati power cycle,
+menyimpan file di SPI NOR board, dan menganimasikan panel 320×240 pada
+sekitar 20 fps. Lihat
 [PLAN.md](PLAN.md) untuk roadmap dan [Progress.md](Progress.md) untuk
 checklist perkembangan. Panduan bring-up chip: [docs/chips.md](docs/chips.md).
 Langkah demi langkah deploy aplikasi:
 [ESP32-WROOM-32](docs/deploy-esp32.id.md) ·
 [M5Stack Tough](docs/deploy-m5tough.id.md) (panel 320×240 hidup) ·
-[Netduino 3 WiFi](docs/deploy-netduino3.id.md) (C# di bare-metal ARM).
+[Netduino 3 WiFi](docs/deploy-netduino3.id.md) (C# di bare-metal ARM) ·
+[Sipeed Maix Go](docs/deploy-maixgo.id.md) (C# di bare-metal RISC-V, dengan
+grafis dan filesystem).
 
 ## Kredit
 

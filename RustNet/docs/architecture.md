@@ -84,6 +84,31 @@ vendor PAC/SDK and swapping the RNDP transport to USB-CDC/UART. The rest
 of the stack (interpreter, services, tools) is transport- and
 board-agnostic by construction.
 
+**Bare metal is a different shape.** `runtime/firmware` is `std`-bound
+(threads, TCP, the filesystem), so a target with no OS underneath it gets
+its own binary in its own Cargo workspace, pairing a register-level HAL
+crate with a cooperative service loop that alternates between answering
+the tools and handing the interpreter a slice of fuel. Each HAL crate
+depends on nothing but `rustnet-hal`, which is what lets it stay inside
+the host workspace and its test run while also building for the
+bare-metal target:
+
+| Port | HAL crate | Firmware | Target | State |
+|---|---|---|---|---|
+| STM32F4 (Cortex-M4F) | `rustnet-hal-stm32` | `runtime/firmware-stm32` | `thumbv7em-none-eabihf` | **verified on hardware** — Nucleo-F401RE and Netduino 3 WiFi |
+| Kendryte K210 (RV64GC) | `rustnet-hal-k210` | `runtime/firmware-k210` | `riscv64gc-unknown-none-elf` | **verified on hardware** — Sipeed Maix Go |
+
+What these ports carry is the interpreter, the HAL, `rustnet-rndp`'s
+framing and `rustnet-secureboot`. The K210 additionally carries graphics
+(`rustnet-gfx` builds `no_std + alloc`, so a real panel sits behind the
+same `Framebuffer` the virtual device draws into) and files
+(`rustnet-flashfs`, since `rustnet-fs` is std-bound through `fatfs`). What
+neither carries is OTA or the on-device debugger, and on the STM32
+persistence is still a log-structured set of fixed records in reserved
+flash rather than paths.
+See `docs/chips.md` for the per-chip detail and each firmware's README for
+its own hard-won facts.
+
 Runtime v0.2 (RNX format v2) adds: try/catch/finally (per-method
 exception-handler tables in the RNX module; filters and fault handlers
 remain unsupported), delegates/lambdas (`ldftn` + `Func`/`Action`
