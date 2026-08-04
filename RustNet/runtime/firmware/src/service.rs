@@ -496,6 +496,18 @@ impl DeviceService {
         Ok(())
     }
 
+    /// How long an autostarted app has to stay up before its boot counts as
+    /// healthy.
+    ///
+    /// The counter below is incremented before the app launches and cleared
+    /// only when it has survived this long, so the two together distinguish
+    /// the case the guard is for — an app that crashes the device on the way
+    /// up, rebooting before it can ever be confirmed — from the case it kept
+    /// breaking: a device that is simply switched off and on. Thirty seconds
+    /// is well past the point where a boot-time crash would have happened and
+    /// well short of any usage session.
+    pub const AUTOSTART_HEALTHY_AFTER_S: u64 = 30;
+
     /// Guard against an autostart app that crashes the whole device: this counts
     /// consecutive unattended boots. Reset by any explicit flash/start/autostart.
     const MAX_AUTOSTART_FAILS: u32 = 3;
@@ -532,6 +544,31 @@ impl DeviceService {
             Ok(()) => self.state.logger.info("boot", format!("autostart '{name}' running")),
             Err(e) => self.state.logger.warn("boot", format!("autostart '{name}' failed: {e}")),
         }
+    }
+
+    /// Declare the current boot healthy, if the autostarted app is still up.
+    ///
+    /// Call once, [`Self::AUTOSTART_HEALTHY_AFTER_S`] seconds after boot.
+    /// Without it the counter only ever rises: it is incremented on every
+    /// unattended boot and cleared only by a human command, so three ordinary
+    /// power cuts are indistinguishable from three crashes and the device
+    /// quietly stops autostarting an application that never failed once. That
+    /// is what this port did, and the symptom — "it used to start by itself
+    /// and now it doesn't" — points at everything except the guard.
+    ///
+    /// Still counting the attempt *before* the launch is what keeps the guard
+    /// working: an app that reboots the device on the way up never reaches
+    /// this call, so its count survives.
+    pub fn confirm_autostart_healthy(&mut self) {
+        if self.autostart_fails() == 0 {
+            return;
+        }
+        let running = self.runner.as_ref().map(|r| r.is_running()).unwrap_or(false);
+        if !running {
+            return;
+        }
+        self.reset_autostart_fails();
+        self.state.logger.info("boot", "autostart confirmed healthy");
     }
 
     fn app_names(&self) -> Result<Vec<String>, String> {
@@ -774,6 +811,79 @@ mod tests {
         // An explicit start clears the guard.
         assert_eq!(svc.handle(&Frame::new(CMD_START_APP, b"demo".to_vec())).code, ST_OK);
         assert_eq!(svc.autostart_fails(), 0);
+    }
+
+    /// The bug this guard grew: it counted *attempts*, and only a human
+    /// command ever cleared them. Three ordinary power cuts then looked
+    /// exactly like three crashes, and a device stopped autostarting an
+    /// application that had run perfectly every time — which is what happened
+    /// on an M5Stack Tough, and reads as anything but a counter.
+    #[test]
+    fn a_healthy_boot_clears_the_autostart_guard() {
+        let mut svc = make_service();
+        let keys = provision(&mut svc);
+        flash_demo(&mut svc, keys, "demo");
+        svc.config_set("autostart", "demo").unwrap();
+        svc.reset_autostart_fails();
+
+        // Two unattended boots, each confirmed healthy once the app has been
+        // up long enough. The count must not accumulate across them.
+        for _ in 0..2 {
+            svc.stop_app();
+            svc.try_autostart();
+            assert_eq!(svc.autostart_fails(), 1, "the attempt is counted before launching");
+            svc.confirm_autostart_healthy();
+            assert_eq!(svc.autostart_fails(), 0, "a boot that stayed up is not a failure");
+        }
+
+        // And enough of them to have tripped the old guard.
+        for _ in 0..DeviceService::MAX_AUTOSTART_FAILS + 2 {
+            svc.stop_app();
+            svc.try_autostart();
+            svc.confirm_autostart_healthy();
+        }
+        svc.stop_app();
+        svc.active_app = None;
+        svc.try_autostart();
+        assert!(svc.active_app.is_some(), "autostart still works after many healthy boots");
+    }
+
+    /// The guard has to keep working for what it was written for: an app that
+    /// takes the device down before it can ever be confirmed.
+    #[test]
+    fn an_unconfirmed_boot_still_trips_the_guard() {
+        let mut svc = make_service();
+        let keys = provision(&mut svc);
+        flash_demo(&mut svc, keys, "demo");
+        svc.config_set("autostart", "demo").unwrap();
+        svc.reset_autostart_fails();
+
+        // No confirmation: the device rebooted before the app proved itself.
+        for _ in 0..DeviceService::MAX_AUTOSTART_FAILS {
+            svc.stop_app();
+            svc.try_autostart();
+        }
+        svc.stop_app();
+        svc.active_app = None;
+        svc.try_autostart();
+        assert!(svc.active_app.is_none(), "a crash loop is still stopped");
+    }
+
+    /// Confirming a boot where the app is *not* running would clear the guard
+    /// for a launch that failed — the guard's whole purpose.
+    #[test]
+    fn confirmation_requires_the_app_to_be_running() {
+        let mut svc = make_service();
+        let keys = provision(&mut svc);
+        flash_demo(&mut svc, keys, "demo");
+        svc.config_set("autostart", "demo").unwrap();
+        svc.reset_autostart_fails();
+
+        svc.try_autostart();
+        assert_eq!(svc.autostart_fails(), 1);
+        svc.stop_app();
+        svc.confirm_autostart_healthy();
+        assert_eq!(svc.autostart_fails(), 1, "a stopped app does not confirm a boot");
     }
 
     #[test]

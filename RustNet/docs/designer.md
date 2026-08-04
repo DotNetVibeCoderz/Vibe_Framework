@@ -6,6 +6,8 @@ UI. Write the app behind it in the code pane, and **run it on a device from the
 same window**. **Jack The Code Bender**, the built-in assistant, can design the
 screen for you and write that code — [docs/assistant.md](assistant.md).
 
+![RustNet Designer, with the gauge, chart, data grid and combo box on the canvas](images/designer.png)
+
 ```bash
 dotnet run --project dotnet/tools/RustNet.Designer          # launch the editor
 dotnet run --project dotnet/tools/RustNet.Designer ui.xml   # open a layout
@@ -20,8 +22,11 @@ dotnet run --project dotnet/tools/RustNet.Designer app.cs   # open a C# file
 - **Deploy strip**: the target device, `Detect`, the app id, and Run — see
   [Running on a device](#running-on-a-device).
 - **Toolbox** (left, collapsible): every `RustNet.UI` control — containers
-  (stack/panel/border/canvas/grid/scrollviewer) and widgets (label/button/
-  textbox/checkbox/radio/slider/progress/listbox/image/rect). Click to add one
+  (stack/panel/border/canvas/grid/dockpanel/scrollviewer/groupbox/expander/
+  tabcontrol/tabitem), input (label/button/textbox/checkbox/radio/slider/
+  combobox/listbox), readouts (textflow/progress/gauge/chart/datagrid/treeview/
+  calendar/messagebox/image) and shapes (rect/ellipse/line/polygon), listed
+  alphabetically. Click to add one
   into the selected container.
 - **Centre**, three tabs:
   - **DESIGN** — a WYSIWYG canvas that renders the tree exactly as the device

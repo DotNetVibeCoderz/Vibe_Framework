@@ -1063,6 +1063,16 @@ impl RuntimeHost for FirmwareHost {
                 }
                 Ok(HostValue::Void)
             }
+            "RustNet.Graphics.Display::DrawImageAlpha(i4,i4,i4,i4,u1[],u1[])" => {
+                let (x, y) = (int(0)?, int(1)?);
+                let (w, h) = (int(2)?.max(0) as u32, int(3)?.max(0) as u32);
+                let src = rgb565_arg(&args, 4, name)?;
+                let alpha = bytes_arg(&args, 5, name)?;
+                if let Some(fb) = self.display.as_mut() {
+                    fb.draw_image_alpha(x, y, w, h, &src, &alpha);
+                }
+                Ok(HostValue::Void)
+            }
             "RustNet.Graphics.Display::BlendImage(i4,i4,i4,i4,u1[],i4)" => {
                 let (x, y) = (int(0)?, int(1)?);
                 let (w, h) = (int(2)?.max(0) as u32, int(3)?.max(0) as u32);

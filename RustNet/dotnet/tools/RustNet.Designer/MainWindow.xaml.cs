@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -40,12 +41,19 @@ public partial class MainWindow : Window, IDesignerBridge
     private string _workspaceRoot = "";
     private string _signingKey = "";
 
-    // The palette shown in the toolbox.
+    // The palette shown in the toolbox, in alphabetical order.
+    //
+    // Sorted again in BuildToolbox rather than trusted to stay sorted here:
+    // a list that has to be hand-maintained in order drifts the first time
+    // someone appends a control to the end of it.
     private static readonly string[] ControlKinds =
     {
-        "stack", "panel", "border", "canvas", "grid", "scrollviewer",
-        "label", "button", "textbox", "checkbox", "radio",
-        "slider", "progress", "listbox", "image", "rect",
+        "border", "button", "calendar", "canvas", "chart", "checkbox",
+        "combobox", "datagrid", "dockpanel", "ellipse", "expander", "gauge",
+        "grid", "groupbox", "image", "label", "line", "listbox",
+        "messagebox", "panel", "polygon", "progress", "radio", "rect",
+        "scrollviewer", "slider", "stack", "tabcontrol", "tabitem", "textbox",
+        "textflow", "treeview",
     };
 
     public MainWindow()
@@ -118,7 +126,7 @@ public partial class MainWindow : Window, IDesignerBridge
 
     private void BuildToolbox()
     {
-        foreach (string kind in ControlKinds)
+        foreach (string kind in ControlKinds.OrderBy(k => k, StringComparer.Ordinal))
         {
             var btn = new Button
             {
@@ -250,6 +258,115 @@ public partial class MainWindow : Window, IDesignerBridge
             case "scrollviewer":
                 e.Height = 60;
                 break;
+
+            // Everything below arrives on the canvas already showing
+            // something. A control dropped from a toolbox that renders as an
+            // empty rectangle tells you nothing about whether you wanted it.
+            case "combobox":
+                e.Items.Add("slow");
+                e.Items.Add("normal");
+                e.Items.Add("fast");
+                e.Selected = 0;
+                e.Width = 110;
+                break;
+            case "textflow":
+                e.Text = "Wrapped text flows to the width it is given.";
+                e.Width = 160;
+                break;
+            case "gauge":
+                e.Width = 90;
+                e.Height = 64;
+                e.Max = 100;
+                e.Value = 72;
+                e.Foreground = UiColors.Green;
+                break;
+            case "chart":
+                e.Width = 140;
+                e.Height = 56;
+                e.Foreground = UiColors.Cyan;
+                foreach (int sample in new[] { 12, 18, 14, 26, 22, 31, 27, 38 })
+                {
+                    e.Series.Add(sample);
+                }
+                break;
+            case "datagrid":
+                e.Columns = 3;
+                e.Width = 200;
+                e.Items.Add("Sensor|Value|Unit");
+                e.Items.Add("temp|21.4|C");
+                e.Items.Add("rh|48|%");
+                break;
+            case "treeview":
+                e.Width = 140;
+                UiElement branch = UiElement.Make("label");
+                branch.Text = "sensors";
+                branch.Checked = true;
+                UiElement leafA = UiElement.Make("label");
+                leafA.Text = "temp";
+                UiElement leafB = UiElement.Make("label");
+                leafB.Text = "humidity";
+                branch.Add(leafA);
+                branch.Add(leafB);
+                e.Add(branch);
+                break;
+            case "calendar":
+                e.Width = 180;
+                e.Year = DateTime.Now.Year;
+                e.Month = DateTime.Now.Month;
+                e.Value = DateTime.Now.Day;
+                break;
+            case "messagebox":
+                e.Text = "Saved to the device.";
+                e.Width = 200;
+                e.Height = 100;
+                e.Background = UiColors.DarkGray;
+                break;
+            case "groupbox":
+                e.Text = "Group";
+                e.Width = 160;
+                break;
+            case "expander":
+                e.Text = "Advanced";
+                e.Checked = true;
+                e.Width = 160;
+                break;
+            case "tabcontrol":
+                e.Width = 200;
+                e.Height = 100;
+                e.Selected = 0;
+                UiElement first = UiElement.Make("tabitem");
+                first.Text = "One";
+                UiElement second = UiElement.Make("tabitem");
+                second.Text = "Two";
+                e.Add(first);
+                e.Add(second);
+                break;
+            case "tabitem":
+                e.Text = "Tab";
+                break;
+            case "dockpanel":
+                e.Width = 180;
+                e.Height = 100;
+                break;
+            case "ellipse":
+                e.Width = 40;
+                e.Height = 40;
+                e.Background = UiColors.Blue;
+                break;
+            case "line":
+                e.X2 = 60;
+                e.Y2 = 20;
+                e.Width = 60;
+                e.Height = 20;
+                break;
+            case "polygon":
+                e.Width = 48;
+                e.Height = 40;
+                foreach (int coord in new[] { 24, 0, 48, 40, 0, 40 })
+                {
+                    e.Points.Add(coord);
+                }
+                break;
         }
         return e;
     }
@@ -258,7 +375,10 @@ public partial class MainWindow : Window, IDesignerBridge
     {
         return e.Kind == "window" || e.Kind == "stack" || e.Kind == "panel"
             || e.Kind == "border" || e.Kind == "canvas" || e.Kind == "grid"
-            || e.Kind == "scrollviewer";
+            || e.Kind == "scrollviewer" || e.Kind == "dockpanel"
+            || e.Kind == "groupbox" || e.Kind == "expander"
+            || e.Kind == "tabcontrol" || e.Kind == "tabitem"
+            || e.Kind == "treeview" || e.Kind == "messagebox";
     }
 
     private static UiElement? FindParent(UiElement node, UiElement target)

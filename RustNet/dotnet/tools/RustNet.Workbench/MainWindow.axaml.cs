@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json;
+using Avalonia.Media;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
@@ -17,6 +19,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        FillAbout();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
@@ -54,13 +57,116 @@ public partial class MainWindow : Window
             }
             Dispatcher.UIThread.Post(() =>
             {
-                LblStatus.Text = ok ? "ok" : $"error: {result}";
-                LblStatus.Foreground = ok ? Avalonia.Media.Brushes.LightGreen : Avalonia.Media.Brushes.OrangeRed;
+                LblStatus.Text = ok ? "ok" : result;
+                LblStatus.Foreground = Brush(ok ? "LampOn" : "LampFault");
+                LampState.Fill = Brush(ok ? "LampOn" : "LampFault");
                 if (ok)
                 {
                     onDone?.Invoke(result);
                 }
             });
+        });
+    }
+
+    /// <summary>A palette brush by resource key, so colour lives in one file.</summary>
+    private IBrush Brush(string key)
+        => this.FindResource(key) as IBrush ?? Avalonia.Media.Brushes.Gray;
+
+    /// <summary>
+    /// Put the device on the readout strip.
+    /// </summary>
+    /// <remarks>
+    /// The strip answers the question a person actually has in front of a
+    /// board — is it alive, and what is it doing — so it is filled from the
+    /// same JSON every panel already fetches rather than from a separate poll.
+    /// Fields the device does not report are left out instead of shown empty:
+    /// a readout with gaps in it reads as a fault.
+    /// </remarks>
+    private void UpdateReadout(string infoJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(infoJson);
+            var root = doc.RootElement;
+            string Text(string name) =>
+                root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+                    ? v.GetString() ?? "" : "";
+            long Number(string name) =>
+                root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number
+                    ? v.GetInt64() : 0;
+            bool Flag(string name) =>
+                root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+
+            var parts = new List<string>();
+            string chip = Text("chip");
+            string board = Text("board");
+            if (chip.Length > 0) parts.Add(chip);
+            if (board.Length > 0 && board != chip) parts.Add(board);
+
+            long up = Number("uptime_ms");
+            if (up > 0) parts.Add($"up {Uptime(up)}");
+
+            string app = Text("active_app");
+            bool running = Flag("running");
+            parts.Add(app.Length > 0
+                ? $"{app} {(running ? "running" : "stopped")}"
+                : "no app running");
+
+            long heap = Number("heap_used");
+            if (heap > 0) parts.Add($"heap {heap / 1024} KB");
+
+            TxtReadout.Text = string.Join("   ·   ", parts);
+            TxtReadout.Foreground = Brush("Amber");
+        }
+        catch (JsonException)
+        {
+            // Not JSON: show it anyway. A device that answers something
+            // unexpected is more useful on screen than hidden behind a parser.
+            TxtReadout.Text = infoJson.Replace("\n", " ").Trim();
+            TxtReadout.Foreground = Brush("LegendDim");
+        }
+    }
+
+    /// <summary>Milliseconds as something readable at a glance.</summary>
+    private static string Uptime(long ms)
+    {
+        var t = TimeSpan.FromMilliseconds(ms);
+        if (t.TotalDays >= 1) return $"{(int)t.TotalDays}d {t.Hours}h";
+        if (t.TotalHours >= 1) return $"{(int)t.TotalHours}h {t.Minutes}m";
+        if (t.TotalMinutes >= 1) return $"{(int)t.TotalMinutes}m {t.Seconds}s";
+        return $"{t.TotalSeconds:0.0}s";
+    }
+
+    /// <summary>
+    /// Fill the About panel.
+    /// </summary>
+    /// <remarks>
+    /// The board table is written out here rather than in the markup because
+    /// its second column is the honest part: every board speaks RNDP, but the
+    /// firmware for each comes from a different place, and a person deciding
+    /// whether this tool covers their hardware needs that distinction more
+    /// than they need a list of names.
+    /// </remarks>
+    private void FillAbout()
+    {
+        var version = typeof(MainWindow).Assembly.GetName().Version;
+        LblAboutVersion.Text = version is null ? "development build" : $"v{version.ToString(3)}";
+
+        TxtAboutBoards.Text = string.Join("\n", new[]
+        {
+            "BOARD                      CHIP      FIRMWARE COMES FROM",
+            "-------------------------  --------  ----------------------------------",
+            "Virtual device (host)      host-sim  cargo build -p rustnet-firmware",
+            "ESP32 DevKit / WROOM       esp32     runtime/firmware-esp32  (esp toolchain)",
+            "M5Stack Tough / Core2      esp32     runtime/firmware-esp32 --features board-m5tough",
+            "ESP32-C3                   esp32c3   runtime/firmware-esp32  (riscv target)",
+            "Sipeed Maix Go             k210      runtime/firmware-k210   (riscv64gc, kflash)",
+            "STM32F401 / Nucleo-F401RE  stm32     runtime/firmware-stm32  (thumbv7em, SWD)",
+            "Netduino 3 WiFi            stm32     runtime/firmware-stm32  (thumbv7em, DFU)",
+            "",
+            "The chip picker when flashing an app must match the board: an image",
+            "signed for one chip is refused by another. The FIRMWARE panel in this",
+            "tool builds the host virtual device only.",
         });
     }
 
@@ -72,13 +178,18 @@ public partial class MainWindow : Window
         Device(c => c.Info(), info =>
         {
             TxtInfo.Text = info;
+            UpdateReadout(info);
             LblStatus.Text = "connected";
             OnRefreshApps(sender, e);
         });
     }
 
     private void OnRefreshInfo(object? sender, RoutedEventArgs e)
-        => Device(c => c.Info(), info => TxtInfo.Text = info);
+        => Device(c => c.Info(), info =>
+        {
+            TxtInfo.Text = info;
+            UpdateReadout(info);
+        });
 
     private void OnReboot(object? sender, RoutedEventArgs e)
         => Device(c =>

@@ -249,6 +249,29 @@ impl Framebuffer {
 
     /// Blit an RGB565 image over the framebuffer with a global `alpha`
     /// (0-255), blending each source pixel with the background.
+    /// Blit `src` with a per-pixel alpha channel.
+    ///
+    /// The alpha travels beside the colour rather than inside it because the
+    /// framebuffer is RGB565: there is no spare bit for coverage, and widening
+    /// every pixel to carry one would double a 150 KB frame to buy something
+    /// only some images use. A parallel `u8` per pixel costs 50% more for the
+    /// images that need it and nothing at all for the ones that do not.
+    ///
+    /// A short `alpha` is treated as opaque from where it runs out. That is
+    /// the forgiving direction: an image that loses its mask should appear,
+    /// not vanish.
+    pub fn draw_image_alpha(&mut self, x: i32, y: i32, w: u32, h: u32, src: &[u16], alpha: &[u8]) {
+        for row in 0..h {
+            for col in 0..w {
+                let i = (row * w + col) as usize;
+                if let Some(px) = src.get(i) {
+                    let a = alpha.get(i).copied().unwrap_or(255);
+                    self.blend_pixel(x + col as i32, y + row as i32, Color(*px), a);
+                }
+            }
+        }
+    }
+
     pub fn blend_image(&mut self, x: i32, y: i32, w: u32, h: u32, src: &[u16], alpha: u8) {
         for row in 0..h {
             for col in 0..w {

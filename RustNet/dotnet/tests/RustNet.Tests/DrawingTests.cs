@@ -68,4 +68,81 @@ public class DrawingTests
             }
         }
     }
+
+    // 2x2 32-bit BMPs: fully opaque, partly masked, and one whose alpha is
+    // zero everywhere — which no writer means literally.
+    private const string Bmp32Opaque = "Qk1GAAAAAAAAADYAAAAoAAAAAgAAAAIAAAABACAAAAAAABAAAAATCwAAEwsAAAAAAAAAAAAAAAD//wD/AP8AAP//AP8A/w==";
+    private const string Bmp32Masked = "Qk1GAAAAAAAAADYAAAAoAAAAAgAAAAIAAAABACAAAAAAABAAAAATCwAAEwsAAAAAAAAAAAAAAAD/gAD/AP8AAP//AP8AAA==";
+    private const string Bmp32AllZero = "Qk1GAAAAAAAAADYAAAAoAAAAAgAAAAIAAAABACAAAAAAABAAAAATCwAAEwsAAAAAAAAAAAAAAAD/AAD/AAAAAP8AAP8AAA==";
+
+    /// <summary>An image with no transparency carries no alpha channel, so it
+    /// costs nothing — most images on a device are opaque.</summary>
+    [Fact]
+    public void OpaqueImagesCarryNoAlphaChannel()
+    {
+        Bitmap bmp = Bitmap.Decode(System.Convert.FromBase64String(Bmp32Opaque));
+        Assert.False(bmp.HasAlpha);
+        Assert.Equal(255, bmp.GetAlpha(0, 0));
+        Assert.Empty(bmp.ToAlphaBytes());
+    }
+
+    /// <summary>The fourth byte of a 32-bit BMP used to be stepped over, so a
+    /// file with transparency decoded fully opaque and said nothing.</summary>
+    [Fact]
+    public void ThirtyTwoBitBmpKeepsItsCoverage()
+    {
+        Bitmap bmp = Bitmap.Decode(System.Convert.FromBase64String(Bmp32Masked));
+        Assert.True(bmp.HasAlpha);
+        Assert.Equal(255, bmp.GetAlpha(0, 0));
+        Assert.Equal(0, bmp.GetAlpha(1, 0));
+        Assert.Equal(128, bmp.GetAlpha(0, 1));
+        Assert.Equal(4, bmp.ToAlphaBytes().Length);
+    }
+
+    /// <summary>Plenty of writers leave the alpha byte at zero meaning
+    /// "unused". Honouring that literally makes the whole image invisible, so
+    /// an all-zero channel is read as no channel.</summary>
+    [Fact]
+    public void AnAllZeroAlphaChannelIsTreatedAsAbsent()
+    {
+        Bitmap bmp = Bitmap.Decode(System.Convert.FromBase64String(Bmp32AllZero));
+        Assert.False(bmp.HasAlpha);
+        Assert.Equal(255, bmp.GetAlpha(0, 0));
+    }
+
+    /// <summary>The channel is created on demand and starts opaque: making one
+    /// pixel transparent must not erase every other one.</summary>
+    [Fact]
+    public void TheAlphaChannelAppearsOnFirstUseAndStartsOpaque()
+    {
+        Bitmap bmp = new Bitmap(2, 2);
+        Assert.False(bmp.HasAlpha);
+
+        bmp.SetAlpha(1, 1, 0);
+        Assert.True(bmp.HasAlpha);
+        Assert.Equal(0, bmp.GetAlpha(1, 1));
+        Assert.Equal(255, bmp.GetAlpha(0, 0));
+
+        bmp.ClearAlpha();
+        Assert.False(bmp.HasAlpha);
+    }
+
+    /// <summary>Setting full coverage on an opaque image allocates nothing:
+    /// the common path stays free.</summary>
+    [Fact]
+    public void SettingFullCoverageDoesNotCreateAChannel()
+    {
+        Bitmap bmp = new Bitmap(2, 2);
+        bmp.SetAlpha(0, 0, 255);
+        Assert.False(bmp.HasAlpha);
+    }
+
+    /// <summary>The GIF in these tests declares no transparent index, and a
+    /// decoder that reads one anyway would make index 0 vanish everywhere.</summary>
+    [Fact]
+    public void AGifWithoutATransparentIndexStaysOpaque()
+    {
+        Bitmap bmp = Bitmap.Decode(System.Convert.FromBase64String(GifBase64));
+        Assert.False(bmp.HasAlpha);
+    }
 }

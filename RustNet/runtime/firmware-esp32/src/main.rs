@@ -65,38 +65,43 @@ fn main() {
     // Resume the autostart app (if configured) after a power-up / reset.
     service.lock().unwrap().try_autostart();
 
-    // WiFi + TCP RNDP when credentials are stored (rustnet wifi set).
-    let (ssid, psk) = {
-        let svc = service.lock().unwrap();
-        (svc.read_config("wifi.ssid"), svc.read_config("wifi.psk"))
-    };
-    if let Some(ssid) = ssid.filter(|s| !s.is_empty()) {
-        let psk = psk.unwrap_or_default();
-        match wifi::start(&ssid, &psk, &logger) {
-            Ok(wifi_handle) => {
-                // Keep the driver alive for the lifetime of the device.
-                std::mem::forget(wifi_handle);
-                // Real time for the RTC: SNTP sets the system clock.
-                match esp_idf_svc::sntp::EspSntp::new_default() {
-                    Ok(sntp) => {
-                        std::mem::forget(sntp);
-                        logger.info("time", "SNTP started (pool.ntp.org)");
-                    }
-                    Err(e) => logger.warn("time", format!("SNTP failed: {e}")),
-                }
-                logger.info("boot", format!("free heap after wifi: {} bytes", unsafe { sys::esp_get_free_heap_size() }));
-                let svc = service.clone();
-                let log = logger.clone();
-                std::thread::Builder::new()
-                    .name("rndp-tcp".into())
-                    .stack_size(20 * 1024)
-                    .spawn(move || tcp_server(svc, log))
-                    .ok();
-            }
-            Err(e) => logger.warn("wifi", format!("connect failed: {e}")),
-        }
-    } else {
-        logger.info("wifi", "no credentials stored; serial-only (rustnet wifi set)");
+    // Confirm the boot healthy once the app has had time to fall over.
+    //
+    // The crash-loop guard counts attempts before launching and is otherwise
+    // cleared only by a human command, so without this a device that is simply
+    // switched off and on three times stops autostarting an application that
+    // never failed once. See DeviceService::confirm_autostart_healthy.
+    {
+        let svc = service.clone();
+        std::thread::Builder::new()
+            .name("autostart-health".into())
+            .stack_size(4 * 1024)
+            .spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(
+                    DeviceService::AUTOSTART_HEALTHY_AFTER_S,
+                ));
+                svc.lock().unwrap().confirm_autostart_healthy();
+            })
+            .ok();
+    }
+
+    // WiFi on its own thread, so the serial lifeline comes up first.
+    //
+    // Joining is slow and can fail slowly: three attempts against an
+    // unreachable access point took fifty-nine seconds on this board, and for
+    // all of it the UART loop below had not started. That leaves the device
+    // unreachable by the tools — and because opening the serial port resets an
+    // ESP32, every `rustnet` invocation restarted the wait and timed out before
+    // it ended. A device you cannot talk to is a device you cannot fix, so
+    // nothing that can block belongs in front of RNDP.
+    {
+        let svc = service.clone();
+        let log = logger.clone();
+        std::thread::Builder::new()
+            .name("wifi-bringup".into())
+            .stack_size(20 * 1024)
+            .spawn(move || start_networking(svc, log))
+            .ok();
     }
 
     uart0_write(b"RustNet ESP32 firmware ready; RNDP on UART0\r\n");
@@ -270,5 +275,44 @@ fn uart0_write(data: &[u8]) {
     unsafe {
         sys::uart_write_bytes(0, data.as_ptr() as *const core::ffi::c_void, data.len());
         sys::uart_wait_tx_done(0, 100);
+    }
+}
+
+/// Join the stored network, if any, and serve RNDP over TCP as well.
+///
+/// On its own thread — see the note at the call site. Best-effort throughout:
+/// a device with no network is still a working device over serial.
+fn start_networking(service: Arc<Mutex<DeviceService>>, logger: rustnet_diag::Logger) {
+    let (ssid, psk) = {
+        let svc = service.lock().unwrap();
+        (svc.read_config("wifi.ssid"), svc.read_config("wifi.psk"))
+    };
+    if let Some(ssid) = ssid.filter(|s| !s.is_empty()) {
+        let psk = psk.unwrap_or_default();
+        match wifi::start(&ssid, &psk, &logger) {
+            Ok(wifi_handle) => {
+                // Keep the driver alive for the lifetime of the device.
+                std::mem::forget(wifi_handle);
+                // Real time for the RTC: SNTP sets the system clock.
+                match esp_idf_svc::sntp::EspSntp::new_default() {
+                    Ok(sntp) => {
+                        std::mem::forget(sntp);
+                        logger.info("time", "SNTP started (pool.ntp.org)");
+                    }
+                    Err(e) => logger.warn("time", format!("SNTP failed: {e}")),
+                }
+                logger.info("boot", format!("free heap after wifi: {} bytes", unsafe { sys::esp_get_free_heap_size() }));
+                let svc = service.clone();
+                let log = logger.clone();
+                std::thread::Builder::new()
+                    .name("rndp-tcp".into())
+                    .stack_size(20 * 1024)
+                    .spawn(move || tcp_server(svc, log))
+                    .ok();
+            }
+            Err(e) => logger.warn("wifi", format!("connect failed: {e}")),
+        }
+    } else {
+        logger.info("wifi", "no credentials stored; serial-only (rustnet wifi set)");
     }
 }

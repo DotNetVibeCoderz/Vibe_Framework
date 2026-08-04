@@ -106,6 +106,22 @@ public static class Display
     public static void FillGradient(int x, int y, int width, int height,
         int color0, int color1, bool vertical) => throw new RuntimeOnlyException();
 
+    /// <summary>
+    /// Blit an RGB565 image through a per-pixel alpha mask: one byte of
+    /// coverage per pixel, 0 transparent and 255 opaque.
+    /// </summary>
+    /// <remarks>
+    /// The mask travels beside the colour rather than inside it because the
+    /// framebuffer is RGB565 — there is no spare bit for coverage, and
+    /// widening every pixel to carry one would double a 150 KB frame to buy
+    /// something only some images use. A mask shorter than the image is
+    /// treated as opaque past its end, which is the forgiving direction: an
+    /// image that loses its mask should appear, not vanish.
+    /// </remarks>
+    [InternalCall]
+    public static void DrawImageAlpha(int x, int y, int width, int height,
+        byte[] rgb565, byte[] alpha) => throw new RuntimeOnlyException();
+
     /// <summary>Alpha-blend a decoded RGB565 image over the background with a
     /// global <paramref name="alpha"/> (0 = transparent, 255 = opaque).</summary>
     [InternalCall]

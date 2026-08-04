@@ -41,6 +41,54 @@ rustnet flash app.dll --name blinky --chip esp32 --key keys/rustnet-signing.key 
 rustnet logs -n 50 --device serial:COM4
 ```
 
+## Two things that made a working device look broken
+
+Both were found on an M5Stack Tough whose application had simply stopped
+starting by itself, and both are worth knowing because neither symptom points
+anywhere near its cause.
+
+### The crash-loop guard counted power cuts as crashes
+
+`DeviceService::try_autostart` guards against an application that takes the
+device down on the way up: it counts unattended boots, and after three it
+stops trying. The counter was incremented *before* each launch and cleared
+only by an explicit `flash`, `apps start`, or `autostart set` — never by an
+application that simply ran.
+
+So three ordinary power cuts were indistinguishable from three crashes, and a
+device stopped autostarting an application that had never failed once. The
+device reports the state plainly, which is how it was confirmed:
+
+```json
+{"active_app":null,"running":false,"autostart":"m5mqtt"}
+```
+
+Autostart configured, autostart skipped. `confirm_autostart_healthy` closes
+this: the firmware calls it thirty seconds after boot, and it clears the
+counter if the application is still running. Counting the attempt before the
+launch is what keeps the guard working — an app that reboots the device never
+reaches the confirmation, so its count survives.
+
+### WiFi was joined before the serial lifeline came up
+
+`main` joined the stored network before starting the RNDP loop. Three attempts
+against an unreachable access point take **fifty-nine seconds** on this board,
+measured:
+
+```text
+(0.5s)  bootloader
+(58.9s) RustNet ESP32 firmware ready; RNDP on UART0
+```
+
+For all of that the device answers nothing. And because opening a serial port
+resets an ESP32, every `rustnet` invocation restarted the wait and timed out
+long before it ended — so the device could not be reached at all, and the
+autostart above could not be re-enabled by the tools that exist to do it. A
+device you cannot talk to is a device you cannot fix.
+
+WiFi now runs on its own thread. RNDP answers in about six seconds, whatever
+the network is doing.
+
 ## Status
 
 Phase 2: persistent FAT storage on the `storage` partition (apps and

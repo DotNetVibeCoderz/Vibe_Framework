@@ -189,4 +189,34 @@ mod tests {
         display.present().unwrap();
         assert_eq!(flushes.lock().unwrap().len(), count);
     }
+
+    /// A mask makes some pixels land and others not, and the ones in between
+    /// mix. Without the middle case this would pass for a driver that treated
+    /// alpha as a one-bit stencil.
+    #[test]
+    fn a_mask_decides_which_pixels_land() {
+        let mut fb = Framebuffer::new(3, 1);
+        fb.fill_rect(0, 0, 3, 1, Color::BLACK);
+        let src = [Color::WHITE.0; 3];
+        fb.draw_image_alpha(0, 0, 3, 1, &src, &[255, 0, 128]);
+
+        assert_eq!(fb.get_pixel(0, 0), Some(Color::WHITE), "opaque pixel");
+        assert_eq!(fb.get_pixel(1, 0), Some(Color::BLACK), "transparent pixel");
+        let mid = fb.get_pixel(2, 0).unwrap();
+        assert_ne!(mid, Color::WHITE);
+        assert_ne!(mid, Color::BLACK);
+    }
+
+    /// A mask shorter than the image leaves the rest opaque. The forgiving
+    /// direction: an image that loses its mask should appear, not vanish.
+    #[test]
+    fn a_short_mask_leaves_the_rest_opaque() {
+        let mut fb = Framebuffer::new(2, 1);
+        fb.fill_rect(0, 0, 2, 1, Color::BLACK);
+        let src = [Color::WHITE.0; 2];
+        fb.draw_image_alpha(0, 0, 2, 1, &src, &[0]);
+
+        assert_eq!(fb.get_pixel(0, 0), Some(Color::BLACK));
+        assert_eq!(fb.get_pixel(1, 0), Some(Color::WHITE));
+    }
 }

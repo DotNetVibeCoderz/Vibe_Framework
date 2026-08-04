@@ -17,6 +17,24 @@ Tools (CLI ▪ Workbench ▪ VSCode) ◀─────────────�
                                                      │ HAL ▪ FS ▪ Net ▪ Gfx ▪ OTA
 ```
 
+## What it looks like
+
+A C# application running on an M5Stack Tough — the device drew this itself,
+and the picture came off the board over the same protocol the tools use:
+
+![A RustNet application running on an M5Stack Tough](docs/images/device-mqtt-dashboard.png)
+
+**Workbench** provisions a board, flashes applications to it, and watches what
+they do. The readout across the top is whichever device is on the other end of
+the cable; the panel below is its own screen, captured live:
+
+![RustNet Workbench connected to an M5Stack Tough](docs/images/workbench.png)
+
+**Designer** lays out a screen against the device's real renderer, so what you
+drag is what the board draws — the same layout code runs in both:
+
+![RustNet Designer](docs/images/designer.png)
+
 ## Quick start (no hardware needed)
 
 ```bash

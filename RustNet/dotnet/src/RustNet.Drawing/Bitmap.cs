@@ -20,7 +20,73 @@ public class Bitmap
         _pixels = new ushort[width * height];
     }
 
+    /// <summary>
+    /// Per-pixel coverage, 0 transparent and 255 opaque, or null when the
+    /// image is fully opaque.
+    /// </summary>
+    /// <remarks>
+    /// Null rather than an array of 255s: most images on a device have no
+    /// transparency, and an alpha channel nobody set would add 50% to every
+    /// bitmap in memory for nothing. Callers ask <see cref="HasAlpha"/>.
+    /// </remarks>
+    private byte[] _alpha;
+
+    /// <summary>Does this image carry coverage information?</summary>
+    public bool HasAlpha => _alpha != null;
+
     public ushort GetPixel(int x, int y) => _pixels[y * Width + x];
+
+    /// <summary>Coverage at (x, y). Fully opaque unless a channel exists.</summary>
+    public byte GetAlpha(int x, int y)
+    {
+        if (_alpha == null || x < 0 || y < 0 || x >= Width || y >= Height)
+        {
+            return 255;
+        }
+        return _alpha[y * Width + x];
+    }
+
+    /// <summary>
+    /// Set coverage at (x, y), creating the channel on first use.
+    /// </summary>
+    /// <remarks>
+    /// The channel starts fully opaque rather than empty. An image that grows
+    /// an alpha channel because one pixel was made transparent must not have
+    /// every other pixel disappear.
+    /// </remarks>
+    public void SetAlpha(int x, int y, byte alpha)
+    {
+        if (x < 0 || y < 0 || x >= Width || y >= Height)
+        {
+            return;
+        }
+        if (_alpha == null)
+        {
+            if (alpha == 255)
+            {
+                return;
+            }
+            _alpha = new byte[Width * Height];
+            for (int i = 0; i < _alpha.Length; i++)
+            {
+                _alpha[i] = 255;
+            }
+        }
+        _alpha[y * Width + x] = alpha;
+    }
+
+    /// <summary>Set colour and coverage together.</summary>
+    public void SetPixel(int x, int y, ushort rgb565, byte alpha)
+    {
+        SetPixel(x, y, rgb565);
+        SetAlpha(x, y, alpha);
+    }
+
+    /// <summary>Drop the alpha channel, making the image fully opaque.</summary>
+    public void ClearAlpha()
+    {
+        _alpha = null;
+    }
 
     public void SetPixel(int x, int y, ushort rgb565)
     {
@@ -42,6 +108,38 @@ public class Bitmap
     public static ushort Rgb565(int r, int g, int b)
     {
         return (ushort)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+    }
+
+    /// <summary>
+    /// The coverage channel as bytes, or an empty array when the image is
+    /// opaque — the shape <c>Display.DrawImageAlpha</c> takes.
+    /// </summary>
+    /// <remarks>
+    /// This library stays independent of <c>RustNet.Graphics</c>: an image is
+    /// data, and a decoder that reaches for the display drags the display into
+    /// every program that only wanted to read a file. So drawing is two calls
+    /// on the caller's side, and the choice between them is
+    /// <see cref="HasAlpha"/>:
+    /// <code>
+    /// if (bmp.HasAlpha)
+    ///     Display.DrawImageAlpha(x, y, bmp.Width, bmp.Height,
+    ///         bmp.ToRgb565Bytes(), bmp.ToAlphaBytes());
+    /// else
+    ///     Display.DrawImage(x, y, bmp.Width, bmp.Height, bmp.ToRgb565Bytes());
+    /// </code>
+    /// </remarks>
+    public byte[] ToAlphaBytes()
+    {
+        if (_alpha == null)
+        {
+            return new byte[0];
+        }
+        byte[] copy = new byte[_alpha.Length];
+        for (int i = 0; i < _alpha.Length; i++)
+        {
+            copy[i] = _alpha[i];
+        }
+        return copy;
     }
 
     /// <summary>Little-endian RGB565 byte buffer for Display.DrawImage.</summary>

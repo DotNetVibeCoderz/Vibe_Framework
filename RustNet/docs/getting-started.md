@@ -75,7 +75,15 @@ rustnet debug stack              # stack trace while paused
 
 - **Workbench**: `dotnet run --project dotnet/tools/RustNet.Workbench` —
   device dashboard, app flashing, config, WiFi, boot image, live logs,
-  profiler, display viewer, OTA, multi-chip firmware builds.
+  profiler, display viewer, OTA, host firmware builds. The readout across the
+  top is whichever board is on the other end of the cable; the About panel
+  lists every board the tool drives and where each one's firmware comes from.
+
+  ![RustNet Workbench connected to an M5Stack Tough](images/workbench.png)
+
+- **Designer**: `dotnet run --project dotnet/tools/RustNet.Designer` — lay a
+  screen out against the device's own renderer, then push it to a board from
+  the same window. See [designer.md](designer.md).
 - **VSCode**: `cd vscode-extension && npm install && npm run compile`,
   then F5. Commands under "RustNet:" in the palette.
 

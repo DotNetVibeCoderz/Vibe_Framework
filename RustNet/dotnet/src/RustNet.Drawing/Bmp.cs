@@ -33,6 +33,7 @@ public static class Bmp
         var bmp = new Bitmap(width, height);
 
         int bytesPerPixel = bpp / 8;
+        bool anyCoverage = false;
         // Rows are padded to a 4-byte boundary.
         int rowSize = ((width * bytesPerPixel + 3) / 4) * 4;
 
@@ -51,7 +52,31 @@ public static class Bmp
                 int g = d[p + 1];
                 int r = d[p + 2];
                 bmp.SetPixel(x, row, Bitmap.Rgb565(r, g, b));
+                // The fourth byte of a 32-bit BMP is coverage. It used to be
+                // stepped over, so a file with transparency decoded into a
+                // fully opaque image and the loss was silent.
+                //
+                // Not every 32-bit BMP means it: plenty of writers set the
+                // byte to zero for "unused", and honouring that literally
+                // turns a whole image invisible. So an image whose alpha is
+                // zero everywhere is read as having none — the interpretation
+                // that can be recovered from, since a caller can still set
+                // coverage itself.
+                if (bytesPerPixel == 4 && p + 3 < d.Length)
+                {
+                    bmp.SetAlpha(x, row, d[p + 3]);
+                    if (d[p + 3] != 0)
+                    {
+                        anyCoverage = true;
+                    }
+                }
             }
+        }
+        if (bytesPerPixel == 4 && !anyCoverage)
+        {
+            // Every pixel claimed to be fully transparent, which no writer
+            // means. Treat the channel as absent rather than draw nothing.
+            bmp.ClearAlpha();
         }
         _ = headerSize;
         return bmp;

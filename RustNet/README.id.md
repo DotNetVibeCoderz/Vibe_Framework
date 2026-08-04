@@ -18,6 +18,25 @@ Tools (CLI ▪ Workbench ▪ VSCode) ◀─────────────�
                                                      │ HAL ▪ FS ▪ Net ▪ Gfx ▪ OTA
 ```
 
+## Tampilannya
+
+Aplikasi C# yang berjalan di M5Stack Tough — perangkatnya sendiri yang
+menggambar ini, dan gambarnya diambil dari papan lewat protokol yang sama
+dengan yang dipakai perkakasnya:
+
+![Aplikasi RustNet berjalan di M5Stack Tough](docs/images/device-mqtt-dashboard.png)
+
+**Workbench** menyiapkan papan, mem-flash aplikasi ke dalamnya, dan mengawasi
+apa yang dikerjakannya. Baris pembacaan di atas menunjukkan perangkat yang
+sedang tersambung; panel di bawahnya adalah layar papan itu sendiri:
+
+![RustNet Workbench tersambung ke M5Stack Tough](docs/images/workbench.png)
+
+**Designer** menyusun layar memakai perender perangkat yang sebenarnya, jadi
+apa yang Anda seret sama dengan apa yang digambar papan:
+
+![RustNet Designer](docs/images/designer.png)
+
 ## Mulai cepat (tanpa perangkat keras)
 
 ```bash

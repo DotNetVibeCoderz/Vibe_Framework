@@ -576,6 +576,21 @@ impl RuntimeHost for FirmwareHost {
                 }
                 Ok(HostValue::Void)
             }
+            "RustNet.Graphics.Display::DrawImageAlpha(i4,i4,i4,i4,u1[],u1[])" => {
+                let (x, y) = (Self::arg_i32(a, 0)?, Self::arg_i32(a, 1)?);
+                let w = Self::arg_i32(a, 2)?.max(0) as u32;
+                let h = Self::arg_i32(a, 3)?.max(0) as u32;
+                let bytes = Self::arg_bytes(a, 4)?;
+                let alpha = Self::arg_bytes(a, 5)?;
+                let src: Vec<u16> = bytes
+                    .chunks_exact(2)
+                    .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                    .collect();
+                if let Some(fb) = self.state.display.lock().unwrap().as_mut() {
+                    fb.draw_image_alpha(x, y, w, h, &src, &alpha);
+                }
+                Ok(HostValue::Void)
+            }
             "RustNet.Graphics.Display::FillGradient(i4,i4,i4,i4,i4,i4,bool)" => {
                 let (x, y) = (Self::arg_i32(a, 0)?, Self::arg_i32(a, 1)?);
                 let (w, h) = (Self::arg_i32(a, 2)?, Self::arg_i32(a, 3)?);

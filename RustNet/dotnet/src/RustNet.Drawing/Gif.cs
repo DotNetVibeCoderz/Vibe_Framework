@@ -29,17 +29,32 @@ public static class Gif
             pos += gctSize * 3;
         }
 
+        // -1 until a Graphic Control Extension says otherwise.
+        int transparentIndex = -1;
+
         // Walk blocks until the first image descriptor (0x2C).
         while (pos < d.Length)
         {
             int b = d[pos];
             if (b == 0x2C)
             {
-                return DecodeImage(d, pos, screenW, screenH, gct);
+                return DecodeImage(d, pos, screenW, screenH, gct, transparentIndex);
             }
             if (b == 0x21)
             {
-                // Extension: skip its sub-blocks.
+                // Graphic Control Extension (0xF9) carries the transparent
+                // colour index; every other extension is metadata this
+                // decoder has no use for. Skipping all of them, which is what
+                // this did, is what made GIF transparency vanish.
+                if (pos + 3 < d.Length && d[pos + 1] == 0xF9)
+                {
+                    int flags = d[pos + 3];
+                    // Bit 0 says whether the index that follows means
+                    // anything. Without that check, index 0 reads as
+                    // transparent in every GIF that does not use it.
+                    transparentIndex = (flags & 0x01) != 0 && pos + 6 < d.Length
+                        ? d[pos + 6] : -1;
+                }
                 pos += 2;
                 pos = SkipSubBlocks(d, pos);
             }
@@ -55,7 +70,8 @@ public static class Gif
         throw new System.Exception("no image frame in GIF");
     }
 
-    private static Bitmap DecodeImage(byte[] d, int pos, int screenW, int screenH, ushort[] gct)
+    private static Bitmap DecodeImage(byte[] d, int pos, int screenW, int screenH,
+        ushort[] gct, int transparentIndex)
     {
         // Image descriptor.
         int imgW = d[pos + 5] | (d[pos + 6] << 8);
@@ -106,7 +122,7 @@ public static class Gif
                 {
                     for (int x = 0; x < w; x++)
                     {
-                        SetIndex(bmp, colors, indices, src, x, y);
+                        SetIndex(bmp, colors, indices, src, x, y, transparentIndex);
                         src++;
                     }
                 }
@@ -119,7 +135,7 @@ public static class Gif
             {
                 for (int x = 0; x < w; x++)
                 {
-                    SetIndex(bmp, colors, indices, src, x, y);
+                    SetIndex(bmp, colors, indices, src, x, y, transparentIndex);
                     src++;
                 }
             }
@@ -127,7 +143,8 @@ public static class Gif
         return bmp;
     }
 
-    private static void SetIndex(Bitmap bmp, ushort[] colors, byte[] indices, int src, int x, int y)
+    private static void SetIndex(Bitmap bmp, ushort[] colors, byte[] indices, int src,
+        int x, int y, int transparentIndex)
     {
         if (src < indices.Length)
         {
@@ -135,6 +152,14 @@ public static class Gif
             if (idx < colors.Length)
             {
                 bmp.SetPixel(x, y, colors[idx]);
+            }
+            if (idx == transparentIndex)
+            {
+                // The colour is still written: a transparent pixel in a GIF
+                // has a palette entry, and keeping it means an application
+                // that flattens the image later gets the author's background
+                // rather than black.
+                bmp.SetAlpha(x, y, 0);
             }
         }
     }

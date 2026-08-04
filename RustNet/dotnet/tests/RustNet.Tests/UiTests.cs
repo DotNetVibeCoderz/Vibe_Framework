@@ -167,4 +167,196 @@ public class UiTests
         Assert.Equal(0, grid.Children[2].LayoutX);
         Assert.True(grid.Children[2].LayoutY > grid.Children[0].LayoutY);
     }
+
+    /// <summary>
+    /// Docking is order-dependent by design: a top strip declared before a
+    /// left rail spans the full width and the rail starts underneath it.
+    /// Getting this backwards is the classic dock-panel bug, so it is pinned.
+    /// </summary>
+    [Fact]
+    public void DockPanelTakesEdgesInDeclarationOrder()
+    {
+        UiElement dock = UiElement.Make("dockpanel");
+        dock.Padding = 0;
+        dock.Gap = 0;
+
+        UiElement top = UiElement.Make("rect");
+        top.Dock = "top";
+        top.Height = 20;
+        dock.Add(top);
+
+        UiElement rail = UiElement.Make("rect");
+        rail.Dock = "left";
+        rail.Width = 40;
+        dock.Add(rail);
+
+        UiElement body = UiElement.Make("rect");
+        dock.Add(body);
+
+        dock.Arrange(0, 0, 200, 100);
+
+        Assert.Equal(200, top.LayoutW);
+        Assert.Equal(0, top.LayoutY);
+        Assert.Equal(20, rail.LayoutY);
+        Assert.Equal(40, rail.LayoutW);
+        Assert.Equal(40, body.LayoutX);
+        Assert.Equal(160, body.LayoutW);
+    }
+
+    /// <summary>A collapsed expander occupies only its header, so whatever is
+    /// under it does not move when the body is hidden.</summary>
+    [Fact]
+    public void ExpanderMeasuresOnlyItsHeaderWhenCollapsed()
+    {
+        UiElement exp = UiElement.Make("expander");
+        exp.Text = "Advanced";
+        UiElement child = UiElement.Make("rect");
+        child.Height = 60;
+        exp.Add(child);
+
+        exp.Checked = false;
+        int collapsed = exp.Measure(200);
+        exp.Checked = true;
+        int expanded = exp.Measure(200);
+
+        Assert.True(expanded > collapsed + 50, $"{collapsed} -> {expanded}");
+    }
+
+    /// <summary>A tab control shows one page. Measuring all of them would
+    /// size the panel to its largest tab and leave a hole under the rest.</summary>
+    [Fact]
+    public void TabControlArrangesOnlyTheSelectedPage()
+    {
+        UiElement tabs = UiElement.Make("tabcontrol");
+        tabs.Padding = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            UiElement page = UiElement.Make("tabitem");
+            page.Text = "T" + i;
+            tabs.Add(page);
+        }
+        tabs.Selected = 2;
+        tabs.Arrange(0, 0, 200, 100);
+
+        Assert.Equal(tabs.Children[2], tabs.SelectedPage());
+        Assert.True(tabs.Children[2].LayoutW > 0);
+    }
+
+    /// <summary>Tapping a combo box advances it and wraps, because there is
+    /// no dropdown to open on a screen this size.</summary>
+    [Fact]
+    public void ComboBoxCyclesOnTap()
+    {
+        UiElement combo = UiElement.Make("combobox");
+        combo.Items.Add("slow");
+        combo.Items.Add("normal");
+        combo.Items.Add("fast");
+        combo.Selected = 0;
+        combo.Arrange(0, 0, 100, 20);
+
+        Ui.Tap(combo, 10, 10);
+        Assert.Equal(1, combo.Selected);
+        Ui.Tap(combo, 10, 10);
+        Ui.Tap(combo, 10, 10);
+        Assert.Equal(0, combo.Selected);
+    }
+
+    /// <summary>Word wrapping keeps words whole; only a word longer than the
+    /// line is broken.</summary>
+    [Fact]
+    public void TextFlowWrapsOnWords()
+    {
+        // 8 pixels per character at scale 1, so 80 pixels is ten characters.
+        List<string> lines = UiElement.WrapText("alpha beta gamma", 80, 1);
+        Assert.Equal(2, lines.Count);
+        Assert.Equal("alpha beta", lines[0]);
+        Assert.Equal("gamma", lines[1]);
+
+        List<string> broken = UiElement.WrapText("supercalifragilistic", 80, 1);
+        Assert.True(broken.Count >= 2);
+        Assert.Equal("supercalif", broken[0]);
+    }
+
+    /// <summary>The weekday of the first drives the whole month grid, and it
+    /// is computed without a real-time clock so a calendar can show a month
+    /// the device is not in.</summary>
+    [Fact]
+    public void CalendarFindsTheFirstWeekday()
+    {
+        // 1 January 2026 is a Thursday; 1 March 2026 a Sunday.
+        Assert.Equal(4, UiElement.FirstWeekday(2026, 1));
+        Assert.Equal(0, UiElement.FirstWeekday(2026, 3));
+        Assert.Equal(29, UiElement.DaysInMonth(2024, 2));
+        Assert.Equal(28, UiElement.DaysInMonth(2100, 2));
+    }
+
+    /// <summary>Every new control survives the designer's save/load round
+    /// trip, including the attributes only it uses.</summary>
+    [Fact]
+    public void NewControlsRoundTripThroughXml()
+    {
+        UiElement root = UiElement.Make("window");
+
+        UiElement chart = UiElement.Make("chart");
+        chart.Id = "trace";
+        chart.Series.Add(3);
+        chart.Series.Add(9);
+        chart.Series.Add(4);
+        root.Add(chart);
+
+        UiElement poly = UiElement.Make("polygon");
+        poly.Points.Add(0);
+        poly.Points.Add(0);
+        poly.Points.Add(10);
+        poly.Points.Add(20);
+        root.Add(poly);
+
+        UiElement line = UiElement.Make("line");
+        line.X2 = 40;
+        line.Y2 = 25;
+        root.Add(line);
+
+        UiElement cal = UiElement.Make("calendar");
+        cal.Year = 2031;
+        cal.Month = 7;
+        root.Add(cal);
+
+        UiElement docked = UiElement.Make("rect");
+        docked.Dock = "bottom";
+        root.Add(docked);
+
+        UiElement again = Ui.LoadXml(Ui.ToXml(root));
+
+        UiElement trace = again.FindById("trace");
+        Assert.Equal(new List<int> { 3, 9, 4 }, trace.Series);
+        Assert.Equal(new List<int> { 0, 0, 10, 20 }, again.Children[1].Points);
+        Assert.Equal(40, again.Children[2].X2);
+        Assert.Equal(25, again.Children[2].Y2);
+        Assert.Equal(2031, again.Children[3].Year);
+        Assert.Equal(7, again.Children[3].Month);
+        Assert.Equal("bottom", again.Children[4].Dock);
+    }
+
+    /// <summary>A tree hides the subtree of a collapsed node but still counts
+    /// the node itself, so the rows below it do not jump.</summary>
+    [Fact]
+    public void TreeViewMeasuresVisibleRowsOnly()
+    {
+        UiElement tree = UiElement.Make("treeview");
+        tree.Padding = 0;
+        UiElement parent = UiElement.Make("label");
+        parent.Text = "sensors";
+        for (int i = 0; i < 3; i++)
+        {
+            parent.Add(UiElement.Make("label"));
+        }
+        tree.Add(parent);
+
+        parent.Checked = false;
+        int collapsed = tree.Measure(200);
+        parent.Checked = true;
+        int expanded = tree.Measure(200);
+
+        Assert.True(expanded > collapsed, $"{collapsed} -> {expanded}");
+    }
 }
