@@ -55,6 +55,8 @@ pub enum ChipFamily {
     Esp32C3 = 6,
     /// Kendryte K210 (RISC-V RV64GC dual core).
     K210 = 7,
+    /// Raspberry Pi RP2040 (dual Cortex-M0+, execute-in-place QSPI flash).
+    Rp2040 = 8,
 }
 
 impl ChipFamily {
@@ -68,6 +70,7 @@ impl ChipFamily {
             5 => ChipFamily::HostSim,
             6 => ChipFamily::Esp32C3,
             7 => ChipFamily::K210,
+            8 => ChipFamily::Rp2040,
             _ => return None,
         })
     }
@@ -82,6 +85,7 @@ impl ChipFamily {
             ChipFamily::HostSim => "host-sim",
             ChipFamily::Esp32C3 => "esp32c3",
             ChipFamily::K210 => "k210",
+            ChipFamily::Rp2040 => "rp2040",
         }
     }
 
@@ -95,6 +99,7 @@ impl ChipFamily {
             "host-sim" | "host" => ChipFamily::HostSim,
             "esp32c3" | "esp32-c3" => ChipFamily::Esp32C3,
             "k210" | "kendryte" => ChipFamily::K210,
+            "rp2040" | "pico" | "rpi-pico" => ChipFamily::Rp2040,
             _ => return None,
         })
     }

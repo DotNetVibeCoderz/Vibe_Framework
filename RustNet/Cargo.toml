@@ -11,6 +11,7 @@ members = [
     "runtime/rustnet-hal-esp32c3",
     "runtime/rustnet-hal-stm32",
     "runtime/rustnet-hal-k210",
+    "runtime/rustnet-hal-rp2040",
     "runtime/rustnet-rndp",
     "runtime/rustnet-sched",
     "runtime/rustnet-diag",

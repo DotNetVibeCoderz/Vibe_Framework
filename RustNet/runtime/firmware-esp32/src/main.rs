@@ -8,6 +8,7 @@
 //! - real chip reboot on CMD_REBOOT
 
 mod board;
+mod link;
 
 use esp_idf_svc::sys;
 use rustnet_firmware::apphost::SharedState;
@@ -19,11 +20,8 @@ use std::sync::{Arc, Mutex};
 fn main() {
     sys::link_patches();
 
-    // RNDP is binary: talk to UART0 through the driver API directly —
-    // the console VFS would CR/LF-translate and corrupt frames.
-    unsafe {
-        sys::uart_driver_install(0, 4096, 4096, 0, std::ptr::null_mut(), 0);
-    }
+    // Which peripheral this is depends on the chip — see `link`.
+    link::install();
 
     // Persistent storage: wear-levelled FAT on the "storage" partition.
     let fs: Box<dyn rustnet_fs::Vfs> = match mount_fat() {
@@ -33,7 +31,7 @@ fn main() {
         ),
         Err(e) => {
             // Storage failure must not brick the device: fall back to RAM.
-            uart0_write(format!("[rustnet] FAT mount failed ({e}), using MemFs\r\n").as_bytes());
+            link::write(format!("[rustnet] FAT mount failed ({e}), using MemFs\r\n").as_bytes());
             Box::new(rustnet_fs::MemFs::new())
         }
     };
@@ -104,24 +102,17 @@ fn main() {
             .ok();
     }
 
-    uart0_write(b"RustNet ESP32 firmware ready; RNDP on UART0\r\n");
-    logger.info("boot", "RNDP server ready (uart0)");
+    link::write(format!("RustNet ESP32 firmware ready; RNDP on {}\r\n", link::NAME).as_bytes());
+    logger.info("boot", &format!("RNDP server ready ({})", link::NAME));
 
     // Same session loop as the virtual device's serve_pipe, over the raw
     // UART driver (binary-safe in both directions).
     let mut buf: Vec<u8> = Vec::new();
     let mut chunk = [0u8; 1024];
     loop {
-        let n = unsafe {
-            sys::uart_read_bytes(
-                0,
-                chunk.as_mut_ptr() as *mut core::ffi::c_void,
-                chunk.len() as u32,
-                5, // FreeRTOS ticks (~50 ms @ 100 Hz)
-            )
-        };
+        let n = link::read(&mut chunk);
         if n > 0 {
-            buf.extend_from_slice(&chunk[..n as usize]);
+            buf.extend_from_slice(&chunk[..n]);
         }
         loop {
             match Frame::decode(&buf) {
@@ -132,7 +123,7 @@ fn main() {
                         let r = svc.handle(&frame);
                         (r, svc.reboot_requested)
                     };
-                    uart0_write(&response.encode());
+                    link::write(&response.encode());
                     if reboot {
                         std::thread::sleep(std::time::Duration::from_millis(200));
                         unsafe { sys::esp_restart() };
@@ -268,13 +259,6 @@ mod wifi {
             .unwrap_or_default();
         logger.info("wifi", format!("connected, ip {ip} (RNDP tcp:{ip}:7878)"));
         Ok(Box::new(wifi))
-    }
-}
-
-fn uart0_write(data: &[u8]) {
-    unsafe {
-        sys::uart_write_bytes(0, data.as_ptr() as *const core::ffi::c_void, data.len());
-        sys::uart_wait_tx_done(0, 100);
     }
 }
 

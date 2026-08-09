@@ -1,0 +1,50 @@
+[package]
+name = "rustnet-firmware-rp2040"
+description = "RustNet firmware for the Raspberry Pi RP2040 (bare-metal Cortex-M0+): runs a C# application on-chip. First board: Raspberry Pi Pico"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace: bare-metal `thumbv6m-none-eabi` with cortex-m-rt, not
+# the host workspace.
+[workspace]
+
+[dependencies]
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+# The 256-byte second-stage bootloader the RP2040's ROM loads from flash
+# offset 0. It configures the QSPI interface for execute-in-place and is
+# checked by a CRC the ROM verifies, so it is taken prebuilt rather than
+# hand-assembled — an incorrect CRC is a board that does nothing at all.
+rp2040-boot2 = "0.3"
+# The HAL trait surface needs `alloc` (GpioPin::on_edge takes a Box), so a
+# bare-metal RustNet port must supply a global allocator.
+embedded-alloc = "0.6"
+# Used for the clock tree and the USB device bus, the same way the STM32 port
+# takes stm32f4xx-hal: every RustNet peripheral below still goes through the
+# HAL traits. A hand-written CDC stack got as far as a host seeing a device
+# and no further, and four blind attempts is the point at which a maintained
+# implementation is the cheaper engineering.
+rp2040-hal = { version = "0.10", features = ["rt", "critical-section-impl"] }
+usb-device = "0.3"
+usbd-serial = "0.2"
+rustnet-hal = { path = "../rustnet-hal", default-features = false }
+rustnet-hal-rp2040 = { path = "../rustnet-hal-rp2040" }
+rustnet-rndp = { path = "../rustnet-rndp" }
+rustnet-flashfs = { path = "../rustnet-flashfs" }
+rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false }
+# The signature check drags in `rsa` -> `lazy_static` -> `spin`, which wants
+# compare-and-swap. A Cortex-M0+ has no CAS instruction, so `spin` is pointed at
+# `portable-atomic`, which emulates it by taking a critical section.
+spin = { version = "0.9.9", default-features = false, features = ["portable_atomic"] }
+portable-atomic = { version = "1", default-features = false, features = ["critical-section"] }
+rustnet-core = { path = "../rustnet-core", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug = true
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

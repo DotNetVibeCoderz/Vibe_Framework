@@ -30,6 +30,13 @@ the cable; the panel below is its own screen, captured live:
 
 ![RustNet Workbench connected to an M5Stack Tough](docs/images/workbench.png)
 
+It also builds and flashes the *firmware* for any board here, calling that
+target's own toolchain. A Raspberry Pi Pico is the extreme case: asked over
+RNDP to reboot into its ROM bootloader, it reflashes itself with nobody
+touching BOOTSEL.
+
+![Building and flashing Pico firmware from the Workbench](docs/images/workbench-board-firmware.png)
+
 **Designer** lays out a screen against the device's real renderer, so what you
 drag is what the board draws — the same layout code runs in both:
 
@@ -111,7 +118,9 @@ Deploying an app, step by step: [ESP32-WROOM-32](docs/deploy-esp32.md) ·
 [M5Stack Tough](docs/deploy-m5tough.md) (live 320×240 panel) ·
 [Netduino 3 WiFi](docs/deploy-netduino3.md) (C# on bare-metal ARM) ·
 [Sipeed Maix Go](docs/deploy-maixgo.md) (C# on bare-metal RISC-V, with
-graphics and a filesystem).
+graphics and a filesystem) ·
+[Raspberry Pi Pico](docs/deploy-pico.md) (RNDP over the board's own USB — no
+serial adapter, no probe, and it reflashes itself).
 
 ## Credits
 

@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         FillAbout();
+        FillBoards();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) =>
         {
@@ -161,12 +162,13 @@ public partial class MainWindow : Window
             "M5Stack Tough / Core2      esp32     runtime/firmware-esp32 --features board-m5tough",
             "ESP32-C3                   esp32c3   runtime/firmware-esp32  (riscv target)",
             "Sipeed Maix Go             k210      runtime/firmware-k210   (riscv64gc, kflash)",
+            "Raspberry Pi Pico          rp2040    runtime/firmware-rp2040 (thumbv6m, UF2 over its own USB)",
             "STM32F401 / Nucleo-F401RE  stm32     runtime/firmware-stm32  (thumbv7em, SWD)",
             "Netduino 3 WiFi            stm32     runtime/firmware-stm32  (thumbv7em, DFU)",
             "",
             "The chip picker when flashing an app must match the board: an image",
-            "signed for one chip is refused by another. The FIRMWARE panel in this",
-            "tool builds the host virtual device only.",
+            "signed for one chip is refused by another. The FIRMWARE tab builds and",
+            "flashes any of these, given that target's toolchain.",
         });
     }
 
@@ -590,6 +592,133 @@ public partial class MainWindow : Window
                 Dispatcher.UIThread.Post(() => TxtFwOut.Text += $"error: {ex.Message}");
             }
         });
+    }
+
+    // ---- board firmware ----
+
+    /// <summary>
+    /// Fill the board picker from the shared catalogue.
+    /// </summary>
+    /// <remarks>
+    /// From <see cref="BoardCatalog"/> rather than from XAML, so this list and
+    /// the CLI's cannot disagree — the one you are not looking at is the one
+    /// that would be wrong.
+    /// </remarks>
+    private void FillBoards()
+    {
+        CmbBoard.ItemsSource = BoardCatalog.All.Select(b => $"{b.Id}  —  {b.Name}").ToList();
+        CmbBoard.SelectedIndex = BoardCatalog.All.ToList().FindIndex(b => b.Flash != FlashKind.None);
+    }
+
+    private BoardRecipe? SelectedBoard() =>
+        CmbBoard.SelectedIndex >= 0 && CmbBoard.SelectedIndex < BoardCatalog.All.Count
+            ? BoardCatalog.All[CmbBoard.SelectedIndex]
+            : null;
+
+    private void OnBoardChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (SelectedBoard() is not { } board)
+        {
+            return;
+        }
+        LblBoardNote.Text = $"{board.Note}  Needs: {board.Requires}.";
+        TxtBoardPort.IsEnabled = board.NeedsPort;
+
+        string? root = FindRepoRoot();
+        if (root is null)
+        {
+            LblBoardArtifact.Text = "repo not found above this binary";
+            return;
+        }
+        string elf = BoardCatalog.ArtifactPath(root, board);
+        LblBoardArtifact.Text = File.Exists(elf)
+            ? $"built  {new FileInfo(elf).Length / 1024} KiB  {new FileInfo(elf).LastWriteTime:yyyy-MM-dd HH:mm}"
+            : "not built yet";
+    }
+
+    private void OnBoardBuild(object? sender, RoutedEventArgs e) => RunBoardJob(build: true, flash: false);
+
+    private void OnBoardFlash(object? sender, RoutedEventArgs e) => RunBoardJob(build: false, flash: true);
+
+    private void OnBoardBuildFlash(object? sender, RoutedEventArgs e) => RunBoardJob(build: true, flash: true);
+
+    /// <summary>
+    /// Run a build and/or flash on a worker, streaming output into the panel.
+    /// </summary>
+    /// <remarks>
+    /// Lines are appended from the worker through the dispatcher because a
+    /// board build takes minutes, and a UI that freezes for a minute is a UI
+    /// people force-quit. Buttons are disabled for the duration: two cargo
+    /// builds in the same target directory block on each other's lock and look
+    /// like a hang.
+    /// </remarks>
+    private void RunBoardJob(bool build, bool flash)
+    {
+        if (SelectedBoard() is not { } board)
+        {
+            return;
+        }
+        string? root = FindRepoRoot();
+        if (root is null)
+        {
+            TxtFwOut.Text = "RustNet repo (Cargo.toml) not found above the Workbench binary";
+            return;
+        }
+        string port = TxtBoardPort.Text?.Trim() ?? "";
+        if (flash && board.NeedsPort && port.Length == 0)
+        {
+            TxtFwOut.Text = $"{board.Name} is flashed over a serial port — enter one (e.g. COM7).";
+            return;
+        }
+        if (flash && board.Flash == FlashKind.None)
+        {
+            TxtFwOut.Text = "The virtual device is not flashed. Build it above and run it.";
+            return;
+        }
+
+        TxtFwOut.Text = $"{board.Name} ({board.Chip})" + Environment.NewLine;
+        SetBoardButtons(false);
+
+        // The Pico can be asked into its bootloader over RNDP, so if the
+        // Workbench is connected to one, hand that along and nobody has to
+        // touch BOOTSEL.
+        string? deviceSpec = board.Flash == FlashKind.Uf2 ? _deviceSpec : null;
+
+        Task.Run(() =>
+        {
+            void Log(string line) => Dispatcher.UIThread.Post(() => TxtFwOut.Text += line + Environment.NewLine);
+            try
+            {
+                if (build && !BoardFlasher.Build(root, board, Log))
+                {
+                    return;
+                }
+                if (flash)
+                {
+                    BoardFlasher.Flash(BoardCatalog.FlashPlan(root, board, port, deviceSpec), Log);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"error: {ex.Message}");
+            }
+            finally
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    SetBoardButtons(true);
+                    OnBoardChanged(null, null!);
+                });
+            }
+        });
+    }
+
+    private void SetBoardButtons(bool enabled)
+    {
+        CmbBoard.IsEnabled = enabled;
+        BtnBoardBuild.IsEnabled = enabled;
+        BtnBoardFlash.IsEnabled = enabled;
+        BtnBoardBoth.IsEnabled = enabled;
     }
 
     private void OnFwList(object? sender, RoutedEventArgs e)

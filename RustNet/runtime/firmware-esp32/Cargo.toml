@@ -15,13 +15,20 @@ harness = false
 
 [dependencies]
 esp-idf-svc = "0.51"
-rustnet-firmware = { path = "../firmware", default-features = false, features = ["chip-esp32"] }
+rustnet-firmware = { path = "../firmware", default-features = false }
 rustnet-hal = { path = "../rustnet-hal", features = ["std"] }
 rustnet-fs = { path = "../rustnet-fs" }
 rustnet-diag = { path = "../rustnet-diag" }
 
 [features]
-default = []
+default = ["chip-esp32"]
+# Which SoC this image is for. It picks the chip identity the service reports
+# *and* the peripheral RNDP runs over: the classic ESP32 boards reach a host
+# through a USB-serial bridge on UART0, while the C3 has a USB Serial/JTAG
+# controller inside the SoC and its boards wire the socket straight to that.
+# See src/link.rs.
+chip-esp32 = ["rustnet-firmware/chip-esp32"]
+chip-esp32c3 = ["rustnet-firmware/chip-esp32c3"]
 # M5Stack Tough: AXP192 PMIC + ILI9342C 320x240 panel bring-up (board.rs).
 board-m5tough = []
 

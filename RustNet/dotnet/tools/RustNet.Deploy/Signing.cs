@@ -22,6 +22,9 @@ public enum ChipFamily : byte
     Esp32C3 = 6,
     /// <summary>Kendryte K210 (RISC-V RV64GC).</summary>
     K210 = 7,
+
+    /// <summary>Raspberry Pi RP2040 (dual Cortex-M0+).</summary>
+    Rp2040 = 8,
 }
 
 /// <summary>
@@ -41,7 +44,8 @@ public static class Signing
         "host" or "host-sim" => ChipFamily.HostSim,
         "esp32c3" or "esp32-c3" => ChipFamily.Esp32C3,
         "k210" or "kendryte" => ChipFamily.K210,
-        _ => throw new ArgumentException($"unknown chip '{name}' (esp32|esp32c3|k210|stm32|ti|nxp|host-sim|any)"),
+        "rp2040" or "pico" or "rpi-pico" => ChipFamily.Rp2040,
+        _ => throw new ArgumentException($"unknown chip '{name}' (esp32|esp32c3|k210|rp2040|stm32|ti|nxp|host-sim|any)"),
     };
 
     /// <summary>Generate an RSA-2048 keypair as (privateKeyPkcs1Der, publicKeyPkcs1Der).</summary>

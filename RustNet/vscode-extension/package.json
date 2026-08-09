@@ -82,7 +82,18 @@
               },
               "chip": {
                 "type": "string",
-                "description": "Chip family",
+                "description": "Chip family the app is signed for. A device refuses an image built for another chip.",
+                "enum": [
+                  "host-sim",
+                  "esp32",
+                  "esp32c3",
+                  "k210",
+                  "rp2040",
+                  "stm32",
+                  "ti",
+                  "nxp",
+                  "any"
+                ],
                 "default": "host-sim"
               }
             }

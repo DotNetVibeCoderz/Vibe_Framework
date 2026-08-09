@@ -117,6 +117,7 @@
                       <ComboBoxItem>esp32</ComboBoxItem>
                       <ComboBoxItem>esp32c3</ComboBoxItem>
                       <ComboBoxItem>k210</ComboBoxItem>
+                      <ComboBoxItem>rp2040</ComboBoxItem>
                       <ComboBoxItem>stm32</ComboBoxItem>
                       <ComboBoxItem>ti</ComboBoxItem>
                       <ComboBoxItem>nxp</ComboBoxItem>
@@ -293,7 +294,7 @@
                 <StackPanel Spacing="10">
                   <TextBlock Classes="legend" Text="HOST VIRTUAL DEVICE"/>
                   <TextBlock Classes="note"
-                             Text="Builds the host firmware with one chip identity linked in — the virtual device you develop against, not an image for real silicon. Bare-metal firmware for the K210, STM32 and ESP32 lives in its own workspace and needs that target's toolchain; see the About panel."/>
+                             Text="Builds the host firmware with one chip identity linked in — the virtual device you develop against, not an image for real silicon. For a real board, use the panel below."/>
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <ComboBox x:Name="CmbFwChip" Width="120" SelectedIndex="0">
                       <ComboBoxItem>host</ComboBoxItem>
@@ -307,6 +308,23 @@
                     <Button Classes="primary" Content="BUILD" Click="OnFwBuild"/>
                     <Button Content="LIST IMAGES" Click="OnFwList"/>
                   </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="group">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="legend" Text="BOARD FIRMWARE"/>
+                  <TextBlock Classes="note"
+                             Text="Builds and flashes the bare-metal firmware for a real board. Each port is its own workspace and needs that target's toolchain and flashing tool installed — the readout below says which, and the build stops with a plain message if one is missing."/>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ComboBox x:Name="CmbBoard" Width="230" SelectionChanged="OnBoardChanged"/>
+                    <TextBox x:Name="TxtBoardPort" Width="110" Watermark="COM7"/>
+                    <Button x:Name="BtnBoardBuild" Classes="primary" Content="BUILD" Click="OnBoardBuild"/>
+                    <Button x:Name="BtnBoardFlash" Content="FLASH" Click="OnBoardFlash"/>
+                    <Button x:Name="BtnBoardBoth" Content="BUILD + FLASH" Click="OnBoardBuildFlash"/>
+                  </StackPanel>
+                  <TextBlock x:Name="LblBoardNote" Classes="note" Text=""/>
+                  <TextBlock x:Name="LblBoardArtifact" Classes="readout" Text=""/>
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -360,6 +378,7 @@
                   <TextBlock Classes="readout" Text="docs/chips.md           what each chip supports"/>
                   <TextBlock Classes="readout" Text="docs/deploy-esp32.md    ESP32 and M5Stack"/>
                   <TextBlock Classes="readout" Text="docs/deploy-maixgo.md   Sipeed Maix Go (K210)"/>
+                  <TextBlock Classes="readout" Text="docs/deploy-pico.md     Raspberry Pi Pico"/>
                   <TextBlock Classes="readout" Text="docs/dotnet-support.md  the C# language surface"/>
                 </StackPanel>
               </Border>

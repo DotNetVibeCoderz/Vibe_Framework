@@ -324,5 +324,17 @@ public sealed class RndpClient(IDeviceTransport transport) : IDisposable
 
     public void Reboot() => Expect(Cmd.Reboot, Array.Empty<byte>());
 
+    /// <summary>
+    /// Reboot into the board's ROM bootloader rather than back into the image.
+    /// </summary>
+    /// <remarks>
+    /// Only the RP2040 port answers this — it calls the boot ROM's
+    /// <c>reset_to_usb_boot</c>, and the board comes back as the mass-storage
+    /// device that accepts a UF2. A payload distinguishes it from a plain
+    /// reboot, so a firmware that does not know about it resets as usual
+    /// rather than failing.
+    /// </remarks>
+    public void RebootToBootloader() => Expect(Cmd.Reboot, [1]);
+
     public void Dispose() => transport.Dispose();
 }

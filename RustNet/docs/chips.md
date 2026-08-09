@@ -8,6 +8,7 @@
 | ESP32 | 1 | Xtensa LX6 | `runtime/firmware-esp32` (ESP-IDF std) | **RUNS RUSTNET** — verified on an ESP32-WROOM-32: RNDP over UART0, RSA-verified app flash, C# apps (incl. async/await) executing on-chip, live GPIO |
 | ESP32-C3 | 6 | **RISC-V RV32IMC** | `chip-esp32c3` | **board crate started** (`rustnet-hal-esp32c3`): register-level GPIO + cycle-counted delay compile for `riscv32imc-unknown-none-elf`; other peripherals name their esp-hal integration points |
 | Kendryte K210 | 7 | **RISC-V RV64GC** | `chip-k210` + `runtime/firmware-k210` | **runs C# on hardware** — `rustnet-hal-k210` (FPIOA/GPIOHS/UARTHS/UART1-3/SPI/`mcycle` clock/SPI-NOR storage) plus a firmware that links the interpreter, serves RNDP, drives the MaixLCD panel and keeps a filesystem in the board's flash; verified on a Sipeed Maix Go |
+| RP2040 | 8 | ARM Cortex-M0+ | `runtime/firmware-rp2040` | **runs C# on bare metal** — RNDP over the board's own USB CDC (no adapter, no probe), 1 MB flash filesystem, provisioning + signed app flashing + autostart, and it reboots into its own ROM bootloader on request; verified on a Raspberry Pi Pico. Step-by-step: [`deploy-pico.md`](deploy-pico.md) |
 | STM32F4 | 2 | ARM Cortex-M4F | `chip-stm32` + `runtime/firmware-stm32` | **RUNS C# ON BARE METAL** — the `no_std` interpreter plus `rustnet-hal-stm32` (GPIO, USART, DWT delay), verified on a Nucleo-F401RE and a Netduino 3 WiFi (F427) |
 | TI / NXP | 3/4 | ARM Cortex-M | `chip-ti` / `chip-nxp` | variant builds; vendor PAC/SDK pending |
 
@@ -302,6 +303,21 @@ PAC/SDK and swapping the RNDP transport to USB-CDC/UART:
 ESP32/ESP32-C3 notes: lwIP backs `NetInterface`, mbedTLS plugs into
 `rustnet-net::tls::TlsProvider`, TWAI is the CAN peripheral, RMT is the
 natural `SignalControl` implementation.
+
+RP2040 notes (Raspberry Pi Pico): complete and verified on hardware.
+`rustnet-hal-rp2040` (clocks, GPIO, UART, timer) plus
+`runtime/firmware-rp2040`, a bare-metal Cortex-M0+ image that boots from
+flash and runs the interpreter in a 128 KB heap. Step 3 does not apply; the
+port is single-threaded and cooperative. Step 4 is done over the board's own
+USB: it enumerates as a CDC device (`2E8A:000A`), so RNDP needs no adapter on
+GP0/GP1 — `info`, `logs`, `data push/pull`, `provision`, `flash`, `apps` and
+`autostart` all answer on it. Storage is 1 MB of the QSPI part above the
+image via `rustnet-flashfs`, and `reboot` with a payload of `01` re-enters
+the ROM bootloader so reflashing needs no BOOTSEL button. Two rules the port
+paid for: **every wait must service the bus** (USB is not a stream that
+waits), and **flash writes must be widened to whole pages** by the driver,
+because the boot ROM will not do it and a log-structured store never produces
+them. See `runtime/firmware-rp2040/README.md`.
 
 K210 notes: steps 1 and 2 are done (`rustnet-hal-k210` +
 `runtime/firmware-k210`), and step 3 does not apply — the port is
