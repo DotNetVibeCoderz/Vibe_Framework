@@ -1,0 +1,44 @@
+[package]
+name = "rustnet-firmware-meadow-f7"
+description = "RustNet firmware for the Wilderness Labs Meadow F7 Micro (STM32F7, Cortex-M7): RNDP over the board's own USB socket"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace: a bare-metal target with its own linker script, kept
+# out of the host workspace so `cargo test --workspace` still builds.
+[workspace]
+
+[features]
+default = []
+# Boot straight into a transparent USB <-> ESP32 bridge instead of running
+# RustNet, so `esptool` can reach the coprocessor through this board. See the
+# module docs in src/main.rs.
+esp-bridge = []
+
+[dependencies]
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+# The signature check needs compare-and-swap emulation the same way the RP2040
+# port does; a Cortex-M7 has CAS, but `spin` still wants the shim wired up.
+spin = { version = "0.9.9", default-features = false, features = ["portable_atomic"] }
+portable-atomic = { version = "1", default-features = false, features = ["critical-section"] }
+cortex-m-rt = "0.7"
+embedded-alloc = "0.6"
+# The USB device driver only — the Synopsys OTG core ST licenses, which both
+# vendor HALs wrap. Everything else on this port is register-level, so pulling
+# a fifteen-device PAC for one peripheral would be the odd one out.
+synopsys-usb-otg = { version = "0.5", features = ["fs"] }
+usb-device = "0.3"
+usbd-serial = "0.2"
+
+rustnet-hal = { path = "../rustnet-hal", default-features = false }
+rustnet-hal-stm32 = { path = "../rustnet-hal-stm32", features = ["stm32f7"] }
+rustnet-rndp = { path = "../rustnet-rndp" }
+rustnet-core = { path = "../rustnet-core", default-features = false }
+rustnet-flashfs = { path = "../rustnet-flashfs" }
+rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false }
+
+[profile.release]
+codegen-units = 1
+debug = true
+lto = true
+opt-level = "s"

@@ -5,10 +5,11 @@
 | Chip | Family id | ISA | Firmware feature | Status |
 |---|---|---|---|---|
 | host-sim | 5 | native | `chip-host` (default) | **fully working** — virtual device used by all tools/tests |
-| ESP32 | 1 | Xtensa LX6 | `runtime/firmware-esp32` (ESP-IDF std) | **RUNS RUSTNET** — verified on an ESP32-WROOM-32: RNDP over UART0, RSA-verified app flash, C# apps (incl. async/await) executing on-chip, live GPIO |
-| ESP32-C3 | 6 | **RISC-V RV32IMC** | `chip-esp32c3` | **board crate started** (`rustnet-hal-esp32c3`): register-level GPIO + cycle-counted delay compile for `riscv32imc-unknown-none-elf`; other peripherals name their esp-hal integration points |
+| ESP32 | 1 | Xtensa LX6 | `runtime/firmware-esp32` (ESP-IDF std) | **RUNS RUSTNET** — verified on an ESP32-WROOM-32, an M5Stack Tough and an M5Stack Core2: RNDP over UART0, RSA-verified app flash, C# apps (incl. async/await) executing on-chip, live GPIO and a live 320x240 panel on the M5 boards |
+| ESP32-C3 | 6 | **RISC-V RV32IMC** | `runtime/firmware-esp32` + `chip-esp32c3` | **RUNS RUSTNET** — verified on a Seeed XIAO ESP32C3: RNDP over the SoC's **own USB Serial/JTAG** (no bridge chip), provisioning, signed app flashing, C# executing on-chip and autostart across a reboot. Step-by-step: [`deploy-xiao-c3.md`](deploy-xiao-c3.md) |
 | Kendryte K210 | 7 | **RISC-V RV64GC** | `chip-k210` + `runtime/firmware-k210` | **runs C# on hardware** — `rustnet-hal-k210` (FPIOA/GPIOHS/UARTHS/UART1-3/SPI/`mcycle` clock/SPI-NOR storage) plus a firmware that links the interpreter, serves RNDP, drives the MaixLCD panel and keeps a filesystem in the board's flash; verified on a Sipeed Maix Go |
 | RP2040 | 8 | ARM Cortex-M0+ | `runtime/firmware-rp2040` | **runs C# on bare metal** — RNDP over the board's own USB CDC (no adapter, no probe), 1 MB flash filesystem, provisioning + signed app flashing + autostart, and it reboots into its own ROM bootloader on request; verified on a Raspberry Pi Pico. Step-by-step: [`deploy-pico.md`](deploy-pico.md) |
+| STM32F7 | 2 | ARM Cortex-M7 | `runtime/firmware-meadow-f7` | **runs C# on bare metal** — 216 MHz from the board's 25 MHz crystal, RNDP over the board's own USB CDC *and* a UART console, verified on a Wilderness Labs Meadow F7 Micro (STM32F777), with **32 MB of QSPI storage**: provisioning, signed app flashing over the wire, autostart, and files, all surviving a firmware reflash. Step-by-step: [`deploy-meadow-f7.md`](deploy-meadow-f7.md) |
 | STM32F4 | 2 | ARM Cortex-M4F | `chip-stm32` + `runtime/firmware-stm32` | **RUNS C# ON BARE METAL** — the `no_std` interpreter plus `rustnet-hal-stm32` (GPIO, USART, DWT delay), verified on a Nucleo-F401RE and a Netduino 3 WiFi (F427) |
 | TI / NXP | 3/4 | ARM Cortex-M | `chip-ti` / `chip-nxp` | variant builds; vendor PAC/SDK pending |
 
@@ -303,6 +304,18 @@ PAC/SDK and swapping the RNDP transport to USB-CDC/UART:
 ESP32/ESP32-C3 notes: lwIP backs `NetInterface`, mbedTLS plugs into
 `rustnet-net::tls::TlsProvider`, TWAI is the CAN peripheral, RMT is the
 natural `SignalControl` implementation.
+
+Two things the C3 needs that the classic ESP32 does not, both in
+`runtime/firmware-esp32`. **RNDP runs over the SoC's USB Serial/JTAG
+controller, not UART0** — boards like the Seeed XIAO wire the socket straight
+to it and leave UART0 on bare GPIOs, so a UART0 firmware there talks to
+nobody. `src/link.rs` holds that difference, and
+`sdkconfig.defaults.esp32c3` turns off ESP-IDF's *secondary* console so log
+lines cannot land in the middle of a protocol frame. And **only one of
+ESP-IDF's two I2C drivers may be linked**: the legacy one carries a
+constructor that aborts the image before `main` if it finds `driver_ng`
+present. `esp-idf-hal` pulls the legacy driver in, so the board layer uses
+that one too.
 
 RP2040 notes (Raspberry Pi Pico): complete and verified on hardware.
 `rustnet-hal-rp2040` (clocks, GPIO, UART, timer) plus

@@ -379,6 +379,8 @@
                   <TextBlock Classes="readout" Text="docs/deploy-esp32.md    ESP32 and M5Stack"/>
                   <TextBlock Classes="readout" Text="docs/deploy-maixgo.md   Sipeed Maix Go (K210)"/>
                   <TextBlock Classes="readout" Text="docs/deploy-pico.md     Raspberry Pi Pico"/>
+                  <TextBlock Classes="readout" Text="docs/deploy-m5core2.md  M5Stack Core2"/>
+                  <TextBlock Classes="readout" Text="docs/deploy-xiao-c3.md  Seeed XIAO ESP32C3"/>
                   <TextBlock Classes="readout" Text="docs/dotnet-support.md  the C# language surface"/>
                 </StackPanel>
               </Border>

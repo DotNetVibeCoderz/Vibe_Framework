@@ -10,7 +10,24 @@ use rustnet_hal::watchdog::Watchdog;
 use rustnet_hal::{delay::Delay, Board, HalError, HalResult};
 use std::sync::Once;
 
-const PIN_COUNT: u32 = 40; // GPIO0..=39 (34..39 input-only)
+// GPIO0..=39 on the classic ESP32 (34..39 input-only); the C3 stops at 21.
+// Claiming pins a chip does not have is not harmless: `gpio()` would hand back
+// a pin whose every operation fails inside ESP-IDF instead of an error naming
+// the real problem.
+#[cfg(not(feature = "chip-esp32c3"))]
+const PIN_COUNT: u32 = 40;
+/// The devkit's I2C pins. The C3 has no GPIO21/22 pair free in the same way,
+/// so it takes the XIAO's header (D4/D5).
+#[cfg(not(feature = "chip-esp32c3"))]
+const SDA_IO: i32 = 21;
+#[cfg(not(feature = "chip-esp32c3"))]
+const SCL_IO: i32 = 22;
+#[cfg(feature = "chip-esp32c3")]
+const SDA_IO: i32 = 6;
+#[cfg(feature = "chip-esp32c3")]
+const SCL_IO: i32 = 7;
+#[cfg(feature = "chip-esp32c3")]
+const PIN_COUNT: u32 = 22;
 
 /// The per-pin GPIO ISR service is process-global and must be installed
 /// exactly once (flags=0 → handlers may live in flash, no IRAM constraint).
@@ -803,69 +820,77 @@ impl rustnet_hal::pwm::PwmChannel for IdfPwm {
     }
 }
 
-/// I2C master on the new (5.x) bus/device driver. Bus 0 = SDA 21 / SCL 22
-/// (the devkit convention).
+/// I2C master, on ESP-IDF's **legacy** driver. Bus 0 = SDA 21 / SCL 22 (the
+/// devkit convention).
+///
+/// ## Why the old API and not the 5.x bus/device one
+///
+/// ESP-IDF ships two I2C drivers and refuses to have both linked into one
+/// image: the legacy driver carries a constructor that aborts the moment it
+/// finds `driver_ng` present, before `main` runs. This used the new one, and
+/// `esp-idf-hal` — several layers down, under `esp-idf-svc` — references
+/// `i2c_driver_delete` and so pulls the old one in. That is both of them.
+///
+/// The ESP32 build survived on luck: nothing there happened to keep the
+/// symbol that pulls the legacy object, so only the new driver was linked. The
+/// C3 build did keep it, and every boot aborted with `CONFIG_I2C ... CONFLICT!`
+/// and a reset before a single line of firmware output. Since a dependency we
+/// do not control already requires the legacy driver, matching it is the only
+/// arrangement that is stable — and it removes a driver from the image rather
+/// than adding one.
 pub struct IdfI2c {
-    bus: sys::i2c_master_bus_handle_t,
+    port: sys::i2c_port_t,
     hz: u32,
-    devices: std::collections::HashMap<u8, sys::i2c_master_dev_handle_t>,
 }
 
 unsafe impl Send for IdfI2c {}
 
+/// How long a transfer may take before it is a failure, in FreeRTOS ticks
+/// (~100 Hz). A device that is absent NACKs immediately; this bounds the one
+/// that is present but wedged.
+const I2C_TIMEOUT_TICKS: sys::TickType_t = 10;
+
 impl IdfI2c {
     fn new(sda: i32, scl: i32) -> HalResult<Self> {
-        let mut cfg = sys::i2c_master_bus_config_t {
-            i2c_port: -1,
-            sda_io_num: sda,
-            scl_io_num: scl,
-            clk_source: sys::soc_periph_i2c_clk_src_t_I2C_CLK_SRC_DEFAULT,
-            glitch_ignore_cnt: 7,
-            intr_priority: 0,
-            trans_queue_depth: 0,
-            ..Default::default()
-        };
-        cfg.flags.set_enable_internal_pullup(1);
-        let mut handle: sys::i2c_master_bus_handle_t = std::ptr::null_mut();
-        let err = unsafe { sys::i2c_new_master_bus(&cfg, &mut handle) };
+        let me = IdfI2c { port: 0, hz: 100_000 };
+        me.configure(sda, scl, me.hz)?;
+        let err = unsafe { sys::i2c_driver_install(me.port, sys::i2c_mode_t_I2C_MODE_MASTER, 0, 0, 0) };
+        if err != 0 {
+            return Err(HalError::Bus("i2c driver install failed"));
+        }
+        Ok(me)
+    }
+
+    fn configure(&self, sda: i32, scl: i32, hz: u32) -> HalResult<()> {
+        // `i2c_config_t` puts the master and slave settings in an anonymous
+        // union, so it is built zeroed and the master arm set by hand.
+        let mut cfg: sys::i2c_config_t = unsafe { std::mem::zeroed() };
+        cfg.mode = sys::i2c_mode_t_I2C_MODE_MASTER;
+        cfg.sda_io_num = sda;
+        cfg.scl_io_num = scl;
+        cfg.sda_pullup_en = true;
+        cfg.scl_pullup_en = true;
+        cfg.__bindgen_anon_1.master.clk_speed = hz;
+        let err = unsafe { sys::i2c_param_config(self.port, &cfg) };
         if err != 0 {
             return Err(HalError::Bus("i2c bus init failed"));
         }
-        Ok(IdfI2c { bus: handle, hz: 100_000, devices: std::collections::HashMap::new() })
-    }
-
-    fn device(&mut self, addr: u8) -> HalResult<sys::i2c_master_dev_handle_t> {
-        if let Some(h) = self.devices.get(&addr) {
-            return Ok(*h);
-        }
-        let cfg = sys::i2c_device_config_t {
-            dev_addr_length: sys::i2c_addr_bit_len_t_I2C_ADDR_BIT_LEN_7,
-            device_address: addr as u16,
-            scl_speed_hz: self.hz,
-            ..Default::default()
-        };
-        let mut dev: sys::i2c_master_dev_handle_t = std::ptr::null_mut();
-        let err = unsafe { sys::i2c_master_bus_add_device(self.bus, &cfg, &mut dev) };
-        if err != 0 {
-            return Err(HalError::Bus("i2c add device failed"));
-        }
-        self.devices.insert(addr, dev);
-        Ok(dev)
+        Ok(())
     }
 
     /// Write-then-read with a repeated start (no intervening STOP) — the form
     /// register reads on PMICs like the AXP192 require.
-    #[cfg(feature = "board-m5tough")]
+    #[cfg(feature = "board-m5")]
     fn write_read(&mut self, addr: u8, wr: &[u8], rd: &mut [u8]) -> HalResult<()> {
-        let dev = self.device(addr)?;
         let err = unsafe {
-            sys::i2c_master_transmit_receive(
-                dev,
+            sys::i2c_master_write_read_device(
+                self.port,
+                addr,
                 wr.as_ptr(),
                 wr.len(),
                 rd.as_mut_ptr(),
                 rd.len(),
-                100,
+                I2C_TIMEOUT_TICKS,
             )
         };
         if err != 0 {
@@ -878,21 +903,36 @@ impl IdfI2c {
 impl rustnet_hal::i2c::I2cBus for IdfI2c {
     fn set_frequency(&mut self, hz: u32) -> HalResult<()> {
         self.hz = hz;
-        // Applies to devices added after this call.
-        self.devices.clear();
-        Ok(())
+        // The legacy driver takes the clock from `i2c_param_config`, which can
+        // be re-run on a live port — no reinstall, so devices already talking
+        // are not disturbed beyond the rate change they asked for.
+        self.configure(SDA_IO, SCL_IO, hz)
     }
     fn write(&mut self, addr: u8, data: &[u8]) -> HalResult<()> {
-        let dev = self.device(addr)?;
-        let err = unsafe { sys::i2c_master_transmit(dev, data.as_ptr(), data.len(), 100) };
+        let err = unsafe {
+            sys::i2c_master_write_to_device(
+                self.port,
+                addr,
+                data.as_ptr(),
+                data.len(),
+                I2C_TIMEOUT_TICKS,
+            )
+        };
         if err != 0 {
             return Err(HalError::Bus("i2c write NACK/timeout"));
         }
         Ok(())
     }
     fn read(&mut self, addr: u8, buf: &mut [u8]) -> HalResult<()> {
-        let dev = self.device(addr)?;
-        let err = unsafe { sys::i2c_master_receive(dev, buf.as_mut_ptr(), buf.len(), 100) };
+        let err = unsafe {
+            sys::i2c_master_read_from_device(
+                self.port,
+                addr,
+                buf.as_mut_ptr(),
+                buf.len(),
+                I2C_TIMEOUT_TICKS,
+            )
+        };
         if err != 0 {
             return Err(HalError::Bus("i2c read NACK/timeout"));
         }
@@ -913,15 +953,31 @@ unsafe impl Send for IdfSpi {}
 
 impl IdfSpi {
     fn new() -> HalResult<Self> {
+        // Which general-purpose SPI controllers exist is a property of the
+        // chip, not of the board: the classic ESP32 has HSPI and VSPI (SPI2
+        // and SPI3), while the C3 has only SPI2 — SPI1 is the one the flash
+        // itself hangs off and is not usable here. Naming SPI3 on a C3 does
+        // not fail at run time; the constant simply does not exist.
+        #[cfg(not(feature = "chip-esp32c3"))]
         let host = sys::spi_host_device_t_SPI3_HOST;
+        #[cfg(feature = "chip-esp32c3")]
+        let host = sys::spi_host_device_t_SPI2_HOST;
         // `spi_bus_config_t` overlaps the mosi/miso/quad pins with the octal
         // data pins in anonymous unions, so build it zeroed and set by union.
         let mut buscfg: sys::spi_bus_config_t = unsafe { std::mem::zeroed() };
-        buscfg.sclk_io_num = 18;
+        // The classic ESP32's VSPI defaults; the C3 has only 22 GPIOs and none
+        // of these exist on it, so it takes the XIAO's SPI header instead
+        // (D8/D10/D9). Getting this wrong is not a compile error — the bus
+        // simply refuses to initialise the first time an app touches SPI.
+        #[cfg(not(feature = "chip-esp32c3"))]
+        let (sclk, mosi, miso) = (18, 23, 19);
+        #[cfg(feature = "chip-esp32c3")]
+        let (sclk, mosi, miso) = (8, 10, 9);
+        buscfg.sclk_io_num = sclk;
         buscfg.max_transfer_sz = 4096;
         unsafe {
-            buscfg.__bindgen_anon_1.mosi_io_num = 23;
-            buscfg.__bindgen_anon_2.miso_io_num = 19;
+            buscfg.__bindgen_anon_1.mosi_io_num = mosi;
+            buscfg.__bindgen_anon_2.miso_io_num = miso;
             buscfg.__bindgen_anon_3.quadwp_io_num = -1;
             buscfg.__bindgen_anon_4.quadhd_io_num = -1;
         }
@@ -996,7 +1052,7 @@ impl rustnet_hal::spi::SpiBus for IdfSpi {
 /// Named integration points: CAN via TWAI, WiFi netif via
 /// esp-idf-svc, signal via RMT.
 // ===========================================================================
-// M5Stack Tough panel bring-up (feature `board-m5tough`)
+// M5Stack panel bring-up (feature `board-m5`: Tough and Core2)
 //
 // Display : ILI9342C 320x240 on SPI2 (SCLK 18 / MOSI 23 / CS 5 / DC 15),
 //           manual CS+DC so a full frame streams under one CS assertion.
@@ -1005,14 +1061,22 @@ impl rustnet_hal::spi::SpiBus for IdfSpi {
 //           it is programmed, so this runs before the first flush.
 // ===========================================================================
 
-#[cfg(feature = "board-m5tough")]
+#[cfg(feature = "board-m5")]
 const AXP192_ADDR: u8 = 0x34;
 
-/// Bring the AXP192 up for the M5 Tough LCD. Follows the battle-tested
-/// M5Core2 sequence (Tough is the same PMIC family) and additionally powers
-/// LDO2 so either candidate backlight rail is live. Register 0x12 is
-/// read-modify-written so DCDC1 (the ESP32's own 3.3 V) is never cleared.
-#[cfg(feature = "board-m5tough")]
+/// Bring the AXP192 up for an M5 LCD. Follows M5Stack's own Core2 sequence.
+/// Register 0x12 is read-modify-written so DCDC1 (the ESP32's own 3.3 V) is
+/// never cleared.
+///
+/// ## The one rail that is not the same on both boards
+///
+/// **LDO3 drives the vibration motor on a Core2** and something harmless on a
+/// Tough. Powering it the same way on both leaves a Core2 buzzing from the
+/// moment it boots until it is switched off — the display would come up
+/// perfectly and the board would still be wrong. So LDO3 is set and enabled
+/// for the Tough only; on a Core2 it is left at its lowest setting and its
+/// enable bit is not touched.
+#[cfg(feature = "board-m5")]
 fn m5_axp192_init(i2c: &mut IdfI2c) -> HalResult<()> {
     use rustnet_hal::i2c::I2cBus as _;
     use std::thread::sleep;
@@ -1034,8 +1098,12 @@ fn m5_axp192_init(i2c: &mut IdfI2c) -> HalResult<()> {
     let v = rd(i2c, 0x35)?;
     wr(i2c, 0x35, (v & 0x1C) | 0xA2)?;
     wr(i2c, 0x82, 0xFF)?;
-    // Reg 0x28: LDO2 = 3.3 V (upper nibble — the LCD BACKLIGHT rail, what
-    // ScreenBreath drives), LDO3 = 3.0 V (lower nibble). 0xF<<4 | 0xC = 0xFC.
+    // Reg 0x28: LDO2 = 3.3 V (upper nibble — the LCD rail), LDO3 in the lower
+    // nibble. 3.0 V on a Tough; on a Core2 that is the vibration motor, so it
+    // gets the lowest setting and is never enabled below.
+    #[cfg(feature = "board-m5core2")]
+    wr(i2c, 0x28, 0xF0)?;
+    #[cfg(not(feature = "board-m5core2"))]
     wr(i2c, 0x28, 0xFC)?;
     // DCDC3 = 3.0 V as well, in case this unit routes the backlight there.
     let v = rd(i2c, 0x27)?;
@@ -1048,10 +1116,15 @@ fn m5_axp192_init(i2c: &mut IdfI2c) -> HalResult<()> {
     // GPIO4 → output (M5 magic value; drives the LCD reset line).
     let v = rd(i2c, 0x95)?;
     wr(i2c, 0x95, (v & 0x72) | 0x84)?;
-    // Power-output enable (reg 0x12): OR in DCDC3(bit1), LDO2(bit2 — backlight),
-    // LDO3(bit3), EXTEN(bit6); preserve DCDC1(bit0) so the ESP32 keeps power.
+    // Power-output enable (reg 0x12): OR in DCDC3(bit1 — the Core2's backlight
+    // rail), LDO2(bit2 — the LCD rail), EXTEN(bit6); preserve DCDC1(bit0) so
+    // the ESP32 keeps its own power. LDO3(bit3) joins them only on a Tough.
+    #[cfg(feature = "board-m5core2")]
+    let enable = 0x46;
+    #[cfg(not(feature = "board-m5core2"))]
+    let enable = 0x4E;
     let v = rd(i2c, 0x12)?;
-    wr(i2c, 0x12, v | 0x4E)?;
+    wr(i2c, 0x12, v | enable)?;
     // LCD reset pulse on GPIO3/GPIO4 (reg 0x96): low → high. Driving both bits
     // high covers whichever line gates the panel reset / backlight enable.
     wr(i2c, 0x96, 0x00)?;
@@ -1062,15 +1135,15 @@ fn m5_axp192_init(i2c: &mut IdfI2c) -> HalResult<()> {
 }
 
 /// One DMA transfer covers this many rows (320*40*2 = 25 600 B).
-#[cfg(feature = "board-m5tough")]
+#[cfg(feature = "board-m5")]
 const M5_BAND_ROWS: usize = 40;
-#[cfg(feature = "board-m5tough")]
+#[cfg(feature = "board-m5")]
 const M5_BAND_BYTES: usize = 320 * M5_BAND_ROWS * 2;
 
 /// ILI9342C over SPI2 with manually driven CS(5) and DC(15). Frames stream by
 /// DMA out of a DMA-capable internal bounce buffer (the framebuffer is in
 /// PSRAM, which SPI DMA cannot read directly).
-#[cfg(feature = "board-m5tough")]
+#[cfg(feature = "board-m5")]
 pub struct M5Display {
     spi: sys::spi_device_handle_t,
     dc: i32,
@@ -1078,10 +1151,10 @@ pub struct M5Display {
     bounce: *mut u8,
 }
 
-#[cfg(feature = "board-m5tough")]
+#[cfg(feature = "board-m5")]
 unsafe impl Send for M5Display {}
 
-#[cfg(feature = "board-m5tough")]
+#[cfg(feature = "board-m5")]
 impl M5Display {
     const DC: i32 = 15;
     const CS: i32 = 5;
@@ -1321,7 +1394,7 @@ pub struct Esp32IdfBoard {
     can: IdfCan,
     signals: std::collections::HashMap<u32, IdfSignal>,
     sta: IdfStaNetif,
-    #[cfg(feature = "board-m5tough")]
+    #[cfg(feature = "board-m5")]
     display: Option<M5Display>,
 }
 
@@ -1352,7 +1425,7 @@ impl Esp32IdfBoard {
             can: IdfCan { installed: false, loopback: false },
             signals: std::collections::HashMap::new(),
             sta: IdfStaNetif,
-            #[cfg(feature = "board-m5tough")]
+            #[cfg(feature = "board-m5")]
             display: None,
         }
     }
@@ -1360,20 +1433,41 @@ impl Esp32IdfBoard {
 
 impl Board for Esp32IdfBoard {
     fn name(&self) -> &str {
-        "esp32-wroom-32 (esp-idf)"
+        // What `rustnet info` prints, and the first thing anyone checks when
+        // they are not sure which board they are talking to.
+        #[cfg(feature = "chip-esp32c3")]
+        {
+            "esp32-c3 (esp-idf)"
+        }
+        #[cfg(all(not(feature = "chip-esp32c3"), feature = "board-m5core2"))]
+        {
+            "m5stack-core2 (esp-idf)"
+        }
+        #[cfg(all(
+            not(feature = "chip-esp32c3"),
+            feature = "board-m5",
+            not(feature = "board-m5core2")
+        ))]
+        {
+            "m5stack-tough (esp-idf)"
+        }
+        #[cfg(all(not(feature = "chip-esp32c3"), not(feature = "board-m5")))]
+        {
+            "esp32-wroom-32 (esp-idf)"
+        }
     }
     fn gpio(&mut self, pin: u32) -> HalResult<&mut dyn GpioPin> {
         self.pins
             .get_mut(pin as usize)
             .map(|p| p as &mut dyn GpioPin)
-            .ok_or(HalError::InvalidArgument("ESP32 has GPIO0..=39"))
+            .ok_or(HalError::InvalidArgument("no such GPIO on this chip"))
     }
     fn i2c(&mut self, bus: u8) -> HalResult<&mut dyn rustnet_hal::i2c::I2cBus> {
         if bus != 0 {
             return Err(HalError::InvalidArgument("only I2C bus 0 (SDA 21 / SCL 22)"));
         }
         if self.i2c.is_none() {
-            self.i2c = Some(IdfI2c::new(21, 22)?);
+            self.i2c = Some(IdfI2c::new(SDA_IO, SCL_IO)?);
         }
         Ok(self.i2c.as_mut().unwrap() as &mut dyn rustnet_hal::i2c::I2cBus)
     }
@@ -1468,12 +1562,12 @@ impl Board for Esp32IdfBoard {
         Ok(self.signals.get_mut(&pin).unwrap() as &mut dyn rustnet_hal::signal::SignalControl)
     }
 
-    #[cfg(feature = "board-m5tough")]
+    #[cfg(feature = "board-m5")]
     fn present_frame(&mut self, rgb565: &[u16], w: u32, h: u32) -> HalResult<()> {
         if self.display.is_none() {
             // Power the LCD rails before the first flush, then bring up the panel.
             if self.i2c.is_none() {
-                self.i2c = Some(IdfI2c::new(21, 22)?);
+                self.i2c = Some(IdfI2c::new(SDA_IO, SCL_IO)?);
             }
             m5_axp192_init(self.i2c.as_mut().unwrap())?;
             self.display = Some(M5Display::new()?);

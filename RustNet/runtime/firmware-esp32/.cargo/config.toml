@@ -9,6 +9,15 @@ linker = "ldproxy"
 runner = "espflash flash --monitor"
 rustflags = ["--cfg", "espidf_time64"]
 
+# The C3 is RISC-V, and without this entry rustc reaches for
+# `riscv32-esp-elf-gcc` by name and does not find it: the toolchain lives under
+# ~/.espressif and is only on PATH for the duration of the build. `ldproxy`
+# is what knows where it is — the same indirection the Xtensa target uses.
+[target.riscv32imc-esp-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor"
+rustflags = ["--cfg", "espidf_time64"]
+
 [unstable]
 build-std = ["std", "panic_abort"]
 

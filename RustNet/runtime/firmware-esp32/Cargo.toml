@@ -29,8 +29,12 @@ default = ["chip-esp32"]
 # See src/link.rs.
 chip-esp32 = ["rustnet-firmware/chip-esp32"]
 chip-esp32c3 = ["rustnet-firmware/chip-esp32c3"]
-# M5Stack Tough: AXP192 PMIC + ILI9342C 320x240 panel bring-up (board.rs).
-board-m5tough = []
+# The M5Stack panel boards. Tough and Core2 carry the same ILI9342C on the
+# same pins behind the same AXP192, so the bring-up is shared under `board-m5`
+# and only the rails that differ are split — see `m5_axp192_init`.
+board-m5 = []
+board-m5tough = ["board-m5"]
+board-m5core2 = ["board-m5"]
 
 [build-dependencies]
 embuild = "0.33"

@@ -1,0 +1,17 @@
+# ESP32-C3 overrides. ESP-IDF reads `sdkconfig.defaults.<target>` on top of
+# `sdkconfig.defaults`, so this file holds only what differs from the classic
+# ESP32 — and what differs is mostly about the console.
+#
+# The C3 has a USB Serial/JTAG controller inside the SoC, and ESP-IDF turns it
+# on as a *secondary* console by default. On a board like the Seeed XIAO, whose
+# USB socket goes straight to that controller, this is the same pipe RNDP runs
+# over — so every log line ESP-IDF emits lands in the middle of a protocol
+# frame. Turning the secondary console off keeps the pipe binary-clean; the
+# primary console stays on UART0, where a board with a bridge can still watch
+# it and a board without one simply discards it.
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# No PSRAM on this chip at all, so none of the SPIRAM options in the base file
+# apply. Nothing to turn off — they are silently unknown here — but worth
+# saying, because the 320x240 framebuffer they exist for cannot fit: the C3 has
+# ~400 KB of SRAM total.

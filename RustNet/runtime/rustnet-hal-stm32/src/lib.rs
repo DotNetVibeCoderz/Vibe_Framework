@@ -1,4 +1,20 @@
-//! STM32F4 (ARM Cortex-M4F) board implementation of the RustNet HAL.
+//! STM32 (Cortex-M4F and Cortex-M7) board implementation of the RustNet HAL.
+//!
+//! # Two families, one crate
+//!
+//! The `stm32f7` feature retargets this crate from the F4 to the F7. That is
+//! not a convenience: **GPIO, the DWT cycle counter and the RCC clock gates
+//! are register-identical across the two families** — same base addresses,
+//! same stride, same bit for each port — so a second crate would be a copy
+//! that drifts. What genuinely differs is gated and named:
+//!
+//! - the F7 has GPIOA..K where the F401 skips F and G,
+//! - its USART is the newer peripheral (ISR/RDR/TDR, not SR/DR), so `uart()`
+//!   refuses rather than writing into reserved space,
+//! - its flash controller differs, so internal-flash storage is not offered.
+//!
+//! The F7 target here is the **Meadow F7 Micro** (Wilderness Labs), which
+//! reaches its host over USB CDC and so needs no USART for bring-up.
 //!
 //! Bring-up status: GPIO, USART and the delay source run directly on the
 //! chip's registers (RM0368 for F401). Every other peripheral returns
@@ -90,9 +106,18 @@ const DEMCR_TRCENA: u32 = 1 << 24;
 const DWT_CTRL: usize = 0xE000_1000;
 const DWT_CTRL_CYCCNTENA: u32 = 1 << 0;
 const DWT_CYCCNT: usize = 0xE000_1004;
+/// The DWT's CoreSight lock. Cortex-M7 ships the trace unit locked; writing
+/// the key below is what makes `DWT_CTRL` writable at all.
+const DWT_LAR: usize = 0xE000_1FB0;
+const CORESIGHT_UNLOCK: u32 = 0xC5AC_CE55;
 
-/// Ports A..=E and H exist on F401; F and G do not.
+/// Ports A..=E and H exist on F401; F and G do not. The F7 parts this crate
+/// also serves carry A..=K, so the array is sized for the wider family and
+/// `gpio_clock_bit` is what actually decides which ports a chip has.
+#[cfg(not(feature = "stm32f7"))]
 const PORT_COUNT: u32 = 8;
+#[cfg(feature = "stm32f7")]
+const PORT_COUNT: u32 = 11;
 const PIN_COUNT: usize = (PORT_COUNT * 16) as usize;
 
 // ---------------------------------------------------------------------------
@@ -142,10 +167,24 @@ fn cyccnt() -> u32 {
 
 /// AHB1ENR bit for a GPIO port. GPIOA..GPIOE are bits 0..4, GPIOH is bit 7 —
 /// F401 has no GPIOF/GPIOG, so ports 5 and 6 have no clock gate.
+/// Which AHB1ENR bit clocks a port, or `None` if the chip has no such port.
+///
+/// The bit *is* the port index on both families — GPIOA is bit 0, GPIOB bit 1
+/// — so this only decides which ports exist. The F401 skips F and G; the F7
+/// parts have the lot.
+#[cfg(not(feature = "stm32f7"))]
 fn gpio_clock_bit(port: u32) -> Option<u32> {
     match port {
         0..=4 => Some(port),
         7 => Some(7),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "stm32f7")]
+fn gpio_clock_bit(port: u32) -> Option<u32> {
+    match port {
+        0..=10 => Some(port),
         _ => None,
     }
 }
@@ -267,7 +306,25 @@ impl DwtDelay {
 
     /// Ungate the trace unit and start the cycle counter. Must run on the
     /// chip before any delay call; `Stm32F4Board::init` does it for you.
+    ///
+    /// # The unlock is not optional on Cortex-M7
+    ///
+    /// A Cortex-M4's DWT has no lock, so enabling `CYCCNTENA` is enough and
+    /// this worked on the F4 boards for a year. **The M7's DWT is CoreSight
+    /// and ships locked**: without the key in `DWT_LAR` the write to
+    /// `DWT_CTRL` is silently discarded and the counter never leaves zero.
+    ///
+    /// Nothing reports an error when that happens; the delay source simply
+    /// says no time has passed. Every wait returns instantly, every timed
+    /// blink is invisible, and any loop that waits for a deadline never
+    /// reaches it — a failure that looks like a dozen unrelated faults and is
+    /// one. On the Meadow F7 it cost several hours of blaming USB, a serial
+    /// adapter and the wiring.
+    ///
+    /// Writing the key on an M4 is harmless: the address reads as zero and
+    /// ignores writes there.
     pub fn start(&self) {
+        reg_write(DWT_LAR, CORESIGHT_UNLOCK);
         reg_modify(DEMCR, 0, DEMCR_TRCENA);
         reg_write(DWT_CYCCNT, 0);
         reg_modify(DWT_CTRL, 0, DWT_CTRL_CYCCNTENA);
@@ -907,6 +964,17 @@ impl Clocks {
     /// SYSCLK, APB1 /4 and APB2 /2 — the F427's 42/84 MHz bus ceilings.
     pub const NETDUINO3_WIFI: Clocks =
         Clocks { sysclk_hz: 168_000_000, pclk1_hz: 42_000_000, pclk2_hz: 84_000_000 };
+
+    /// Meadow F7 Micro (Wilderness Labs) at the F7's full 216 MHz, with APB1
+    /// /4 and APB2 /2 — the 54/108 MHz ceilings of that family.
+    ///
+    /// The part is an **STM32F777**: 2 MB flash, 512 KB RAM, 216 MHz. The
+    /// vendor page only says "STM32F7 ... up to 216 MHz", so this was
+    /// confirmed by the board's owner rather than derived. `sysclk_hz` is the
+    /// figure that matters, because the delay source counts CPU cycles — a
+    /// wrong value shows up as every timing being out by a constant ratio.
+    pub const MEADOW_F7: Clocks =
+        Clocks { sysclk_hz: 216_000_000, pclk1_hz: 54_000_000, pclk2_hz: 108_000_000 };
 }
 
 /// The STM32F4 board. GPIO, USART and delay are live; the remaining
@@ -966,7 +1034,14 @@ impl Stm32F4Board {
 
 impl Board for Stm32F4Board {
     fn name(&self) -> &str {
-        "stm32f4xx"
+        #[cfg(feature = "stm32f7")]
+        {
+            "stm32f7xx"
+        }
+        #[cfg(not(feature = "stm32f7"))]
+        {
+            "stm32f4xx"
+        }
     }
 
     fn gpio(&mut self, pin: u32) -> HalResult<&mut dyn GpioPin> {
@@ -982,6 +1057,18 @@ impl Board for Stm32F4Board {
     }
 
     fn uart(&mut self, port: u8) -> HalResult<&mut dyn Uart> {
+        // The F7's USART is the newer peripheral — status and data live in
+        // ISR/RDR/TDR where the F4 has SR/DR, and the baud divisor is computed
+        // differently. Driving it through the F4 offsets would write into
+        // reserved space and read status bits that are not there, so it is
+        // refused by name rather than silently wrong. The F7 firmware reaches
+        // its host over USB CDC, which needs no USART at all.
+        #[cfg(feature = "stm32f7")]
+        {
+            let _ = port;
+            return Err(HalError::NotSupported); // integration point: USARTv2
+        }
+        #[cfg(not(feature = "stm32f7"))]
         self.uarts
             .get_mut(port as usize)
             .map(|u| u as &mut dyn Uart)
@@ -1062,6 +1149,10 @@ mod tests {
         assert_eq!((pc13.port(), pc13.index()), (2, 13));
     }
 
+    /// Ports the F401 does not have must be refused, not silently accepted:
+    /// a pin index that lands on absent hardware writes into reserved address
+    /// space and reads back nothing, which looks like a dead wire.
+    #[cfg(not(feature = "stm32f7"))]
     #[test]
     fn missing_ports_are_rejected() {
         let mut board = Stm32F4Board::new(Clocks::NUCLEO_F401RE);
@@ -1070,6 +1161,18 @@ mod tests {
         assert!(board.gpio(16 * 5).is_err()); // GPIOF does not exist
         assert!(board.gpio(16 * 6).is_err()); // GPIOG does not exist
         assert!(board.gpio(16 * 7).is_ok()); // GPIOH does
+    }
+
+    /// The same contract on the F7, where the family genuinely has A..K and
+    /// the boundary sits one port higher.
+    #[cfg(feature = "stm32f7")]
+    #[test]
+    fn the_f7_accepts_every_port_it_has_and_no_more() {
+        let mut board = Stm32F4Board::new(Clocks::MEADOW_F7);
+        assert!(board.gpio(5).is_ok()); // PA5
+        assert!(board.gpio(16 * 5).is_ok()); // GPIOF exists here
+        assert!(board.gpio(16 * 10 + 15).is_ok()); // PK15, the last one
+        assert!(board.gpio(16 * 11).is_err()); // there is no GPIOL
     }
 
     #[test]
@@ -1097,5 +1200,46 @@ mod tests {
     fn baud_divisor_rounds_to_nearest() {
         // USART2 at 42 MHz, 115200 baud: 42e6/115200 = 364.58 -> 365
         assert_eq!((42_000_000 + 115_200 / 2) / 115_200, 365);
+    }
+
+    #[test]
+    fn the_f7_clock_tree_stays_inside_its_bus_ceilings() {
+        // 216 MHz is the F7's full speed, and its APB buses cap at a quarter
+        // and a half of that. Getting these wrong does not fail to build — it
+        // makes every baud rate and every timeout wrong by a fixed ratio.
+        let m = Clocks::MEADOW_F7;
+        assert_eq!(m.sysclk_hz, 216_000_000);
+        assert_eq!(m.pclk1_hz, m.sysclk_hz / 4);
+        assert_eq!(m.pclk2_hz, m.sysclk_hz / 2);
+        // Comfortably faster than either F4 board, which is the point of it.
+        assert!(m.sysclk_hz > Clocks::NETDUINO3_WIFI.sysclk_hz);
+    }
+
+    #[test]
+    fn the_port_map_matches_the_family_being_built() {
+        // The clock bit is the port index on both families; what differs is
+        // which ports exist at all. GPIOA and GPIOE are on every part here.
+        assert_eq!(gpio_clock_bit(0), Some(0));
+        assert_eq!(gpio_clock_bit(4), Some(4));
+
+        // F401 has no F or G, but does have H. The F7 parts have A..K.
+        #[cfg(not(feature = "stm32f7"))]
+        {
+            assert_eq!(gpio_clock_bit(5), None);
+            assert_eq!(gpio_clock_bit(6), None);
+            assert_eq!(gpio_clock_bit(7), Some(7));
+            assert_eq!(gpio_clock_bit(8), None);
+        }
+        #[cfg(feature = "stm32f7")]
+        {
+            assert_eq!(gpio_clock_bit(5), Some(5));
+            assert_eq!(gpio_clock_bit(10), Some(10)); // GPIOK
+            assert_eq!(gpio_clock_bit(11), None);
+        }
+
+        // Whatever the family, every port the chip claims must have pins
+        // allocated for it — `PIN_COUNT` sizes the array `Board::gpio` indexes.
+        let ports = (0..16).filter(|p| gpio_clock_bit(*p).is_some()).count();
+        assert!(ports as u32 <= PORT_COUNT, "PIN_COUNT is too small for this family");
     }
 }

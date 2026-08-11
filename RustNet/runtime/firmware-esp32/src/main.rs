@@ -54,7 +54,7 @@ fn main() {
         }
     }));
 
-    logger.info("boot", "RustNet on ESP32-WROOM-32 (ESP-IDF)");
+    logger.info("boot", format!("RustNet on {} (ESP-IDF)", state.board.lock().unwrap().name()));
     let free = unsafe { sys::esp_get_free_heap_size() };
     logger.info("boot", format!("free heap: {free} bytes"));
 

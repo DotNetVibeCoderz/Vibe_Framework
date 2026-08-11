@@ -170,6 +170,19 @@ public static class BoardCatalog
         },
         new BoardRecipe
         {
+            Id = "m5core2",
+            Name = "M5Stack Core2",
+            Chip = "esp32",
+            WorkspaceDir = "runtime/firmware-esp32",
+            BuildArgs = "build --release --features board-m5core2",
+            BinaryName = "rustnet-firmware-esp32",
+            Flash = FlashKind.Espflash,
+            Requires = "the `esp` Rust toolchain (espup) and espflash",
+            Note = "Same ILI9342C panel and AXP192 as the Tough, but LDO3 drives the vibration "
+                 + "motor here — powering it the Tough's way leaves the board buzzing forever.",
+        },
+        new BoardRecipe
+        {
             Id = "esp32c3",
             Name = "ESP32-C3 (Seeed XIAO and similar)",
             Chip = "esp32c3",
@@ -221,6 +234,21 @@ public static class BoardCatalog
             Requires = "cargo-binutils (rust-objcopy) and dfu-util",
             Note = "No debug probe: the STM32 ROM's USB DFU is the way in. Hold the boot button "
                  + "while plugging it in so 0483:df11 enumerates.",
+        },
+        new BoardRecipe
+        {
+            Id = "meadow-f7",
+            Name = "Wilderness Labs Meadow F7 Micro",
+            Chip = "stm32",
+            WorkspaceDir = "runtime/firmware-meadow-f7",
+            BuildArgs = "build --release",
+            BinaryName = "rustnet-firmware-meadow-f7",
+            Flash = FlashKind.Dfu,
+            Requires = "cargo-binutils (rust-objcopy) and dfu-util",
+            Note = "Flashing this REPLACES Meadow OS in internal flash — DFU is the only way in "
+                 + "without a probe. Reversible with Wilderness Labs' own `meadow` CLI. Hold BOOT "
+                 + "and tap RST so 0483:df11 enumerates. Verified on hardware: RNDP over the "
+                 + "board's own USB, a serial console on D0/D1, and 32 MB of QSPI storage.",
         },
         new BoardRecipe
         {

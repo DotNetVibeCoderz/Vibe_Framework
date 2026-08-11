@@ -5,5 +5,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+# Target the STM32F7 (Cortex-M7) instead of the F4. GPIO, the DWT delay and the
+# RCC clock gates are register-identical across the two families, which is why
+# one crate serves both; what differs is gated. See the crate docs.
+stm32f7 = []
+
 [dependencies]
 rustnet-hal = { workspace = true, default-features = false }

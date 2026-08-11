@@ -39,6 +39,23 @@ public class BoardCatalogTests
     }
 
     [Fact]
+    public void TheC3BuildsFromTheSameWorkspaceAsTheEsp32ButForAnotherChip()
+    {
+        BoardRecipe esp32 = BoardCatalog.Find("esp32")!;
+        BoardRecipe c3 = BoardCatalog.Find("esp32c3")!;
+        Assert.Equal(esp32.WorkspaceDir, c3.WorkspaceDir);
+
+        // Three things have to line up or the image is silently for the wrong
+        // chip: the ESP-IDF build takes its SoC from MCU, the Rust side needs
+        // the RISC-V target rather than Xtensa, and the firmware feature picks
+        // both the reported chip identity and the peripheral RNDP runs over.
+        Assert.Equal("esp32c3", c3.Env["MCU"]);
+        Assert.Contains("--target riscv32imc-esp-espidf", c3.BuildArgs);
+        Assert.Contains("--features chip-esp32c3", c3.BuildArgs);
+        Assert.Contains("--no-default-features", c3.BuildArgs);
+    }
+
+    [Fact]
     public void ResolveTargetReadsTheWorkspacesOwnCargoConfig()
     {
         string root = TempRepo();
@@ -83,6 +100,24 @@ public class BoardCatalogTests
         finally
         {
             Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DfuBoardsObjcopyBeforeTheyFlash()
+    {
+        // dfu-util writes a raw image to an address; handing it an ELF would
+        // write the ELF headers to 0x08000000 and the board would not boot.
+        foreach (string id in new[] { "netduino3", "meadow-f7" })
+        {
+            var steps = BoardCatalog.FlashPlan(TempRoot(), BoardCatalog.Find(id)!, port: null);
+            Assert.Equal(2, steps.Count);
+            Assert.Equal("rust-objcopy", Assert.IsType<RunStep>(steps[0]).Exe);
+            var flash = Assert.IsType<RunStep>(steps[1]);
+            Assert.Equal("dfu-util", flash.Exe);
+            // The STM32 ROM bootloader's own id, and the internal-flash origin.
+            Assert.Contains("0483:df11", flash.Args);
+            Assert.Contains("0x08000000", flash.Args);
         }
     }
 

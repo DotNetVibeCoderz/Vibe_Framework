@@ -115,8 +115,13 @@ around 20 fps. See [PLAN.md](PLAN.md) for the roadmap and
 [Progress.md](Progress.md) for the live checklist. Chip bring-up guide:
 [docs/chips.md](docs/chips.md).
 Deploying an app, step by step: [ESP32-WROOM-32](docs/deploy-esp32.md) ·
+[Seeed XIAO ESP32C3](docs/deploy-xiao-c3.md) (RNDP over the SoC's own USB
+Serial/JTAG, no bridge chip) ·
+[M5Stack Core2](docs/deploy-m5core2.md) (live 320×240 panel) ·
 [M5Stack Tough](docs/deploy-m5tough.md) (live 320×240 panel) ·
 [Netduino 3 WiFi](docs/deploy-netduino3.md) (C# on bare-metal ARM) ·
+[Meadow F7 Micro](docs/deploy-meadow-f7.md) (Cortex-M7 at 216 MHz, RNDP over
+the board's own USB) ·
 [Sipeed Maix Go](docs/deploy-maixgo.md) (C# on bare-metal RISC-V, with
 graphics and a filesystem) ·
 [Raspberry Pi Pico](docs/deploy-pico.md) (RNDP over the board's own USB — no
