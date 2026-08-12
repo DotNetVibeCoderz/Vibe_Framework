@@ -107,19 +107,20 @@ public static class BoardFlasher
     private static bool EnterBootloader(EnterBootloaderStep step, Action<string> log)
     {
         RndpClient? client = null;
+        bool asked = false;
         try
         {
             client = new RndpClient(TransportFactory.Open(step.DeviceSpec));
             client.RebootToBootloader();
+            asked = true;
             log("device asked into its bootloader");
         }
         catch (Exception ex)
         {
-            // Not fatal. The board may already be in its bootloader, in which
-            // case there is nothing listening on the port and that is exactly
-            // the state we wanted.
+            // Not fatal. The board may be in its bootloader already, or be
+            // running an image that answers no protocol — the fallback below
+            // covers the second case.
             log($"could not reach a running device ({ex.Message})");
-            log("continuing — the board may already be in its bootloader");
         }
         finally
         {
@@ -134,7 +135,60 @@ public static class BoardFlasher
             {
             }
         }
+
+        // Only after the client is disposed: it holds the serial port open,
+        // and the fallback needs to open the same port itself. Doing this
+        // inside the catch above fails with "access denied" every time —
+        // which reads as a board that refused, not as a tool holding the door.
+        if (!asked && !TouchAt1200(step.DeviceSpec, log))
+        {
+            log("continuing — the board may already be in its bootloader");
+        }
+
+        // USB takes a moment to drop the running device and bring the
+        // bootloader up in its place. Without this pause the flasher runs
+        // while the old descriptors are still live and reports that no
+        // bootloader is present — a race that looks exactly like a board
+        // that ignored the request.
+        Thread.Sleep(2500);
         return true;
+    }
+
+    /// <summary>
+    /// Open a serial port at 1200 baud and close it again — the oldest
+    /// bootloader trigger there is.
+    /// </summary>
+    /// <remarks>
+    /// For images that answer no protocol. The Meadow's ESP32 bridge is a
+    /// transparent USB-to-UART pass-through: it speaks no RNDP, so the
+    /// request above cannot reach it, and without this the only way back to
+    /// the normal firmware would be a hand on the boot pin. Returns false if
+    /// the port is not serial or would not open, in which case the caller
+    /// carries on and lets the flasher report what it finds.
+    /// </remarks>
+    private static bool TouchAt1200(string deviceSpec, Action<string> log)
+    {
+        if (!deviceSpec.StartsWith("serial:", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        string port = deviceSpec["serial:".Length..].Split(':')[0];
+        try
+        {
+            using (var sp = new System.IO.Ports.SerialPort(port, 1200))
+            {
+                sp.Open();
+                sp.DtrEnable = true;
+                Thread.Sleep(150);
+            }
+            log($"{port}: opened at 1200 baud to request the bootloader");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log($"1200-baud touch on {port} did not work ({ex.Message})");
+            return false;
+        }
     }
 
     private static bool CopyToVolume(CopyToVolumeStep step, Action<string> log)

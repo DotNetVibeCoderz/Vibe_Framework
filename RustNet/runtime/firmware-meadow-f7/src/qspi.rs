@@ -364,4 +364,12 @@ pub mod sys {
     pub const PUB_KEY: &str = "/.sys/signing.pub";
     /// Present, holding the app's name, when it should run on power-up.
     pub const AUTOSTART: &str = "/.sys/autostart";
+    /// The network to join at boot, as `ssid\npsk`.
+    ///
+    /// Credentials live on the device, never in an application image: a
+    /// flashed `.rnx` is a file that gets copied, mailed and committed, and
+    /// anything baked into it travels with it. `rustnet wifi --ssid ... --psk
+    /// ...` writes this, and an application asks `Wifi.GetSsid()` what it
+    /// ended up on.
+    pub const WIFI: &str = "/.sys/wifi";
 }

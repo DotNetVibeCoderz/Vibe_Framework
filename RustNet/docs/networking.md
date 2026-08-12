@@ -29,6 +29,7 @@ Wifi.Connect("MyNet", "password");
 bool joined = Wifi.IsConnected();
 string ssid = Wifi.GetSsid();           // what the interface is *actually* on
 string myIp = Wifi.GetIp();             // "" while unassigned
+Wifi.Disconnect();                      // leave; harmless when not associated
 ```
 
 `Up` returns `false` (and logs the reason) instead of throwing when the
@@ -41,7 +42,9 @@ falls back to whatever `Wifi.Connect` recorded if the interface reports
 nothing. That distinction matters on ESP32, where **the firmware joins the
 radio at boot** from credentials stored with `rustnet wifi --ssid <s> --psk
 <p>` — managed `Wifi.Connect` is bookkeeping there and its SSID argument is
-not what the radio used. `GetSsid`/`GetIp` are therefore the only way an app
+not what the radio used. The same is true of the **Meadow F7**, where the
+radio is an ESP32 coprocessor running ESP-AT and `Wifi.IsConnected()` costs an
+AT round trip because the association can lapse without this side being told. `GetSsid`/`GetIp` are therefore the only way an app
 can display the network it is really on. `GetIp` throws if the board exposes
 no WiFi interface at all, so wrap it if you support such boards.
 

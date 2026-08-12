@@ -61,6 +61,8 @@ use rustnet_hal::Board as _;
 use rustnet_hal_stm32::{Clocks, Stm32F4Board};
 
 mod chipid;
+mod dfu;
+mod espat;
 mod qspi;
 mod rndp;
 mod uart;
@@ -428,8 +430,9 @@ pub struct FirmwareHost {
     /// the JEDEC read came back wrong — better no storage than storage that
     /// silently is not there.
     pub flash: Option<qspi::Qspi>,
-    /// The ESP32 coprocessor's UART5 link and its reset/boot lines.
-    pub esp: Option<uart::Esp32>,
+    /// The ESP32 coprocessor, as an ESP-AT conversation. `None` in the bridge
+    /// build, where the link belongs to `esptool` instead.
+    pub esp: Option<espat::EspAt>,
     /// What the clock tree was actually programmed to. `Stm32F4Board` takes
     /// this at construction and keeps it private, and the delay source needs
     /// the same number, so it is recorded once here rather than derived twice.
@@ -484,10 +487,25 @@ impl FirmwareHost {
         let mut service = core::mem::take(&mut self.rndp);
         service.poll(self);
         let reboot = service.reboot_requested;
+        let to_bootloader = service.reboot_to_bootloader;
         self.rndp = service;
         if reboot {
-            // The reply has gone out by now; resetting before answering leaves
-            // the tool waiting for a frame that never comes.
+            if to_bootloader {
+                dfu::arm();
+            }
+            // Handing the reply to the USB stack is not the same as the host
+            // having received it: a CDC IN packet sits in the endpoint until
+            // the host polls for it, a millisecond or so later. Resetting the
+            // instant `poll` returns therefore destroys the answer about half
+            // the time — the tool reports a device that did not respond while
+            // the board is already sitting in DFU, which reads as a failure
+            // and is the opposite. So keep the bus serviced briefly first.
+            for _ in 0..50 {
+                if let Some(usb) = self.usb.as_mut() {
+                    usb.service();
+                }
+                self.board.delay().delay_us(1000);
+            }
             cortex_m::peripheral::SCB::sys_reset();
         }
     }
@@ -666,6 +684,61 @@ impl RuntimeHost for FirmwareHost {
                     .map_err(|e| format!("{e:?}"))?;
                 Ok(HostValue::Void)
             }
+            // ---- WiFi, through the ESP32 coprocessor ----
+            //
+            // These are the same canonical names the host firmware answers,
+            // so a C# application that joins a network on the virtual device
+            // runs here unchanged.
+            "RustNet.Net.Wifi::Connect(string,string)" => {
+                let ssid = str_arg(args, 0)?;
+                let psk = str_arg(args, 1)?;
+                let Some(esp) = self.esp.as_mut() else {
+                    return Err(String::from("this build has no WiFi coprocessor"));
+                };
+                // Disjoint fields, so the radio and the delay source can be
+                // borrowed at once.
+                let delay = self.board.delay();
+                match esp.connect(&ssid, &psk, delay) {
+                    Ok(()) => {
+                        let (ip, ssid) = (esp.ip.clone(), esp.ssid.clone());
+                        let _ = writeln!(self, "[wifi] joined '{ssid}' as {ip}");
+                        Ok(HostValue::Bool(true))
+                    }
+                    Err(e) => {
+                        // Reported, not thrown. A join can fail for reasons an
+                        // application is entitled to handle — a moved access
+                        // point, a typed password — and the C# signature
+                        // returns a bool for exactly that.
+                        let _ = writeln!(self, "[wifi] {e}");
+                        Ok(HostValue::Bool(false))
+                    }
+                }
+            }
+            "RustNet.Net.Wifi::IsConnected()" => {
+                let Some(esp) = self.esp.as_mut() else {
+                    return Ok(HostValue::Bool(false));
+                };
+                // Asked afresh rather than remembered: the radio loses
+                // associations without telling anyone, and an application that
+                // polls this is polling it precisely to find that out.
+                let delay = self.board.delay();
+                esp.refresh_status(delay);
+                Ok(HostValue::Bool(esp.connected))
+            }
+            "RustNet.Net.Wifi::GetSsid()" => Ok(HostValue::Str(
+                self.esp.as_ref().map(|e| e.ssid.clone()).unwrap_or_default(),
+            )),
+            "RustNet.Net.Wifi::GetIp()" => Ok(HostValue::Str(
+                self.esp.as_ref().map(|e| e.ip.clone()).unwrap_or_default(),
+            )),
+            "RustNet.Net.Wifi::Disconnect()" => {
+                let Some(esp) = self.esp.as_mut() else {
+                    return Ok(HostValue::Void);
+                };
+                let delay = self.board.delay();
+                esp.disconnect(delay)?;
+                Ok(HostValue::Void)
+            }
             // Which pin the user LED is on is a board fact, not an
             // application one, so the demos ask rather than assume. Matched by
             // suffix because each demo declares its own `Board` type in its
@@ -679,6 +752,13 @@ impl RuntimeHost for FirmwareHost {
             },
             other => Err(format!("unknown internal call: {other}")),
         }
+    }
+}
+
+fn str_arg(args: &[HostValue], i: usize) -> Result<String, String> {
+    match args.get(i) {
+        Some(HostValue::Str(s)) => Ok(s.clone()),
+        _ => Err(format!("argument {i} is not a string")),
     }
 }
 
@@ -697,6 +777,10 @@ fn int_arg(args: &[HostValue], i: usize) -> Result<i64, String> {
 
 #[entry]
 fn main() -> ! {
+    // Before anything at all: if the last boot was asked into DFU, leave now,
+    // while the chip is still in its reset state. See `dfu.rs`.
+    dfu::check_and_jump();
+
     // Read the clock state the ROM bootloader handed over, *before* anything
     // is touched. This is the measurement that settles the argument.
     //
@@ -891,9 +975,35 @@ fn main() -> ! {
         let mut to_esp = [0u8; 64];
         let mut from_esp = [0u8; 64];
         let (mut last_dtr, mut last_rts) = (false, false);
+        let mut last_baud = uart::BAUD;
         loop {
             if let Some(usb) = host.usb.as_mut() {
                 usb.service();
+
+                // Follow the host's line coding, the way the USB-serial chip
+                // this is standing in for would. Without it the link is stuck
+                // at the compiled-in rate and a four-megabyte read takes ten
+                // minutes instead of one.
+                let baud = usb.baud();
+
+                // 1200 baud is the way out of this image.
+                //
+                // The bridge speaks no RNDP, so nothing can ask it into DFU
+                // the way the normal firmware is asked — and without an
+                // escape, every ESP32 experiment ends with a hand on the boot
+                // pin. Opening the port at 1200 baud is the trigger Arduino
+                // boards have used for the same purpose for a decade, and
+                // `esptool` never selects it, so it cannot fire by accident.
+                //
+                //     rustnet firmware flash --board meadow-f7 --device serial:COMn
+                if baud == 1200 {
+                    dfu::arm();
+                    cortex_m::peripheral::SCB::sys_reset();
+                }
+                if baud != last_baud && baud > 1200 {
+                    esp.set_baud(Clocks::MEADOW_F7.pclk1_hz, baud);
+                    last_baud = baud;
+                }
 
                 // Control lines first: `esptool` toggles them and then talks
                 // immediately, so a late reset loses the sync attempt.
@@ -922,70 +1032,73 @@ fn main() -> ! {
     }
 
     #[cfg(not(feature = "esp-bridge"))]
-    // Ask the ESP32 what it is running.
+    // Bring the WiFi coprocessor up.
     //
-    // The module carries an ESP32-PICO-D4 for WiFi and BLE, and **Meadow OS
-    // drives it over SPI2 with firmware and a protocol of Wilderness Labs'
-    // own** — neither of which is published. Before writing a line of WiFi
-    // code it is worth knowing what is actually in that part's flash, and the
-    // cheapest way to ask is to reset it and listen: an ESP32's mask ROM
-    // announces itself, and application firmware usually says something too.
+    // This used to be a probe that reset the ESP32 and printed whatever came
+    // back verbatim, because what was in that part's flash was genuinely
+    // unknown: Meadow OS drives it over SPI2 with an unpublished protocol,
+    // and it said nothing at all on UART5. The probe answered the question —
+    // and the answer was that WiFi here needed different firmware. It now
+    // runs ESP-AT built for this module, so the boot-time job is no longer to
+    // listen but to shake hands. See `espat.rs`.
     //
-    // Whatever comes back is printed verbatim rather than parsed. This is a
-    // probe, and a probe that interprets is a probe that can be wrong twice.
+    // A failure is a log line, not a fault: everything that is not WiFi still
+    // works on a board whose coprocessor is silent.
     {
-        let mut esp = uart::Esp32::new(Clocks::MEADOW_F7.pclk1_hz);
-        let _ = writeln!(host, "[esp] resetting coprocessor, listening on UART5...");
-        {
+        let mut esp = espat::EspAt::new(Clocks::MEADOW_F7.pclk1_hz);
+        let result = {
             let delay = host.board.delay();
-            esp.reset(false, delay);
+            esp.begin(delay)
+        };
+        match result {
+            Ok(_) => {
+                let _ = writeln!(host, "[esp] {}", esp.version);
+                if esp.connected {
+                    let _ = writeln!(host, "[esp] on '{}' as {}", esp.ssid, esp.ip);
+                }
+            }
+            Err(e) => {
+                let _ = writeln!(host, "[esp] no AT firmware answered ({e})");
+                let _ = writeln!(
+                    host,
+                    "[esp] flash it with --features esp-bridge; see docs/deploy-meadow-f7.md"
+                );
+            }
         }
         host.esp = Some(esp);
 
-        // Read from the very first instant, and keep reading faster than the
-        // line can fill. A USARTv2 holds one byte in `RDR`; anything not taken
-        // before the next arrives is lost to overrun, and an ESP32's ROM says
-        // its whole piece in the first hundred milliseconds. The previous
-        // version waited before it started and caught exactly one byte of the
-        // banner — the last one.
-        let mut seen = 0usize;
-        let mut chunk = [0u8; 64];
-        let mut boot_released = false;
-        for tick in 0..8000u32 {
-            if !boot_released && tick > 1000 {
-                // Long enough for the part to have sampled BOOT.
-                if let Some(e) = host.esp.as_mut() {
-                    e.release_boot();
-                }
-                boot_released = true;
-            }
-            let n = host.esp.as_mut().map(|e| e.uart.read(&mut chunk)).unwrap_or(0);
-            if n > 0 {
-                seen += n;
-                // Byte by byte, printable or escaped. Firmware that is not
-                // sending text still says something by its shape, and a lossy
-                // decode would hide exactly that.
-                for &b in &chunk[..n] {
-                    if b == b'\n' || b == b'\r' || (0x20..0x7F).contains(&b) {
-                        let _ = write!(host, "{}", b as char);
-                    } else {
-                        let _ = write!(host, "<{b:02x}>");
+        // Join whatever `rustnet wifi` last configured.
+        //
+        // The credentials live in flash rather than in the application, so a
+        // flashed `.rnx` carries no secrets and a board can be moved between
+        // networks without rebuilding anything. An app that cares asks
+        // `Wifi.GetSsid()` what it landed on.
+        let stored = host
+            .flash
+            .as_mut()
+            .and_then(|f| rustnet_flashfs::read(f, qspi::sys::WIFI).ok());
+        if let Some(bytes) = stored {
+            let text = String::from_utf8_lossy(&bytes).into_owned();
+            if let Some((ssid, psk)) = text.split_once('\n') {
+                let joined = {
+                    let esp = host.esp.as_mut().expect("just set");
+                    let delay = host.board.delay();
+                    esp.connect(ssid, psk, delay)
+                };
+                match joined {
+                    Ok(()) => {
+                        let (ssid, ip) = host
+                            .esp
+                            .as_ref()
+                            .map(|e| (e.ssid.clone(), e.ip.clone()))
+                            .expect("just set");
+                        let _ = writeln!(host, "[wifi] '{ssid}' as {ip}");
+                    }
+                    Err(e) => {
+                        let _ = writeln!(host, "[wifi] could not join '{ssid}': {e}");
                     }
                 }
             }
-            // A plain delay, not `serviced_delay`: servicing USB in here takes
-            // long enough to let bytes slip past.
-            host.board.delay().delay_us(250);
-        }
-        if seen == 0 {
-            let _ = writeln!(
-                host,
-                "[esp] silent at {} baud - either its firmware does not use UART5, or the link is not what the schematic says",
-                uart::BAUD
-            );
-        } else {
-            let _ = writeln!(host, "
-[esp] {seen} bytes");
         }
     }
     if !id.is_expected() {

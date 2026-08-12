@@ -8,7 +8,7 @@ There are **two phases**:
 
 | | How | When |
 |---|---|---|
-| **A. Flash the firmware** | USB DFU, button combination on the board | Once, and again whenever the firmware changes |
+| **A. Flash the firmware** | USB DFU — buttons only the very first time | Once, and again whenever the firmware changes |
 | **B. Replace the application** | `rustnet flash` over the same USB port | Every time you change your C# code |
 
 Phase B is the one you do repeatedly, and it is cheap: the application lives in
@@ -30,7 +30,7 @@ a power cycle **and a firmware reflash** — because it is not in the image.
 | Clock | **25 MHz crystal** (X401, Abracon ABM12W-25) on PH0/PH1 |
 | Console | USB CDC from the MCU, and UART4 on the `D0`/`D1` header pins |
 | RGB LED | **PA2 red, PA1 green, PA0 blue** |
-| Coprocessor | ESP32-PICO-D4 (WiFi/BLE) — not yet driven by this port |
+| Coprocessor | ESP32-PICO-D4, running **ESP-AT built for this module** — WiFi works |
 
 Every one of those pin facts comes from Wilderness Labs' published schematic,
 `Meadow_Hardware_Designs/Meadow_F7v1/Micro_Dev_Module/MeadowF7Micro_REVD.pdf`,
@@ -56,13 +56,31 @@ rustup component add llvm-tools
 
 ## A2. Enter DFU and flash
 
-Hold **BOOT**, tap **RESET**, release BOOT. The board enumerates as
-`STM32 BOOTLOADER` (`0483:df11`). Then:
+**The first time only**, put the board into DFU by hand: hold **BOOT**, tap
+**RESET**, release BOOT. It enumerates as `STM32 BOOTLOADER` (`0483:df11`).
 
 ```bash
 rustnet firmware build --board meadow-f7
 rustnet firmware flash --board meadow-f7
 ```
+
+**Afterwards, name the port and the board puts itself into DFU:**
+
+```bash
+rustnet firmware flash --board meadow-f7 --device serial:COM17
+```
+
+A RustNet image already on the board answers an RNDP reboot-to-bootloader
+request; the ESP32 bridge image, which speaks no protocol at all, is asked
+instead by opening its port at **1200 baud** — the same trigger Arduino boards
+have used for a decade. Between them, nothing has to touch the buttons again.
+
+> The mechanism arms a magic word in a RAM location the startup code does not
+> clear and then performs a **real reset**, rather than jumping to the ROM from
+> a running image. A jump hands the bootloader a chip whose clocks, USB core
+> and caches are configured for the firmware that jumped — which is the same
+> mistake `dfu-util --leave` makes, and the reason PH0/PH1 have to be returned
+> to analog on the way in.
 
 Or the Workbench: **FIRMWARE ▸ BOARD FIRMWARE**, pick `meadow-f7`.
 
@@ -181,3 +199,167 @@ The clue was that the console and the timed blinks went quiet *together*. One
 dead peripheral cannot do that; one dead clock can. It is the same shape as the
 K210's `mstatus.FS` trap: a core facility the previous architecture left
 enabled and this one does not.
+
+# WiFi, through the ESP32 coprocessor
+
+The module carries an ESP32-PICO-D4 wired to the STM32 two ways: SPI2, which is
+how Meadow OS talks to it with firmware and a protocol of Wilderness Labs' own,
+and **UART5** — PB13/PD2 on the STM32, GPIO1/GPIO3 on the ESP32 — which is the
+one anything else can use. `ESP32_RESET_L` is PF7 and `ESP32_BOOT_L` is PI10.
+
+`--features esp-bridge` builds a firmware that is a transparent USB-to-ESP32
+bridge: bytes forwarded verbatim, the host's `DTR`/`RTS` driven onto the
+ESP32's `GPIO0`/`EN`, and the host's baud rate followed. That makes the board
+look like the USB-serial chip `esptool` expects, and it works:
+
+```
+$ esptool --port COM17 --chip esp32 flash-id
+Chip type:          ESP32-PICO-D4 (revision v1.0)
+Crystal frequency:  40MHz
+MAC:                d8:a0:1d:69:74:10
+Detected flash size: 4MB
+```
+
+That also confirms every pin above independently — `esptool` cannot sync if any
+one of them is wrong.
+
+> **The bridge and the normal firmware are the same output file.** Cargo writes
+> both to `target/thumbv7em-none-eabihf/release/rustnet-firmware-meadow-f7`, and
+> `rustnet firmware flash` flashes what is already there rather than rebuilding.
+> After any bridge work, run `cargo build --release` with no features **before**
+> flashing, or the board comes back as a bridge again: enumerating happily,
+> answering no tool, saying nothing on the console.
+
+## Back up the coprocessor before touching it
+
+```bash
+esptool --port COM17 --chip esp32 --baud 460800 read-flash 0 0x400000 esp32-original.bin
+```
+
+Wilderness Labs do not publish their coprocessor firmware, so that image is the
+only way back. A copy taken from this board lives in
+`CodeSandbox/meadow-f7-esp32-restore/`, with the restore command in its README.
+
+## Why the published ESP-AT binaries cannot work here
+
+The stock images are built for the **ESP32-WROOM-32**, and on this board they
+are silent: flashed, hash-verified, erased and rewritten from a clean slate,
+then probed at every baud rate from 9600 to 921600 with nothing to show for it
+but the single byte of noise a reset makes.
+
+Patching the `mfg_nvs` partition to move the AT port onto UART0 — the only
+ESP32 UART wired to the STM32 here — did not help, and the reason is that
+**the thing in the way is a build-time setting, not a runtime one**. ESP-IDF
+puts its console on UART0 by default; ESP-AT's own documentation says the
+console must be disabled to use UART0 for AT, and `CONFIG_ESP_CONSOLE_NONE`
+cannot be changed after the image is built. No amount of NVS editing reaches
+it.
+
+> An earlier version of this page blamed GPIO16/17 — the WROOM-32 default AT
+> pins, which on a PICO-D4 belong to the module's embedded flash. That is a
+> real hazard and worth knowing, but it does not explain this failure: the
+> patched NVS already pointed the port at GPIO1/3, so those pins were never
+> muxed. Espressif's own table has had a `PICO-D4` row using GPIO22/19 all
+> along, precisely because they know 16/17 are unusable there.
+
+## Building ESP-AT for this module
+
+So it takes a source build. ESP-AT's `factory_param_data.csv` already carries a
+`PICO-D4` row; what this board needs on top is that row pointed at UART0
+(`uart_port 0`, `tx 1`, `rx 3`) and a module config that turns the console off.
+
+```bash
+git clone --recursive https://github.com/espressif/esp-at.git C:/esp-at
+cd C:/esp-at
+python build.py install     # pulls the ESP-IDF that module_config/*/IDF_VERSION pins
+python build.py build
+```
+
+Two Windows-specific traps on that first command: clone somewhere short —
+`MAX_PATH` bites long submodule paths, and `git config --system core.longpaths
+true` is worth setting anyway — and run it from **PowerShell**, because the
+installer refuses an MSys/Mingw shell outright.
+
+`factory_param_data.csv`, PICO-D4 row:
+
+```
+PLATFORM_ESP32,PICO-D4,"4MB, Wi-Fi + BLE, OTA, TX:1 RX:3 (UART0, for Meadow F7)",4,78,0,1,13,CN,115200,1,3,-1,-1,1
+```
+
+`module_config/module_pico-d4/sdkconfig.defaults`:
+
+```
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+CONFIG_AT_UART_DEFAULT_FLOW_CONTROL=0
+CONFIG_BT_ENABLED=n
+CONFIG_ESP_COEX_SW_COEXIST_ENABLE=n
+```
+
+**The Bluetooth line is not optional.** The stock PICO-D4 configuration
+produces an image `0xd010` bytes larger than the 1.5 MB `ota_0`/`ota_1`
+partitions its own table defines — the shipped configuration does not fit its
+own partition layout, and the build fails at `check_sizes.py` rather than
+producing something flashable. This board wants a WiFi radio, so dropping the
+Bluetooth stack costs nothing and leaves 26% of the partition free.
+
+## Flashing it, through the bridge
+
+```bash
+cd runtime/firmware-meadow-f7
+cargo build --release --features esp-bridge
+rustnet firmware flash --board meadow-f7 --device serial:COM17
+
+esptool --chip esp32 --port COM17 --baud 460800 write-flash \
+    --flash-mode dio --flash-freq 40m --flash-size 4MB \
+    0x0 C:/esp-at/build/factory/factory_PICO-D4_unfilled.bin
+
+cargo build --release
+rustnet firmware flash --board meadow-f7 --device serial:COM17
+```
+
+Both `firmware flash` steps use the automatic DFU entry described in A2, so
+this whole sequence needs no buttons. Verify before switching back — the bridge
+is transparent, so a terminal on COM17 at 115200 talks straight to the radio:
+
+```
+AT
+OK
+AT+GMR
+AT version:4.1.1.0(ba4dd0e - ESP32 - Jul 31 2025 08:37:48)
+Bin version:v4.1.1.0(PICO-D4)
+```
+
+## Using it
+
+Credentials are configured on the device, never compiled into an application:
+
+```bash
+rustnet wifi --device serial:COM17 --ssid <name> --psk <password>
+```
+
+That joins immediately *and* stores the pair in QSPI, so the firmware re-joins
+on every boot. `rustnet info` then reports it:
+
+```json
+{"wifi":true,"wifi_ssid":"...","wifi_ip":"192.168.18.247", ...}
+```
+
+From C#, the same `RustNet.Net.Wifi` API as every other target:
+
+```csharp
+if (Wifi.IsConnected())
+    Console.WriteLine($"on '{Wifi.GetSsid()}' as {Wifi.GetIp()}");
+```
+
+`Connect(ssid, psk)` works too, for an application that manages its own
+networks. `demo/WifiJoin` is a complete example, and it contains no SSID and no
+password — it asks the device what it is on. A flashed `.rnx` gets copied,
+mailed and committed; anything baked into it travels with it.
+
+The AT client lives in `src/espat.rs`. Two details that matter if you extend
+it: the UART has no receive FIFO, so the reply loop polls every 20 µs and
+cannot use `serviced_delay` (servicing USB takes long enough to lose bytes),
+and `AT+CWJAP` gets a 20-second timeout because a join is an association plus
+DHCP plus whatever the access point feels like.

@@ -914,6 +914,23 @@ impl RuntimeHost for FirmwareHost {
                     .map_err(|e| e.to_string())?;
                 Ok(HostValue::Str(ip))
             }
+            "RustNet.Net.Wifi::Disconnect()" => {
+                use rustnet_hal::netif::NetIfKind;
+                {
+                    let mut wifi = self.state.wifi.lock().unwrap();
+                    wifi.connected = false;
+                    wifi.ssid = None;
+                    wifi.psk = None;
+                }
+                let mut board = self.state.board.lock().unwrap();
+                // `NotSupported` is not a failure here for the same reason it
+                // is not one in `Connect`: on boards whose firmware owns the
+                // radio this call is bookkeeping.
+                match board.netif(NetIfKind::Wifi).and_then(|n| n.bring_down()) {
+                    Ok(()) | Err(rustnet_hal::HalError::NotSupported) => Ok(HostValue::Void),
+                    Err(e) => Err(e.to_string()),
+                }
+            }
             // ---- MQTT ----
             "RustNet.Net.Mqtt::Connect(string,string)" => {
                 let addr = Self::arg_str(a, 0)?;

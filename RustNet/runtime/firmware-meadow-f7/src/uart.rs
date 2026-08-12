@@ -51,8 +51,14 @@ const CR1_UE: u32 = 1 << 0;
 const CR1_RE: u32 = 1 << 2;
 const CR1_TE: u32 = 1 << 3;
 
+const ICR: usize = 0x20;
+const ISR_ORE: u32 = 1 << 3;
 const ISR_RXNE: u32 = 1 << 5;
 const ISR_TXE: u32 = 1 << 7;
+/// Writing `ORECF` is the only way to clear an overrun on a USARTv2. Reading
+/// `RDR` does not do it, and the flag left standing is not cosmetic — see
+/// [`Uart::read`].
+const ICR_ORECF: u32 = 1 << 3;
 
 const RCC_BASE: usize = 0x4002_3800;
 const RCC_AHB1ENR: usize = RCC_BASE + 0x30;
@@ -136,10 +142,22 @@ impl Uart {
     }
 
     /// Take whatever has arrived, without waiting for anything.
+    ///
+    /// Overruns are cleared as they are noticed. There is no receive FIFO on
+    /// this peripheral — one byte in `RDR` and one in the shift register — so
+    /// at 115200 baud a caller that looks away for a millisecond loses about
+    /// eleven bytes, and an ESP32 answering `AT+CWLAP` sends thousands. The
+    /// loss is unavoidable; leaving `ORE` standing afterwards is not, and it
+    /// is the more expensive half: an uncleared overrun means every later
+    /// read is read against a stale error state rather than a clean line.
     pub fn read(&mut self, buf: &mut [u8]) -> usize {
         let mut n = 0;
         while n < buf.len() {
-            if rd(self.base + ISR) & ISR_RXNE == 0 {
+            let isr = rd(self.base + ISR);
+            if isr & ISR_ORE != 0 {
+                wr(self.base + ICR, ICR_ORECF);
+            }
+            if isr & ISR_RXNE == 0 {
                 break;
             }
             buf[n] = (rd(self.base + RDR) & 0xFF) as u8;
@@ -255,18 +273,25 @@ impl Esp32 {
     ///
     /// Both nets are active low, so `true` here means *asserted* — held down —
     /// which is the opposite of the pin level.
+    ///
+    /// The three methods below belong to the bridge build, where `esptool`
+    /// drives them from the host's control lines. Kept in the normal build so
+    /// there is one ESP32 driver rather than two that can drift apart.
+    #[cfg_attr(not(feature = "esp-bridge"), allow(dead_code))]
     pub fn set_lines(&mut self, reset_asserted: bool, boot_asserted: bool) {
         Self::write_pin(GPIOF, RESET_PIN, !reset_asserted);
         Self::write_pin(GPIOI, BOOT_PIN, !boot_asserted);
     }
 
     /// Let go of `BOOT` once the part has had time to sample it.
+    #[cfg_attr(not(feature = "esp-bridge"), allow(dead_code))]
     pub fn release_boot(&mut self) {
         Self::write_pin(GPIOI, BOOT_PIN, true);
     }
 
     /// Set the link speed. The ESP32's ROM talks at 115200 with the 40 MHz
     /// crystal a PICO-D4 carries, but application firmware chooses its own.
+    #[cfg_attr(not(feature = "esp-bridge"), allow(dead_code))]
     pub fn set_baud(&mut self, pclk1_hz: u32, baud: u32) {
         wr(UART5 + CR1, 0);
         wr(UART5 + BRR, (pclk1_hz + baud / 2) / baud);

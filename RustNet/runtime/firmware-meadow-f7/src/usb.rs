@@ -283,6 +283,17 @@ impl UsbConsole {
         self.serial.dtr()
     }
 
+    /// The baud rate the host has asked this port to run at.
+    ///
+    /// A real USB-serial chip reprograms its UART when the host sets the CDC
+    /// line coding, and tools rely on it: `esptool --baud 921600` speaks to the
+    /// *chip*, and the chip is expected to pass the rate on. A bridge that
+    /// ignores it is stuck at whatever it was compiled with, which turns a
+    /// four-megabyte flash read into ten minutes.
+    pub fn baud(&self) -> u32 {
+        self.serial.line_coding().data_rate()
+    }
+
     /// The host's `RTS` line. See [`Self::dtr`].
     pub fn rts(&self) -> bool {
         self.serial.rts()

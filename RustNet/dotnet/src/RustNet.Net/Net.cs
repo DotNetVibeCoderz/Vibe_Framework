@@ -85,6 +85,18 @@ public static class Wifi
     /// </summary>
     [InternalCall]
     public static string GetIp() => throw new RuntimeOnlyException();
+
+    /// <summary>
+    /// Leave the current network. Harmless when not associated.
+    /// </summary>
+    /// <remarks>
+    /// Not just the inverse of <see cref="Connect"/>: on battery-powered
+    /// boards an associated radio is the largest continuous draw there is, so
+    /// an app that wakes, reports and sleeps wants to put it down explicitly
+    /// rather than wait for the association to lapse.
+    /// </remarks>
+    [InternalCall]
+    public static void Disconnect() => throw new RuntimeOnlyException();
 }
 
 /// <summary>MQTT 3.1.1 client (single connection per app).</summary>

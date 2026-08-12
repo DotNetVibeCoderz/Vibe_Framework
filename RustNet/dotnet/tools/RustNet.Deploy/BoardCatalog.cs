@@ -247,8 +247,10 @@ public static class BoardCatalog
             Requires = "cargo-binutils (rust-objcopy) and dfu-util",
             Note = "Flashing this REPLACES Meadow OS in internal flash — DFU is the only way in "
                  + "without a probe. Reversible with Wilderness Labs' own `meadow` CLI. Hold BOOT "
-                 + "and tap RST so 0483:df11 enumerates. Verified on hardware: RNDP over the "
-                 + "board's own USB, a serial console on D0/D1, and 32 MB of QSPI storage.",
+                 + "and tap RST so 0483:df11 enumerates — needed only the FIRST time, since a "
+                 + "RustNet image can put itself into DFU when --device names its port. Verified "
+                 + "on hardware: RNDP over the board's own USB, a serial console on D0/D1, 32 MB "
+                 + "of QSPI storage, and WiFi via the ESP32 coprocessor running ESP-AT.",
         },
         new BoardRecipe
         {
@@ -441,6 +443,16 @@ public static class BoardCatalog
                     "rust-objcopy",
                     $"-O binary \"{elf}\" fw.bin",
                     ws));
+                // A RustNet image already on the board can put itself into the
+                // ROM's DFU bootloader, which is the difference between a
+                // one-command reflash and holding a boot pin through a power
+                // cycle. Only when a device was named: the Netduino shares
+                // this path and has no such firmware on it yet.
+                if (deviceSpec is not null)
+                {
+                    steps.Add(new EnterBootloaderStep(
+                        "ask the running device into DFU", deviceSpec));
+                }
                 steps.Add(new RunStep(
                     "dfu-util -> 0x08000000",
                     "dfu-util",

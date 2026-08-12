@@ -29,10 +29,11 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use rustnet_core::Module;
+use rustnet_hal::Board as _;
 use rustnet_rndp::{
     Frame, CMD_ERASE_APP, CMD_FLASH_APP, CMD_FLASH_DATA, CMD_GET_LOGS, CMD_INFO, CMD_LIST_APPS,
     CMD_PING, CMD_PROVISION_KEY, CMD_READ_DATA, CMD_REBOOT, CMD_SET_AUTOSTART, CMD_START_APP,
-    CMD_STOP_APP, ST_ERR, ST_OK,
+    CMD_STOP_APP, CMD_WIFI_CONFIG, ST_ERR, ST_OK,
 };
 use rustnet_secureboot::{verify, ChipFamily, ImageKind};
 
@@ -66,6 +67,9 @@ pub struct Rndp {
     /// has gone out — a device that resets before answering leaves the tool
     /// waiting for a frame that will never arrive.
     pub reboot_requested: bool,
+    /// Set alongside `reboot_requested` when the request asked for the ROM
+    /// bootloader rather than for this image again.
+    pub reboot_to_bootloader: bool,
     /// The provisioning key, cached from flash at boot.
     pub pub_key: Option<Vec<u8>>,
     /// The name of the flashed application, or the compiled-in one.
@@ -84,6 +88,7 @@ impl Rndp {
             rx: Vec::new(),
             rx_uart: Vec::new(),
             reboot_requested: false,
+            reboot_to_bootloader: false,
             pub_key: None,
             app_name: String::new(),
             app_size: 0,
@@ -216,14 +221,27 @@ impl Rndp {
                 // what it is instead of this firmware asserting it.
                 let uptime = host.board_uptime_ms();
                 let id = chipid::identify();
+                // Copied out before the format, because the same expression
+                // also borrows `host.flash` mutably further down and a `&str`
+                // borrowed from `host.esp` would still be alive there.
+                let (wifi_up, wifi_ssid, wifi_ip) = match host.esp.as_ref() {
+                    Some(e) => (e.connected, e.ssid.clone(), e.ip.clone()),
+                    None => (false, String::new(), String::new()),
+                };
                 Ok(format!(
-                    r#"{{"chip":"stm32f7","board":"{}","version":"{}","protocol":{},"uptime_ms":{},"heap_used":{},"apps":{},"wifi":false,"active_app":"{}","running":{},"autostart":{},"provisioned":{},"storage_used":{},"transport":"usb-cdc+uart4","cpu_hz":{},"hse_hz":{},"chip_id":"{}","chip_expected":{}}}"#,
+                    r#"{{"chip":"stm32f7","board":"{}","version":"{}","protocol":{},"uptime_ms":{},"heap_used":{},"apps":{},"wifi":{},"wifi_ssid":"{}","wifi_ip":"{}","active_app":"{}","running":{},"autostart":{},"provisioned":{},"storage_used":{},"transport":"usb-cdc+uart4","cpu_hz":{},"hse_hz":{},"chip_id":"{}","chip_expected":{}}}"#,
                     board::NAME,
                     env!("CARGO_PKG_VERSION"),
                     rustnet_rndp::PROTOCOL_VERSION,
                     uptime,
                     crate::heap_used(),
                     if self.app_size > 0 { 1 } else { 0 },
+                    // Last known, not re-queried: `info` is answered from the
+                    // RNDP poll, and an AT round trip in here would stall the
+                    // protocol for milliseconds every time a tool asks.
+                    wifi_up,
+                    wifi_ssid,
+                    wifi_ip,
                     self.app_name,
                     self.app_running,
                     // The name it will start with, or null. Read from flash so
@@ -309,6 +327,27 @@ impl Rndp {
                 Ok(Vec::new())
             }
 
+            CMD_WIFI_CONFIG => {
+                // `ssid\npsk`, the same payload every other target takes.
+                let text = String::from_utf8_lossy(&frame.payload).to_string();
+                let (ssid, psk) = text.split_once('\n').ok_or("expected ssid\\npsk")?;
+
+                let flash = host.flash.as_mut().ok_or_else(no_storage)?;
+                rustnet_flashfs::write(flash, sys::WIFI, frame.payload.as_slice())?;
+
+                // Joined here and now, not only at the next boot. A tool that
+                // says "wifi configured" and leaves the radio idle until a
+                // power cycle is reporting an intention, not a result — and
+                // the failure a wrong password causes is exactly what the
+                // person at the keyboard is waiting to hear about.
+                let Some(esp) = host.esp.as_mut() else {
+                    return Err(String::from("this build has no WiFi coprocessor"));
+                };
+                let delay = host.board.delay();
+                esp.connect(ssid, psk, delay)?;
+                Ok(esp.ip.clone().into_bytes())
+            }
+
             CMD_FLASH_APP => {
                 // [name_len:u8][name][RNSB container] — the same payload the
                 // std service takes, so the tools need no special case.
@@ -371,6 +410,11 @@ impl Rndp {
 
             CMD_REBOOT => {
                 // Recorded, not done. The reply has to reach the tool first.
+                //
+                // A payload byte of 1 means "into the ROM bootloader" — that
+                // is what `rustnet firmware flash --device ...` sends so it
+                // can reflash this board without anyone holding a boot pin.
+                self.reboot_to_bootloader = frame.payload.first() == Some(&1);
                 self.reboot_requested = true;
                 Ok(Vec::new())
             }
