@@ -86,7 +86,16 @@ jobs:
       # "host-sim". A chip-variant build left in target/debug fails them.
       - name: Build the host virtual device
         working-directory: ${{ steps.loc.outputs.dir }}
-        run: cargo build -p rustnet-firmware --locked
+        run: |
+          cargo build -p rustnet-firmware --locked
+          fw="$PWD/target/debug/rustnet-firmware"
+          # Named outright, and checked. The end-to-end tests find this binary
+          # by walking up from their own output directory and *skip* when they
+          # cannot — so a path problem does not turn them red, it turns them
+          # off, and the run goes green having exercised none of them. That is
+          # what happened here: the search looked only for `rustnet-firmware.exe`.
+          test -x "$fw" || { echo "::error::$fw was not built"; exit 1; }
+          echo "RUSTNET_FIRMWARE=$fw" >> "$GITHUB_ENV"
 
       # The test project rather than the whole solution, because the solution
       # contains RustNet.Designer: a WPF app on net10.0-windows, which cannot

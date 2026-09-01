@@ -71,10 +71,10 @@ public class BoardCatalogTests
 
             // `target-dir` and `target` both come from `[build]`, and the
             // absolute `target-dir` must not be joined onto the workspace.
-            Assert.Equal("C:/elsewhere", dir.Replace('\\', '/'));
+            Assert.Equal(ElsewhereDir, dir.Replace('\\', '/'));
             Assert.Equal("thumbv6m-none-eabi", triple);
             Assert.Equal(
-                "C:/elsewhere/thumbv6m-none-eabi/release/fw",
+                $"{ElsewhereDir}/thumbv6m-none-eabi/release/fw",
                 BoardCatalog.ArtifactPath(root, board).Replace('\\', '/'));
         }
         finally
@@ -162,16 +162,27 @@ public class BoardCatalogTests
     }
 
     /// <summary>A repo root with one workspace that has its own cargo config.</summary>
+    /// An absolute path on whichever OS the tests are running on.
+    ///
+    /// The fixture used to hard-code "C:/elsewhere", which is absolute on
+    /// Windows and an ordinary relative path everywhere else — so on Linux
+    /// `ResolveTarget` correctly joined it onto the workspace and the test
+    /// correctly reported a mismatch. The behaviour under test is "an
+    /// absolute target-dir is not joined onto the workspace", and that
+    /// sentence needs a path the running OS agrees is absolute.
+    private static readonly string ElsewhereDir =
+        OperatingSystem.IsWindows() ? "C:/elsewhere" : "/elsewhere";
+
     private static string TempRepo()
     {
         string root = TempRoot();
         string ws = Path.Combine(root, "runtime", "port", ".cargo");
         Directory.CreateDirectory(ws);
-        File.WriteAllText(Path.Combine(ws, "config.toml"), """
+        File.WriteAllText(Path.Combine(ws, "config.toml"), $"""
             [build]
             target = "thumbv6m-none-eabi"
             # keep the build tree out of the repo
-            target-dir = "C:/elsewhere"
+            target-dir = "{ElsewhereDir}"
 
             [target.thumbv6m-none-eabi]
             runner = "probe-rs run"

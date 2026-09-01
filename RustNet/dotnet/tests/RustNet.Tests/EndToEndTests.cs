@@ -24,15 +24,25 @@ public class EndToEndTests : IDisposable
             return env;
         }
         // Walk up from test bin dir to the repo root.
+        //
+        // Both file names, because a cargo build on Linux produces
+        // `rustnet-firmware` with no extension. Looking only for the `.exe`
+        // did not fail there — every end-to-end test simply *skipped*, and the
+        // run went green having exercised none of them. A missing dependency
+        // that turns tests off is worse than one that turns them red.
+        string[] names = ["rustnet-firmware.exe", "rustnet-firmware"];
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
             foreach (string profile in new[] { "debug", "release" })
             {
-                string candidate = Path.Combine(dir.FullName, "target", profile, "rustnet-firmware.exe");
-                if (File.Exists(candidate))
+                foreach (string name in names)
                 {
-                    return candidate;
+                    string candidate = Path.Combine(dir.FullName, "target", profile, name);
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
                 }
             }
             dir = dir.Parent;
