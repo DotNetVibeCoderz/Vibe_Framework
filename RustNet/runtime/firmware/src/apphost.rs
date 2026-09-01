@@ -1615,6 +1615,11 @@ impl RuntimeHost for FirmwareHost {
 pub struct AppRunner {
     pub name: String,
     stop: Arc<AtomicBool>,
+    /// Set when the interpreter ended the app with an error, so a clean exit
+    /// can be told from a crash after the thread is gone. Without it the two
+    /// are indistinguishable - both leave a finished thread - and the
+    /// autostart guard has to treat every app that ever returns as a failure.
+    crashed: Arc<AtomicBool>,
     handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -1629,6 +1634,8 @@ impl AppRunner {
         Module::from_bytes(&rnx)?;
         let stop = Arc::new(AtomicBool::new(false));
         let stop2 = stop.clone();
+        let crashed = Arc::new(AtomicBool::new(false));
+        let crashed2 = crashed.clone();
         let app_name = name.to_string();
         let thread_name = app_name.clone();
         let mut builder = std::thread::Builder::new().name(format!("app-{app_name}"));
@@ -1677,6 +1684,7 @@ impl AppRunner {
                             break;
                         }
                         RunExit::Error(e) => {
+                            crashed2.store(true, Ordering::Relaxed);
                             logger.error("runtime", format!("app '{thread_name}' crashed: {e}"));
                             break;
                         }
@@ -1725,7 +1733,7 @@ impl AppRunner {
                 perf.update(|c| c.tasks_alive = 0);
             })
             .map_err(|e| e.to_string())?;
-        Ok(AppRunner { name: name.to_string(), stop, handle: Some(handle) })
+        Ok(AppRunner { name: name.to_string(), stop, crashed, handle: Some(handle) })
     }
 
     pub fn stop(&mut self) {
@@ -1737,6 +1745,14 @@ impl AppRunner {
 
     pub fn is_running(&self) -> bool {
         self.handle.as_ref().map(|h| !h.is_finished()).unwrap_or(false)
+    }
+
+    /// Whether the interpreter ended this app with an error.
+    ///
+    /// False while it is still running, and false after an app that simply
+    /// returned from `Main`.
+    pub fn crashed(&self) -> bool {
+        self.crashed.load(Ordering::Relaxed)
     }
 }
 

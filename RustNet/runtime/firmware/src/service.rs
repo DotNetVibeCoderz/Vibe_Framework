@@ -546,7 +546,7 @@ impl DeviceService {
         }
     }
 
-    /// Declare the current boot healthy, if the autostarted app is still up.
+    /// Declare the current boot healthy, if the autostarted app did not fail.
     ///
     /// Call once, [`Self::AUTOSTART_HEALTHY_AFTER_S`] seconds after boot.
     /// Without it the counter only ever rises: it is incremented on every
@@ -559,12 +559,25 @@ impl DeviceService {
     /// Still counting the attempt *before* the launch is what keeps the guard
     /// working: an app that reboots the device on the way up never reaches
     /// this call, so its count survives.
+    ///
+    /// **Healthy is "did not crash", not "is still running".** Those look the
+    /// same for an app with a `while (true)` loop and completely different for
+    /// a one-shot — read a sensor, publish it, return — which is an ordinary
+    /// shape on a battery-powered device. Asking whether the thread was still
+    /// alive counted every clean exit as a failure, so a one-shot app tripped
+    /// its own guard on the third boot and stopped autostarting. That is the
+    /// same bug this method was written to fix, one lifecycle over; it hid
+    /// because the demo app happens to outlive the confirmation on a slow
+    /// machine and not on a fast one.
     pub fn confirm_autostart_healthy(&mut self) {
         if self.autostart_fails() == 0 {
             return;
         }
-        let running = self.runner.as_ref().map(|r| r.is_running()).unwrap_or(false);
-        if !running {
+        let Some(runner) = self.runner.as_ref() else {
+            // Never launched: nothing to confirm, and the count must stand.
+            return;
+        };
+        if runner.crashed() {
             return;
         }
         self.reset_autostart_fails();
@@ -869,10 +882,10 @@ mod tests {
         assert!(svc.active_app.is_none(), "a crash loop is still stopped");
     }
 
-    /// Confirming a boot where the app is *not* running would clear the guard
-    /// for a launch that failed — the guard's whole purpose.
+    /// Confirming a boot with no application behind it would clear the guard
+    /// for a launch that never happened — the guard's whole purpose.
     #[test]
-    fn confirmation_requires_the_app_to_be_running() {
+    fn confirmation_requires_an_app_that_was_launched() {
         let mut svc = make_service();
         let keys = provision(&mut svc);
         flash_demo(&mut svc, keys, "demo");
@@ -883,7 +896,41 @@ mod tests {
         assert_eq!(svc.autostart_fails(), 1);
         svc.stop_app();
         svc.confirm_autostart_healthy();
-        assert_eq!(svc.autostart_fails(), 1, "a stopped app does not confirm a boot");
+        assert_eq!(svc.autostart_fails(), 1, "a torn-down launch does not confirm a boot");
+    }
+
+    /// A one-shot application — read a sensor, publish it, return — is the
+    /// ordinary shape on a battery-powered device, and it is *healthy*.
+    ///
+    /// This waits for the app to actually finish before confirming, so it
+    /// pins the behaviour rather than the timing. The version of this guard
+    /// that asked whether the thread was still alive counted every clean exit
+    /// as a failure: such an app tripped its own guard on the third boot and
+    /// stopped autostarting, having never once failed. It passed on Windows
+    /// and failed on a CI runner, which is exactly what a test that depends
+    /// on losing a race looks like.
+    #[test]
+    fn an_app_that_finishes_cleanly_confirms_the_boot() {
+        let mut svc = make_service();
+        let keys = provision(&mut svc);
+        flash_demo(&mut svc, keys, "demo");
+        svc.config_set("autostart", "demo").unwrap();
+        svc.reset_autostart_fails();
+
+        svc.try_autostart();
+        assert_eq!(svc.autostart_fails(), 1, "the attempt is counted before launching");
+
+        for _ in 0..200 {
+            if !svc.runner.as_ref().unwrap().is_running() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(!svc.runner.as_ref().unwrap().is_running(), "the demo app should have exited");
+        assert!(!svc.runner.as_ref().unwrap().crashed(), "and it should have exited cleanly");
+
+        svc.confirm_autostart_healthy();
+        assert_eq!(svc.autostart_fails(), 0, "an app that ran to completion is not a failure");
     }
 
     #[test]
