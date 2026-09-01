@@ -33,6 +33,12 @@ espflash flash <elf> --partition-table runtime/firmware-esp32/partitions.csv --p
 # .NET (libraries + tools + tests) — from dotnet/
 dotnet build dotnet/RustNet.slnx
 dotnet test dotnet/RustNet.slnx             # includes E2E (needs firmware binary in target/)
+                                            # Debug only: `--configuration Release` makes the E2E
+                                            # LangApp crash — the Release compiler lowers async
+                                            # state machines into a shape the interpreter lacks
+dotnet test dotnet/tests/RustNet.Tests/RustNet.Tests.csproj   # what CI runs: the solution also holds
+                                            # RustNet.Designer (WPF, net10.0-windows), which cannot
+                                            # build on Linux at all
 cargo build -p rustnet-firmware             # ALWAYS rebuild host variant before dotnet test:
                                             # E2E asserts chip "host-sim"; a chip-variant build
                                             # left in target/debug makes it fail

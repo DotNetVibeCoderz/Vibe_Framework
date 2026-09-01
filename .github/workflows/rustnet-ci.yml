@@ -88,9 +88,27 @@ jobs:
         working-directory: ${{ steps.loc.outputs.dir }}
         run: cargo build -p rustnet-firmware --locked
 
+      # The test project rather than the whole solution, because the solution
+      # contains RustNet.Designer: a WPF app on net10.0-windows, which cannot
+      # build on Linux at all (NETSDK1100). Nothing here references it, so
+      # naming the test project builds exactly the graph the tests need —
+      # MetadataProcessor, Deploy, Debugger, the CLI and the sample apps.
+      #
+      # Debug, deliberately. The E2E tests compile real C# applications and run
+      # them on the interpreter, and the Release compiler lowers async state
+      # machines into a shape the interpreter does not implement — LangApp
+      # crashes with an unhandled exception, and the failure names the app, not
+      # the configuration. See "no Release-config async" in docs/dotnet-support.md.
       - name: dotnet test
         working-directory: ${{ steps.loc.outputs.dir }}
-        run: dotnet test dotnet/RustNet.slnx --configuration Release --nologo
+        run: dotnet test dotnet/tests/RustNet.Tests/RustNet.Tests.csproj --nologo
+
+      # The Workbench is not in that graph and is cross-platform (Avalonia),
+      # so it is built explicitly. Otherwise the only GUI CI can check would
+      # rot unnoticed. The Designer stays a Windows-only build by nature.
+      - name: Build the Workbench
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: dotnet build dotnet/tools/RustNet.Workbench/RustNet.Workbench.csproj --configuration Release --nologo
 
       # Packing on every push, not only at release, so a package that cannot
       # be built is found by the commit that broke it. The MSBuild that
