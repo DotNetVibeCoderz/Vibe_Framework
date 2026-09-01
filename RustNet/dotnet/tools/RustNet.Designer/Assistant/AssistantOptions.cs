@@ -143,7 +143,11 @@ public sealed class AssistantOptions
     {
         p.ApiKey = Resolve(Str($"Assistant.{p.Name}.ApiKey"));
         p.Model = Str($"Assistant.{p.Name}.Model");
-        p.Endpoint = Str($"Assistant.{p.Name}.Endpoint");
+        // Resolved like the key, so an OpenAI-compatible provider — DeepSeek,
+        // Groq, a local gateway — can be pointed at from the environment
+        // without editing config. The endpoint is not a secret, but it is the
+        // other half of "which service am I actually talking to".
+        p.Endpoint = Resolve(Str($"Assistant.{p.Name}.Endpoint"));
         p.Models.Clear();
         foreach (string m in Str($"Assistant.{p.Name}.Models").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {

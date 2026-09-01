@@ -19,6 +19,7 @@ public static class HeadlessAsk
 {
     /// <summary>
     /// Usage: <c>--ask "&lt;prompt&gt;" [--provider OpenAI] [--model gpt-5]
+    /// [--endpoint https://api.deepseek.com] [--api-key-env DEEPSEEK_API_KEY]
     /// [--layout ui.xml] [--no-tools]</c>. Returns a process exit code.
     /// </summary>
     public static int Run(string[] args, TextWriter log)
@@ -26,7 +27,7 @@ public static class HeadlessAsk
         string prompt = Arg(args, "--ask") ?? "";
         if (prompt.Length == 0)
         {
-            log.WriteLine("usage: rustnet-designer --ask \"<prompt>\" [--provider <p>] [--model <m>] [--layout <ui.xml>] [--no-tools]");
+            log.WriteLine("usage: rustnet-designer --ask \"<prompt>\" [--provider <p>] [--model <m>] [--endpoint <url>] [--api-key-env <VAR>] [--layout <ui.xml>] [--no-tools]");
             return 2;
         }
 
@@ -34,6 +35,34 @@ public static class HeadlessAsk
         if (Arg(args, "--provider") is { Length: > 0 } provider)
         {
             options.Provider = AssistantOptions.ParseProvider(provider, options.Provider);
+        }
+        // Any OpenAI-compatible service can be reached this way — DeepSeek,
+        // Groq, a local gateway — without touching config: `--provider OpenAI
+        // --endpoint https://api.deepseek.com --model deepseek-v4-flash`, with
+        // the key in OPENAI_API_KEY. Being able to point a real model at this
+        // from one command line is what makes the path testable at all.
+        if (Arg(args, "--endpoint") is { Length: > 0 } endpoint)
+        {
+            options.Current.Endpoint = endpoint;
+        }
+        // A key for this run only, named rather than given.
+        //
+        // `Assistant.<p>.ApiKey` is a ${ENV_VAR} placeholder in App.config,
+        // but a local rustnet-designer.secrets.config *overrides* it — by
+        // design, and it means exporting the variable quietly does nothing on
+        // a machine that has that file. Testing a second provider then fails
+        // with someone else's key and a 401 that names neither. Taking the
+        // variable's name (not its value) keeps the secret out of argv, and
+        // so out of the process list and the shell history.
+        if (Arg(args, "--api-key-env") is { Length: > 0 } keyVar)
+        {
+            string key = Environment.GetEnvironmentVariable(keyVar)?.Trim() ?? "";
+            if (key.Length == 0)
+            {
+                log.WriteLine($"--api-key-env {keyVar}: that environment variable is empty or unset");
+                return 2;
+            }
+            options.Current.ApiKey = key;
         }
         if (Arg(args, "--model") is { Length: > 0 } model)
         {
