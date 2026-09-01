@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/RustNet/RustNet.csproj" />
     <Project Path="src/RustNet.Buses/RustNet.Buses.csproj" />
     <Project Path="src/RustNet.Cloud/RustNet.Cloud.csproj" />
     <Project Path="src/RustNet.Core/RustNet.Core.csproj" />

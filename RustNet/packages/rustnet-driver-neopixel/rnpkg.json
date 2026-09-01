@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-neopixel",
+  "version": "0.1.0",
+  "description": "WS2812/NeoPixel addressable LED strip driver for RustNet",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": {}
+}

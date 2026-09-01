@@ -1,0 +1,135 @@
+# Publish the `RustNet` package to nuget.org.
+#
+# Tags are prefixed `rustnet-v` rather than a bare `v` because this lives in a
+# monorepo: a bare `v1.2.3` would fire this workflow for a release of any other
+# project in Vibe_Framework, and publish RustNet under that project's version.
+#
+# Nothing reaches nuget.org until the full CI run is green — the `test` job
+# below is the CI workflow itself, not a copy of it, so the two cannot drift.
+#
+# Publishing is irreversible: nuget.org allows a version to be unlisted but
+# never re-uploaded. Hence `dry_run`, which does everything except the push.
+#
+# Like the CI workflow, this file belongs in `.github/workflows/` at the
+# *repository root* — GitHub does not look anywhere else.
+
+name: Publish RustNet to NuGet
+
+on:
+  push:
+    tags: ['rustnet-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 0.1.0 (or 0.2.0-preview.1)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Build and check the package, but do not push it'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rustnet-publish
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/rustnet-ci.yml
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the RustNet directory
+        id: loc
+        run: |
+          if [ -f dotnet/RustNet.slnx ]; then
+            dir=.
+          elif [ -f RustNet/dotnet/RustNet.slnx ]; then
+            dir=RustNet
+          else
+            echo "::error::cannot find dotnet/RustNet.slnx at the root or under RustNet/"
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the version
+        id: ver
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            version="${{ inputs.version }}"
+          else
+            # refs/tags/rustnet-v1.2.3 -> 1.2.3
+            version="${GITHUB_REF_NAME#rustnet-v}"
+          fi
+          # Reject anything that is not a version before it becomes a
+          # permanent entry on nuget.org.
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$version' is not a semantic version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # A tag push always publishes; a manual run only when dry_run was
+          # turned off. `inputs.dry_run` is empty on a tag push, and an empty
+          # string is not `true`, so testing the flag alone would silently
+          # skip the push for exactly the trigger that means to publish.
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.dry_run }}" = "false" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+            echo "Publishing RustNet $version to nuget.org"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "Dry run for RustNet $version"
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pack
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          dotnet pack dotnet/src/RustNet/RustNet.csproj \
+            --configuration Release --nologo \
+            -p:Version=${{ steps.ver.outputs.version }} \
+            -p:ContinuousIntegrationBuild=true \
+            -o artifacts
+          ls -la artifacts
+
+      - name: Push to nuget.org
+        if: steps.ver.outputs.push == 'true'
+        working-directory: ${{ steps.loc.outputs.dir }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::the NUGET_API_KEY secret is not set for this repository"
+            exit 1
+          fi
+          # One explicit file rather than a glob: `dotnet nuget push` sends the
+          # matching .snupkg alongside on its own, and a glob that caught both
+          # would try to push the symbol package a second time by itself.
+          nupkg="artifacts/RustNet.${{ steps.ver.outputs.version }}.nupkg"
+          dotnet nuget push "$nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Say what was skipped
+        if: steps.ver.outputs.push != 'true'
+        run: echo "Dry run — the package was built and checked but not pushed."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustnet-${{ steps.ver.outputs.version }}
+          path: ${{ steps.loc.outputs.dir }}/artifacts/*
+          if-no-files-found: error

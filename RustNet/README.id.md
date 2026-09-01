@@ -2,6 +2,8 @@
 
 **.NET di mikrokontroler, ditenagai runtime Rust.**
 
+[![NuGet](https://img.shields.io/nuget/v/RustNet.svg)](https://www.nuget.org/packages/RustNet)
+
 *English: [README.md](README.md)*
 
 RustNet menjalankan aplikasi C#/.NET di MCU (ESP32, ESP32-C3 & K210
@@ -62,6 +64,32 @@ rustnet display capture -o layar.ppm
 Atau pakai GUI (`dotnet run --project dotnet/tools/RustNet.Workbench`),
 atau **Simulator Panel** di ekstensi VSCode (tampilan display + GPIO +
 log secara langsung).
+
+## API terkelola, dari NuGet
+
+Langkah 3 di atas mencari `RustNet.*` di checkout ini lewat `RUSTNET_SDK` —
+yang memang tepat selagi Anda mengerjakan framework-nya sendiri. Aplikasi yang
+hanya *memakai* RustNet mengambil paketnya saja:
+
+```bash
+dotnet add package RustNet
+```
+
+Satu paket, enam belas assembly — `RustNet.Hal`, `RustNet.Net`,
+`RustNet.Graphics`, `RustNet.UI`, dan seterusnya. Semuanya façade
+`[InternalCall]` tipis yang diselesaikan interpreter lewat nama kanonik di
+perangkat, jadi versinya bergerak bersama dan tidak ada yang perlu dipilih.
+
+```csharp
+using RustNet.Hal;
+using RustNet.Threading;
+
+Gpio.SetMode(2, PinMode.Output);
+while (true) { Gpio.Toggle(2); Sleep.Ms(500); }
+```
+
+Perkakasnya tetap seperti biasa: `rustnet flash` yang mengubahnya jadi modul
+bertanda tangan dan mengirimkannya ke papan.
 
 ## Yang didapat aplikasi C#
 

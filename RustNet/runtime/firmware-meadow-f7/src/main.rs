@@ -638,9 +638,9 @@ impl RuntimeHost for FirmwareHost {
                 let (pin, mode) = (int_arg(args, 0)?, int_arg(args, 1)?);
                 let mode = match mode {
                     0 => PinMode::Input,
-                    1 => PinMode::Output,
-                    2 => PinMode::InputPullUp,
-                    3 => PinMode::InputPullDown,
+                    1 => PinMode::InputPullUp,
+                    2 => PinMode::InputPullDown,
+                    3 => PinMode::Output,
                     _ => return Err(format!("unknown pin mode {mode}")),
                 };
                 self.board

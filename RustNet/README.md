@@ -2,6 +2,8 @@
 
 **.NET on microcontrollers, powered by a Rust runtime.**
 
+[![NuGet](https://img.shields.io/nuget/v/RustNet.svg)](https://www.nuget.org/packages/RustNet)
+
 *Bahasa Indonesia: [README.id.md](README.id.md)*
 
 RustNet runs C#/.NET applications on MCUs (ESP32, ESP32-C3 & K210 RISC-V,
@@ -67,6 +69,32 @@ rustnet display capture -o screen.ppm
 Or use the GUI (`dotnet run --project dotnet/tools/RustNet.Workbench`) or
 the VSCode extension's **Simulator Panel** (live display + GPIO + logs).
 
+## The managed API, from NuGet
+
+Step 3 above resolves `RustNet.*` out of this checkout through `RUSTNET_SDK`,
+which is what you want while working on the framework itself. An application
+that only *uses* it takes the package instead:
+
+```bash
+dotnet add package RustNet
+```
+
+One package, sixteen assemblies — `RustNet.Hal`, `RustNet.Net`,
+`RustNet.Graphics`, `RustNet.UI` and the rest. They are thin `[InternalCall]`
+façades that the interpreter resolves by canonical name on the device, so they
+version together and there is nothing to pick between.
+
+```csharp
+using RustNet.Hal;
+using RustNet.Threading;
+
+Gpio.SetMode(2, PinMode.Output);
+while (true) { Gpio.Toggle(2); Sleep.Ms(500); }
+```
+
+The tools stay where they are: `rustnet flash` still turns that into a signed
+module and puts it on the board.
+
 ## What C# apps get
 
 - **Modern C#**: inheritance & interfaces with real virtual dispatch,
@@ -102,6 +130,7 @@ the VSCode extension's **Simulator Panel** (live display + GPIO + logs).
 | `templates/` | 10 app templates (`rustnet new <template> <Name>`) |
 | `vscode-extension/` | VSCode integration (flash, logs, profiler, display, simulator panel) |
 | `docs/` | Architecture, getting started, protocol + per-feature guides |
+| `.github/workflows/` | CI and the NuGet release ([docs/publishing.md](docs/publishing.md)) — belongs at the *monorepo root* |
 
 ## Status & roadmap
 

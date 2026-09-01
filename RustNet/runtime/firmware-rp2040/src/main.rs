@@ -276,9 +276,9 @@ impl RuntimeHost for FirmwareHost {
                 let pin = int(0)? as u32;
                 let mode = match int(1)? {
                     0 => PinMode::Input,
-                    1 => PinMode::Output,
-                    2 => PinMode::InputPullUp,
-                    3 => PinMode::InputPullDown,
+                    1 => PinMode::InputPullUp,
+                    2 => PinMode::InputPullDown,
+                    3 => PinMode::Output,
                     _ => PinMode::OutputOpenDrain,
                 };
                 self.board

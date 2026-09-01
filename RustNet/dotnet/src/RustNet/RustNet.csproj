@@ -1,0 +1,130 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The `RustNet` package: every RustNet.* library in one install.
+
+       This project carries no code of its own. It exists to gather the sixteen
+       assemblies under src/ into a single package, because splitting them
+       would buy nothing: they are all thin [InternalCall] façades that the
+       Rust interpreter resolves by canonical name at run time, they version
+       together, and an application that uses one of them almost always uses
+       several. One `dotnet add package RustNet` is the whole managed surface.
+
+       Consequently the project references below are PrivateAssets="all" — they
+       must not appear as package *dependencies*, since the packages they would
+       point at do not exist. Their assemblies are copied into lib/ instead by
+       the target at the bottom of this file. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+
+    <!-- This project has no .cs files of its own, so it builds an empty
+         RustNet.dll, and that assembly ships. It has to: `IncludeBuildOutput`
+         gates the whole build-output collection in NuGet's pack targets, and
+         the target at the bottom of this file hooks into exactly that
+         collection. Turning it off to suppress a 4 KB empty assembly also
+         silently drops the sixteen real ones - a 5 KB package that restores
+         cleanly and provides nothing. -->
+
+    <PackageId>RustNet</PackageId>
+    <Title>RustNet — .NET on microcontrollers</Title>
+    <Authors>Dotnet Vibe Coderz</Authors>
+    <Company>Dotnet Vibe Coderz</Company>
+    <Product>RustNet</Product>
+    <Description>Write C# for microcontrollers. RustNet compiles a .NET application to a compact RNX module, signs it, and runs it on an IL interpreter written in Rust — on ESP32, ESP32-C3, K210 (RISC-V), STM32, RP2040 and Meadow F7. This package is the managed API those applications are written against: GPIO/ADC/PWM/I2C, WiFi and MQTT, a display and UI toolkit, a filesystem, an embedded SQL database, field buses (CAN, Modbus, 1-Wire), serializers, and camera/USB support.</Description>
+    <Copyright>Copyright (c) 2026 Dotnet Vibe Coderz</Copyright>
+
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/RustNet</PackageProjectUrl>
+    <PackageTags>iot;embedded;microcontroller;mcu;esp32;esp32-c3;stm32;rp2040;risc-v;k210;meadow;rust;interpreter;gpio;mqtt;nanoframework</PackageTags>
+
+    <!-- The repository URL has to be one a client can clone; nuget.org's
+         "Source repository" link and Source Link both treat it that way, and a
+         /tree/... URL breaks both. The subdirectory this project actually
+         lives in is what PackageProjectUrl above points at. -->
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- A published package is a thing other people build against, so make the
+         build that produced it reproducible from its inputs alone. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Forward slashes: this packs on Linux in CI as well as on Windows. -->
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)../../../LICENSE" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Buses\RustNet.Buses.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Cloud\RustNet.Cloud.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Data\RustNet.Data.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Devices\RustNet.Devices.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Diagnostics\RustNet.Diagnostics.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Drawing\RustNet.Drawing.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Graphics\RustNet.Graphics.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Hal\RustNet.Hal.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.IO\RustNet.IO.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Media\RustNet.Media.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Net\RustNet.Net.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Resources\RustNet.Resources.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Serialization\RustNet.Serialization.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.UI\RustNet.UI.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Usb\RustNet.Usb.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Put the referenced assemblies, their XML docs and their PDBs into the
+       package.
+
+       `ReferenceCopyLocalPaths` is the resolved set that would land next to
+       this project's output, so it is exactly the closure of the references
+       above with each file appearing once - which is why this does not need a
+       hand-maintained list that could drift from the one above.
+
+       Only the assemblies in it carry `ReferenceSourceTarget` metadata,
+       though; the doc and symbol files sit beside them with none. Filtering
+       all three on that metadata is why an earlier version of this shipped
+       sixteen assemblies and one XML file. So the assemblies are selected, and
+       the other two are derived from where each one lives. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackReferencedAssemblies</TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificDebugSymbolsInPackage>$(TargetsForTfmSpecificDebugSymbolsInPackage);PackReferencedSymbols</TargetsForTfmSpecificDebugSymbolsInPackage>
+  </PropertyGroup>
+
+  <Target Name="_CollectRustNetAssemblies" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <RustNetPackAssembly Include="@(ReferenceCopyLocalPaths)"
+                           Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference'
+                                      and '%(Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="PackReferencedAssemblies" DependsOnTargets="_CollectRustNetAssemblies">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(RustNetPackAssembly)" />
+      <_RustNetPackDoc Include="@(RustNetPackAssembly->'%(RootDir)%(Directory)%(Filename).xml')" />
+      <BuildOutputInPackage Include="@(_RustNetPackDoc)" Condition="Exists('%(Identity)')" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Without this the .snupkg holds only this project's own (empty) symbols,
+       and if the build output is excluded entirely it holds nothing at all and
+       pack fails with NU5017. -->
+  <Target Name="PackReferencedSymbols" DependsOnTargets="_CollectRustNetAssemblies">
+    <ItemGroup>
+      <_RustNetPackPdb Include="@(RustNetPackAssembly->'%(RootDir)%(Directory)%(Filename).pdb')" />
+      <TfmSpecificDebugSymbolsFile Include="@(_RustNetPackPdb)" Condition="Exists('%(Identity)')">
+        <TargetPath>/lib/$(TargetFramework)/%(Filename)%(Extension)</TargetPath>
+        <TargetFramework>$(TargetFramework)</TargetFramework>
+      </TfmSpecificDebugSymbolsFile>
+    </ItemGroup>
+  </Target>
+
+</Project>

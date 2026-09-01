@@ -7,5 +7,29 @@
     <AssemblyVersion>0.1.0</AssemblyVersion>
     <Version>0.1.0</Version>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Nothing here packs by itself. The libraries ship as one `RustNet`
+         package (src/RustNet), which gathers their assemblies; tools and
+         tests are not distributed at all. A project that wants a package
+         of its own opts in explicitly. -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!-- Documentation files, for src/ only.
+
+       The src/ assemblies are the public API a `RustNet` package user codes
+       against, and almost every member is an [InternalCall] stub whose real
+       behaviour lives in the Rust interpreter. The XML comments are the only
+       place that behaviour is written down, so they are generated and shipped
+       in the package - otherwise IntelliSense has nothing to say about a
+       method that only ever throws.
+
+       Not for tools/ and tests/, which nobody references and where turning it
+       on only adds CS1570/CS1573 warnings about comments that were never
+       meant to be published. Scoped by path prefix rather than by a
+       Directory.Build.props under src/, because MSBuild stops at the first
+       such file it finds and one there would hide everything above. -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)src'))">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
 </Project>

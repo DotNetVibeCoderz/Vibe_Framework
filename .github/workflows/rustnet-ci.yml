@@ -1,0 +1,123 @@
+# Build and test RustNet: the Rust runtime, then the .NET libraries and tools.
+#
+# The two halves are one job on purpose. RustNet's .NET end-to-end tests drive
+# a real firmware binary — the host "virtual device" — over its own protocol,
+# and they *skip* rather than fail when that binary is missing. Split across
+# two jobs with no artifact passing, the .NET half would go green having
+# quietly run none of them.
+#
+# ## Where this file lives
+#
+# RustNet is published from a subdirectory of the Vibe_Framework monorepo, and
+# GitHub only runs workflows found in `.github/workflows/` at the *repository
+# root*. So this file belongs at the root even though everything it builds is
+# under `RustNet/`. It locates that directory itself rather than hard-coding
+# it, so the same file works in a standalone RustNet checkout too.
+
+name: RustNet CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'RustNet/**'
+      - 'runtime/**'
+      - 'dotnet/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rustnet-*.yml'
+  pull_request:
+    paths:
+      - 'RustNet/**'
+      - 'runtime/**'
+      - 'dotnet/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rustnet-*.yml'
+  workflow_dispatch:
+  # So the publish workflow can require a green build without restating it.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rustnet-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the RustNet directory
+        id: loc
+        run: |
+          if [ -f dotnet/RustNet.slnx ]; then
+            dir=.
+          elif [ -f RustNet/dotnet/RustNet.slnx ]; then
+            dir=RustNet
+          else
+            echo "::error::cannot find dotnet/RustNet.slnx at the root or under RustNet/"
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "Building RustNet from '$dir'"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ steps.loc.outputs.dir }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: cargo test --workspace
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: cargo test --workspace --locked
+
+      # Before the .NET tests, never after: they run this compiled binary
+      # rather than the Rust sources, and they assert it reports chip
+      # "host-sim". A chip-variant build left in target/debug fails them.
+      - name: Build the host virtual device
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: cargo build -p rustnet-firmware --locked
+
+      - name: dotnet test
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: dotnet test dotnet/RustNet.slnx --configuration Release --nologo
+
+      # Packing on every push, not only at release, so a package that cannot
+      # be built is found by the commit that broke it. The MSBuild that
+      # gathers sixteen assemblies into one package is exactly the kind of
+      # thing that breaks silently and is noticed at the worst moment.
+      - name: Pack the RustNet package
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: dotnet pack dotnet/src/RustNet/RustNet.csproj --configuration Release --nologo -o artifacts
+
+      - name: Check the package has its assemblies
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          pkg=$(ls artifacts/*.nupkg)
+          echo "inspecting $pkg"
+          count=$(unzip -Z1 "$pkg" 'lib/*/RustNet.*.dll' | wc -l)
+          echo "$count RustNet.* assemblies in lib/"
+          # A packaging mistake earlier in this project's life produced a 5 KB
+          # package that restored cleanly and contained nothing. It is the
+          # failure mode worth a guard, because nothing else reports it.
+          if [ "$count" -lt 16 ]; then
+            echo "::error::expected at least 16 assemblies, found $count"
+            unzip -Z1 "$pkg"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustnet-nupkg
+          path: ${{ steps.loc.outputs.dir }}/artifacts/*
+          if-no-files-found: error

@@ -21,3 +21,14 @@ keys/
 # Local API keys for the Designer's assistant. App.config keeps only
 # ${ENV_VAR} placeholders; the real values live here (see the .example).
 *.secrets.config
+
+# `packages/` here is source, not a NuGet restore folder.
+#
+# The Vibe_Framework monorepo's root .gitignore is the standard Visual Studio
+# one, and it carries `**/[Pp]ackages/*` for the old NuGet restore directory.
+# That rule reaches down here and silently swallowed
+# `packages/rustnet-driver-neopixel` — a community driver that exists on disk,
+# is referenced by the docs, and was in no commit. A deeper .gitignore wins,
+# so this puts it back. Nothing reports a file that was never added.
+!packages/
+!packages/**
