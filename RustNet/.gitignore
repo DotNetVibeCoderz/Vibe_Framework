@@ -32,3 +32,9 @@ keys/
 # so this puts it back. Nothing reports a file that was never added.
 !packages/
 !packages/**
+
+# Loose API keys handed over for a test run. The repo convention is that
+# credentials live in a gitignored *.secrets.config or in the environment;
+# a bare key file at the root is neither, and `git add -A` will take it.
+testkey.txt
+*.key.txt
