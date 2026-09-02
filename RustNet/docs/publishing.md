@@ -25,6 +25,18 @@ do not exist) and copies their build output into `lib/net10.0`.
 
 ## Cutting a release
 
+0. **Check what actually changed:**
+
+   ```bash
+   git diff --stat <last-release-commit>..HEAD -- dotnet/src/
+   ```
+
+   This package holds only the managed API. Runtime, tooling and Designer
+   work — most of the repository's traffic — never reaches it. An empty diff
+   means a patch bump at most: 0.1.1 shipped byte-identical assemblies and
+   only a rewritten package README, and calling that a minor would have
+   promised an API change that did not exist.
+
 1. Set the version in `dotnet/Directory.Build.props` and commit it. That value
    is what a local `dotnet pack` produces; CI overrides it from the tag, and
    the two disagreeing is confusing later.
