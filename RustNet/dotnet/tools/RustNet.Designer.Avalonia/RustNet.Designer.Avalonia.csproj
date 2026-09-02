@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Designer, on Avalonia: the same tool, on Linux and macOS too.
+
+       A straight port of the WPF front-end in ../RustNet.Designer. Everything
+       that is not a view already lives in RustNet.Designer.Core and is shared
+       verbatim — the assistant, the deployment pipeline, the formatter, the
+       canvas geometry. What is here is the part that had to be rewritten
+       rather than moved.
+
+       Two of those rewrites were decisions, not translations:
+
+       * The chat transcript was WebView2 — a Windows-only browser control fed
+         HTML. Markdown.Avalonia renders the same markdown into real Avalonia
+         controls instead, so there is no browser, no HTML round-trip and no
+         second theme to keep in step.
+       * The code pane was AvalonEdit; AvaloniaEdit is the same editor by the
+         same lineage, so that one *is* a translation. -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>rustnet-designer-avalonia</AssemblyName>
+    <RootNamespace>RustNet.Designer.Avalonia</RootNamespace>
+    <Description>RustNet UI Designer on Avalonia: the drag-and-drop editor for embedded UI, cross-platform, with the "Jack The Code Bender" assistant.</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- The XAML compiler emits these for x:Name fields it generates. -->
+    <NoWarn>$(NoWarn);CS0169;CS0649</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Designer.Core\RustNet.Designer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.2" Condition="'$(Configuration)' == 'Debug'" />
+    <!-- The chat transcript, rendered as controls rather than as a web page. -->
+    <PackageReference Include="Markdown.Avalonia" Version="11.0.3" />
+    <PackageReference Include="Markdown.Avalonia.SyntaxHigh" Version="11.0.3" />
+    <!-- The code pane. -->
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="App.config" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Local credentials, gitignored; see the WPF project's .example. -->
+    <None Update="rustnet-designer.secrets.config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

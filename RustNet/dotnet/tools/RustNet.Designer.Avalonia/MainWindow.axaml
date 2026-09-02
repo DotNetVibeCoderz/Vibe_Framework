@@ -1,0 +1,231 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:editor="clr-namespace:RustNet.Designer.Avalonia.Editor"
+        xmlns:local="clr-namespace:RustNet.Designer.Avalonia"
+        x:Class="RustNet.Designer.Avalonia.MainWindow"
+        Title="RustNet UI Designer" Height="820" Width="1440"
+        MinHeight="560" MinWidth="960"
+        WindowState="Maximized"
+        Background="{StaticResource Graphite}"
+        WindowStartupLocation="CenterScreen">
+
+  <DockPanel>
+    <!-- ==== command strip ============================================ -->
+    <Border DockPanel.Dock="Top" Background="{StaticResource Slate}"
+            BorderBrush="{StaticResource Rail}" BorderThickness="0,0,0,1">
+      <Grid>
+        <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+          <TextBlock Text="RUSTNET" FontSize="12" FontWeight="SemiBold"
+                     Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+          <TextBlock Text="DESIGNER" FontFamily="{StaticResource FontMono}" FontSize="10"
+                     Foreground="{StaticResource Amber}" Margin="6,1,0,0"
+                     VerticalAlignment="Center"/>
+
+          <Border Classes="divider"/>
+
+          <Button Classes="ghost" Content="New" Click="OnNew"
+                  ToolTip.Tip="New document in the active tab (Ctrl+N)"/>
+          <Button Classes="ghost" Content="Open" Click="OnOpen"
+                  ToolTip.Tip="Open a layout (.xml) or a C# file (.cs) - Ctrl+O"/>
+          <Button Classes="ghost" Content="Save" Click="OnSave"
+                  ToolTip.Tip="Save the active document (Ctrl+S)"/>
+          <Button Classes="ghost" Content="Save as" Click="OnSaveAs"
+                  ToolTip.Tip="Save the active document under a new name"/>
+          <Button Classes="ghost" Content="Close" Click="OnClose"
+                  ToolTip.Tip="Close the active document (Ctrl+W)"/>
+
+          <Border Classes="divider"/>
+
+          <Button Classes="ghost" Content="Delete" Click="OnDelete"
+                  ToolTip.Tip="Delete the selected element (Del)"/>
+          <Button Classes="ghost" Content="Up" Click="OnMoveUp"
+                  ToolTip.Tip="Move the selection earlier among its siblings"/>
+          <Button Classes="ghost" Content="Down" Click="OnMoveDown"
+                  ToolTip.Tip="Move the selection later among its siblings"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,8,0">
+          <TextBlock x:Name="PanelReadout" Classes="readout" FontSize="10" Margin="0,0,10,0"/>
+          <ToggleButton x:Name="ToolboxToggle" Classes="chip" Content="TOOLBOX" IsChecked="True"
+                        VerticalAlignment="Center" Margin="0,0,4,0"
+                        ToolTip.Tip="Show or hide the toolbox (Ctrl+1)"
+                        IsCheckedChanged="OnPanelToggled"/>
+          <ToggleButton x:Name="InspectorToggle" Classes="chip" Content="INSPECTOR" IsChecked="True"
+                        VerticalAlignment="Center" Margin="0,0,4,0"
+                        ToolTip.Tip="Show or hide the element tree and properties (Ctrl+2)"
+                        IsCheckedChanged="OnPanelToggled"/>
+          <ToggleButton x:Name="OutputToggle" Classes="chip" Content="OUTPUT"
+                        VerticalAlignment="Center" Margin="0,0,4,0"
+                        ToolTip.Tip="Show or hide the build and deploy log (Ctrl+3)"
+                        IsCheckedChanged="OnPanelToggled"/>
+          <ToggleButton x:Name="AssistantToggle" Classes="chip" Content="ASSISTANT" IsChecked="True"
+                        VerticalAlignment="Center"
+                        ToolTip.Tip="Show or hide Jack The Code Bender (Ctrl+J)"
+                        IsCheckedChanged="OnPanelToggled"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ==== deploy strip ============================================= -->
+    <Border DockPanel.Dock="Top" Background="{StaticResource Graphite}"
+            BorderBrush="{StaticResource Rail}" BorderThickness="0,0,0,1" Padding="12,5">
+      <Grid>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Classes="readout" Text="TARGET" Foreground="#FF5D6674" Margin="0,0,8,0"/>
+          <ComboBox x:Name="TargetBox" Width="230" Margin="0,0,4,0"
+                    ToolTip.Tip="Where Run sends the app"
+                    SelectionChanged="OnTargetChanged"/>
+          <Button Classes="ghost" Content="Detect" Click="OnDetectDevices"
+                  ToolTip.Tip="Probe the virtual device and every serial port"/>
+          <Border Classes="divider"/>
+          <TextBlock Classes="readout" Text="APP" Foreground="#FF5D6674" Margin="0,0,8,0"/>
+          <TextBox x:Name="AppNameBox" Width="120" Text="designerapp"
+                   ToolTip.Tip="App id on the device"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <TextBlock x:Name="DeployState" Classes="readout" FontSize="10" Margin="0,0,10,0"/>
+          <Button Classes="ghost" Content="Logs" Click="OnReadLogs"
+                  ToolTip.Tip="Read the device log into the output pane"/>
+          <Button Classes="ghost" Content="Stop" Click="OnStopApp"
+                  ToolTip.Tip="Stop the app running on the device"/>
+          <Button x:Name="RunButton" Classes="flat primary" Content="Run" Click="OnRun"
+                  Padding="16,5" Margin="4,0,0,0"
+                  ToolTip.Tip="Build and flash the code, or push the layout (F5)"/>
+          <Button x:Name="CancelRunButton" Classes="flat" Content="Cancel" IsVisible="False"
+                  Click="OnCancelRun" Padding="16,5" Margin="4,0,0,0"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ==== readout strip: the instrument line ======================= -->
+    <Border DockPanel.Dock="Bottom" Background="{StaticResource Slate}"
+            BorderBrush="{StaticResource Rail}" BorderThickness="0,1,0,0" Padding="12,4">
+      <Grid>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Classes="readout" Text="SEL" Foreground="#FF5D6674"/>
+          <TextBlock x:Name="SelReadout" Classes="readout" Margin="6,0,14,0"
+                     Foreground="{StaticResource Amber}" Text="-"/>
+          <TextBlock Classes="readout" Text="POS" Foreground="#FF5D6674"/>
+          <TextBlock x:Name="PosReadout" Classes="readout" Margin="6,0,14,0" Text="-"/>
+          <TextBlock Classes="readout" Text="SIZE" Foreground="#FF5D6674"/>
+          <TextBlock x:Name="SizeReadout" Classes="readout" Margin="6,0,14,0" Text="-"/>
+          <TextBlock Classes="readout" Text="FG" Foreground="#FF5D6674"/>
+          <TextBlock x:Name="FgReadout" Classes="readout" Margin="6,0,10,0" Text="-"/>
+          <TextBlock Classes="readout" Text="BG" Foreground="#FF5D6674"/>
+          <TextBlock x:Name="BgReadout" Classes="readout" Margin="6,0,0,0" Text="-"/>
+        </StackPanel>
+        <TextBlock x:Name="StatusText" Classes="readout" HorizontalAlignment="Right" Text="Ready"/>
+      </Grid>
+    </Border>
+
+    <!-- ==== output pane ============================================== -->
+    <Border x:Name="OutputPane" DockPanel.Dock="Bottom" Height="190" IsVisible="False"
+            Background="{StaticResource Slate}" BorderBrush="{StaticResource Rail}"
+            BorderThickness="0,1,0,0">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="10,5" BorderBrush="{StaticResource Rail}"
+                BorderThickness="0,0,0,1">
+          <Grid>
+            <TextBlock Text="OUTPUT" FontFamily="{StaticResource FontMono}" FontSize="10"
+                       Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+              <Button Classes="ghost" Content="Copy" Click="OnCopyOutput"/>
+              <Button Classes="ghost" Content="Clear" Click="OnClearOutput"/>
+              <Button Classes="ghost" Content="Close" Click="OnCloseOutput"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+        <TextBox x:Name="OutputText" IsReadOnly="True" BorderThickness="0"
+                 Background="Transparent" Padding="10,6" FontSize="11"
+                 FontFamily="{StaticResource FontMono}"
+                 TextWrapping="NoWrap" AcceptsReturn="True"/>
+      </DockPanel>
+    </Border>
+
+    <Grid x:Name="Panes">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="172" MinWidth="0"/>
+        <ColumnDefinition Width="1"/>
+        <ColumnDefinition Width="*" MinWidth="320"/>
+        <ColumnDefinition Width="1"/>
+        <ColumnDefinition Width="292" MinWidth="0"/>
+        <ColumnDefinition Width="1"/>
+        <ColumnDefinition Width="420" MinWidth="0"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- toolbox -->
+      <DockPanel x:Name="ToolboxPanel" Grid.Column="0" Background="{StaticResource Slate}">
+        <TextBlock DockPanel.Dock="Top" Classes="heading" Text="TOOLBOX"/>
+        <ScrollViewer>
+          <StackPanel x:Name="Toolbox" Margin="0,0,0,8"/>
+        </ScrollViewer>
+      </DockPanel>
+
+      <GridSplitter x:Name="ToolboxSplitter" Grid.Column="1" Width="1" HorizontalAlignment="Stretch"/>
+
+      <!-- centre: design surface and editors -->
+      <TabControl Grid.Column="2" x:Name="CentreTabs" Background="{StaticResource Graphite}">
+        <TabItem x:Name="DesignTab" Header="DESIGN">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                        Background="{StaticResource Graphite}">
+            <!-- The signature: the panel is hardware, so it is presented as
+                 hardware - a bezel with a warm hairline and a soft glow, and
+                 nothing else in the tool glows. WPF drew that glow with a
+                 DropShadowEffect; Avalonia has BoxShadow on Border, which is
+                 the same picture without an effect pipeline behind it. -->
+            <Border x:Name="Bezel" Background="#FF0B0C0E" BorderBrush="{StaticResource AmberDim}"
+                    BorderThickness="1" CornerRadius="5" Padding="11" Margin="28"
+                    BoxShadow="0 0 34 0 #22E8A33D"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Border BorderBrush="{StaticResource Rail}" BorderThickness="1">
+                <Canvas x:Name="DesignCanvas" Background="Transparent"
+                        PointerPressed="OnCanvasPointerPressed"
+                        PointerMoved="OnCanvasPointerMoved"
+                        PointerReleased="OnCanvasPointerReleased"/>
+              </Border>
+            </Border>
+          </ScrollViewer>
+        </TabItem>
+
+        <TabItem x:Name="XmlTab" Header="LAYOUT XML">
+          <editor:CodePane x:Name="XmlPane" Syntax="xml"/>
+        </TabItem>
+
+        <TabItem x:Name="CodeTab" Header="CODE">
+          <editor:CodePane x:Name="CodePane" Syntax="csharp"/>
+        </TabItem>
+      </TabControl>
+
+      <GridSplitter x:Name="InspectorSplitter" Grid.Column="3" Width="1" HorizontalAlignment="Stretch"/>
+
+      <!-- inspector -->
+      <Grid x:Name="InspectorPanel" Grid.Column="4" Background="{StaticResource Slate}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" MinHeight="90"/>
+          <RowDefinition Height="1"/>
+          <RowDefinition Height="2*" MinHeight="120"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+          <TextBlock DockPanel.Dock="Top" Classes="heading" Text="ELEMENT TREE"/>
+          <TreeView x:Name="Tree" SelectionChanged="OnTreeSelect"/>
+        </DockPanel>
+
+        <GridSplitter Grid.Row="1" Height="1" HorizontalAlignment="Stretch"/>
+
+        <DockPanel Grid.Row="2">
+          <TextBlock DockPanel.Dock="Top" Classes="heading" Text="PROPERTIES"/>
+          <ScrollViewer>
+            <StackPanel x:Name="Properties" Margin="10,0,10,10"/>
+          </ScrollViewer>
+        </DockPanel>
+      </Grid>
+
+      <GridSplitter x:Name="ChatSplitter" Grid.Column="5" Width="1" HorizontalAlignment="Stretch"/>
+
+      <!-- the assistant, to the right of the editors -->
+      <local:ChatPanel x:Name="Chat" Grid.Column="6"/>
+    </Grid>
+  </DockPanel>
+</Window>

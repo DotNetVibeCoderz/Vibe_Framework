@@ -112,12 +112,17 @@ jobs:
         working-directory: ${{ steps.loc.outputs.dir }}
         run: dotnet test dotnet/tests/RustNet.Tests/RustNet.Tests.csproj --nologo
 
-      # The Workbench is not in that graph and is cross-platform (Avalonia),
-      # so it is built explicitly. Otherwise the only GUI CI can check would
-      # rot unnoticed. The Designer stays a Windows-only build by nature.
-      - name: Build the Workbench
+      # The two Avalonia GUIs are not in the test graph but are cross-platform,
+      # so they are built explicitly — otherwise the only front-ends CI could
+      # check would rot unnoticed. RustNet.Designer (WPF, net10.0-windows) is
+      # Windows-only by nature and cannot be built here at all; its Avalonia
+      # port is what CI covers, and the two share RustNet.Designer.Core, which
+      # the test graph already compiles.
+      - name: Build the Avalonia front-ends
         working-directory: ${{ steps.loc.outputs.dir }}
-        run: dotnet build dotnet/tools/RustNet.Workbench/RustNet.Workbench.csproj --configuration Release --nologo
+        run: |
+          dotnet build dotnet/tools/RustNet.Workbench/RustNet.Workbench.csproj --configuration Release --nologo
+          dotnet build dotnet/tools/RustNet.Designer.Avalonia/RustNet.Designer.Avalonia.csproj --configuration Release --nologo
 
       # Packing on every push, not only at release, so a package that cannot
       # be built is found by the commit that broke it. The MSBuild that

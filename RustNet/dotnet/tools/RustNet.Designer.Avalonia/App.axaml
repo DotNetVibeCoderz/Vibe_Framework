@@ -1,0 +1,13 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RustNet.Designer.Avalonia.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Styles>
+    <FluentTheme />
+    <!-- Markdown.Avalonia carries its own style sets; the transcript picks one
+         with MarkdownStyleName, so there is nothing to include here. -->
+    <StyleInclude Source="/Theme.axaml" />
+  </Application.Styles>
+
+</Application>

@@ -32,5 +32,6 @@
     <Project Path="tools/RustNet.Workbench/RustNet.Workbench.csproj" />
     <Project Path="tools/RustNet.Designer.Core/RustNet.Designer.Core.csproj" />
     <Project Path="tools/RustNet.Designer/RustNet.Designer.csproj" />
+    <Project Path="tools/RustNet.Designer.Avalonia/RustNet.Designer.Avalonia.csproj" />
   </Folder>
 </Solution>

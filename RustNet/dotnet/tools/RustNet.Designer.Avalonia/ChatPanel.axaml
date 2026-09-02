@@ -1,0 +1,184 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
+             x:Class="RustNet.Designer.Avalonia.ChatPanel"
+             Background="{StaticResource Slate}">
+  <Grid RowDefinitions="Auto,*,Auto">
+
+    <!-- ==== header ================================================== -->
+    <Border Grid.Row="0" BorderBrush="{StaticResource Rail}" BorderThickness="0,0,0,1" Padding="10,8,8,8">
+      <StackPanel>
+        <Grid>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <!-- The signal mark: on when Jack is working, dim when idle. -->
+            <Border x:Name="SignalMark" Width="3" Height="14" CornerRadius="1.5"
+                    Background="{StaticResource CyanDim}" Margin="0,0,8,0"/>
+            <TextBlock Text="JACK THE CODE BENDER" FontFamily="{StaticResource FontMono}"
+                       FontSize="10" Foreground="{StaticResource Cyan}" VerticalAlignment="Center"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <ToggleButton x:Name="SessionsToggle" Classes="chip" Content="SESSIONS" Margin="0,0,4,0"
+                          ToolTip.Tip="Switch, create or delete conversations"
+                          IsCheckedChanged="OnSessionsToggled"/>
+            <ToggleButton x:Name="SettingsToggle" Classes="chip" Content="SETTINGS" Margin="0,0,4,0"
+                          ToolTip.Tip="Persona, sampling and tools - saved to app.config"
+                          IsCheckedChanged="OnSettingsToggled"/>
+            <Button x:Name="HideButton" Classes="ghost" Content="Hide"
+                    ToolTip.Tip="Hide the assistant (Ctrl+J)" Click="OnHide"/>
+          </StackPanel>
+        </Grid>
+
+        <Grid Margin="0,8,0,0" ColumnDefinitions="Auto,*,Auto">
+          <ComboBox x:Name="ProviderBox" Grid.Column="0" Width="100" Margin="0,0,4,0"
+                    ToolTip.Tip="Which service answers" SelectionChanged="OnProviderChanged"/>
+          <ComboBox x:Name="ModelBox" Grid.Column="1" Margin="0,0,4,0"
+                    ToolTip.Tip="Model" SelectionChanged="OnModelChanged"/>
+          <ToggleButton x:Name="ToolsToggle" Grid.Column="2" Classes="chip" Content="TOOLS"
+                        ToolTip.Tip="Let Jack call functions: search, docs, canvas, code"
+                        IsCheckedChanged="OnToolsToggled"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- ==== transcript, with the drawers layered over it ============ -->
+    <Grid Grid.Row="1">
+      <!-- One viewer for the whole conversation. Markdown.Avalonia renders to
+           real controls, so the text is selectable and the code blocks are
+           highlighted without a browser in the process.
+
+           `FluentTheme`, not `Standard`: the style sets are not neutral, and
+           Standard is built for a white page — on this near-black panel its
+           headings vanish and its code blocks come out as white rectangles.
+           FluentTheme follows the application's theme variant, which is Dark. -->
+      <Border Background="{StaticResource Graphite}">
+        <md:MarkdownScrollViewer x:Name="Transcript" MarkdownStyleName="FluentTheme"/>
+      </Border>
+
+      <!-- sessions drawer -->
+      <Border x:Name="SessionsDrawer" IsVisible="False" Background="{StaticResource Slate}"
+              BorderBrush="{StaticResource Rail}" BorderThickness="0,0,0,1">
+        <DockPanel>
+          <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Rail}" BorderThickness="0,1,0,0"
+                  Padding="8">
+            <StackPanel Orientation="Horizontal">
+              <Button Classes="flat primary" Content="New session" Click="OnNewSession" Margin="0,0,4,0"/>
+              <Button Classes="flat" Content="Reset" Click="OnResetSession" Margin="0,0,4,0"
+                      ToolTip.Tip="Empty this conversation but keep it in the list"/>
+              <Button Classes="flat" Content="Delete" Click="OnDeleteSession"
+                      ToolTip.Tip="Delete this conversation and its uploads"/>
+            </StackPanel>
+          </Border>
+          <ListBox x:Name="SessionList" SelectionChanged="OnSessionSelected"
+                   Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock FontFamily="{StaticResource FontMono}" FontSize="10"
+                             Foreground="{StaticResource Muted}"
+                             Text="{Binding Model}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <!-- settings drawer -->
+      <Border x:Name="SettingsDrawer" IsVisible="False" Background="{StaticResource Slate}">
+        <DockPanel>
+          <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource Rail}" BorderThickness="0,1,0,0"
+                  Padding="8">
+            <StackPanel Orientation="Horizontal">
+              <Button Classes="flat primary" Content="Save to app.config" Click="OnSaveSettings"
+                      Margin="0,0,4,0"/>
+              <Button Classes="flat" Content="Reset persona" Click="OnResetPersona"/>
+            </StackPanel>
+          </Border>
+          <ScrollViewer>
+            <StackPanel Margin="10,8,10,10">
+              <TextBlock Classes="heading" Text="PERSONA" Margin="0,0,0,4"/>
+              <TextBox x:Name="PersonaBox" AcceptsReturn="True" TextWrapping="Wrap" Height="220"/>
+
+              <TextBlock Classes="heading" Text="SAMPLING" Margin="0,12,0,4"/>
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="readout" Text="temperature" Width="96"/>
+                <TextBox x:Name="TemperatureBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Classes="readout" Text="top_p" Width="96"/>
+                <TextBox x:Name="TopPBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="readout" Text="max_tokens" Width="96"/>
+                <TextBox x:Name="MaxTokensBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="3" Grid.Column="0" Classes="readout" Text="history turns" Width="96"/>
+                <TextBox x:Name="HistoryBox" Grid.Row="3" Grid.Column="1"/>
+              </Grid>
+
+              <CheckBox x:Name="StreamingCheck" Content="Stream the reply as it is written"
+                        Margin="0,10,0,0"/>
+
+              <TextBlock Classes="heading" Text="FUNCTIONS AVAILABLE" Margin="0,14,0,4"/>
+              <TextBlock x:Name="ToolListText" Classes="readout" TextWrapping="Wrap"/>
+
+              <TextBlock Classes="heading" Text="KEYS" Margin="0,14,0,4"/>
+              <TextBlock x:Name="KeyStatusText" Classes="readout" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+
+      <!-- prompt gallery -->
+      <Border x:Name="PromptDrawer" IsVisible="False" Background="{StaticResource Slate}">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Rail}" BorderThickness="0,0,0,1"
+                  Padding="10,6">
+            <Grid>
+              <TextBlock Text="PROMPTS THAT PRODUCE SOMETHING" FontFamily="{StaticResource FontMono}"
+                         FontSize="10" Foreground="{StaticResource Amber}" VerticalAlignment="Center"/>
+              <Button Classes="ghost" Content="Close" HorizontalAlignment="Right" Click="OnClosePrompts"/>
+            </Grid>
+          </Border>
+          <ScrollViewer>
+            <StackPanel x:Name="PromptList" Margin="0,4,0,10"/>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!-- ==== composer ================================================ -->
+    <Border Grid.Row="2" BorderBrush="{StaticResource Rail}" BorderThickness="0,1,0,0" Padding="8">
+      <StackPanel>
+        <ItemsControl x:Name="AttachmentStrip" Margin="0,0,0,6">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <TextBox x:Name="Composer" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="58" MaxHeight="180"
+                 FontFamily="{StaticResource FontSans}" FontSize="13"
+                 KeyDown="OnComposerKeyDown"/>
+
+        <Grid Margin="0,6,0,0" ColumnDefinitions="Auto,*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal">
+            <Button Classes="ghost" Content="Image" Click="OnAttachImage" Margin="0,0,2,0"
+                    ToolTip.Tip="Attach an image - it is uploaded to this session and sent as image content"/>
+            <Button Classes="ghost" Content="Document" Click="OnAttachDocument" Margin="0,0,2,0"
+                    ToolTip.Tip="Attach a document - its link and an excerpt go into the message"/>
+            <Button Classes="ghost" Content="Prompts" Click="OnShowPrompts"
+                    ToolTip.Tip="Ready-made prompts that produce a screen or a file"/>
+          </StackPanel>
+          <!-- Trimmed rather than wrapped: the hint may lose its tail in a
+               narrow panel, but the Send button must not move. -->
+          <TextBlock x:Name="ComposerHint" Grid.Column="1" Classes="readout" FontSize="10"
+                     Margin="8,0,8,0" TextTrimming="CharacterEllipsis"
+                     HorizontalAlignment="Right" Text="Enter send - Shift+Enter newline"/>
+          <Grid Grid.Column="2">
+            <Button x:Name="SendButton" Classes="flat primary" Content="Send" Click="OnSend" Padding="16,5"/>
+            <Button x:Name="StopButton" Classes="flat" Content="Stop" IsVisible="False"
+                    Click="OnStop" Padding="16,5"/>
+          </Grid>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

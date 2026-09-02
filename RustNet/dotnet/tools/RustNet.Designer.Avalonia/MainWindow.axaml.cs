@@ -4,25 +4,28 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
-using Microsoft.Win32;
-// System.Windows.Shapes.Path would shadow System.IO.Path, which this file uses
-// far more often; only the one shape is needed.
-using Rectangle = System.Windows.Shapes.Rectangle;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+// Avalonia.Controls.Shapes.Path would shadow System.IO.Path, which this file
+// uses far more often; only the one shape is needed.
+using Rectangle = Avalonia.Controls.Shapes.Rectangle;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using RustNet.Designer.Assistant;
 using RustNet.Designer.Deployment;
 using RustNet.UI;
 
-namespace RustNet.Designer;
+namespace RustNet.Designer.Avalonia;
 
 public partial class MainWindow : Window, IDesignerBridge
 {
     private UiElement _root = Ui.LoadXml(SampleLayout.Xml);
     private UiElement? _selected;
-    private Dictionary<FrameworkElement, UiElement> _map = new();
+    private Dictionary<Control, UiElement> _map = new();
 
     // Two documents live in this window: the layout on the canvas, and the code
     // in the code pane. Every file command acts on whichever tab is in front.
@@ -35,11 +38,22 @@ public partial class MainWindow : Window, IDesignerBridge
     private TextBlock _codeFileName = null!;
 
     private readonly Dictionary<ColumnDefinition, GridLength> _panelWidths = new();
+
+    // The pane columns, by position in the grid. `x:Name` on a
+    // ColumnDefinition compiles to nothing — the generated fields cover
+    // controls only — so they are read off the grid rather than named.
+    private ColumnDefinition ToolboxColumn => Panes.ColumnDefinitions[0];
+    private ColumnDefinition ToolboxSplitterColumn => Panes.ColumnDefinitions[1];
+    private ColumnDefinition InspectorSplitterColumn => Panes.ColumnDefinitions[3];
+    private ColumnDefinition InspectorColumn => Panes.ColumnDefinitions[4];
+    private ColumnDefinition ChatSplitterColumn => Panes.ColumnDefinitions[5];
+    private ColumnDefinition ChatColumn => Panes.ColumnDefinitions[6];
     private readonly List<DeviceTarget> _targets = new();
     private DeviceTarget? _target;
     private CancellationTokenSource? _run;
     private string _workspaceRoot = "";
     private string _signingKey = "";
+
     public MainWindow()
     {
         InitializeComponent();
@@ -62,37 +76,49 @@ public partial class MainWindow : Window, IDesignerBridge
         RenderAll();
         UpdateTabHeaders();
         UpdateRunButton();
-        SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
 
         BindGestures();
     }
 
     private void BindGestures()
     {
-        void Bind(Action action, Key key, ModifierKeys modifiers = ModifierKeys.None)
-            => InputBindings.Add(new KeyBinding(new RelayCommand(action), key, modifiers));
+        void Bind(Action action, Key key, KeyModifiers modifiers = KeyModifiers.None)
+            => KeyBindings.Add(new KeyBinding
+            {
+                Gesture = new KeyGesture(key, modifiers),
+                Command = new RelayCommand(action),
+            });
 
-        Bind(() => OnNew(this, null!), Key.N, ModifierKeys.Control);
-        Bind(() => OnOpen(this, null!), Key.O, ModifierKeys.Control);
-        Bind(() => OnSave(this, null!), Key.S, ModifierKeys.Control);
-        Bind(() => OnClose(this, null!), Key.W, ModifierKeys.Control);
+        Bind(() => OnNew(this, null!), Key.N, KeyModifiers.Control);
+        Bind(() => OnOpen(this, null!), Key.O, KeyModifiers.Control);
+        Bind(() => OnSave(this, null!), Key.S, KeyModifiers.Control);
+        Bind(() => OnClose(this, null!), Key.W, KeyModifiers.Control);
         Bind(() => OnRun(this, null!), Key.F5);
-        Bind(() => Toggle(ToolboxToggle), Key.D1, ModifierKeys.Control);
-        Bind(() => Toggle(InspectorToggle), Key.D2, ModifierKeys.Control);
-        Bind(() => Toggle(OutputToggle), Key.D3, ModifierKeys.Control);
-        Bind(() => Toggle(AssistantToggle), Key.J, ModifierKeys.Control);
+        Bind(() => Toggle(ToolboxToggle), Key.D1, KeyModifiers.Control);
+        Bind(() => Toggle(InspectorToggle), Key.D2, KeyModifiers.Control);
+        Bind(() => Toggle(OutputToggle), Key.D3, KeyModifiers.Control);
+        Bind(() => Toggle(AssistantToggle), Key.J, KeyModifiers.Control);
 
         KeyDown += (_, e) =>
         {
             // Del deletes the selected element — but not while the person is
-            // typing in a property box, the composer or an editor.
-            if (e.Key == Key.Delete
-                && Keyboard.FocusedElement is not System.Windows.Controls.Primitives.TextBoxBase
-                && Keyboard.FocusedElement is not ICSharpCode.AvalonEdit.Editing.TextArea)
+            // typing in a property box, the composer or an editor. WPF asked
+            // Keyboard.FocusedElement; Avalonia keeps focus on the tree, so
+            // this asks the focused control what it is.
+            if (e.Key == Key.Delete && !FocusIsInTextEntry())
             {
                 OnDelete(this, null!);
             }
         };
+    }
+
+    /// <summary>Whether the keyboard focus is somewhere that eats a Delete.</summary>
+    private bool FocusIsInTextEntry()
+    {
+        object? focused = FocusManager?.GetFocusedElement();
+        return focused is TextBox
+            || focused is AvaloniaEdit.Editing.TextArea
+            || focused is AvaloniaEdit.TextEditor;
     }
 
     /// <summary>
@@ -112,13 +138,10 @@ public partial class MainWindow : Window, IDesignerBridge
     {
         foreach (string kind in DesignModel.ControlKinds.OrderBy(k => k, StringComparer.Ordinal))
         {
-            var btn = new Button
-            {
-                Content = "+ " + kind,
-                Style = (Style)FindResource("ToolButton"),
-                Tag = kind,
-                ToolTip = $"Add a <{kind}> to the selected container",
-            };
+            var btn = new Button { Content = "+ " + kind, Tag = kind };
+            btn.Classes.Add("flat");
+            btn.Classes.Add("tool");
+            ToolTip.SetTip(btn, $"Add a <{kind}> to the selected container");
             btn.Click += OnAddControl;
             Toolbox.Children.Add(btn);
         }
@@ -130,50 +153,46 @@ public partial class MainWindow : Window, IDesignerBridge
     /// </summary>
     private void BuildFooters()
     {
-        _xmlHint = new TextBlock
-        {
-            Style = (Style)FindResource("Readout"),
-            Margin = new Thickness(12, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        var xmlFooter = new StackPanel { Orientation = Orientation.Horizontal };
-        xmlFooter.Children.Add(Action("Apply to canvas", "PrimaryButton", OnApplyXml,
+        _xmlHint = new TextBlock { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center };
+        _xmlHint.Classes.Add("readout");
+        var xmlFooter = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal };
+        xmlFooter.Children.Add(Action("Apply to canvas", "primary", OnApplyXml,
             "Parse this XML and replace the design"));
-        xmlFooter.Children.Add(Action("Reload from canvas", "FlatButton", OnReloadXml,
+        xmlFooter.Children.Add(Action("Reload from canvas", null, OnReloadXml,
             "Throw away the edits here and re-read the canvas"));
         xmlFooter.Children.Add(_xmlHint);
         XmlPane.FooterContent = xmlFooter;
 
         _codeFileName = new TextBlock
         {
-            Style = (Style)FindResource("Readout"),
             Margin = new Thickness(8, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
             Text = "(nothing generated yet)",
         };
-        var codeFooter = new StackPanel { Orientation = Orientation.Horizontal };
-        codeFooter.Children.Add(Action("Send to assistant", "FlatButton", OnSendCodeToAssistant,
+        _codeFileName.Classes.Add("readout");
+        var codeFooter = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal };
+        codeFooter.Children.Add(Action("Send to assistant", null, OnSendCodeToAssistant,
             "Ask Jack to review or extend what is in this pane"));
         codeFooter.Children.Add(_codeFileName);
         CodePane.FooterContent = codeFooter;
 
-        Button Action(string text, string style, RoutedEventHandler click, string tip)
+        Button Action(string text, string? extraClass, EventHandler<RoutedEventArgs> click, string tip)
         {
-            var button = new Button
+            var button = new Button { Content = text, Margin = new Thickness(0, 0, 4, 0) };
+            button.Classes.Add("flat");
+            if (extraClass is not null)
             {
-                Content = text,
-                Style = (Style)FindResource(style),
-                Margin = new Thickness(0, 0, 4, 0),
-                ToolTip = tip,
-            };
+                button.Classes.Add(extraClass);
+            }
+            ToolTip.SetTip(button, tip);
             button.Click += click;
             return button;
         }
     }
 
-    private void OnAddControl(object sender, RoutedEventArgs e)
+    private void OnAddControl(object? sender, RoutedEventArgs e)
     {
-        string kind = (string)((Button)sender).Tag;
+        string kind = (string)((Button)sender!).Tag!;
         UiElement child = DesignModel.MakeDefault(kind);
 
         // Add into the selected container, else its parent, else the root.
@@ -214,10 +233,10 @@ public partial class MainWindow : Window, IDesignerBridge
         {
             Width = Math.Max(2, _selected.LayoutW),
             Height = Math.Max(2, _selected.LayoutH),
-            Stroke = (Brush)FindResource("Amber"),
+            Stroke = Brush("Amber"),
             StrokeThickness = 1,
-            StrokeDashArray = new DoubleCollection { 3, 2 },
-            Fill = System.Windows.Media.Brushes.Transparent,
+            StrokeDashArray = new global::Avalonia.Collections.AvaloniaList<double> { 3, 2 },
+            Fill = Brushes.Transparent,
             IsHitTestVisible = false,
         };
         Canvas.SetLeft(box, _selected.LayoutX);
@@ -232,17 +251,17 @@ public partial class MainWindow : Window, IDesignerBridge
     private void UpdateReadout()
     {
         (int w, int h) = GetPanelSize();
-        PanelReadout.Text = $"PANEL {w}×{h}";
+        PanelReadout.Text = $"PANEL {w}x{h}";
 
         if (_selected == null)
         {
-            SelReadout.Text = "—";
-            PosReadout.Text = SizeReadout.Text = FgReadout.Text = BgReadout.Text = "—";
+            SelReadout.Text = "-";
+            PosReadout.Text = SizeReadout.Text = FgReadout.Text = BgReadout.Text = "-";
             return;
         }
         SelReadout.Text = _selected.Id.Length > 0 ? $"{_selected.Kind} #{_selected.Id}" : _selected.Kind;
         PosReadout.Text = $"{_selected.LayoutX},{_selected.LayoutY}";
-        SizeReadout.Text = $"{_selected.LayoutW}×{_selected.LayoutH}";
+        SizeReadout.Text = $"{_selected.LayoutW}x{_selected.LayoutH}";
         FgReadout.Text = DesignModel.Hex(_selected.Foreground);
         BgReadout.Text = DesignModel.Hex(_selected.Background);
     }
@@ -253,8 +272,12 @@ public partial class MainWindow : Window, IDesignerBridge
     private Point _dragLast;
     private bool _dragMoved;
 
-    private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
+    private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (!e.GetCurrentPoint(DesignCanvas).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
         Point p = e.GetPosition(DesignCanvas);
         // The model's own hit-test picks the topmost element at the point.
         UiElement? hit = _root.HitTest((int)p.X, (int)p.Y);
@@ -266,13 +289,13 @@ public partial class MainWindow : Window, IDesignerBridge
             _dragging = true;
             _dragMoved = false;
             _dragLast = p;
-            DesignCanvas.CaptureMouse();
+            e.Pointer.Capture(DesignCanvas);
         }
         RenderAll();
         e.Handled = true;
     }
 
-    private void OnCanvasMouseMove(object sender, MouseEventArgs e)
+    private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
     {
         if (!_dragging || _selected == null)
         {
@@ -290,12 +313,12 @@ public partial class MainWindow : Window, IDesignerBridge
         }
     }
 
-    private void OnCanvasMouseUp(object sender, MouseButtonEventArgs e)
+    private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (_dragging)
         {
             _dragging = false;
-            DesignCanvas.ReleaseMouseCapture();
+            e.Pointer.Capture(null);
             if (_dragMoved && _selected != null)
             {
                 Status($"Moved {_selected.Kind} to ({_selected.X}, {_selected.Y})");
@@ -307,8 +330,10 @@ public partial class MainWindow : Window, IDesignerBridge
 
     private void BuildTree()
     {
+        _syncingTree = true;
         Tree.Items.Clear();
         Tree.Items.Add(BuildTreeNode(_root));
+        _syncingTree = false;
     }
 
     private TreeViewItem BuildTreeNode(UiElement e)
@@ -332,13 +357,13 @@ public partial class MainWindow : Window, IDesignerBridge
 
     private bool _syncingTree;
 
-    private void OnTreeSelect(object sender, RoutedPropertyChangedEventArgs<object> e)
+    private void OnTreeSelect(object? sender, SelectionChangedEventArgs e)
     {
         if (_syncingTree)
         {
             return;
         }
-        if (e.NewValue is TreeViewItem item && item.Tag is UiElement el)
+        if (Tree.SelectedItem is TreeViewItem item && item.Tag is UiElement el)
         {
             _selected = el;
             _syncingTree = true;
@@ -411,32 +436,38 @@ public partial class MainWindow : Window, IDesignerBridge
         }
     }
 
-    private void AddPropRow(string label, string value, Action<string> set, bool readOnly = false)
+    private TextBlock RowLabel(string label)
     {
-        var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
-        panel.Children.Add(new TextBlock
+        var t = new TextBlock
         {
             Text = label,
             Width = 92,
-            VerticalAlignment = VerticalAlignment.Center,
-            Style = (Style)FindResource("Readout"),
-        });
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+        };
+        t.Classes.Add("readout");
+        return t;
+    }
+
+    private void AddPropRow(string label, string value, Action<string> set, bool readOnly = false)
+    {
+        var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+        panel.Children.Add(RowLabel(label));
         var box = new TextBox { Text = value, IsReadOnly = readOnly };
         if (!readOnly)
         {
-            box.LostFocus += (_, _) => { set(box.Text); TouchLayout(); RenderAll(); };
+            box.LostFocus += (_, _) => { set(box.Text ?? ""); TouchLayout(); RenderAll(); };
             box.KeyDown += (_, e) =>
             {
                 if (e.Key == Key.Enter)
                 {
-                    set(box.Text);
+                    set(box.Text ?? "");
                     TouchLayout();
                     RenderAll();
                 }
             };
         }
-        Properties.Children.Add(panel);
         panel.Children.Add(box);
+        Properties.Children.Add(panel);
     }
 
     private void AddIntRow(string label, int value, Action<int> set)
@@ -453,13 +484,7 @@ public partial class MainWindow : Window, IDesignerBridge
     private void AddColorRow(string label, int value, Action<int> set)
     {
         var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = label,
-            Width = 92,
-            VerticalAlignment = VerticalAlignment.Center,
-            Style = (Style)FindResource("Readout"),
-        });
+        panel.Children.Add(RowLabel(label));
         // A swatch beside the hex: RGB565 is unreadable as four digits, and the
         // quantised colour is what the panel will actually show.
         var swatch = new Border
@@ -467,7 +492,7 @@ public partial class MainWindow : Window, IDesignerBridge
             Width = 18,
             Height = 18,
             CornerRadius = new CornerRadius(2),
-            BorderBrush = (Brush)FindResource("Rail"),
+            BorderBrush = Brush("Rail"),
             BorderThickness = new Thickness(1),
             Background = new SolidColorBrush(DesignRenderer.FromRgb565(value)),
             Margin = new Thickness(0, 0, 4, 0),
@@ -489,7 +514,7 @@ public partial class MainWindow : Window, IDesignerBridge
 
         void Commit()
         {
-            set(DesignModel.ParseHex(box.Text));
+            set(DesignModel.ParseHex(box.Text ?? ""));
             TouchLayout();
             RenderAll();
         }
@@ -498,16 +523,18 @@ public partial class MainWindow : Window, IDesignerBridge
     private void AddBoolRow(string label, bool value, Action<bool> set)
     {
         var panel = new DockPanel { Margin = new Thickness(0, 1, 0, 4) };
-        panel.Children.Add(new TextBlock
+        panel.Children.Add(RowLabel(label));
+        var check = new CheckBox
         {
-            Text = label,
-            Width = 92,
-            VerticalAlignment = VerticalAlignment.Center,
-            Style = (Style)FindResource("Readout"),
-        });
-        var check = new CheckBox { IsChecked = value, VerticalAlignment = VerticalAlignment.Center };
-        check.Checked += (_, _) => { set(true); TouchLayout(); RenderAll(); };
-        check.Unchecked += (_, _) => { set(false); TouchLayout(); RenderAll(); };
+            IsChecked = value,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+        };
+        check.IsCheckedChanged += (_, _) =>
+        {
+            set(check.IsChecked == true);
+            TouchLayout();
+            RenderAll();
+        };
         panel.Children.Add(check);
         Properties.Children.Add(panel);
     }
@@ -526,16 +553,16 @@ public partial class MainWindow : Window, IDesignerBridge
     private void UpdateTabHeaders()
     {
         string layoutName = _layoutFile == null ? "LAYOUT XML" : Path.GetFileName(_layoutFile).ToUpperInvariant();
-        XmlTab.Header = layoutName + (_layoutDirty || XmlPane.Dirty ? " •" : "");
+        XmlTab.Header = layoutName + (_layoutDirty || XmlPane.Dirty ? " *" : "");
         string codeName = _codeFile == null ? "CODE" : Path.GetFileName(_codeFile).ToUpperInvariant();
-        CodeTab.Header = codeName + (CodePane.Dirty ? " •" : "");
+        CodeTab.Header = codeName + (CodePane.Dirty ? " *" : "");
     }
 
-    private void OnNew(object sender, RoutedEventArgs e)
+    private async void OnNew(object? sender, RoutedEventArgs e)
     {
         if (CodeIsActive)
         {
-            if (!ConfirmDiscard(CodePane.Dirty, "the code"))
+            if (!await ConfirmDiscard(CodePane.Dirty, "the code"))
             {
                 return;
             }
@@ -546,7 +573,7 @@ public partial class MainWindow : Window, IDesignerBridge
         }
         else
         {
-            if (!ConfirmDiscard(_layoutDirty, "the layout"))
+            if (!await ConfirmDiscard(_layoutDirty, "the layout"))
             {
                 return;
             }
@@ -560,29 +587,36 @@ public partial class MainWindow : Window, IDesignerBridge
         UpdateTabHeaders();
     }
 
-    private void OnOpen(object sender, RoutedEventArgs e)
+    private async void OnOpen(object? sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog
+        IReadOnlyList<IStorageFile> picked = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Filter = "Layout or code (*.xml;*.cs)|*.xml;*.cs"
-                + "|RustNet UI layout (*.xml)|*.xml"
-                + "|C# source (*.cs)|*.cs"
-                + "|All files|*.*",
-        };
-        if (dlg.ShowDialog() == true)
+            Title = "Open a layout or a C# file",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Layout or code") { Patterns = ["*.xml", "*.cs"] },
+                new FilePickerFileType("RustNet UI layout") { Patterns = ["*.xml"] },
+                new FilePickerFileType("C# source") { Patterns = ["*.cs"] },
+                FilePickerFileTypes.All,
+            ],
+        });
+        if (picked.Count > 0 && picked[0].TryGetLocalPath() is { } path)
         {
-            OpenFile(dlg.FileName);
+            await OpenFileAsync(path);
         }
     }
 
     /// <summary>Open a layout or a C# file; the extension decides which pane it lands in.</summary>
-    public void OpenFile(string path)
+    public void OpenFile(string path) => _ = OpenFileAsync(path);
+
+    private async Task OpenFileAsync(string path)
     {
         try
         {
             if (Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase))
             {
-                if (!ConfirmDiscard(CodePane.Dirty, "the code"))
+                if (!await ConfirmDiscard(CodePane.Dirty, "the code"))
                 {
                     return;
                 }
@@ -595,7 +629,7 @@ public partial class MainWindow : Window, IDesignerBridge
             }
             else
             {
-                if (!ConfirmDiscard(_layoutDirty, "the layout"))
+                if (!await ConfirmDiscard(_layoutDirty, "the layout"))
                 {
                     return;
                 }
@@ -611,11 +645,11 @@ public partial class MainWindow : Window, IDesignerBridge
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Could not open: " + ex.Message, "RustNet UI Designer");
+            await Dialogs.Message(this, "RustNet UI Designer", "Could not open: " + ex.Message);
         }
     }
 
-    private void OnSave(object sender, RoutedEventArgs e)
+    private async void OnSave(object? sender, RoutedEventArgs e)
     {
         if (CodeIsActive)
         {
@@ -641,52 +675,51 @@ public partial class MainWindow : Window, IDesignerBridge
             Status("Saved " + _layoutFile);
         }
         UpdateTabHeaders();
+        await Task.CompletedTask;
     }
 
-    private void OnSaveAs(object sender, RoutedEventArgs e)
+    private async void OnSaveAs(object? sender, RoutedEventArgs e)
     {
-        if (CodeIsActive)
+        bool code = CodeIsActive;
+        IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            var dlg = new SaveFileDialog
-            {
-                Filter = "C# source (*.cs)|*.cs|All files|*.*",
-                FileName = _codeFile != null ? Path.GetFileName(_codeFile) : "Program.cs",
-            };
-            if (dlg.ShowDialog() != true)
-            {
-                return;
-            }
-            _codeFile = dlg.FileName;
-            File.WriteAllText(_codeFile, CodePane.Text);
+            Title = code ? "Save C# source" : "Save RustNet UI layout",
+            SuggestedFileName = code
+                ? (_codeFile != null ? Path.GetFileName(_codeFile) : "Program.cs")
+                : (_layoutFile != null ? Path.GetFileName(_layoutFile) : "ui.xml"),
+            DefaultExtension = code ? "cs" : "xml",
+            FileTypeChoices = code
+                ? [new FilePickerFileType("C# source") { Patterns = ["*.cs"] }, FilePickerFileTypes.All]
+                : [new FilePickerFileType("RustNet UI layout") { Patterns = ["*.xml"] }, FilePickerFileTypes.All],
+        });
+        if (file?.TryGetLocalPath() is not { } path)
+        {
+            return;
+        }
+
+        if (code)
+        {
+            _codeFile = path;
+            File.WriteAllText(path, CodePane.Text);
             CodePane.MarkClean();
-            _codeFileName.Text = Path.GetFileName(_codeFile);
-            Status("Saved " + _codeFile);
+            _codeFileName.Text = Path.GetFileName(path);
         }
         else
         {
-            var dlg = new SaveFileDialog
-            {
-                Filter = "RustNet UI layout (*.xml)|*.xml|All files|*.*",
-                FileName = _layoutFile != null ? Path.GetFileName(_layoutFile) : "ui.xml",
-            };
-            if (dlg.ShowDialog() != true)
-            {
-                return;
-            }
-            _layoutFile = dlg.FileName;
-            File.WriteAllText(_layoutFile, CurrentLayoutXml());
+            _layoutFile = path;
+            File.WriteAllText(path, CurrentLayoutXml());
             _layoutDirty = false;
             XmlPane.MarkClean();
-            Status("Saved " + _layoutFile);
         }
+        Status("Saved " + path);
         UpdateTabHeaders();
     }
 
-    private void OnClose(object sender, RoutedEventArgs e)
+    private async void OnClose(object? sender, RoutedEventArgs e)
     {
         if (CodeIsActive)
         {
-            if (!ConfirmDiscard(CodePane.Dirty, "the code"))
+            if (!await ConfirmDiscard(CodePane.Dirty, "the code"))
             {
                 return;
             }
@@ -697,7 +730,7 @@ public partial class MainWindow : Window, IDesignerBridge
         }
         else
         {
-            if (!ConfirmDiscard(_layoutDirty, "the layout"))
+            if (!await ConfirmDiscard(_layoutDirty, "the layout"))
             {
                 return;
             }
@@ -718,14 +751,13 @@ public partial class MainWindow : Window, IDesignerBridge
     private string CurrentLayoutXml()
         => XmlPane.Dirty && XmlPane.Text.Trim().Length > 0 ? XmlPane.Text : Ui.ToXml(_root);
 
-    private bool ConfirmDiscard(bool dirty, string what)
-        => !dirty || MessageBox.Show(
-            $"Discard unsaved changes to {what}?", "RustNet UI Designer",
-            MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
+    private async Task<bool> ConfirmDiscard(bool dirty, string what)
+        => !dirty || await Dialogs.Confirm(this, "RustNet UI Designer",
+            $"Discard unsaved changes to {what}?");
 
     // ---- edit --------------------------------------------------------
 
-    private void OnDelete(object sender, RoutedEventArgs e)
+    private void OnDelete(object? sender, RoutedEventArgs e)
     {
         if (_selected == null || _selected == _root)
         {
@@ -742,8 +774,8 @@ public partial class MainWindow : Window, IDesignerBridge
         }
     }
 
-    private void OnMoveUp(object sender, RoutedEventArgs e) => Move(-1);
-    private void OnMoveDown(object sender, RoutedEventArgs e) => Move(1);
+    private void OnMoveUp(object? sender, RoutedEventArgs e) => Move(-1);
+    private void OnMoveDown(object? sender, RoutedEventArgs e) => Move(1);
 
     private void Move(int delta)
     {
@@ -769,9 +801,9 @@ public partial class MainWindow : Window, IDesignerBridge
 
     // ---- centre pane: XML and code ----------------------------------
 
-    private void OnCentreTabChanged(object sender, SelectionChangedEventArgs e)
+    private void OnCentreTabChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (!ReferenceEquals(e.OriginalSource, CentreTabs))
+        if (!ReferenceEquals(e.Source, CentreTabs))
         {
             return;
         }
@@ -788,14 +820,14 @@ public partial class MainWindow : Window, IDesignerBridge
         _xmlHint.Text = "edit here, then apply";
     }
 
-    private void OnReloadXml(object sender, RoutedEventArgs e)
+    private void OnReloadXml(object? sender, RoutedEventArgs e)
     {
         ReloadXmlPane();
         UpdateTabHeaders();
         Status("Layout XML reloaded from the canvas");
     }
 
-    private void OnApplyXml(object sender, RoutedEventArgs e)
+    private async void OnApplyXml(object? sender, RoutedEventArgs e)
     {
         try
         {
@@ -807,11 +839,11 @@ public partial class MainWindow : Window, IDesignerBridge
         catch (Exception ex)
         {
             _xmlHint.Text = "not applied";
-            MessageBox.Show("That XML did not parse:\n\n" + ex.Message, "Apply to canvas");
+            await Dialogs.Message(this, "Apply to canvas", "That XML did not parse:\n\n" + ex.Message);
         }
     }
 
-    private void OnSendCodeToAssistant(object sender, RoutedEventArgs e)
+    private void OnSendCodeToAssistant(object? sender, RoutedEventArgs e)
     {
         if (CodePane.Text.Trim().Length == 0)
         {
@@ -825,14 +857,13 @@ public partial class MainWindow : Window, IDesignerBridge
 
     // ---- panels ------------------------------------------------------
 
-    private static void Toggle(System.Windows.Controls.Primitives.ToggleButton button)
-        => button.IsChecked = button.IsChecked != true;
+    private static void Toggle(ToggleButton button) => button.IsChecked = button.IsChecked != true;
 
-    private void OnPanelToggled(object sender, RoutedEventArgs e)
+    private void OnPanelToggled(object? sender, RoutedEventArgs e)
     {
         // The toggles start checked in markup, so this fires while the rest of
         // the tree is still being built. The initial state already matches.
-        if (ToolboxColumn == null || Chat == null || OutputPane == null)
+        if (Panes == null || Chat == null || OutputPane == null)
         {
             return;
         }
@@ -844,7 +875,7 @@ public partial class MainWindow : Window, IDesignerBridge
         SetColumn(ChatColumn, ChatSplitterColumn, Chat, ChatSplitter,
             AssistantToggle.IsChecked == true, 420);
 
-        OutputPane.Visibility = OutputToggle.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        OutputPane.IsVisible = OutputToggle.IsChecked == true;
 
         if (AssistantToggle.IsChecked == true)
         {
@@ -857,7 +888,7 @@ public partial class MainWindow : Window, IDesignerBridge
     /// and showing does not resize the panel the person set.
     /// </summary>
     private void SetColumn(ColumnDefinition column, ColumnDefinition splitterColumn,
-        UIElement panel, UIElement splitter, bool show, double fallback)
+        Control panel, Control splitter, bool show, double fallback)
     {
         if (!show && column.Width.Value > 0)
         {
@@ -869,35 +900,37 @@ public partial class MainWindow : Window, IDesignerBridge
 
         column.Width = width;
         splitterColumn.Width = new GridLength(show ? 1 : 0);
-        panel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        splitter.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        panel.IsVisible = show;
+        splitter.IsVisible = show;
     }
 
     // ---- output ------------------------------------------------------
 
     /// <summary>Append a line to the output pane, opening it on first use.</summary>
-    private void Output(string line) => Dispatcher.Invoke(() =>
+    private void Output(string line) => Dispatcher.UIThread.Post(() =>
     {
         if (OutputToggle.IsChecked != true)
         {
             OutputToggle.IsChecked = true;
         }
-        OutputText.AppendText(line + Environment.NewLine);
-        OutputScroll.ScrollToEnd();
+        OutputText.Text += line + Environment.NewLine;
+        // Avalonia's TextBox has no ScrollToEnd; putting the caret at the end
+        // scrolls it there, which is the same thing the reader wants.
+        OutputText.CaretIndex = OutputText.Text?.Length ?? 0;
     });
 
-    private void OnClearOutput(object sender, RoutedEventArgs e) => OutputText.Clear();
+    private void OnClearOutput(object? sender, RoutedEventArgs e) => OutputText.Text = "";
 
-    private void OnCopyOutput(object sender, RoutedEventArgs e)
+    private async void OnCopyOutput(object? sender, RoutedEventArgs e)
     {
-        if (OutputText.Text.Length > 0)
+        if (!string.IsNullOrEmpty(OutputText.Text) && Clipboard is not null)
         {
-            Clipboard.SetText(OutputText.Text);
+            await Clipboard.SetTextAsync(OutputText.Text);
             Status("Output copied");
         }
     }
 
-    private void OnCloseOutput(object sender, RoutedEventArgs e) => OutputToggle.IsChecked = false;
+    private void OnCloseOutput(object? sender, RoutedEventArgs e) => OutputToggle.IsChecked = false;
 
     // ---- devices and deployment --------------------------------------
 
@@ -911,8 +944,8 @@ public partial class MainWindow : Window, IDesignerBridge
         foreach (string spec in DeviceDiscovery.Candidates())
         {
             string label = spec == DeviceDiscovery.VirtualDeviceSpec
-                ? "virtual device — not probed"
-                : spec.Replace("serial:", "") + " — not probed";
+                ? "virtual device - not probed"
+                : spec.Replace("serial:", "") + " - not probed";
             _targets.Add(new DeviceTarget(spec, label));
         }
         RebuildTargetBox(_targets[0]);
@@ -925,7 +958,7 @@ public partial class MainWindow : Window, IDesignerBridge
         TargetBox.SelectedItem = select ?? (_targets.Count > 0 ? _targets[0] : null);
     }
 
-    private void OnTargetChanged(object sender, SelectionChangedEventArgs e)
+    private void OnTargetChanged(object? sender, SelectionChangedEventArgs e)
     {
         _target = TargetBox.SelectedItem as DeviceTarget;
         DeployState.Text = _target == null
@@ -933,9 +966,9 @@ public partial class MainWindow : Window, IDesignerBridge
             : _target.Answered ? $"chip {_target.Chip}" : "not probed";
     }
 
-    private async void OnDetectDevices(object sender, RoutedEventArgs e)
+    private async void OnDetectDevices(object? sender, RoutedEventArgs e)
     {
-        Status("Probing devices…");
+        Status("Probing devices...");
         Output("--- detecting devices ---");
         try
         {
@@ -950,7 +983,7 @@ public partial class MainWindow : Window, IDesignerBridge
                 {
                     if (!found.Exists(t => t.Spec == spec))
                     {
-                        _targets.Add(new DeviceTarget(spec, spec.Replace("serial:", "") + " — no answer"));
+                        _targets.Add(new DeviceTarget(spec, spec.Replace("serial:", "") + " - no answer"));
                     }
                 }
                 RebuildTargetBox(found[0]);
@@ -971,13 +1004,13 @@ public partial class MainWindow : Window, IDesignerBridge
     private void UpdateRunButton()
     {
         bool code = CodeIsActive;
-        RunButton.Content = code ? "Run ▸" : "Push layout ▸";
-        RunButton.ToolTip = code
+        RunButton.Content = code ? "Run" : "Push layout";
+        ToolTip.SetTip(RunButton, code
             ? "Build the code pane, sign it and flash it to the target, then start it (F5)"
-            : $"Push the layout to {Deployer.DefaultLayoutPath} on the target (F5)";
+            : $"Push the layout to {Deployer.DefaultLayoutPath} on the target (F5)");
     }
 
-    private async void OnRun(object sender, RoutedEventArgs e)
+    private async void OnRun(object? sender, RoutedEventArgs e)
     {
         if (_run != null)
         {
@@ -990,14 +1023,14 @@ public partial class MainWindow : Window, IDesignerBridge
         }
 
         _run = new CancellationTokenSource();
-        RunButton.Visibility = Visibility.Collapsed;
-        CancelRunButton.Visibility = Visibility.Visible;
+        RunButton.IsVisible = false;
+        CancelRunButton.IsVisible = true;
         var deployer = new Deployer(Output);
         try
         {
             Deployer.Result result = CodeIsActive
                 ? await deployer.DeployCodeAsync(
-                    CodePane.Text, AppNameBox.Text, _target, _signingKey, _workspaceRoot,
+                    CodePane.Text, AppNameBox.Text ?? "", _target, _signingKey, _workspaceRoot,
                     start: true, _run.Token)
                 : await deployer.PushLayoutAsync(
                     CurrentLayoutXml(), Deployer.DefaultLayoutPath, _target, _run.Token);
@@ -1017,14 +1050,14 @@ public partial class MainWindow : Window, IDesignerBridge
         {
             _run.Dispose();
             _run = null;
-            RunButton.Visibility = Visibility.Visible;
-            CancelRunButton.Visibility = Visibility.Collapsed;
+            RunButton.IsVisible = true;
+            CancelRunButton.IsVisible = false;
         }
     }
 
-    private void OnCancelRun(object sender, RoutedEventArgs e) => _run?.Cancel();
+    private void OnCancelRun(object? sender, RoutedEventArgs e) => _run?.Cancel();
 
-    private async void OnStopApp(object sender, RoutedEventArgs e)
+    private async void OnStopApp(object? sender, RoutedEventArgs e)
     {
         if (_target == null)
         {
@@ -1034,7 +1067,7 @@ public partial class MainWindow : Window, IDesignerBridge
         Status(result.Summary);
     }
 
-    private async void OnReadLogs(object sender, RoutedEventArgs e)
+    private async void OnReadLogs(object? sender, RoutedEventArgs e)
     {
         if (_target == null)
         {
@@ -1047,14 +1080,14 @@ public partial class MainWindow : Window, IDesignerBridge
 
     // ---- IDesignerBridge --------------------------------------------
 
-    public string GetLayoutXml() => Dispatcher.Invoke(() => Ui.ToXml(_root));
+    public string GetLayoutXml() => Dispatcher.UIThread.Invoke(() => Ui.ToXml(_root));
 
     public void ApplyLayoutXml(string xml)
     {
         // Parse before touching the canvas so a bad document leaves the design
         // alone and the caller gets the parser's message.
         UiElement parsed = Ui.LoadXml(xml);
-        Dispatcher.Invoke(() =>
+        Dispatcher.UIThread.Invoke(() =>
         {
             _root = parsed;
             _selected = _root;
@@ -1065,10 +1098,10 @@ public partial class MainWindow : Window, IDesignerBridge
         });
     }
 
-    public (int Width, int Height) GetPanelSize() => Dispatcher.Invoke(() =>
+    public (int Width, int Height) GetPanelSize() => Dispatcher.UIThread.Invoke(() =>
         (_root.Width > 0 ? _root.Width : 160, _root.Height > 0 ? _root.Height : 128));
 
-    public string DescribeSelection() => Dispatcher.Invoke(() =>
+    public string DescribeSelection() => Dispatcher.UIThread.Invoke(() =>
     {
         if (_selected == null)
         {
@@ -1078,26 +1111,31 @@ public partial class MainWindow : Window, IDesignerBridge
         return $"{name} at {_selected.LayoutX},{_selected.LayoutY} sized {_selected.LayoutW}x{_selected.LayoutH}";
     });
 
-    public void SetGeneratedCode(string fileName, string language, string code) => Dispatcher.Invoke(() =>
+    public void SetGeneratedCode(string fileName, string language, string code) => Dispatcher.UIThread.Invoke(() =>
     {
         CodePane.Syntax = language.Length > 0 ? language : "csharp";
         CodePane.Text = code;
         _codeFile = null;
-        _codeFileName.Text = $"{fileName} · {code.Split('\n').Length} lines · unsaved";
+        _codeFileName.Text = $"{fileName} - {code.Split('\n').Length} lines - unsaved";
         CentreTabs.SelectedItem = CodeTab;
         UpdateTabHeaders();
         Status("Generated " + fileName);
     });
 
-    public string GetGeneratedCode() => Dispatcher.Invoke(() => CodePane.Text);
+    public string GetGeneratedCode() => Dispatcher.UIThread.Invoke(() => CodePane.Text);
 
     // ---- helpers -----------------------------------------------------
 
-    private void Status(string msg) => Dispatcher.Invoke(() => StatusText.Text = msg);
+    private void Status(string msg) => Dispatcher.UIThread.Post(() => StatusText.Text = msg);
 
+    /// <summary>A brush from the application theme, by resource key.</summary>
+    private IBrush Brush(string key)
+        => this.TryFindResource(key, out object? value) && value is IBrush brush
+            ? brush
+            : Brushes.Gray;
 
     /// <summary>Minimal ICommand so a keyboard gesture can call a method.</summary>
-    private sealed class RelayCommand : ICommand
+    private sealed class RelayCommand : System.Windows.Input.ICommand
     {
         private readonly Action _run;
 

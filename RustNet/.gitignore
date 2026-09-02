@@ -38,3 +38,6 @@ keys/
 # a bare key file at the root is neither, and `git add -A` will take it.
 testkey.txt
 *.key.txt
+
+# Avalonia's XAML compiler writes these beside the sources.
+*.axaml.g.cs
