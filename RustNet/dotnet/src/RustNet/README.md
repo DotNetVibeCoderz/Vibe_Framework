@@ -75,6 +75,22 @@ string interpolation. Reflection is partial and deliberately so.
 The full matrix, and the current limits, are in
 [`docs/dotnet-support.md`](https://github.com/DotNetVibeCoderz/Vibe_Framework/blob/main/RustNet/docs/dotnet-support.md).
 
+## The tools that put it there
+
+The package is the API; these build, flash and debug what you write against it.
+All of them work against a host **virtual device** — a real firmware binary
+speaking the real protocol — so none of this needs hardware to try.
+
+| | |
+|---|---|
+| `rustnet` CLI | provision, flash, logs, profile, OTA, display capture, board firmware |
+| **Workbench** | provisions a board, flashes apps, watches what they do, and builds the firmware for any supported board using that target's own toolchain |
+| **Designer** | draw a screen against the device's real renderer, write the app in the code pane, and run it on the device from the same window — with an AI assistant that can design the screen and write that code |
+| **VSCode extension** | flash, logs, profiler, live display and a simulator panel |
+| **Debugger** | source-level breakpoints and stepping on the device, over DAP |
+
+The Workbench and the Designer both run on Windows, Linux and macOS.
+
 ## Boards verified on real silicon
 
 ESP32 (WROOM-32, M5Stack Tough, M5Stack Core2) · ESP32-C3 (Seeed XIAO) ·
