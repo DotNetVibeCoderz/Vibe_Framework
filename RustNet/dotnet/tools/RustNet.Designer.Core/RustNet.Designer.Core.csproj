@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Designer's non-UI half: everything a front-end sits on top of.
+
+       Split out of RustNet.Designer, which is WPF and therefore
+       net10.0-windows. That target is not a preference — it is a wall. It kept
+       this code off every non-Windows machine, out of `dotnet test` on Linux,
+       and out of CI entirely, even though none of it draws anything: the
+       assistant and its Semantic Kernel wiring, the plugins, sessions and
+       options, the deployment pipeline (build C# -> RNX -> sign -> flash), the
+       Roslyn formatter and the drag-to-move geometry.
+
+       So the target framework here is the whole point. Namespaces are
+       unchanged (`RustNet.Designer.*`), because this really is the Designer's
+       model layer — the WPF front-end references it today and an Avalonia one
+       can reference the same thing tomorrow without either owning it. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RustNet.Designer</RootNamespace>
+    <Description>RustNet UI Designer, non-UI half: the "Jack The Code Bender" assistant (Semantic Kernel + plugins), the deployment pipeline, and the editor/canvas model logic. Cross-platform, so any front-end and the test suite can use it.</Description>
+    <!-- Semantic Kernel marks connectors and a few kernel APIs experimental;
+         we opt in deliberately rather than sprinkling pragmas. -->
+    <NoWarn>$(NoWarn);SKEXP0001;SKEXP0010;SKEXP0020;SKEXP0040;SKEXP0050;SKEXP0070;SKEXP0110</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+    <!-- Deploying uses the same libraries the CLI does, in process:
+         RnxCompiler for DLL→RNX, Signing for the RNSB container, RndpClient
+         for the wire. -->
+    <ProjectReference Include="..\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
+    <ProjectReference Include="..\RustNet.Deploy\RustNet.Deploy.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Assistant: Semantic Kernel + one connector per selectable provider.
+         Anthropic has no first-party SK connector, so Anthropic.SDK's
+         IChatClient is bridged into SK with AsChatCompletionService(). -->
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.78.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.78.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.78.0-alpha" />
+    <PackageReference Include="Anthropic.SDK" Version="5.9.0" />
+    <!-- Chat transcript: markdown in, HTML out. Which control shows that HTML
+         is a front-end decision and not this project's business. -->
+    <PackageReference Include="Markdig" Version="0.44.0" />
+    <!-- Formatting C# properly needs a real parser; a brace-counting
+         re-indenter mangles strings, verbatim literals and comments. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <!-- ConfigurationManager came free with Microsoft.WindowsDesktop.App while
+         this lived in the WPF project. Outside it, it is a package — and
+         without it AssistantOptions.Load() does not compile off Windows. -->
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

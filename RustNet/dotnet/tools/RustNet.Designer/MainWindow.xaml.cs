@@ -20,7 +20,7 @@ namespace RustNet.Designer;
 
 public partial class MainWindow : Window, IDesignerBridge
 {
-    private UiElement _root = Ui.LoadXml(App.SampleXml);
+    private UiElement _root = Ui.LoadXml(SampleLayout.Xml);
     private UiElement? _selected;
     private Dictionary<FrameworkElement, UiElement> _map = new();
 

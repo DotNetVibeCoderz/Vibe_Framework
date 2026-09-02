@@ -36,7 +36,7 @@ public partial class App : Application
         {
             string src = e.Args.Length >= 3 && System.IO.File.Exists(e.Args[2])
                 ? System.IO.File.ReadAllText(e.Args[2])
-                : SampleXml;
+                : SampleLayout.Xml;
             UiElement root = Ui.LoadXml(src);
             System.IO.File.WriteAllText(e.Args[1], Ui.ToXml(root));
             Console.WriteLine("exported " + e.Args[1]);
@@ -58,7 +58,7 @@ public partial class App : Application
         {
             string xml = path != null && System.IO.File.Exists(path)
                 ? System.IO.File.ReadAllText(path)
-                : SampleXml;
+                : SampleLayout.Xml;
 
             UiElement root = Ui.LoadXml(xml);
 
@@ -121,12 +121,4 @@ public partial class App : Application
         }
     }
 
-    public const string SampleXml =
-        "<window width=\"160\" height=\"128\" bg=\"0000\" pad=\"4\" gap=\"4\">\n" +
-        "  <label id=\"title\" text=\"Thermostat\" scale=\"2\" fg=\"07FF\"/>\n" +
-        "  <slider id=\"setpoint\" min=\"10\" max=\"30\" value=\"21\" fg=\"F800\"/>\n" +
-        "  <checkbox id=\"eco\" text=\"Eco mode\" checked=\"true\"/>\n" +
-        "  <listbox id=\"zones\" items=\"Kitchen;Garage;Attic\" selected=\"0\"/>\n" +
-        "  <button id=\"apply\" text=\"Apply\" bg=\"4208\"/>\n" +
-        "</window>\n";
 }

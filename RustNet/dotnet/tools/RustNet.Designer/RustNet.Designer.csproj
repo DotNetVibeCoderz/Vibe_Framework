@@ -12,31 +12,19 @@
     <NoWarn>$(NoWarn);SKEXP0001;SKEXP0010;SKEXP0020;SKEXP0040;SKEXP0050;SKEXP0070;SKEXP0110</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
-    <!-- Deploying from the Designer uses the same libraries the CLI does, in
-         process: RnxCompiler for DLL→RNX, Signing for the RNSB container,
-         RndpClient for the wire. -->
-    <ProjectReference Include="..\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
-    <ProjectReference Include="..\RustNet.Deploy\RustNet.Deploy.csproj" />
+    <!-- Everything that is not a view: the assistant, the deployment
+         pipeline, the formatter and the canvas geometry. It targets plain
+         net10.0, so it is also what a future Avalonia front-end and the test
+         suite reference. See RustNet.Designer.Core. -->
+    <ProjectReference Include="..\RustNet.Designer.Core\RustNet.Designer.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Assistant: Semantic Kernel + one connector per selectable provider.
-         Anthropic has no first-party SK connector, so Anthropic.SDK's
-         IChatClient is bridged into SK with AsChatCompletionService(). -->
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.78.0" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.78.0-alpha" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.78.0-alpha" />
-    <PackageReference Include="Anthropic.SDK" Version="5.9.0" />
-    <!-- Chat transcript: Markdig renders markdown to HTML, WebView2 shows it. -->
-    <PackageReference Include="Markdig" Version="0.44.0" />
+    <!-- What is left here is what genuinely needs Windows. WebView2 shows the
+         HTML the Core's MarkdownRenderer produces, and AvalonEdit is the code
+         pane; both are WPF-only, and both are the reason a port to Avalonia
+         has to make a decision rather than a translation. -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
-    <!-- Code editor pane. -->
     <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
-    <!-- Formatting C# properly needs a real parser; a brace-counting
-         re-indenter mangles strings, verbatim literals and comments. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
-    <!-- app.config (ConfigurationManager) comes from Microsoft.WindowsDesktop.App;
-         no package reference needed. -->
   </ItemGroup>
   <ItemGroup>
     <None Update="App.config" CopyToOutputDirectory="PreserveNewest" />

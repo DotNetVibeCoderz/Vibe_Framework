@@ -8,9 +8,10 @@ namespace RustNet.Designer;
 /// <c>canvas</c> are freely positionable (they carry absolute <c>x</c>/<c>y</c>);
 /// layout-managed children (stack/grid/…) are placed by their container, so
 /// dragging them is a no-op. Kept as pure model logic so it's unit-testable
-/// without the WPF window.
+/// without the WPF window — and now public, because "without the WPF window"
+/// became literal when this moved out of the WPF assembly.
 /// </summary>
-internal static class DragTool
+public static class DragTool
 {
     /// <summary>Can this element be moved by dragging (i.e. lives in a canvas)?</summary>
     public static bool CanMove(UiElement root, UiElement el)

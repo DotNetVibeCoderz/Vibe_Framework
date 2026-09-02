@@ -159,7 +159,7 @@ public static class HeadlessAsk
         {
             _layout = layoutFile != null && File.Exists(layoutFile)
                 ? File.ReadAllText(layoutFile)
-                : App.SampleXml;
+                : SampleLayout.Xml;
         }
 
         public string GetLayoutXml() => _layout;

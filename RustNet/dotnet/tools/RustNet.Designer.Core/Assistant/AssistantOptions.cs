@@ -55,6 +55,14 @@ public sealed class AssistantOptions
     public int MaxDocumentChars { get; set; } = 40_000;
 
     /// <summary>Per-provider endpoint/key/model, and the model picker's choices.</summary>
+    /// <remarks>
+    /// The model list and endpoint have defaults here, not only in the WPF
+    /// app's App.config. They were config-only while this code lived inside
+    /// that app, which meant the assistant could not be constructed by
+    /// anything else — a test host has no App.config, so every provider came
+    /// back with an empty model and the kernel refused to build. Configuration
+    /// should override defaults, not supply them.
+    /// </remarks>
     public sealed class ProviderOptions
     {
         public ProviderOptions(string name) => Name = name;
@@ -65,6 +73,23 @@ public sealed class AssistantOptions
         public string Endpoint { get; set; } = "";
         public List<string> Models { get; } = new();
     }
+
+    /// <summary>
+    /// What each provider falls back to: the model, then the rest of the
+    /// picker's list. Kept beside the type it fills rather than in a config
+    /// file the library cannot count on being there.
+    /// </summary>
+    private static readonly Dictionary<string, (string Endpoint, string[] Models)> Defaults = new()
+    {
+        ["OpenAI"] = ("https://api.openai.com/v1",
+            ["gpt-4o", "gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4.1-mini", "o4-mini"]),
+        ["Anthropic"] = ("",
+            ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"]),
+        ["Gemini"] = ("",
+            ["gemini-2.5-pro", "gemini-2.5-flash"]),
+        ["Ollama"] = ("http://localhost:11434",
+            ["qwen2.5-coder:14b", "qwen3:14b", "llama3.1:8b", "devstral:24b"]),
+    };
 
     public ProviderOptions For(AiProvider provider) => provider switch
     {
@@ -141,23 +166,39 @@ public sealed class AssistantOptions
 
     private static void LoadProvider(ProviderOptions p)
     {
+        (string endpoint, string[] models) = Defaults.TryGetValue(p.Name, out var d)
+            ? d
+            : ("", []);
+
         p.ApiKey = Resolve(Str($"Assistant.{p.Name}.ApiKey"));
-        p.Model = Str($"Assistant.{p.Name}.Model");
+
+        // Each setting overrides its default only when it is actually present.
+        // Assigning unconditionally means an absent key overwrites a good
+        // default with "" — which is how a missing App.config turned into
+        // "No model selected for OpenAI" rather than into the default model.
+        p.Model = Or(Str($"Assistant.{p.Name}.Model"), models.Length > 0 ? models[0] : "");
         // Resolved like the key, so an OpenAI-compatible provider — DeepSeek,
         // Groq, a local gateway — can be pointed at from the environment
         // without editing config. The endpoint is not a secret, but it is the
         // other half of "which service am I actually talking to".
-        p.Endpoint = Resolve(Str($"Assistant.{p.Name}.Endpoint"));
+        p.Endpoint = Or(Resolve(Str($"Assistant.{p.Name}.Endpoint")), endpoint);
+
         p.Models.Clear();
         foreach (string m in Str($"Assistant.{p.Name}.Models").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             p.Models.Add(m);
+        }
+        if (p.Models.Count == 0)
+        {
+            p.Models.AddRange(models);
         }
         if (p.Model.Length > 0 && !p.Models.Contains(p.Model))
         {
             p.Models.Insert(0, p.Model);
         }
     }
+
+    private static string Or(string value, string fallback) => value.Length > 0 ? value : fallback;
 
     /// <summary>
     /// Find the RustNet checkout so the docs/template functions have something

@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\tools\RustNet.Deploy\RustNet.Deploy.csproj" />
     <ProjectReference Include="..\..\tools\RustNet.Debugger\RustNet.Debugger.csproj" />
     <ProjectReference Include="..\..\tools\RustNet.Cli\RustNet.Cli.csproj" />
+    <ProjectReference Include="..\..\tools\RustNet.Designer.Core\RustNet.Designer.Core.csproj" />
     <ProjectReference Include="..\SampleApp\SampleApp.csproj" />
     <ProjectReference Include="..\SysApp\SysApp.csproj" />
     <ProjectReference Include="..\LangApp\LangApp.csproj" />

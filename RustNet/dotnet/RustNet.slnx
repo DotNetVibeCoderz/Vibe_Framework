@@ -30,6 +30,7 @@
     <Project Path="tools/RustNet.Deploy/RustNet.Deploy.csproj" />
     <Project Path="tools/RustNet.MetadataProcessor/RustNet.MetadataProcessor.csproj" />
     <Project Path="tools/RustNet.Workbench/RustNet.Workbench.csproj" />
+    <Project Path="tools/RustNet.Designer.Core/RustNet.Designer.Core.csproj" />
     <Project Path="tools/RustNet.Designer/RustNet.Designer.csproj" />
   </Folder>
 </Solution>
