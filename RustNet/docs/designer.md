@@ -1,6 +1,6 @@
 # RustNet UI Designer
 
-A WPF desktop editor for embedded UI. Design a screen visually, then save it as a
+A desktop editor for embedded UI. Design a screen visually, then save it as a
 `RustNet.UI` XML layout the device loads at runtime — no code changes to reshape a
 UI. Write the app behind it in the code pane, and **run it on a device from the
 same window**. **Jack The Code Bender**, the built-in assistant, can design the
@@ -9,10 +9,46 @@ screen for you and write that code — [docs/assistant.md](assistant.md).
 ![RustNet Designer, with the gauge, chart, data grid and combo box on the canvas](images/designer.png)
 
 ```bash
-dotnet run --project dotnet/tools/RustNet.Designer          # launch the editor
-dotnet run --project dotnet/tools/RustNet.Designer ui.xml   # open a layout
-dotnet run --project dotnet/tools/RustNet.Designer app.cs   # open a C# file
+# Avalonia — Windows, Linux and macOS
+dotnet run --project dotnet/tools/RustNet.Designer.Avalonia          # launch the editor
+dotnet run --project dotnet/tools/RustNet.Designer.Avalonia ui.xml   # open a layout
+dotnet run --project dotnet/tools/RustNet.Designer.Avalonia app.cs   # open a C# file
+
+# WPF — Windows only, same tool
+dotnet run --project dotnet/tools/RustNet.Designer
 ```
+
+## Two front-ends, one tool
+
+`RustNet.Designer` is the original WPF application; `RustNet.Designer.Avalonia`
+is the same editor everywhere else. They are not forks. Everything that is not
+a view lives in **`RustNet.Designer.Core`** — the assistant and its Semantic
+Kernel wiring, the deployment pipeline, the Roslyn formatter, the control
+palette and its defaults, the drag geometry — and both reference it. A change
+to how a dropped `gauge` looks, or to what the assistant can do, lands in both
+by construction.
+
+Sessions, uploads and settings are shared too: both read the same
+`app.config` and the same session store, so a conversation started in one
+continues in the other.
+
+The differences are the two places where a Windows control had no
+cross-platform equivalent:
+
+| | WPF | Avalonia |
+|---|---|---|
+| Chat transcript | WebView2 showing generated HTML | Markdown.Avalonia rendering to real controls |
+| Code pane | AvalonEdit | AvaloniaEdit |
+
+The transcript is the interesting one. Dropping the browser also dropped an
+HTML round-trip through a file and a virtual host, a second theme written in
+CSS, and a layout constraint: a WebView2 is a native child window that nothing
+can be drawn over, so the WPF panel has to *hide* the transcript whenever a
+drawer opens. The Avalonia drawers simply cover it.
+
+Only the WPF build is verified against a real screen today. Both are built by
+CI on Linux — the Avalonia one fully, the WPF one only through the Core it
+shares, because `net10.0-windows` cannot be built there at all.
 
 ## Layout
 
