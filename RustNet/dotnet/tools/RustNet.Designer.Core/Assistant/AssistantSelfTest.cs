@@ -22,7 +22,18 @@ namespace RustNet.Designer.Assistant;
 /// </summary>
 public static class AssistantSelfTest
 {
-    public static bool Run(TextWriter log)
+    /// <param name="includeDeployment">
+    /// Whether to run the deployment leg, which spawns a nested
+    /// <c>dotnet build</c> of a generated project.
+    ///
+    /// True from <c>--selftest</c>, where the point is to check the whole
+    /// path on demand. False from the unit-test suite: a build-the-world step
+    /// inside <c>dotnet test</c> took **fifteen minutes** on a cold CI runner
+    /// against twenty-five seconds for everything else, and the DLL → RNX →
+    /// sign → flash pipeline it exercises is already covered end-to-end
+    /// against the virtual device by EndToEndTests.
+    /// </param>
+    public static bool Run(TextWriter log, bool includeDeployment = true)
     {
         var failures = new List<string>();
         string sandbox = Path.Combine(Path.GetTempPath(), "rustnet-designer-selftest-" + Guid.NewGuid().ToString("n")[..8]);
@@ -42,7 +53,10 @@ public static class AssistantSelfTest
             Check(failures, "layout round-trip", CheckLayoutRoundTrip);
             Check(failures, "prompt library", CheckPromptLibrary);
             Check(failures, "formatter", CheckFormatter);
-            Check(failures, "deployment", () => CheckDeployment(log));
+            if (includeDeployment)
+            {
+                Check(failures, "deployment", () => CheckDeployment(log));
+            }
         }
         finally
         {

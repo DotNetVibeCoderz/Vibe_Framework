@@ -24,15 +24,24 @@ public class DesignerCoreTests
     /// for every provider with the plugins attached.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// No model is called. This is the wiring, which is what breaks when a
     /// connector package moves; the model path itself is exercised by
     /// <c>rustnet-designer --ask</c> against a real endpoint.
+    /// </para>
+    /// <para>
+    /// The deployment leg is left out. It spawns a nested <c>dotnet build</c>
+    /// of a generated project, which cost fifteen minutes on a cold CI runner
+    /// against twenty-five seconds for the whole suite before it — and the
+    /// pipeline it checks is already covered end-to-end against the virtual
+    /// device. <c>--selftest</c> still runs it.
+    /// </para>
     /// </remarks>
     [Fact]
     public void AssistantSelfTestPasses()
     {
         var log = new StringWriter();
-        bool ok = AssistantSelfTest.Run(log);
+        bool ok = AssistantSelfTest.Run(log, includeDeployment: false);
         Assert.True(ok, log.ToString());
     }
 
