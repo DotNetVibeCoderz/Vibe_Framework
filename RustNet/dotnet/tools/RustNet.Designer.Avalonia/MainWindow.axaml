@@ -71,14 +71,14 @@
             BorderBrush="{StaticResource Rail}" BorderThickness="0,0,0,1" Padding="12,5">
       <Grid>
         <StackPanel Orientation="Horizontal">
-          <TextBlock Classes="readout" Text="TARGET" Foreground="#FF5D6674" Margin="0,0,8,0"/>
+          <TextBlock Classes="tag" Text="TARGET" Margin="0,0,8,0"/>
           <ComboBox x:Name="TargetBox" Width="230" Margin="0,0,4,0"
                     ToolTip.Tip="Where Run sends the app"
                     SelectionChanged="OnTargetChanged"/>
           <Button Classes="ghost" Content="Detect" Click="OnDetectDevices"
                   ToolTip.Tip="Probe the virtual device and every serial port"/>
           <Border Classes="divider"/>
-          <TextBlock Classes="readout" Text="APP" Foreground="#FF5D6674" Margin="0,0,8,0"/>
+          <TextBlock Classes="tag" Text="APP" Margin="0,0,8,0"/>
           <TextBox x:Name="AppNameBox" Width="120" Text="designerapp"
                    ToolTip.Tip="App id on the device"/>
         </StackPanel>
@@ -103,16 +103,23 @@
             BorderBrush="{StaticResource Rail}" BorderThickness="0,1,0,0" Padding="12,4">
       <Grid>
         <StackPanel Orientation="Horizontal">
-          <TextBlock Classes="readout" Text="SEL" Foreground="#FF5D6674"/>
+          <TextBlock Classes="tag" Text="ZOOM"/>
+          <Button Classes="ghost" Content="-" Click="OnZoomOut" Padding="6,0" Margin="6,0,0,0"
+                  ToolTip.Tip="Show the panel smaller (Ctrl+-)"/>
+          <TextBlock x:Name="ZoomReadout" Classes="readout" Width="26"
+                     HorizontalAlignment="Center" TextAlignment="Center" Text="2x"/>
+          <Button Classes="ghost" Content="+" Click="OnZoomIn" Padding="6,0" Margin="0,0,14,0"
+                  ToolTip.Tip="Show the panel larger (Ctrl++)"/>
+          <TextBlock Classes="tag" Text="SEL"/>
           <TextBlock x:Name="SelReadout" Classes="readout" Margin="6,0,14,0"
                      Foreground="{StaticResource Amber}" Text="-"/>
-          <TextBlock Classes="readout" Text="POS" Foreground="#FF5D6674"/>
+          <TextBlock Classes="tag" Text="POS"/>
           <TextBlock x:Name="PosReadout" Classes="readout" Margin="6,0,14,0" Text="-"/>
-          <TextBlock Classes="readout" Text="SIZE" Foreground="#FF5D6674"/>
+          <TextBlock Classes="tag" Text="SIZE"/>
           <TextBlock x:Name="SizeReadout" Classes="readout" Margin="6,0,14,0" Text="-"/>
-          <TextBlock Classes="readout" Text="FG" Foreground="#FF5D6674"/>
+          <TextBlock Classes="tag" Text="FG"/>
           <TextBlock x:Name="FgReadout" Classes="readout" Margin="6,0,10,0" Text="-"/>
-          <TextBlock Classes="readout" Text="BG" Foreground="#FF5D6674"/>
+          <TextBlock Classes="tag" Text="BG"/>
           <TextBlock x:Name="BgReadout" Classes="readout" Margin="6,0,0,0" Text="-"/>
         </StackPanel>
         <TextBlock x:Name="StatusText" Classes="readout" HorizontalAlignment="Right" Text="Ready"/>
@@ -178,6 +185,9 @@
                     BorderThickness="1" CornerRadius="5" Padding="11" Margin="28"
                     BoxShadow="0 0 34 0 #22E8A33D"
                     HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Border.RenderTransform>
+                <ScaleTransform ScaleX="2" ScaleY="2"/>
+              </Border.RenderTransform>
               <Border BorderBrush="{StaticResource Rail}" BorderThickness="1">
                 <Canvas x:Name="DesignCanvas" Background="Transparent"
                         PointerPressed="OnCanvasPointerPressed"
@@ -217,7 +227,7 @@
         <DockPanel Grid.Row="2">
           <TextBlock DockPanel.Dock="Top" Classes="heading" Text="PROPERTIES"/>
           <ScrollViewer>
-            <StackPanel x:Name="Properties" Margin="10,0,10,10"/>
+            <StackPanel x:Name="Properties" Margin="10,0,10,12"/>
           </ScrollViewer>
         </DockPanel>
       </Grid>

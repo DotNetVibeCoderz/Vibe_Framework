@@ -50,7 +50,7 @@
            Standard is built for a white page — on this near-black panel its
            headings vanish and its code blocks come out as white rectangles.
            FluentTheme follows the application's theme variant, which is Dark. -->
-      <Border Background="{StaticResource Graphite}">
+      <Border Background="{StaticResource Graphite}" Padding="14,10,14,20">
         <md:MarkdownScrollViewer x:Name="Transcript" MarkdownStyleName="FluentTheme"/>
       </Border>
 
@@ -156,6 +156,7 @@
 
         <TextBox x:Name="Composer" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="58" MaxHeight="180"
                  FontFamily="{StaticResource FontSans}" FontSize="13"
+                 Watermark="Describe a screen, or ask about the code in the pane"
                  KeyDown="OnComposerKeyDown"/>
 
         <Grid Margin="0,6,0,0" ColumnDefinitions="Auto,*,Auto">

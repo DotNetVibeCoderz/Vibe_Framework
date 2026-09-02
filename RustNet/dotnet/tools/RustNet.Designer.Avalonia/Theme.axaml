@@ -1,13 +1,32 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!-- The WPF theme is 541 lines, most of it ControlTemplates that rebuild
-       buttons, scrollbars, tabs and tree items from scratch. Almost none of
-       that is carried over, and deliberately: Avalonia's FluentTheme already
-       draws those, and replacing its templates wholesale would mean owning
-       every control's visual states again — the exact maintenance the port is
-       meant to shed. What survives is what is actually this application's
-       look: the palette, the mono readouts, and three button weights.
+  <!-- The Designer looks like what it is: a bench instrument with a device
+       panel under test.
+
+       Two rules carry the whole thing, and both are enforceable rather than
+       decorative:
+
+       COLOUR. Amber means *you can act here* — the primary action, the current
+       selection, the panel bezel. Cyan means *the machine is speaking* — the
+       assistant, a live signal. They never swap. Everything else is a grey.
+       That is why SystemAccentColor is overridden below rather than left
+       alone: Fluent derives selection fills, focus rings, checkbox ticks and
+       the tab indicator from it, and its default blue is a third accent that
+       means nothing here.
+
+       TYPE. Mono is machine truth — identifiers, hex, dimensions, element
+       kinds, tool names, anything you would find in a file or a datasheet.
+       Sans is human language — prose, button labels, the assistant's
+       sentences. The toolbox reads in mono because `gauge` and `listbox` are
+       things you type into XML.
+
+       The WPF theme spent 541 lines rebuilding buttons, scrollbars, tabs and
+       tree items from scratch. That is not carried over: Fluent already draws
+       those, and owning every control's visual states again is the exact
+       maintenance this port exists to shed. What is here is the palette, the
+       density, and the places Fluent's defaults contradict the two rules
+       above.
 
        Named styles become classes. WPF addresses a style by key
        (Style="{StaticResource GhostButton}"); Avalonia addresses it by
@@ -23,6 +42,18 @@
     <Color x:Key="CyanColor">#FF4FC3E8</Color>
     <Color x:Key="RedColor">#FFEF6B62</Color>
 
+    <!-- Selection is amber, everywhere, because selection is "you can act on
+         this". Fluent builds its selected fills, focus adorners, checkbox
+         ticks and tab indicator out of these seven, so setting them once is
+         what stops a blue row appearing in an amber-and-cyan tool. -->
+    <Color x:Key="SystemAccentColor">#FFE8A33D</Color>
+    <Color x:Key="SystemAccentColorDark1">#FFD0912F</Color>
+    <Color x:Key="SystemAccentColorDark2">#FF8A5E1A</Color>
+    <Color x:Key="SystemAccentColorDark3">#FF5A4526</Color>
+    <Color x:Key="SystemAccentColorLight1">#FFEEB35F</Color>
+    <Color x:Key="SystemAccentColorLight2">#FFF3C381</Color>
+    <Color x:Key="SystemAccentColorLight3">#FFF8D3A3</Color>
+
     <SolidColorBrush x:Key="Graphite" Color="{StaticResource GraphiteColor}"/>
     <SolidColorBrush x:Key="Slate"    Color="{StaticResource SlateColor}"/>
     <SolidColorBrush x:Key="Rail"     Color="{StaticResource RailColor}"/>
@@ -36,6 +67,25 @@
     <SolidColorBrush x:Key="Hover"    Color="#FF262C35"/>
     <SolidColorBrush x:Key="AmberDim" Color="#FF5A4526"/>
     <SolidColorBrush x:Key="CyanDim"  Color="#FF2F5F70"/>
+    <SolidColorBrush x:Key="Faint"    Color="#FF5D6674"/>
+
+    <!-- Selection is a tint, not a fill.
+
+         Fluent paints a selected row in the full accent with inverted text,
+         which is right when the accent is a quiet blue and wrong here: a
+         solid amber bar becomes the loudest thing on screen and competes with
+         the panel bezel, which is the one element allowed to draw the eye.
+         Amber still says "this is what you are acting on" — at a twelfth of
+         the volume, with the text carrying the colour instead of the ground. -->
+    <SolidColorBrush x:Key="TreeViewItemBackgroundSelected" Color="#FFE8A33D" Opacity="0.13"/>
+    <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPointerOver" Color="#FFE8A33D" Opacity="0.2"/>
+    <SolidColorBrush x:Key="TreeViewItemBackgroundPointerOver" Color="#FF262C35"/>
+    <SolidColorBrush x:Key="TreeViewItemForegroundSelected" Color="#FFE8A33D"/>
+    <SolidColorBrush x:Key="TreeViewItemForegroundSelectedPointerOver" Color="#FFE8A33D"/>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="#FFE8A33D" Opacity="0.13"/>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundSelectedPointerOver" Color="#FFE8A33D" Opacity="0.2"/>
+    <SolidColorBrush x:Key="ListBoxItemBackgroundPointerOver" Color="#FF262C35"/>
+    <SolidColorBrush x:Key="ListBoxItemForegroundSelected" Color="#FFE8A33D"/>
 
     <!-- "Consolas" alone resolves to nothing on Linux and macOS, where this
          build is the whole point. The fallbacks are the usual mono faces on
@@ -44,13 +94,15 @@
     <FontFamily x:Key="FontSans">Segoe UI,Inter,Helvetica Neue,sans-serif</FontFamily>
   </Styles.Resources>
 
+  <!-- ============================================================ type ==== -->
+
   <Style Selector="TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="Foreground" Value="{StaticResource Ink}"/>
   </Style>
 
-  <!-- A pane title: small, mono, quiet. -->
+  <!-- A pane title. Mono, because it names a region of the instrument. -->
   <Style Selector="TextBlock.heading">
     <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
     <Setter Property="FontSize" Value="10"/>
@@ -65,6 +117,17 @@
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
+
+  <!-- The dimmest thing on screen: the caption above a readout, present only
+       so the number beside it has a name. -->
+  <Style Selector="TextBlock.tag">
+    <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- ========================================================= buttons ==== -->
 
   <Style Selector="Button.flat">
     <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
@@ -90,24 +153,46 @@
     <Setter Property="BorderBrush" Value="{StaticResource AmberDim}"/>
     <Setter Property="Background" Value="#FF251E14"/>
   </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#FF31270F"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Amber}"/>
+  </Style>
 
-  <!-- Everything else on a toolbar: present, not shouting. -->
+  <!-- Everything else on a strip: present, not shouting. -->
   <Style Selector="Button.ghost">
+    <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
     <Setter Property="Foreground" Value="{StaticResource Muted}"/>
-    <Setter Property="Padding" Value="6,3"/>
+    <Setter Property="Padding" Value="7,4"/>
   </Style>
   <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource Hover}"/>
+    <Setter Property="TextElement.Foreground" Value="{StaticResource Ink}"/>
   </Style>
 
-  <!-- The toolbox: one mono glyph per element kind. -->
+  <!-- The toolbox: one element kind per row, in mono, because these are the
+       names you type into a layout file. -->
   <Style Selector="Button.tool">
     <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
     <Setter Property="FontSize" Value="11"/>
-    <Setter Property="Padding" Value="6,4"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="Margin" Value="6,0,6,0"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
+  </Style>
+  <Style Selector="Button.tool:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Hover}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource AmberDim}"/>
+    <Setter Property="TextElement.Foreground" Value="{StaticResource Amber}"/>
   </Style>
 
   <Style Selector="ToggleButton.chip">
@@ -118,29 +203,139 @@
     <Setter Property="BorderBrush" Value="{StaticResource Rail}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="9"/>
-    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="Padding" Value="9,3"/>
   </Style>
+  <Style Selector="ToggleButton.chip:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Hover}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Rail}"/>
+  </Style>
+  <!-- A checked chip is a pane that is open, not an action: cyan, and dim. -->
   <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource CyanDim}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource CyanDim}"/>
     <Setter Property="TextElement.Foreground" Value="{StaticResource Ink}"/>
   </Style>
+  <Style Selector="ToggleButton.chip:checked:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#FF37707F"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Cyan}"/>
+  </Style>
 
+  <!-- A seam between groups of commands. Stretched explicitly: with no child
+       it has no natural height, and a zero-height hairline is invisible. -->
   <Style Selector="Border.divider">
     <Setter Property="Width" Value="1"/>
     <Setter Property="Background" Value="{StaticResource Rail}"/>
-    <Setter Property="Margin" Value="6,7"/>
+    <Setter Property="Margin" Value="7,8"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
   </Style>
+
+  <!-- ============================================================ input ==== -->
 
   <Style Selector="TextBox">
     <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="7,3"/>
     <Setter Property="Background" Value="{StaticResource Sunken}"/>
     <Setter Property="Foreground" Value="{StaticResource Ink}"/>
     <Setter Property="BorderBrush" Value="{StaticResource Rail}"/>
     <Setter Property="CaretBrush" Value="{StaticResource Amber}"/>
+    <Setter Property="SelectionBrush" Value="{StaticResource CyanDim}"/>
+  </Style>
+  <Style Selector="TextBox /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{StaticResource Sunken}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Rail}"/>
+  </Style>
+  <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#FF3D4550"/>
+  </Style>
+  <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{StaticResource AmberDim}"/>
+  </Style>
+
+  <!-- A property value is a device number, so it is set in mono and sized to
+       the grid rather than to Fluent's touch-friendly default. -->
+  <Style Selector="TextBox.value">
+    <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Padding" Value="6,2"/>
+  </Style>
+
+  <Style Selector="ComboBox">
+    <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+  </Style>
+  <Style Selector="ComboBox /template/ Border#Background">
+    <Setter Property="Background" Value="{StaticResource Raised}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Rail}"/>
+  </Style>
+  <Style Selector="ComboBox:pointerover /template/ Border#Background">
+    <Setter Property="Background" Value="{StaticResource Hover}"/>
+  </Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+  </Style>
+
+  <!-- ========================================================== panes ===== -->
+
+  <!-- Tab headers are channel labels, not page titles. Fluent sets them at
+       24px, which on a three-tab strip eats the top of the design surface. -->
+  <Style Selector="TabItem">
+    <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="14,7"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+  </Style>
+  <Style Selector="TabItem:selected">
+    <Setter Property="Foreground" Value="{StaticResource Amber}"/>
+  </Style>
+  <Style Selector="TabItem:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{StaticResource Hover}"/>
+  </Style>
+  <Style Selector="TabItem:selected /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{StaticResource Slate}"/>
+  </Style>
+
+  <Style Selector="TreeView">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="4,0,4,6"/>
+  </Style>
+  <!-- The tree lists element kinds and ids, so it is mono, and tight enough
+       that a deep layout is legible without scrolling. -->
+  <Style Selector="TreeViewItem">
+    <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="3,2"/>
+  </Style>
+
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="CornerRadius" Value="0"/>
   </Style>
 
   <Style Selector="GridSplitter">
     <Setter Property="Background" Value="{StaticResource Rail}"/>
+  </Style>
+
+  <!-- Thin, and only while in use: a scrollbar is not information. -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
   </Style>
 
 </Styles>

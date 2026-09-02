@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -13,6 +14,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using RustNet.Designer.Assistant;
 
 namespace RustNet.Designer.Avalonia;
@@ -208,7 +210,26 @@ public partial class ChatPanel : UserControl
                 _live ? _turnTools : null);
 
         Transcript.Markdown = document;
+        ScrollToNewest();
     }
+
+    /// <summary>
+    /// Keep the newest line in view.
+    /// </summary>
+    /// <remarks>
+    /// Setting <c>Markdown</c> rebuilds the whole document, and a rebuilt
+    /// document starts at the top — so without this the reply you just asked
+    /// for appears off-screen and the panel looks like it did nothing. The
+    /// WPF version got this free: it appended to a live HTML page rather than
+    /// replacing one.
+    ///
+    /// Posted at Background priority because the scrollable extent is not
+    /// known until the new content has been measured; scrolling in the same
+    /// pass scrolls to the end of the *old* document.
+    /// </remarks>
+    private void ScrollToNewest() => Dispatcher.UIThread.Post(
+        () => Transcript.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()?.ScrollToEnd(),
+        DispatcherPriority.Background);
 
     // ---- the turn ------------------------------------------------------
 

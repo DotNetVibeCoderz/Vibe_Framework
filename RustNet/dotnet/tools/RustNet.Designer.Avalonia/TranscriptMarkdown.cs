@@ -53,12 +53,24 @@ internal static class TranscriptMarkdown
             sb.Append(" ▌\n\n");
         }
 
+        // Room under the last line comes from the transcript Border's padding,
+        // not from the document. An `&nbsp;` here printed literally, as the
+        // six characters: this renderer takes markdown, not HTML, which is the
+        // one habit not worth carrying over from the WebView2 it replaced.
         return any ? sb.ToString() : EmptyState();
     }
 
     private static void AppendMessage(StringBuilder sb, ChatMessage m)
     {
-        sb.Append(m.Role == ChatRole.User ? "### YOU\n\n" : "### JACK\n\n");
+        // A rule opens each exchange rather than closing each turn: the pair
+        // "what I asked / what it did" is the unit worth separating, and a
+        // rule after every turn would cut that pair in half.
+        //
+        // The speaker is bold body text, not a heading. A heading announces a
+        // section of a document; this is a label on a log line, and at h3 it
+        // was the largest type in the window — louder than anything either
+        // party actually said.
+        sb.Append(m.Role == ChatRole.User ? "\n---\n\n**you**\n\n" : "**jack**\n\n");
 
         if (m.ToolCalls.Count > 0)
         {

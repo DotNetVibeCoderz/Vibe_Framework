@@ -222,6 +222,39 @@ public static class DesignModel
         return null;
     }
 
+    /// <summary>
+    /// The toolbox palette, grouped by what each control is *for*.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Thirty-two kinds in one alphabetical column is a list you read rather
+    /// than a palette you reach into. The groups are the fix, and the first one
+    /// is load-bearing rather than tidy: the toolbox adds a control *into the
+    /// selected container*, so which kinds can hold children decides where a
+    /// click will actually put things. "Containers" is exactly the set
+    /// <see cref="IsContainer"/> accepts, minus <c>window</c>, which is the
+    /// root and cannot be added.
+    /// </para>
+    /// <para>
+    /// The rest are grouped by what the person is looking for when they scan:
+    /// something to show words, something to take input, something to display a
+    /// measurement, something to draw.
+    /// </para>
+    /// </remarks>
+    public static readonly (string Name, string[] Kinds)[] Palette =
+    {
+        ("containers", new[]
+        {
+            "stack", "panel", "border", "canvas", "grid", "dockpanel",
+            "scrollviewer", "groupbox", "expander", "tabcontrol", "tabitem",
+            "treeview", "messagebox",
+        }),
+        ("text", new[] { "label", "textflow" }),
+        ("input", new[] { "button", "textbox", "checkbox", "radio", "combobox", "listbox", "slider" }),
+        ("readouts", new[] { "gauge", "progress", "chart", "datagrid", "calendar" }),
+        ("shapes", new[] { "rect", "ellipse", "line", "polygon", "image" }),
+    };
+
     /// <summary>RGB565 as the four hex digits the layout format stores.</summary>
     public static string Hex(int v) => v.ToString("X4");
 

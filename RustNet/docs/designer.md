@@ -8,6 +8,11 @@ screen for you and write that code — [docs/assistant.md](assistant.md).
 
 ![RustNet Designer, with the gauge, chart, data grid and combo box on the canvas](images/designer.png)
 
+The Avalonia build, with a boiler panel the assistant designed and applied on
+request — the canvas is showing it at 2x:
+
+![The Avalonia Designer: a boiler panel on the canvas, the assistant's reply beside it](images/designer-avalonia.png)
+
 ```bash
 # Avalonia — Windows, Linux and macOS
 dotnet run --project dotnet/tools/RustNet.Designer.Avalonia          # launch the editor
@@ -45,6 +50,39 @@ HTML round-trip through a file and a virtual host, a second theme written in
 CSS, and a layout constraint: a WebView2 is a native child window that nothing
 can be drawn over, so the WPF panel has to *hide* the transcript whenever a
 drawer opens. The Avalonia drawers simply cover it.
+
+Two habits do not carry over. The renderer takes markdown, not HTML, so an
+`&nbsp;` prints as six characters. And setting the document rebuilds it, which
+resets the scroll — the panel scrolls itself back to the newest line, where
+the WPF version got that free by appending to a live page.
+
+## Reading the screen
+
+Two rules run through the interface, and both are meant to be inferable
+without being told:
+
+**Amber means you can act here** — the primary action in a pane, the current
+selection, the panel bezel. **Cyan means the machine is speaking** — the
+assistant, a live signal. They never swap. Everything else is a grey. This is
+why Avalonia's `SystemAccentColor` is overridden in `Theme.axaml`: Fluent
+derives selection fills, focus rings, checkbox ticks and the tab indicator
+from it, and its default blue would be a third accent that means nothing.
+
+**Mono is machine truth** — identifiers, hex, dimensions, element kinds, tool
+names, anything you would find in a file or a datasheet. **Sans is human
+language** — prose, button labels, the assistant's sentences. The toolbox
+reads in mono because `gauge` and `listbox` are things you type into a layout.
+
+The toolbox groups by role, and the first group is load-bearing rather than
+tidy: a new control lands *inside the selected container*, so which kinds can
+hold children decides where the next click puts things. That group is exactly
+the set `DesignModel.IsContainer` accepts.
+
+Zoom is whole numbers only (`Ctrl` `+` / `Ctrl` `-`, or the buttons on the
+instrument line). A fractional scale would resample a pixel-exact preview into
+something the device cannot produce, and this preview's whole claim is that it
+shows what the panel will show. A 160x128 panel at 1:1 is a postage stamp on a
+desktop display, so it opens at 2x.
 
 Only the WPF build is verified against a real screen today. Both are built by
 CI on Linux — the Avalonia one fully, the WPF one only through the Core it

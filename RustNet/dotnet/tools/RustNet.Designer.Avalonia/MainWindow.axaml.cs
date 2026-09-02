@@ -76,6 +76,7 @@ public partial class MainWindow : Window, IDesignerBridge
         RenderAll();
         UpdateTabHeaders();
         UpdateRunButton();
+        SetZoom(_zoom);
 
         BindGestures();
     }
@@ -98,6 +99,8 @@ public partial class MainWindow : Window, IDesignerBridge
         Bind(() => Toggle(InspectorToggle), Key.D2, KeyModifiers.Control);
         Bind(() => Toggle(OutputToggle), Key.D3, KeyModifiers.Control);
         Bind(() => Toggle(AssistantToggle), Key.J, KeyModifiers.Control);
+        Bind(() => SetZoom(_zoom + 1), Key.OemPlus, KeyModifiers.Control);
+        Bind(() => SetZoom(_zoom - 1), Key.OemMinus, KeyModifiers.Control);
 
         KeyDown += (_, e) =>
         {
@@ -134,16 +137,39 @@ public partial class MainWindow : Window, IDesignerBridge
 
     // ---- toolbox -----------------------------------------------------
 
+    /// <summary>
+    /// The palette, grouped by role, containers first.
+    /// </summary>
+    /// <remarks>
+    /// Thirty-two kinds in one alphabetical column is a list you read rather
+    /// than a palette you reach into, and the first group carries information
+    /// the others do not: a new control lands *inside the selected container*,
+    /// so which kinds are containers decides where the next click puts things.
+    /// The grouping lives in <see cref="DesignModel.Palette"/> so both
+    /// front-ends offer the same palette in the same order.
+    /// </remarks>
     private void BuildToolbox()
     {
-        foreach (string kind in DesignModel.ControlKinds.OrderBy(k => k, StringComparer.Ordinal))
+        bool first = true;
+        foreach ((string name, string[] kinds) in DesignModel.Palette)
         {
-            var btn = new Button { Content = "+ " + kind, Tag = kind };
-            btn.Classes.Add("flat");
-            btn.Classes.Add("tool");
-            ToolTip.SetTip(btn, $"Add a <{kind}> to the selected container");
-            btn.Click += OnAddControl;
-            Toolbox.Children.Add(btn);
+            var heading = new TextBlock
+            {
+                Text = name,
+                Margin = new Thickness(12, first ? 2 : 12, 12, 5),
+            };
+            heading.Classes.Add("heading");
+            Toolbox.Children.Add(heading);
+            first = false;
+
+            foreach (string kind in kinds)
+            {
+                var btn = new Button { Content = kind, Tag = kind };
+                btn.Classes.Add("tool");
+                ToolTip.SetTip(btn, $"Add a <{kind}> to the selected container");
+                btn.Click += OnAddControl;
+                Toolbox.Children.Add(btn);
+            }
         }
     }
 
@@ -266,6 +292,40 @@ public partial class MainWindow : Window, IDesignerBridge
         BgReadout.Text = DesignModel.Hex(_selected.Background);
     }
 
+    // ---- zoom --------------------------------------------------------
+
+    /// <summary>
+    /// How many screen pixels one device pixel occupies.
+    /// </summary>
+    /// <remarks>
+    /// Whole numbers only, and that is a property of the subject rather than a
+    /// simplification: this preview claims to show what the panel will show,
+    /// and a fractional scale resamples a pixel-exact image into something the
+    /// device cannot produce. A 160x128 panel at 1:1 is a postage stamp on a
+    /// desktop display, so the default is 2.
+    /// </remarks>
+    private int _zoom = 2;
+
+    private const int MinZoom = 1;
+    private const int MaxZoom = 6;
+
+    private void OnZoomIn(object? sender, RoutedEventArgs e) => SetZoom(_zoom + 1);
+    private void OnZoomOut(object? sender, RoutedEventArgs e) => SetZoom(_zoom - 1);
+
+    private void SetZoom(int zoom)
+    {
+        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        // Reached through the Bezel rather than by name: x:Name generates a
+        // field for controls only, and a transform is not one — the same trap
+        // ColumnDefinition sets, and it compiles just as cleanly.
+        if (Bezel.RenderTransform is ScaleTransform scale)
+        {
+            scale.ScaleX = _zoom;
+            scale.ScaleY = _zoom;
+        }
+        ZoomReadout.Text = _zoom + "x";
+    }
+
     // ---- selection + drag-to-move -----------------------------------
 
     private bool _dragging;
@@ -278,6 +338,8 @@ public partial class MainWindow : Window, IDesignerBridge
         {
             return;
         }
+        // Relative to the canvas, so the bezel's scale is already divided out:
+        // this is device pixels, which is what the model's hit test expects.
         Point p = e.GetPosition(DesignCanvas);
         // The model's own hit-test picks the topmost element at the point.
         UiElement? hit = _root.HitTest((int)p.X, (int)p.Y);
@@ -441,18 +503,27 @@ public partial class MainWindow : Window, IDesignerBridge
         var t = new TextBlock
         {
             Text = label,
-            Width = 92,
+            Width = 84,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
         };
-        t.Classes.Add("readout");
+        t.Classes.Add("tag");
         return t;
+    }
+
+    /// <summary>A value box: mono, because every one of these is a number or
+    /// an identifier the device will read.</summary>
+    private static TextBox ValueBox(string text, bool readOnly = false)
+    {
+        var box = new TextBox { Text = text, IsReadOnly = readOnly };
+        box.Classes.Add("value");
+        return box;
     }
 
     private void AddPropRow(string label, string value, Action<string> set, bool readOnly = false)
     {
-        var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+        var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
         panel.Children.Add(RowLabel(label));
-        var box = new TextBox { Text = value, IsReadOnly = readOnly };
+        TextBox box = ValueBox(value, readOnly);
         if (!readOnly)
         {
             box.LostFocus += (_, _) => { set(box.Text ?? ""); TouchLayout(); RenderAll(); };
@@ -483,14 +554,14 @@ public partial class MainWindow : Window, IDesignerBridge
 
     private void AddColorRow(string label, int value, Action<int> set)
     {
-        var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+        var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
         panel.Children.Add(RowLabel(label));
         // A swatch beside the hex: RGB565 is unreadable as four digits, and the
         // quantised colour is what the panel will actually show.
         var swatch = new Border
         {
-            Width = 18,
-            Height = 18,
+            Width = 16,
+            Height = 16,
             CornerRadius = new CornerRadius(2),
             BorderBrush = Brush("Rail"),
             BorderThickness = new Thickness(1),
@@ -500,7 +571,7 @@ public partial class MainWindow : Window, IDesignerBridge
         DockPanel.SetDock(swatch, Dock.Right);
         panel.Children.Add(swatch);
 
-        var box = new TextBox { Text = DesignModel.Hex(value) };
+        TextBox box = ValueBox(DesignModel.Hex(value));
         box.LostFocus += (_, _) => Commit();
         box.KeyDown += (_, e) =>
         {
@@ -522,7 +593,7 @@ public partial class MainWindow : Window, IDesignerBridge
 
     private void AddBoolRow(string label, bool value, Action<bool> set)
     {
-        var panel = new DockPanel { Margin = new Thickness(0, 1, 0, 4) };
+        var panel = new DockPanel { Margin = new Thickness(0, 1, 0, 3) };
         panel.Children.Add(RowLabel(label));
         var check = new CheckBox
         {
