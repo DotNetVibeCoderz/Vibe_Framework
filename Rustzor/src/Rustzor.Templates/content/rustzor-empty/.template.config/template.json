@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Gravicode Studios",
+  "classifications": [ "Web", "Rustzor", "WebAssembly", "Razor", "Empty" ],
+  "identity": "Rustzor.Templates.Empty",
+  "groupIdentity": "Rustzor.Empty",
+  "name": "Rustzor App (empty)",
+  "description": "The smallest Rustzor app: one page, no UI kit. C# Razor components running in the browser on RustNetRuntime.",
+  "shortName": "rustzor-empty",
+  "sourceName": "RustzorEmpty",
+  "preferNameDirectory": true,
+  "tags": { "language": "C#", "type": "project" },
+  "primaryOutputs": [ { "path": "RustzorEmpty.csproj" } ]
+}

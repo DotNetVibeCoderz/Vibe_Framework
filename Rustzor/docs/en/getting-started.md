@@ -9,6 +9,17 @@ This guide builds a small Rustzor app from nothing: a counter page with the Rust
 
 You do not need Rust, Node or a WebAssembly toolchain. The runtime (`rustzor.wasm`) and the loader (`rustzor.js`) come inside the `Rustzor.Sdk` NuGet package.
 
+## The fast way
+
+```bash
+dotnet tool install -g Rustzor.Cli --prerelease
+rustzor new app HelloRustzor
+cd HelloRustzor
+rustzor serve --open
+```
+
+That creates the app below (with a few more pages), builds it, serves it on `http://localhost:5080`, and rebuilds and reloads the page every time you save. See [tooling](tooling.md). The rest of this guide builds the same thing by hand, so you know what each file does.
+
 ## 1. The project file
 
 Make a folder `HelloRustzor` and put this in `HelloRustzor.csproj`:
@@ -126,12 +137,12 @@ wwwroot/
   _rustzor/boot.json      what to load, in which order, by content hash
 ```
 
-Serve it with any static file server that falls back to `index.html` for unknown paths (so that routes like `/orders` work on reload). For example:
+Serve it with `rustzor serve` (which also rebuilds and reloads on save), or with any static file server that falls back to `index.html` for unknown paths, so that routes like `/orders` work on reload:
 
 ```bash
+rustzor serve
+# or
 npx serve -s bin/Debug/net10.0/wwwroot
-# or, from a Rustzor checkout:
-node tools/dev/serve.mjs bin/Debug/net10.0/wwwroot 5080
 ```
 
 Open the address it prints. The counter counts.
@@ -139,7 +150,7 @@ Open the address it prints. The counter counts.
 ## 6. Publish
 
 ```bash
-dotnet publish -c Release
+rustzor publish        # or: dotnet publish -c Release
 ```
 
 The static site goes to `bin/Release/net10.0/publish/wwwroot`. Upload that folder to any static host: GitHub Pages, Azure Static Web Apps, Netlify, Cloudflare Pages, S3, nginx. There is no server-side part.

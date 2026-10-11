@@ -1,0 +1,31 @@
+{
+  "Rustzor library module": {
+    "prefix": "rzmodule",
+    "description": "rustzor.module.js: the browser half of a Rustzor library",
+    "body": [
+      "// Installed by Rustzor at startup in every app that references this library.",
+      "export function install({ ops, dispatch, addHandle, getHandle, releaseHandle, elementOf }) {",
+      "  ops[\"${1:mylib}.${2:hello}\"] = ({ ${3:name} }) => `Hello, \\${${3:name}}`;",
+      "",
+      "  ops[\"${1:mylib}.${4:watch}\"] = ({ id }) => {",
+      "    const timer = setInterval(() => dispatch(id, { now: Date.now() }), 1000);",
+      "    return addHandle(timer);",
+      "  };",
+      "",
+      "  ops[\"${1:mylib}.${5:unwatch}\"] = ({ h }) => {",
+      "    clearInterval(getHandle(h));",
+      "    releaseHandle(h);",
+      "  };",
+      "}"
+    ]
+  },
+  "Rustzor op": {
+    "prefix": "rzop",
+    "description": "An op in rustzor.module.js",
+    "body": [
+      "ops[\"${1:mylib.op}\"] = async ({ ${2:arg} }) => {",
+      "  $0",
+      "};"
+    ]
+  }
+}

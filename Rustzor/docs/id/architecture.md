@@ -84,8 +84,11 @@ Sample app pada umumnya mulai berjalan dalam 50 hingga 150 ms setelah semua file
 | `src/Rustzor.Components` | Model component, routing, DI, form |
 | `src/Rustzor.Build` | Bundler dan AOT compiler (berjalan saat build) |
 | `src/Rustzor.Sdk` | Package MSBuild SDK |
+| `src/Rustzor.Cli` | Perintah `rustzor` (sebuah .NET tool) |
+| `src/Rustzor.Templates` | Template `dotnet new` |
 | `src/Rustzor.UI` | Component kit |
 | `src/Browser`, `src/Frameworks`, `src/Integrations`, `src/Net` | Library-library |
 | `samples/` | Aplikasi lengkap |
 | `tools/RustzorAppGen` | Generator aplikasi berbantuan AI |
+| `tools/vscode-rustzor` | Extension VS Code |
 | `tools/e2e`, `tools/dev` | Test browser dan development server |

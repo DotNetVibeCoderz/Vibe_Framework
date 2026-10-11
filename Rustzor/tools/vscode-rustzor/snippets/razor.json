@@ -1,0 +1,105 @@
+{
+  "Rustzor page": {
+    "prefix": "rzpage",
+    "description": "A routed page with a header and a card (Rustzor.UI)",
+    "body": [
+      "@page \"/${1:route}\"",
+      "",
+      "<PageHeader Title=\"${2:Title}\" Eyebrow=\"${3:Section}\" Text=\"${4:What this page is for.}\" />",
+      "",
+      "<Card>",
+      "    $0",
+      "</Card>",
+      "",
+      "@code {",
+      "    protected override async Task OnInitializedAsync()",
+      "    {",
+      "        await Task.CompletedTask;",
+      "    }",
+      "}"
+    ]
+  },
+  "Rustzor component": {
+    "prefix": "rzcomp",
+    "description": "A component with a parameter and an event callback",
+    "body": [
+      "<div class=\"${1:my-component}\" @onclick=\"() => OnSelect.InvokeAsync(${2:Value})\">",
+      "    @${2:Value}",
+      "</div>",
+      "",
+      "@code {",
+      "    [Parameter] public string ${2:Value} { get; set; } = \"\";",
+      "    [Parameter] public EventCallback<string> OnSelect { get; set; }",
+      "}"
+    ]
+  },
+  "Rustzor layout": {
+    "prefix": "rzlayout",
+    "description": "A layout with the Rustzor.UI AppShell",
+    "body": [
+      "@inherits LayoutComponentBase",
+      "",
+      "<AppShell Brand=\"${1:My App}\" BrandIcon=\"${2:rust}\" Items=\"nav\">",
+      "    <ChildContent>@Body</ChildContent>",
+      "</AppShell>",
+      "",
+      "@code {",
+      "    private readonly List<NavItem> nav = new()",
+      "    {",
+      "        NavItem.Link(\"Home\", \"\", \"home\"),",
+      "        NavItem.Link(\"${3:Orders}\", \"${4:orders}\", \"${5:receipt}\"),",
+      "    };",
+      "}"
+    ]
+  },
+  "Rustzor data grid": {
+    "prefix": "rzgrid",
+    "description": "A searchable, sortable, paged DataGrid",
+    "body": [
+      "<DataGrid TItem=\"${1:Item}\" Items=\"${2:items}\" Columns=\"columns\" PageSize=\"${3:15}\" SearchPlaceholder=\"Search\" />",
+      "",
+      "@code {",
+      "    private readonly List<GridColumn<${1:Item}>> columns = new()",
+      "    {",
+      "        new(\"${4:Name}\", x => x.${4:Name}),",
+      "        new(\"${5:Price}\", x => x.${5:Price}) { Numeric = true, Format = \"N0\" },",
+      "    };",
+      "}"
+    ]
+  },
+  "Rustzor modal": {
+    "prefix": "rzmodal",
+    "description": "A Rustzor.UI modal bound to a bool",
+    "body": [
+      "<button class=\"rz-btn primary\" @onclick=\"() => ${1:open} = true\">${2:Open}</button>",
+      "",
+      "<Modal @bind-Open=\"${1:open}\" Title=\"${3:Title}\">",
+      "    <ChildContent>$0</ChildContent>",
+      "    <Footer>",
+      "        <button class=\"rz-btn\" @onclick=\"() => ${1:open} = false\">Cancel</button>",
+      "        <button class=\"rz-btn primary\" @onclick=\"${4:Save}\">${5:Save}</button>",
+      "    </Footer>",
+      "</Modal>",
+      "",
+      "@code {",
+      "    private bool ${1:open};",
+      "}"
+    ]
+  },
+  "Rustzor timer": {
+    "prefix": "rztimer",
+    "description": "Refresh a component on an interval, disposed with it",
+    "body": [
+      "@implements IDisposable",
+      "",
+      "@code {",
+      "    private IDisposable? timer;",
+      "",
+      "    protected override void OnInitialized() =>",
+      "        timer = Rustzor.Interop.Scheduler.SetInterval(() => { ${1:Tick();} StateHasChanged(); }, ${2:1000});",
+      "",
+      "    public void Dispose() => timer?.Dispose();",
+      "}"
+    ]
+  }
+}

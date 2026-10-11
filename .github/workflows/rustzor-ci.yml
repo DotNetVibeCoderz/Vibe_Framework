@@ -1,6 +1,7 @@
 # Build and test Rustzor: the browser runtime (Rust to WebAssembly), the .NET
-# libraries and samples, every NuGet package, and an app built from those
-# packages alone, run in headless Chrome.
+# libraries and samples, every NuGet package, an app built from those packages
+# alone, and the CLI and templates end to end, run in headless Chrome. Also
+# packages the VS Code extension and checks the package catalog is current.
 #
 # ## Where this file lives
 #
@@ -101,6 +102,32 @@ jobs:
           (cd tools/e2e && npm ci)
           export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
           bash scripts/package-smoke.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Create, publish and run an app with the CLI and templates
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          bash scripts/tooling-smoke.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Check the package catalog is current
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          node tools/e2e/make-catalog.mjs
+          if ! git diff --quiet -- docs; then
+            git diff --stat -- docs
+            echo "::error::docs/catalog or docs/*/packages.md is out of date: run node tools/e2e/make-catalog.mjs and commit"
+            exit 1
+          fi
+
+      - name: Package the VS Code extension
+        working-directory: ${{ steps.loc.outputs.dir }}/tools/vscode-rustzor
+        run: npx --yes @vscode/vsce@3.6.0 package --no-dependencies -o "../../artifacts/rustzor-vscode.vsix"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustzor-vscode-${{ steps.ver.outputs.version }}
+          path: ${{ steps.loc.outputs.dir }}/artifacts/rustzor-vscode.vsix
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:

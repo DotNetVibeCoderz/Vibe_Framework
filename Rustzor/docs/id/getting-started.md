@@ -9,6 +9,17 @@ Panduan ini membangun aplikasi Rustzor kecil dari nol: sebuah halaman counter de
 
 Anda tidak perlu Rust, Node, atau toolchain WebAssembly. Runtime (`rustzor.wasm`) dan loader (`rustzor.js`) sudah termasuk di dalam NuGet package `Rustzor.Sdk`.
 
+## Cara cepat
+
+```bash
+dotnet tool install -g Rustzor.Cli --prerelease
+rustzor new app HelloRustzor
+cd HelloRustzor
+rustzor serve --open
+```
+
+Perintah di atas membuat aplikasi yang dibahas di bawah (dengan beberapa halaman tambahan), mem-build-nya, menyajikannya di `http://localhost:5080`, lalu mem-build ulang dan me-reload halaman setiap kali Anda menyimpan. Lihat [tooling](tooling.md). Sisa panduan ini membangun hal yang sama secara manual, supaya Anda tahu fungsi setiap file.
+
 ## 1. File proyek
 
 Buat folder `HelloRustzor` dan isi `HelloRustzor.csproj` dengan:
@@ -126,12 +137,12 @@ wwwroot/
   _rustzor/boot.json      apa yang dimuat, dalam urutan apa, berdasarkan content hash
 ```
 
-Sajikan dengan static file server apa saja yang melakukan fallback ke `index.html` untuk path yang tidak dikenal (agar route seperti `/orders` tetap berfungsi saat reload). Misalnya:
+Sajikan dengan `rustzor serve` (yang juga mem-build ulang dan me-reload setiap kali Anda menyimpan), atau dengan static file server apa saja yang melakukan fallback ke `index.html` untuk path yang tidak dikenal, agar route seperti `/orders` tetap berfungsi saat reload:
 
 ```bash
+rustzor serve
+# atau
 npx serve -s bin/Debug/net10.0/wwwroot
-# atau, dari checkout Rustzor:
-node tools/dev/serve.mjs bin/Debug/net10.0/wwwroot 5080
 ```
 
 Buka alamat yang ditampilkan. Counter-nya pun berjalan.
@@ -139,7 +150,7 @@ Buka alamat yang ditampilkan. Counter-nya pun berjalan.
 ## 6. Publish
 
 ```bash
-dotnet publish -c Release
+rustzor publish        # atau: dotnet publish -c Release
 ```
 
 Situs statisnya ditempatkan di `bin/Release/net10.0/publish/wwwroot`. Unggah folder tersebut ke static host mana pun: GitHub Pages, Azure Static Web Apps, Netlify, Cloudflare Pages, S3, nginx. Tidak ada bagian di sisi server.

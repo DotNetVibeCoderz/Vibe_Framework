@@ -1,0 +1,24 @@
+@page "/"
+
+<PageHeader Title="APP_TITLE" Eyebrow="Welcome" Text="C# and Razor, running in your browser on RustNetRuntime. Edit Pages/Home.razor and save: rustzor serve rebuilds and reloads the page." />
+
+<div class="rz-grid rz-grid-3">
+    <StatCard Label="Runtime" Value="RustNetRuntime" Hint="an IL interpreter in WebAssembly" />
+    <StatCard Label="Rendered at" Value="@rendered" Hint="DateTime.Now, computed in the browser" />
+    <StatCard Label="Pages" Value="3" Hint="Home, Counter and Tasks" />
+</div>
+
+<Card Title="Next steps" Class="section">
+    <ul class="steps">
+        <li>Add a page: create <code>Pages/About.razor</code> that starts with <code>@@page "/about"</code>.</li>
+        <li>Add a library: <code>rustzor add fetch</code>, then call an API with <code>FetchClient</code>.</li>
+        <li>Publish: <code>rustzor publish</code>, then upload <code>publish/wwwroot</code> to any static host.</li>
+        <li>Read the docs: <a href="https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/Rustzor/docs/en" target="_blank" rel="noopener">github.com/DotNetVibeCoderz/Vibe_Framework</a></li>
+    </ul>
+</Card>
+
+@code {
+    private string rendered = "";
+
+    protected override void OnInitialized() => rendered = DateTime.Now.ToString("HH:mm:ss");
+}

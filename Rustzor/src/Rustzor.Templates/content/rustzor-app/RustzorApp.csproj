@@ -1,0 +1,7 @@
+<Project Sdk="Rustzor.Sdk/RUSTZOR_VERSION">
+  <!-- dotnet build puts the site in bin/Debug/net10.0/wwwroot; `rustzor serve` runs it with live reload. -->
+  <ItemGroup>
+    <PackageReference Include="Rustzor.UI" Version="RUSTZOR_VERSION" />
+    <PackageReference Include="Rustzor.Browser.Storage" Version="RUSTZOR_VERSION" />
+  </ItemGroup>
+</Project>

@@ -26,7 +26,7 @@ while IFS= read -r project; do
   [[ "$(basename "$project")" == "Rustzor.Build.csproj" ]] && continue
   dotnet pack "$project" -c Release --nologo -v q -o "$OUT" -p:ContinuousIntegrationBuild=true "${VERSION_ARG[@]}"
   count=$((count + 1))
-done < <(find src -name '*.csproj' -not -path '*/bin/*' -not -path '*/obj/*' | sort)
+done < <(find src -name '*.csproj' -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/content/*' | sort)
 
 echo "packed $count projects:"
 ls "$OUT"

@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    dotnet new templates for Rustzor: `rustzor` (an app with the Rustzor.UI
+    shell), `rustzor-empty` (the minimum) and `rustzorlib` (a library with its
+    own browser module). Install: dotnet new install Rustzor.Templates.
+
+    The template sources say RUSTZOR_VERSION wherever a Rustzor package version
+    belongs; packing replaces it with this package's version, so a template
+    always asks for the packages it was released with.
+  -->
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <Description>Project templates for Rustzor: C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). dotnet new rustzor, rustzor-empty, rustzorlib.</Description>
+    <PackageTags>$(PackageTags);dotnet-new;templates</PackageTags>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128;NU5110;NU5111</NoWarn>
+  </PropertyGroup>
+
+  <Target Name="RustzorStageTemplates" BeforeTargets="_GetPackageFiles">
+    <PropertyGroup>
+      <_TemplatesStage>$(IntermediateOutputPath)templates\</_TemplatesStage>
+    </PropertyGroup>
+    <ItemGroup>
+      <_TemplateSource Include="content\**\*" Exclude="content\**\bin\**;content\**\obj\**" />
+    </ItemGroup>
+    <RemoveDir Directories="$(_TemplatesStage)" />
+    <!-- Copy, then put this package's version where the sources say RUSTZOR_VERSION. -->
+    <Copy SourceFiles="@(_TemplateSource)" DestinationFiles="@(_TemplateSource->'$(_TemplatesStage)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <ItemGroup>
+      <_TemplateText Include="$(_TemplatesStage)**\*.csproj;$(_TemplatesStage)**\template.json;$(_TemplatesStage)**\*.md" />
+    </ItemGroup>
+    <WriteLinesToFile File="%(_TemplateText.FullPath)" Lines="$([MSBuild]::Escape($([System.IO.File]::ReadAllText('%(_TemplateText.FullPath)').Replace('RUSTZOR_VERSION', '$(PackageVersion)'))))" Overwrite="true" />
+    <ItemGroup>
+      <_TemplateStaged Include="$(_TemplatesStage)**\*" />
+      <!-- A full path per file: a folder PackagePath gets the item's own relative path appended. -->
+      <None Include="@(_TemplateStaged)" Pack="true" PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

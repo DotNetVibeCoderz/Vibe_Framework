@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Gravicode Studios",
+  "classifications": [ "Web", "Rustzor", "WebAssembly", "Razor", "Library" ],
+  "identity": "Rustzor.Templates.Library",
+  "groupIdentity": "Rustzor.Library",
+  "name": "Rustzor Library",
+  "description": "A Rustzor library: Razor components and C# over a browser API, with its JavaScript in an embedded rustzor.module.js that apps load automatically.",
+  "shortName": "rustzorlib",
+  "sourceName": "RustzorLibrary",
+  "preferNameDirectory": true,
+  "tags": { "language": "C#", "type": "project" },
+  "primaryOutputs": [ { "path": "RustzorLibrary.csproj" } ]
+}

@@ -1,0 +1,79 @@
+{
+  "Rustzor Program.cs": {
+    "prefix": "rzprogram",
+    "description": "The entry point of a Rustzor app",
+    "body": [
+      "using Rustzor.Components;",
+      "",
+      "var builder = RustzorHostBuilder.CreateDefault(args);",
+      "builder.Services.AddSingleton<${1:MyService}>();",
+      "builder.RootComponents.Add<${2:MyApp}.App>(\"#app\");",
+      "await builder.Build().RunAsync();"
+    ]
+  },
+  "Rustzor JS op call": {
+    "prefix": "rzjs",
+    "description": "Call a browser op from C# (Rustzor.Interop)",
+    "body": [
+      "var ${1:result} = await Js.CallAsync(\"${2:module.op}\", Js.Args(\"${3:name}\", ${4:value}));"
+    ]
+  },
+  "Rustzor JsObject": {
+    "prefix": "rzjsobject",
+    "description": "Use any JavaScript object from C#",
+    "body": [
+      "using var ${1:obj} = JsObject.Global(\"${2:navigator}\")!;",
+      "var ${3:value} = ${1:obj}.Get(\"${4:language}\").AsString();"
+    ]
+  },
+  "Rustzor fetch JSON": {
+    "prefix": "rzfetch",
+    "description": "GET a JSON list with FetchClient (Rustzor.Browser.Fetch)",
+    "body": [
+      "var http = new FetchClient(\"${1:https://api.example.com}\");",
+      "List<${2:Item}> ${3:items} = await http.GetListAsync<${2:Item}>(\"${4:/api/items}\");"
+    ]
+  },
+  "Rustzor SignalR hub": {
+    "prefix": "rzsignalr",
+    "description": "Connect to a SignalR hub (Rustzor.Net.SignalR)",
+    "body": [
+      "var hub = new HubConnectionBuilder().WithUrl(\"${1:/hubs/chat}\").WithAutomaticReconnect().Build();",
+      "hub.On<${2:string}, ${3:string}>(\"${4:Message}\", (${5:who}, ${6:text}) => { $0StateHasChanged(); });",
+      "await hub.StartAsync();"
+    ]
+  },
+  "Rustzor protobuf message": {
+    "prefix": "rzproto",
+    "description": "A hand-written protobuf message for Rustzor.Net.GrpcWeb",
+    "body": [
+      "public sealed class ${1:Item} : IProtoMessage",
+      "{",
+      "    public int ${2:Id} { get; set; }",
+      "    public string ${3:Name} { get; set; } = \"\";",
+      "",
+      "    public void WriteTo(ProtoWriter w) { w.Int32(1, ${2:Id}); w.String(2, ${3:Name}); }",
+      "",
+      "    public void ReadFrom(ProtoReader r)",
+      "    {",
+      "        while (r.Next())",
+      "            switch (r.Field)",
+      "            {",
+      "                case 1: ${2:Id} = r.Int32(); break;",
+      "                case 2: ${3:Name} = r.String(); break;",
+      "                default: r.Skip(); break;",
+      "            }",
+      "    }",
+      "}"
+    ]
+  },
+  "Rustzor SQLite": {
+    "prefix": "rzsqlite",
+    "description": "Open a persisted SQLite database (Rustzor.Data)",
+    "body": [
+      "var db = await SqliteDb.OpenAsync(persistKey: \"${1:my-app}\");",
+      "await db.RunAsync(\"create table if not exists ${2:items} (id integer primary key, name text)\");",
+      "var rows = (await db.QueryAsync(\"select * from ${2:items}\")).As<${3:Item}>();"
+    ]
+  }
+}

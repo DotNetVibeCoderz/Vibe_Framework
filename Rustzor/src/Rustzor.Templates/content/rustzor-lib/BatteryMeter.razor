@@ -1,0 +1,27 @@
+@implements IDisposable
+@* A component from this library: the battery level as a bar. *@
+<div class="battery-meter" title="Battery">
+    @if (level < 0)
+    {
+        <span>Battery level not available</span>
+    }
+    else
+    {
+        <span class="bar"><span style="width:@((level * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span></span>
+        <span>@((level * 100).ToString("0"))%</span>
+    }
+</div>
+
+@code {
+    private double level = -1;
+    private IDisposable? watch;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Battery.IsSupported) return;
+        level = await Battery.LevelAsync();
+        watch = Battery.Watch(l => { level = l; StateHasChanged(); });
+    }
+
+    public void Dispose() => watch?.Dispose();
+}

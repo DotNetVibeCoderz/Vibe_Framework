@@ -2,6 +2,35 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-11: phase 5, tooling
+
+- `Rustzor.Cli`, the `rustzor` command (a .NET tool): `new` (installs the
+  templates of its own version when missing), `serve` (Kestrel dev server with
+  SPA fallback and no-cache headers; rebuilds on save and reloads open pages
+  through server-sent events; a failed build is shown over the page with
+  project-relative paths), `publish` (with `--aot`, and a size report raw and
+  gzipped), `add` (50 short names such as `ui`, `fetch`, `camera`), `info`.
+- `Rustzor.Templates`: `rustzor` (Rustzor.UI shell with Home, Counter and
+  Tasks in localStorage), `rustzor-empty`, `rustzorlib` (component, C# over a
+  browser API and its `rustzor.module.js`). Packing writes the package
+  version into each template.
+- VS Code extension (`tools/vscode-rustzor`): commands for new project,
+  serve and stop, publish (also AOT), add package (searchable list), info,
+  install the CLI, docs; a serve button in the status bar; Razor, C# and
+  JavaScript snippets. Tested inside VS Code (commands registered, Rustzor
+  app detected); packed as a `.vsix` by CI.
+- Package catalog: `docs/catalog/index.html` (search, group filters, copy
+  buttons, both themes) and `docs/en|id/packages.md`, generated from the
+  projects by `tools/e2e/make-catalog.mjs`; CI fails when they are stale.
+  45 packages now, with icons for the two new ones.
+- Verified: a CLI installed from the packed packages created all three
+  templates; `serve` rebuilt in about 3 s and reloaded the open page, showed a
+  syntax error over the page and cleared it after the fix; an app using a
+  `rustzorlib` library got the library's browser module; `publish --aot`
+  produced a 671 KB (gzipped) site. `scripts/tooling-smoke.sh` repeats this in CI.
+- Docs: `docs/en/tooling.md` and `docs/id/tooling.md`; getting started, the
+  READMEs, limitations, architecture and building from source updated.
+
 ## 2026-10-11: packages, documentation, release pipeline
 
 **Published:** `0.1.0-preview.1`, all 43 packages, to nuget.org by the

@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Gravicode Studios",
+  "classifications": [ "Web", "Rustzor", "WebAssembly", "Razor" ],
+  "identity": "Rustzor.Templates.App",
+  "groupIdentity": "Rustzor.App",
+  "name": "Rustzor App",
+  "description": "A Rustzor app with the Rustzor.UI shell: C# Razor components running in the browser on RustNetRuntime (Rust, compiled to WebAssembly).",
+  "shortName": "rustzor",
+  "sourceName": "RustzorApp",
+  "preferNameDirectory": true,
+  "tags": { "language": "C#", "type": "project" },
+  "symbols": {
+    "Title": {
+      "type": "parameter",
+      "datatype": "text",
+      "defaultValue": "My Rustzor App",
+      "replaces": "APP_TITLE",
+      "description": "The app's display name, shown in the sidebar and the browser tab."
+    }
+  },
+  "primaryOutputs": [ { "path": "RustzorApp.csproj" } ]
+}

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The `rustzor` command: new, serve (with live reload), publish, add, info.
+    Install: dotnet tool install -g Rustzor.Cli
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>rustzor</ToolCommandName>
+    <RootNamespace>Rustzor.Cli</RootNamespace>
+    <Description>The rustzor command for Rustzor apps (C# Razor in the browser on RustNetRuntime): rustzor new, rustzor serve with live reload, rustzor publish, rustzor add, rustzor info.</Description>
+    <PackageTags>$(PackageTags);cli;dotnet-tool;live-reload</PackageTags>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The development server: Kestrel, which every .NET SDK install already has. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <EmbeddedResource Include="livereload.js" LogicalName="livereload.js" />
+  </ItemGroup>
+
+</Project>

@@ -24,8 +24,7 @@ Lihat [komponen](components.md#belum-didukung): belum ada `DataAnnotationsValida
 
 ## Tooling
 
-- Belum ada command-line tool `rustzor` maupun template `dotnet new`: mulailah dari [panduan memulai](getting-started.md) atau sebuah template [RustzorAppGen](appgen.md).
-- Hot reload belum tersedia; lakukan rebuild lalu refresh.
+- Reload tidak mempertahankan state: `rustzor serve` mem-build ulang dan me-reload seluruh halaman setiap kali Anda menyimpan (lihat [tooling](tooling.md)), sehingga state di memori dimulai dari awal lagi.
 - Debugging dilakukan lewat console browser: unhandled exception dicetak beserta managed stack trace-nya.
 
 ## Performa

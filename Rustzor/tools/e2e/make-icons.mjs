@@ -23,6 +23,7 @@ const groups = {
 // Package id -> [label, group]. Every packable project under src/ must be listed.
 const labels = {
   "Rustzor.Core": ["Rz", "core"], "Rustzor.Components": ["</>", "core"], "Rustzor.Sdk": ["SDK", "core"], "Rustzor.UI": ["UI", "core"],
+  "Rustzor.Cli": [">_", "core"], "Rustzor.Templates": ["NEW", "core"],
   "Rustzor.Browser.AI": ["AI", "browser"], "Rustzor.Browser.Audio": ["AUD", "browser"], "Rustzor.Browser.BackgroundSync": ["SYNC", "browser"],
   "Rustzor.Browser.Bluetooth": ["BT", "browser"], "Rustzor.Browser.Canvas": ["2D", "browser"], "Rustzor.Browser.DOM": ["DOM", "browser"],
   "Rustzor.Browser.Fetch": ["GET", "browser"], "Rustzor.Browser.FileSystem": ["FS", "browser"], "Rustzor.Browser.Gamepad": ["PAD", "browser"],
@@ -43,7 +44,7 @@ const projects = [];
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
-    if (statSync(p).isDirectory() && !["bin", "obj"].includes(name)) walk(p);
+    if (statSync(p).isDirectory() && !["bin", "obj", "content"].includes(name)) walk(p);
     else if (name.endsWith(".csproj") && name !== "Rustzor.Build.csproj") projects.push(basename(name, ".csproj"));
   }
 };

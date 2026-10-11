@@ -1,0 +1,21 @@
+@page "/counter"
+
+<PageHeader Title="Counter" Eyebrow="Events and state" Text="A click runs C# in the browser; only the changed text is patched into the page." />
+
+<Card>
+    <p class="count">@count</p>
+    <div class="rz-row">
+        <button class="rz-btn primary" @onclick="() => count++"><Icon Name="plus" /> Add one</button>
+        <button class="rz-btn" disabled="@(count == 0)" @onclick="Reset">Reset</button>
+    </div>
+</Card>
+
+@code {
+    private int count;
+
+    private void Reset()
+    {
+        count = 0;
+        Toasts.Info("Back to zero");
+    }
+}

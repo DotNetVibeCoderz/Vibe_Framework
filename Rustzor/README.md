@@ -16,6 +16,15 @@ The programming model is Blazor's: `.razor` files, `@code`, `@bind`, `EventCallb
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download). Nothing else: the runtime comes inside the `Rustzor.Sdk` package.
 
+```bash
+dotnet tool install -g Rustzor.Cli --prerelease
+rustzor new app HelloRustzor
+cd HelloRustzor
+rustzor serve --open          # rebuilds and reloads the page on every save
+```
+
+Or by hand:
+
 ```xml
 <!-- HelloRustzor.csproj -->
 <Project Sdk="Rustzor.Sdk/0.1.0-preview.1">
@@ -78,11 +87,20 @@ Components render into a virtual DOM in C#; the runtime sends the browser only t
 
 | Group | Packages |
 | --- | --- |
-| Core | `Rustzor.Sdk`, `Rustzor.Components` (Blazor-compatible component model), `Rustzor.Core` (JavaScript bridge, JSON, timers), `Rustzor.UI` (component kit) |
+| Core | `Rustzor.Sdk`, `Rustzor.Components` (Blazor-compatible component model), `Rustzor.Core` (JavaScript bridge, JSON, timers), `Rustzor.UI` (component kit), `Rustzor.Cli` (the `rustzor` command), `Rustzor.Templates` (`dotnet new`) |
 | Browser APIs | `Rustzor.Browser.*`: DOM, Fetch, WebSocket, Storage, FileSystem, Notifications, Push, BackgroundSync, Workers, Location, Sensors, Media, Audio, Video, Canvas, OffscreenCanvas, WebGL, WebGPU, WebRTC, WebXR, Bluetooth, USB, Serial, HID, NFC, Gamepad, AI |
 | Frameworks | `Rustzor.Data` (SQLite, IndexedDB, DuckDB), `Rustzor.Game`, `Rustzor.Graphics`, `Rustzor.AI` |
 | Integrations | `Rustzor.UI.Bootstrap`, `Rustzor.UI.Tailwind`, `Rustzor.UI.Mui`, `Rustzor.Charts.ChartJs`, `Rustzor.Charts.ECharts`, `Rustzor.Charts.D3` |
 | Networking | `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb` |
+
+## Tooling
+
+- **`rustzor` CLI**: `new`, `serve` with live reload and an in-page build-error overlay, `publish` with a size report, `add`, `info`.
+- **`dotnet new` templates**: `rustzor`, `rustzor-empty`, `rustzorlib`.
+- **VS Code extension**: commands, a serve button, snippets.
+- **[Package catalog](docs/catalog/index.html)**: every package with its install command.
+
+More in [docs/en/tooling.md](docs/en/tooling.md).
 
 ## RustzorAppGen
 
@@ -94,7 +112,7 @@ A desktop editor (Avalonia) for generating Rustzor apps with an AI assistant, **
 
 English: [docs/en](docs/en/README.md) · Bahasa Indonesia: [docs/id](docs/id/README.md)
 
-Getting started · Architecture · Components, routing and forms · JavaScript interop · Rustzor.UI · Browser APIs · Frameworks · Integrations · Networking · Build modes · Samples · RustzorAppGen · Building from source · Limitations
+Getting started · Architecture · Components, routing and forms · JavaScript interop · Rustzor.UI · Browser APIs · Frameworks · Integrations · Networking · Build modes · Samples · Tooling · Packages · RustzorAppGen · Building from source · Limitations
 
 ## Build from source
 

@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rustzor packages</title>
+<meta name="description" content="Every Rustzor NuGet package, with its install command. Built by Gravicode Studios, led by Kang Fadhil.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f4f2ef; --surface: #ffffff; --line: #dcd8d2; --fg: #1d1b19; --muted: #6b665f;
+    --rust: #c2410c; --rust-soft: #fbe5d8; --patina: #0f766e; --code: #f7f5f2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #141312; --surface: #1c1b19; --line: #34312d; --fg: #ece7e1; --muted: #a39b91; --rust: #f97316; --rust-soft: #3a2316; --patina: #2dd4bf; --code: #232120; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #141312; --surface: #1c1b19; --line: #34312d; --fg: #ece7e1; --muted: #a39b91; --rust: #f97316; --rust-soft: #3a2316; --patina: #2dd4bf; --code: #232120; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; }
+  code, .cmd { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
+  a { color: inherit; }
+  .hero { padding-block: 56px 28px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 40px; align-items: end; }
+  .hero h1 { font: 800 clamp(34px, 5vw, 56px)/1.02 "Bricolage Grotesque", system-ui, sans-serif; letter-spacing: -0.03em; margin: 0 0 14px; text-wrap: balance; }
+  .hero h1 em { font-style: normal; color: var(--rust); }
+  .hero p { margin: 0; color: var(--muted); max-width: 52ch; }
+  .start { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .start h2 { font: 600 12px/1 "IBM Plex Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .start ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; counter-reset: s; }
+  .start li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: baseline; counter-increment: s; }
+  .start li::before { content: counter(s); font: 700 12px/22px "JetBrains Mono", monospace; text-align: center; border-radius: 6px; background: var(--rust-soft); color: var(--rust); }
+  .start code { font-size: 13px; overflow-wrap: anywhere; }
+  .tools { position: sticky; top: 0; z-index: 2; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .tools .wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-block: 12px; }
+  .tools input { flex: 1 1 260px; min-width: 0; height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--fg); font: inherit; }
+  .tools input:focus { outline: 2px solid var(--rust); outline-offset: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: 500 13px "IBM Plex Sans", sans-serif; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .count { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .group { padding-block: 26px 6px; }
+  .group header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 14px; }
+  .group h2 { margin: 0; font: 800 24px "Bricolage Grotesque", system-ui, sans-serif; letter-spacing: -0.01em; }
+  .group h2 span { font: 500 13px "JetBrains Mono", monospace; color: var(--muted); }
+  .group header p { margin: 0; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .pkg { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 14px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  .pkg img { border-radius: 12px; }
+  .pkg-body { min-width: 0; display: flex; flex-direction: column; }
+  .pkg h3 { margin: 0 0 4px; font: 600 15px "IBM Plex Sans", sans-serif; }
+  .pkg h3 a { text-decoration: none; }
+  .pkg h3 a:hover { color: var(--rust); text-decoration: underline; }
+  .pkg p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; flex: 1; }
+  .cmd { display: flex; align-items: center; gap: 6px; background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 6px 10px; font-size: 12px; }
+  .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; }
+  .copy { flex: none; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--rust); color: #fff; font: 600 12px "IBM Plex Sans", sans-serif; cursor: pointer; }
+  .copy.done { background: var(--patina); }
+  .alias { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+  .alias code { color: var(--patina); }
+  .empty { padding: 40px 0; color: var(--muted); }
+  footer { padding-block: 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 30px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: minmax(0, 1fr); padding-block: 36px 20px; gap: 20px; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .count { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap hero">
+    <div>
+      <h1>Every <em>Rustzor</em> package, ready to install.</h1>
+      <p>C# Razor apps in the browser on RustNetRuntime, a .NET runtime written in Rust and compiled to WebAssembly. 45 packages at <code>0.1.0-preview.1</code>; reference only what your app uses.</p>
+    </div>
+    <div class="start">
+      <h2>Start in three commands</h2>
+      <ol>
+        <li><code>dotnet tool install -g Rustzor.Cli --prerelease</code></li>
+        <li><code>rustzor new app MyApp</code></li>
+        <li><code>cd MyApp &amp;&amp; rustzor serve</code></li>
+      </ol>
+    </div>
+  </div>
+  <div class="tools">
+    <div class="wrap">
+      <input type="search" id="q" placeholder="Search: camera, sql, charts, signalr…" aria-label="Search packages">
+      <div class="chips" role="group" aria-label="Group">
+        <button class="chip" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" data-filter="core" aria-pressed="false">Core</button>
+        <button class="chip" data-filter="browser" aria-pressed="false">Browser APIs</button>
+        <button class="chip" data-filter="frameworks" aria-pressed="false">Frameworks</button>
+        <button class="chip" data-filter="integrations" aria-pressed="false">Integrations</button>
+        <button class="chip" data-filter="net" aria-pressed="false">Networking</button>
+      </div>
+      <span class="count" id="count">45 packages</span>
+    </div>
+  </div>
+  <main class="wrap">
+    <section class="group" data-key="core">
+      <header><h2>Core <span>6</span></h2><p>The SDK, the component model, the UI kit and the tools.</p></header>
+      <div class="grid">
+      <article class="pkg" data-group="core" data-text="rustzor.cli the rustzor command for rustzor apps (c# razor in the browser on rustnetruntime): rustzor new, rustzor serve with live reload, rustzor publish, rustzor add, rustzor info. ">
+        <img src="icons/Rustzor.Cli.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Cli" target="_blank" rel="noopener">Rustzor.Cli</a></h3>
+          <p>The rustzor command for Rustzor apps (C# Razor in the browser on RustNetRuntime): rustzor new, rustzor serve with live reload, rustzor publish, rustzor add, rustzor info.</p>
+          <div class="cmd"><code>dotnet tool install -g Rustzor.Cli --prerelease</code><button type="button" class="copy" data-copy="dotnet tool install -g Rustzor.Cli --prerelease" aria-label="Copy the install command for Rustzor.Cli">Copy</button></div>
+          
+        </div>
+      </article>
+      <article class="pkg" data-group="core" data-text="rustzor.components rustzor components: a blazor-compatible component model (componentbase, rendertreebuilder, eventcallback, @bind, routing, layouts, forms, di) rendered by a virtual-dom diff on rustnetruntime in the browser. write .razor files; no asp.net core assemblies are needed. ">
+        <img src="icons/Rustzor.Components.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Components" target="_blank" rel="noopener">Rustzor.Components</a></h3>
+          <p>Rustzor components: a Blazor-compatible component model (ComponentBase, RenderTreeBuilder, EventCallback, @bind, routing, layouts, forms, DI) rendered by a virtual-DOM diff on RustNetRuntime in the browser. Write .razor files; no ASP.NET Core assemblies are needed.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Components --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Components --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Components">Copy</button></div>
+          
+        </div>
+      </article>
+      <article class="pkg" data-group="core" data-text="rustzor.core rustzor core: the javascript bridge, callbacks, timers and a json reader/writer for c# running on rustnetruntime in the browser. ">
+        <img src="icons/Rustzor.Core.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Core" target="_blank" rel="noopener">Rustzor.Core</a></h3>
+          <p>Rustzor core: the JavaScript bridge, callbacks, timers and a JSON reader/writer for C# running on RustNetRuntime in the browser.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Core --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Core --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Core">Copy</button></div>
+          
+        </div>
+      </article>
+      <article class="pkg" data-group="core" data-text="rustzor.sdk rustzor sdk: build c# razor apps that run in the browser on rustnetruntime (rust, compiled to webassembly). use as &lt;project sdk=&quot;rustzor.sdk/0.1.0-preview.1&quot;&gt;. dotnet build produces a static site; -p:rustzoraot=true adds ahead-of-time webassembly. ">
+        <img src="icons/Rustzor.Sdk.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Sdk" target="_blank" rel="noopener">Rustzor.Sdk</a></h3>
+          <p>Rustzor SDK: build C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). Use as &lt;Project Sdk=&quot;Rustzor.Sdk/0.1.0-preview.1&quot;&gt;. dotnet build produces a static site; -p:RustzorAot=true adds ahead-of-time WebAssembly.</p>
+          <div class="cmd"><code>&lt;Project Sdk=&quot;Rustzor.Sdk/0.1.0-preview.1&quot;&gt;</code><button type="button" class="copy" data-copy="&lt;Project Sdk=&quot;Rustzor.Sdk/0.1.0-preview.1&quot;&gt;" aria-label="Copy the install command for Rustzor.Sdk">Copy</button></div>
+          
+        </div>
+      </article>
+      <article class="pkg" data-group="core" data-text="rustzor.templates project templates for rustzor: c# razor apps that run in the browser on rustnetruntime (rust, compiled to webassembly). dotnet new rustzor, rustzor-empty, rustzorlib. ">
+        <img src="icons/Rustzor.Templates.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Templates" target="_blank" rel="noopener">Rustzor.Templates</a></h3>
+          <p>Project templates for Rustzor: C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). dotnet new rustzor, rustzor-empty, rustzorlib.</p>
+          <div class="cmd"><code>dotnet new install Rustzor.Templates::0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet new install Rustzor.Templates::0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Templates">Copy</button></div>
+          
+        </div>
+      </article>
+      <article class="pkg" data-group="core" data-text="rustzor.ui rustzor.ui: a professional component kit for rustzor apps — app shell, data grid, svg charts, stat cards, modals, tabs, toasts, forms and icons, themed for light and dark. ui">
+        <img src="icons/Rustzor.UI.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.UI" target="_blank" rel="noopener">Rustzor.UI</a></h3>
+          <p>Rustzor.UI: a professional component kit for Rustzor apps — app shell, data grid, SVG charts, stat cards, modals, tabs, toasts, forms and icons, themed for light and dark.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.UI --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.UI --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.UI">Copy</button></div>
+          <div class="alias">or <code>rustzor add ui</code></div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="group" data-key="browser">
+      <header><h2>Browser APIs <span>27</span></h2><p>One package per browser API; an app downloads only the ones it references.</p></header>
+      <div class="grid">
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.ai rustzor.browser.ai: the browser's ai api for c# on rustzor (rustnetruntime in webassembly). builtin-ai">
+        <img src="icons/Rustzor.Browser.AI.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.AI" target="_blank" rel="noopener">Rustzor.Browser.AI</a></h3>
+          <p>Rustzor.Browser.AI: the browser's AI API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.AI --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.AI --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.AI">Copy</button></div>
+          <div class="alias">or <code>rustzor add builtin-ai</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.audio rustzor.browser.audio: the browser's audio api for c# on rustzor (rustnetruntime in webassembly). audio">
+        <img src="icons/Rustzor.Browser.Audio.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Audio" target="_blank" rel="noopener">Rustzor.Browser.Audio</a></h3>
+          <p>Rustzor.Browser.Audio: the browser's Audio API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Audio --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Audio --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Audio">Copy</button></div>
+          <div class="alias">or <code>rustzor add audio</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.backgroundsync rustzor.browser.backgroundsync: the browser's backgroundsync api for c# on rustzor (rustnetruntime in webassembly). sync">
+        <img src="icons/Rustzor.Browser.BackgroundSync.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.BackgroundSync" target="_blank" rel="noopener">Rustzor.Browser.BackgroundSync</a></h3>
+          <p>Rustzor.Browser.BackgroundSync: the browser's BackgroundSync API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.BackgroundSync --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.BackgroundSync --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.BackgroundSync">Copy</button></div>
+          <div class="alias">or <code>rustzor add sync</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.bluetooth rustzor.browser.bluetooth: the browser's bluetooth api for c# on rustzor (rustnetruntime in webassembly). bluetooth">
+        <img src="icons/Rustzor.Browser.Bluetooth.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Bluetooth" target="_blank" rel="noopener">Rustzor.Browser.Bluetooth</a></h3>
+          <p>Rustzor.Browser.Bluetooth: the browser's Bluetooth API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Bluetooth --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Bluetooth --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Bluetooth">Copy</button></div>
+          <div class="alias">or <code>rustzor add bluetooth</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.canvas rustzor.browser.canvas: the browser's canvas api for c# on rustzor (rustnetruntime in webassembly). canvas">
+        <img src="icons/Rustzor.Browser.Canvas.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Canvas" target="_blank" rel="noopener">Rustzor.Browser.Canvas</a></h3>
+          <p>Rustzor.Browser.Canvas: the browser's Canvas API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Canvas --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Canvas --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Canvas">Copy</button></div>
+          <div class="alias">or <code>rustzor add canvas</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.dom rustzor.browser.dom: the browser's dom api for c# on rustzor (rustnetruntime in webassembly). dom">
+        <img src="icons/Rustzor.Browser.DOM.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.DOM" target="_blank" rel="noopener">Rustzor.Browser.DOM</a></h3>
+          <p>Rustzor.Browser.DOM: the browser's DOM API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.DOM --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.DOM --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.DOM">Copy</button></div>
+          <div class="alias">or <code>rustzor add dom</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.fetch rustzor.browser.fetch: the browser's fetch api for c# on rustzor (rustnetruntime in webassembly). fetch http">
+        <img src="icons/Rustzor.Browser.Fetch.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Fetch" target="_blank" rel="noopener">Rustzor.Browser.Fetch</a></h3>
+          <p>Rustzor.Browser.Fetch: the browser's Fetch API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Fetch --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Fetch --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Fetch">Copy</button></div>
+          <div class="alias">or <code>rustzor add fetch</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.filesystem rustzor.browser.filesystem: the browser's filesystem api for c# on rustzor (rustnetruntime in webassembly). files filesystem">
+        <img src="icons/Rustzor.Browser.FileSystem.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.FileSystem" target="_blank" rel="noopener">Rustzor.Browser.FileSystem</a></h3>
+          <p>Rustzor.Browser.FileSystem: the browser's FileSystem API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.FileSystem --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.FileSystem --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.FileSystem">Copy</button></div>
+          <div class="alias">or <code>rustzor add files</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.gamepad rustzor.browser.gamepad: the browser's gamepad api for c# on rustzor (rustnetruntime in webassembly). gamepad">
+        <img src="icons/Rustzor.Browser.Gamepad.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Gamepad" target="_blank" rel="noopener">Rustzor.Browser.Gamepad</a></h3>
+          <p>Rustzor.Browser.Gamepad: the browser's Gamepad API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Gamepad --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Gamepad --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Gamepad">Copy</button></div>
+          <div class="alias">or <code>rustzor add gamepad</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.hid rustzor.browser.hid: the browser's hid api for c# on rustzor (rustnetruntime in webassembly). hid">
+        <img src="icons/Rustzor.Browser.HID.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.HID" target="_blank" rel="noopener">Rustzor.Browser.HID</a></h3>
+          <p>Rustzor.Browser.HID: the browser's HID API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.HID --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.HID --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.HID">Copy</button></div>
+          <div class="alias">or <code>rustzor add hid</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.location rustzor.browser.location: the browser's location api for c# on rustzor (rustnetruntime in webassembly). location geo">
+        <img src="icons/Rustzor.Browser.Location.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Location" target="_blank" rel="noopener">Rustzor.Browser.Location</a></h3>
+          <p>Rustzor.Browser.Location: the browser's Location API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Location --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Location --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Location">Copy</button></div>
+          <div class="alias">or <code>rustzor add location</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.media rustzor.browser.media: the browser's media api for c# on rustzor (rustnetruntime in webassembly). media camera">
+        <img src="icons/Rustzor.Browser.Media.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Media" target="_blank" rel="noopener">Rustzor.Browser.Media</a></h3>
+          <p>Rustzor.Browser.Media: the browser's Media API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Media --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Media --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Media">Copy</button></div>
+          <div class="alias">or <code>rustzor add media</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.nfc rustzor.browser.nfc: the browser's nfc api for c# on rustzor (rustnetruntime in webassembly). nfc">
+        <img src="icons/Rustzor.Browser.NFC.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.NFC" target="_blank" rel="noopener">Rustzor.Browser.NFC</a></h3>
+          <p>Rustzor.Browser.NFC: the browser's NFC API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.NFC --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.NFC --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.NFC">Copy</button></div>
+          <div class="alias">or <code>rustzor add nfc</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.notifications rustzor.browser.notifications: the browser's notifications api for c# on rustzor (rustnetruntime in webassembly). notifications">
+        <img src="icons/Rustzor.Browser.Notifications.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Notifications" target="_blank" rel="noopener">Rustzor.Browser.Notifications</a></h3>
+          <p>Rustzor.Browser.Notifications: the browser's Notifications API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Notifications --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Notifications --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Notifications">Copy</button></div>
+          <div class="alias">or <code>rustzor add notifications</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.offscreencanvas rustzor.browser.offscreencanvas: the browser's offscreencanvas api for c# on rustzor (rustnetruntime in webassembly). offscreen">
+        <img src="icons/Rustzor.Browser.OffscreenCanvas.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.OffscreenCanvas" target="_blank" rel="noopener">Rustzor.Browser.OffscreenCanvas</a></h3>
+          <p>Rustzor.Browser.OffscreenCanvas: the browser's OffscreenCanvas API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.OffscreenCanvas --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.OffscreenCanvas --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.OffscreenCanvas">Copy</button></div>
+          <div class="alias">or <code>rustzor add offscreen</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.push rustzor.browser.push: the browser's push api for c# on rustzor (rustnetruntime in webassembly). push">
+        <img src="icons/Rustzor.Browser.Push.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Push" target="_blank" rel="noopener">Rustzor.Browser.Push</a></h3>
+          <p>Rustzor.Browser.Push: the browser's Push API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Push --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Push --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Push">Copy</button></div>
+          <div class="alias">or <code>rustzor add push</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.sensors rustzor.browser.sensors: the browser's sensors api for c# on rustzor (rustnetruntime in webassembly). sensors">
+        <img src="icons/Rustzor.Browser.Sensors.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Sensors" target="_blank" rel="noopener">Rustzor.Browser.Sensors</a></h3>
+          <p>Rustzor.Browser.Sensors: the browser's Sensors API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Sensors --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Sensors --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Sensors">Copy</button></div>
+          <div class="alias">or <code>rustzor add sensors</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.serial rustzor.browser.serial: the browser's serial api for c# on rustzor (rustnetruntime in webassembly). serial">
+        <img src="icons/Rustzor.Browser.Serial.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Serial" target="_blank" rel="noopener">Rustzor.Browser.Serial</a></h3>
+          <p>Rustzor.Browser.Serial: the browser's Serial API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Serial --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Serial --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Serial">Copy</button></div>
+          <div class="alias">or <code>rustzor add serial</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.storage rustzor.browser.storage: the browser's storage api for c# on rustzor (rustnetruntime in webassembly). storage">
+        <img src="icons/Rustzor.Browser.Storage.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Storage" target="_blank" rel="noopener">Rustzor.Browser.Storage</a></h3>
+          <p>Rustzor.Browser.Storage: the browser's Storage API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Storage --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Storage --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Storage">Copy</button></div>
+          <div class="alias">or <code>rustzor add storage</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.usb rustzor.browser.usb: the browser's usb api for c# on rustzor (rustnetruntime in webassembly). usb">
+        <img src="icons/Rustzor.Browser.USB.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.USB" target="_blank" rel="noopener">Rustzor.Browser.USB</a></h3>
+          <p>Rustzor.Browser.USB: the browser's USB API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.USB --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.USB --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.USB">Copy</button></div>
+          <div class="alias">or <code>rustzor add usb</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.video rustzor.browser.video: the browser's video api for c# on rustzor (rustnetruntime in webassembly). video">
+        <img src="icons/Rustzor.Browser.Video.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Video" target="_blank" rel="noopener">Rustzor.Browser.Video</a></h3>
+          <p>Rustzor.Browser.Video: the browser's Video API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Video --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Video --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Video">Copy</button></div>
+          <div class="alias">or <code>rustzor add video</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.webgl rustzor.browser.webgl: the browser's webgl api for c# on rustzor (rustnetruntime in webassembly). webgl">
+        <img src="icons/Rustzor.Browser.WebGL.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.WebGL" target="_blank" rel="noopener">Rustzor.Browser.WebGL</a></h3>
+          <p>Rustzor.Browser.WebGL: the browser's WebGL API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.WebGL --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.WebGL --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.WebGL">Copy</button></div>
+          <div class="alias">or <code>rustzor add webgl</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.webgpu rustzor.browser.webgpu: the browser's webgpu api for c# on rustzor (rustnetruntime in webassembly). webgpu">
+        <img src="icons/Rustzor.Browser.WebGPU.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.WebGPU" target="_blank" rel="noopener">Rustzor.Browser.WebGPU</a></h3>
+          <p>Rustzor.Browser.WebGPU: the browser's WebGPU API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.WebGPU --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.WebGPU --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.WebGPU">Copy</button></div>
+          <div class="alias">or <code>rustzor add webgpu</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.webrtc rustzor.browser.webrtc: the browser's webrtc api for c# on rustzor (rustnetruntime in webassembly). webrtc">
+        <img src="icons/Rustzor.Browser.WebRTC.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.WebRTC" target="_blank" rel="noopener">Rustzor.Browser.WebRTC</a></h3>
+          <p>Rustzor.Browser.WebRTC: the browser's WebRTC API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.WebRTC --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.WebRTC --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.WebRTC">Copy</button></div>
+          <div class="alias">or <code>rustzor add webrtc</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.websocket rustzor.browser.websocket: the browser's websocket api for c# on rustzor (rustnetruntime in webassembly). websocket ws">
+        <img src="icons/Rustzor.Browser.WebSocket.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.WebSocket" target="_blank" rel="noopener">Rustzor.Browser.WebSocket</a></h3>
+          <p>Rustzor.Browser.WebSocket: the browser's WebSocket API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.WebSocket --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.WebSocket --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.WebSocket">Copy</button></div>
+          <div class="alias">or <code>rustzor add websocket</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.webxr rustzor.browser.webxr: the browser's webxr api for c# on rustzor (rustnetruntime in webassembly). webxr">
+        <img src="icons/Rustzor.Browser.WebXR.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.WebXR" target="_blank" rel="noopener">Rustzor.Browser.WebXR</a></h3>
+          <p>Rustzor.Browser.WebXR: the browser's WebXR API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.WebXR --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.WebXR --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.WebXR">Copy</button></div>
+          <div class="alias">or <code>rustzor add webxr</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="browser" data-text="rustzor.browser.workers rustzor.browser.workers: the browser's workers api for c# on rustzor (rustnetruntime in webassembly). workers pwa">
+        <img src="icons/Rustzor.Browser.Workers.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Browser.Workers" target="_blank" rel="noopener">Rustzor.Browser.Workers</a></h3>
+          <p>Rustzor.Browser.Workers: the browser's Workers API for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Browser.Workers --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Browser.Workers --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Browser.Workers">Copy</button></div>
+          <div class="alias">or <code>rustzor add workers</code></div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="group" data-key="frameworks">
+      <header><h2>Frameworks <span>4</span></h2><p>Data, games, graphics and AI on top of the browser APIs.</p></header>
+      <div class="grid">
+      <article class="pkg" data-group="frameworks" data-text="rustzor.ai rustzor.ai: ai for rustzor apps. streaming chat with openai, azure openai, anthropic claude, ollama and any openai-compatible endpoint; embeddings; an in-memory vector store and a retrieval-augmented generation pipeline; and local inference in the browser with transformers.js or chrome's built-in model. ai">
+        <img src="icons/Rustzor.AI.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.AI" target="_blank" rel="noopener">Rustzor.AI</a></h3>
+          <p>Rustzor.AI: AI for Rustzor apps. Streaming chat with OpenAI, Azure OpenAI, Anthropic Claude, Ollama and any OpenAI-compatible endpoint; embeddings; an in-memory vector store and a retrieval-augmented generation pipeline; and local inference in the browser with transformers.js or Chrome's built-in model.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.AI --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.AI --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.AI">Copy</button></div>
+          <div class="alias">or <code>rustzor add ai</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="frameworks" data-text="rustzor.data rustzor.data: data in the browser for rustzor. typed indexeddb object stores, sqlite (sql.js) with persistence, and duckdb wasm for analytics over csv, parquet and json — all from c#. data sqlite indexeddb">
+        <img src="icons/Rustzor.Data.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Data" target="_blank" rel="noopener">Rustzor.Data</a></h3>
+          <p>Rustzor.Data: data in the browser for Rustzor. Typed IndexedDB object stores, SQLite (sql.js) with persistence, and DuckDB WASM for analytics over CSV, Parquet and JSON — all from C#.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Data --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Data --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Data">Copy</button></div>
+          <div class="alias">or <code>rustzor add data</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="frameworks" data-text="rustzor.game rustzor.game: a 2d game framework for rustzor. entity-component-system world, fixed-step game loop, keyboard/pointer/gamepad input, 2d physics with collisions, tweens, cameras, sound effects and multiplayer sessions over websocket or broadcastchannel. game">
+        <img src="icons/Rustzor.Game.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Game" target="_blank" rel="noopener">Rustzor.Game</a></h3>
+          <p>Rustzor.Game: a 2D game framework for Rustzor. Entity-component-system world, fixed-step game loop, keyboard/pointer/gamepad input, 2D physics with collisions, tweens, cameras, sound effects and multiplayer sessions over WebSocket or BroadcastChannel.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Game --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Game --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Game">Copy</button></div>
+          <div class="alias">or <code>rustzor add game</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="frameworks" data-text="rustzor.graphics rustzor.graphics: graphics for rustzor. a retained 2d scene graph with pan/zoom, hit testing, selection, svg and json export on canvas; rgba pixel operations for image editing; and a webgl 3d renderer with primitives, obj loading, orbit camera and picking. graphics">
+        <img src="icons/Rustzor.Graphics.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Graphics" target="_blank" rel="noopener">Rustzor.Graphics</a></h3>
+          <p>Rustzor.Graphics: graphics for Rustzor. A retained 2D scene graph with pan/zoom, hit testing, selection, SVG and JSON export on Canvas; RGBA pixel operations for image editing; and a WebGL 3D renderer with primitives, OBJ loading, orbit camera and picking.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Graphics --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Graphics --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Graphics">Copy</button></div>
+          <div class="alias">or <code>rustzor add graphics</code></div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="group" data-key="integrations">
+      <header><h2>Integrations <span>6</span></h2><p>Established JavaScript UI and chart libraries, driven from C#.</p></header>
+      <div class="grid">
+      <article class="pkg" data-group="integrations" data-text="rustzor.charts.chartjs rustzor.charts.chartjs: chart.js 4 charts (line, bar, pie, doughnut, radar, polar area, scatter, bubble) as razor components for rustzor, themed for light and dark. chartjs">
+        <img src="icons/Rustzor.Charts.ChartJs.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Charts.ChartJs" target="_blank" rel="noopener">Rustzor.Charts.ChartJs</a></h3>
+          <p>Rustzor.Charts.ChartJs: Chart.js 4 charts (line, bar, pie, doughnut, radar, polar area, scatter, bubble) as Razor components for Rustzor, themed for light and dark.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Charts.ChartJs --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Charts.ChartJs --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Charts.ChartJs">Copy</button></div>
+          <div class="alias">or <code>rustzor add chartjs</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="integrations" data-text="rustzor.charts.d3 rustzor.charts.d3: d3.js 7 visualisations for rustzor — bar, line, pie, force-directed graph and treemap components fed from c#, plus d3script for your own d3 code. d3">
+        <img src="icons/Rustzor.Charts.D3.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Charts.D3" target="_blank" rel="noopener">Rustzor.Charts.D3</a></h3>
+          <p>Rustzor.Charts.D3: D3.js 7 visualisations for Rustzor — bar, line, pie, force-directed graph and treemap components fed from C#, plus D3Script for your own D3 code.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Charts.D3 --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Charts.D3 --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Charts.D3">Copy</button></div>
+          <div class="alias">or <code>rustzor add d3</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="integrations" data-text="rustzor.charts.echarts rustzor.charts.echarts: apache echarts 5 for rustzor. pass any echarts option from c# (anonymous objects work) or build common charts with echartoption helpers. echarts">
+        <img src="icons/Rustzor.Charts.ECharts.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Charts.ECharts" target="_blank" rel="noopener">Rustzor.Charts.ECharts</a></h3>
+          <p>Rustzor.Charts.ECharts: Apache ECharts 5 for Rustzor. Pass any ECharts option from C# (anonymous objects work) or build common charts with EChartOption helpers.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Charts.ECharts --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Charts.ECharts --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Charts.ECharts">Copy</button></div>
+          <div class="alias">or <code>rustzor add echarts</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="integrations" data-text="rustzor.ui.bootstrap rustzor.ui.bootstrap: bootstrap 5.3 for rustzor. buttons, cards, alerts, modals, tabs, accordions, dropdowns, tables, pagination, toasts and form inputs as razor components whose state lives in c#, so bootstrap's own javascript is not needed. bootstrap">
+        <img src="icons/Rustzor.UI.Bootstrap.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.UI.Bootstrap" target="_blank" rel="noopener">Rustzor.UI.Bootstrap</a></h3>
+          <p>Rustzor.UI.Bootstrap: Bootstrap 5.3 for Rustzor. Buttons, cards, alerts, modals, tabs, accordions, dropdowns, tables, pagination, toasts and form inputs as Razor components whose state lives in C#, so Bootstrap's own JavaScript is not needed.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.UI.Bootstrap --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.UI.Bootstrap --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.UI.Bootstrap">Copy</button></div>
+          <div class="alias">or <code>rustzor add bootstrap</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="integrations" data-text="rustzor.ui.mui rustzor.ui.mui: material ui 5 for rustzor. typed razor wrappers (buttons, text fields, selects, switches, sliders, tabs, chips, alerts, cards, app bars, progress) plus muiisland for any mui component, rendered with react 18 and themed with the rustzor palette in light and dark mode. razor content can be nested inside mui components. mui">
+        <img src="icons/Rustzor.UI.Mui.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.UI.Mui" target="_blank" rel="noopener">Rustzor.UI.Mui</a></h3>
+          <p>Rustzor.UI.Mui: Material UI 5 for Rustzor. Typed Razor wrappers (buttons, text fields, selects, switches, sliders, tabs, chips, alerts, cards, app bars, progress) plus MuiIsland for any MUI component, rendered with React 18 and themed with the Rustzor palette in light and dark mode. Razor content can be nested inside MUI components.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.UI.Mui --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.UI.Mui --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.UI.Mui">Copy</button></div>
+          <div class="alias">or <code>rustzor add mui</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="integrations" data-text="rustzor.ui.tailwind rustzor.ui.tailwind: tailwind css 3.4 for rustzor. the in-browser compiler picks up any utility class your razor markup renders, a tw class helper builds conditional class lists, and a set of ready-made components (buttons, cards, inputs, tabs, modals, tables, stats) gets you started. tailwind">
+        <img src="icons/Rustzor.UI.Tailwind.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.UI.Tailwind" target="_blank" rel="noopener">Rustzor.UI.Tailwind</a></h3>
+          <p>Rustzor.UI.Tailwind: Tailwind CSS 3.4 for Rustzor. The in-browser compiler picks up any utility class your Razor markup renders, a Tw class helper builds conditional class lists, and a set of ready-made components (buttons, cards, inputs, tabs, modals, tables, stats) gets you started.</p>
+          <div class="cmd"><code>dotnet add package Rustzor.UI.Tailwind --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.UI.Tailwind --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.UI.Tailwind">Copy</button></div>
+          <div class="alias">or <code>rustzor add tailwind</code></div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <section class="group" data-key="net">
+      <header><h2>Networking <span>2</span></h2><p>Real-time and RPC clients for ASP.NET Core back ends.</p></header>
+      <div class="grid">
+      <article class="pkg" data-group="net" data-text="rustzor.net.grpcweb rustzor.net.grpcweb: grpc-web calls (unary and server streaming) with a small protobuf reader and writer, for c# on rustzor (rustnetruntime in webassembly). grpc grpcweb">
+        <img src="icons/Rustzor.Net.GrpcWeb.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Net.GrpcWeb" target="_blank" rel="noopener">Rustzor.Net.GrpcWeb</a></h3>
+          <p>Rustzor.Net.GrpcWeb: gRPC-Web calls (unary and server streaming) with a small protobuf reader and writer, for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Net.GrpcWeb --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Net.GrpcWeb --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Net.GrpcWeb">Copy</button></div>
+          <div class="alias">or <code>rustzor add grpc</code></div>
+        </div>
+      </article>
+      <article class="pkg" data-group="net" data-text="rustzor.net.signalr rustzor.net.signalr: an asp.net core signalr client (json hub protocol over websockets) for c# on rustzor (rustnetruntime in webassembly). signalr">
+        <img src="icons/Rustzor.Net.SignalR.png" alt="" width="48" height="48" loading="lazy">
+        <div class="pkg-body">
+          <h3><a href="https://www.nuget.org/packages/Rustzor.Net.SignalR" target="_blank" rel="noopener">Rustzor.Net.SignalR</a></h3>
+          <p>Rustzor.Net.SignalR: an ASP.NET Core SignalR client (JSON hub protocol over WebSockets) for C# on Rustzor (RustNetRuntime in WebAssembly).</p>
+          <div class="cmd"><code>dotnet add package Rustzor.Net.SignalR --version 0.1.0-preview.1</code><button type="button" class="copy" data-copy="dotnet add package Rustzor.Net.SignalR --version 0.1.0-preview.1" aria-label="Copy the install command for Rustzor.Net.SignalR">Copy</button></div>
+          <div class="alias">or <code>rustzor add signalr</code></div>
+        </div>
+      </article>
+      </div>
+    </section>
+    <p class="empty" id="empty" hidden>No package matches. Try a browser API name such as “bluetooth”, or a library such as “echarts”.</p>
+  </main>
+  <footer class="wrap">
+    <p>Documentation: <a href="https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/Rustzor/docs/en">English</a> · <a href="https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/Rustzor/docs/id">Bahasa Indonesia</a> · VS Code: search “Rustzor” in Extensions.</p>
+    <p>Built by Gravicode Studios, led by Kang Fadhil. <em>Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</em></p>
+  </footer>
+<script>
+  const q = document.getElementById("q"), count = document.getElementById("count"), empty = document.getElementById("empty");
+  let group = "all";
+  function apply() {
+    const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    document.querySelectorAll(".pkg").forEach((el) => {
+      const ok = (group === "all" || el.dataset.group === group) && words.every((w) => el.dataset.text.includes(w));
+      el.hidden = !ok;
+      if (ok) shown++;
+    });
+    document.querySelectorAll(".group").forEach((s) => (s.hidden = !s.querySelector(".pkg:not([hidden])")));
+    count.textContent = shown + (shown === 1 ? " package" : " packages");
+    empty.hidden = shown > 0;
+  }
+  q.addEventListener("input", apply);
+  document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => {
+    group = c.dataset.filter;
+    document.querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", String(x === c)));
+    apply();
+  }));
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest(".copy");
+    if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.copy); }
+    catch { const r = document.createRange(); r.selectNodeContents(b.previousElementSibling); getSelection().removeAllRanges(); getSelection().addRange(r); }
+    b.textContent = "Copied"; b.classList.add("done");
+    setTimeout(() => { b.textContent = "Copy"; b.classList.remove("done"); }, 1400);
+  });
+  const params = new URLSearchParams(location.search);
+  if (params.get("q")) { q.value = params.get("q"); apply(); }
+</script>
+</body>
+</html>

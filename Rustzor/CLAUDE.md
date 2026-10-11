@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Rustzor is in preview (`0.1.0-preview.1`). The runtime integration, component model, UI kit, every `Rustzor.Browser.*` library, the four frameworks, the UI and chart integrations, the SignalR and gRPC-Web clients, RustzorAppGen and five sample apps exist and are tested in Chrome. Not done yet: the `rustzor` CLI, `dotnet new` templates, the VS Code extension, and nine of the thirteen sample apps in `solution-design.md`. `PLAN.md` has the roadmap and `Progress.md` what is done and how it was verified.
+Rustzor is in preview (`0.1.0-preview.1`). The runtime integration, component model, UI kit, every `Rustzor.Browser.*` library, the four frameworks, the UI and chart integrations, the SignalR and gRPC-Web clients, RustzorAppGen and five sample apps exist and are tested in Chrome. Phase 5 tooling exists too: the `rustzor` CLI (`src/Rustzor.Cli`), `dotnet new` templates (`src/Rustzor.Templates`), the VS Code extension (`tools/vscode-rustzor`) and the generated package catalog (`docs/catalog`). Not done yet: nine of the thirteen sample apps in `solution-design.md`. `PLAN.md` has the roadmap and `Progress.md` what is done and how it was verified.
 
 The original brief is `Rustzor.txt` (Indonesian) and the design is `solution-design.md`.
 
@@ -20,6 +20,9 @@ node tools/e2e/probe.mjs <url> [shot.png] '<steps json>'    # click/fill/type/pr
 bash tools/RustzorAppGen/scripts/test-templates.sh          # all 21 AppGen templates build and run
 bash scripts/pack.sh [version]              # every NuGet package -> artifacts/packages
 bash scripts/package-smoke.sh <version>     # build and run an app from the packed packages only
+bash scripts/tooling-smoke.sh <version>     # CLI + templates from the packed packages: new, add, info, publish, run
+node tools/e2e/make-catalog.mjs             # regenerate docs/catalog and docs/*/packages.md (CI checks they are current)
+dotnet run --project src/Rustzor.Cli -- serve <app>   # the CLI from source
 node tools/e2e/make-icons.mjs               # regenerate assets/icons/<PackageId>.png
 ```
 

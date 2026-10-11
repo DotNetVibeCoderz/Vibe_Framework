@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Rustzor.Build/Rustzor.Build.csproj" />
+    <Project Path="src/Rustzor.Cli/Rustzor.Cli.csproj" />
     <Project Path="src/Rustzor.Components/Rustzor.Components.csproj" />
     <Project Path="src/Rustzor.Core/Rustzor.Core.csproj" />
     <Project Path="src/Rustzor.Sdk/Rustzor.Sdk.csproj" />
+    <Project Path="src/Rustzor.Templates/Rustzor.Templates.csproj" />
     <Project Path="src/Rustzor.UI/Rustzor.UI.csproj" />
   </Folder>
   <Folder Name="/src/Browser/">

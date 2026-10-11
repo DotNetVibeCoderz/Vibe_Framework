@@ -1,0 +1,66 @@
+@page "/tasks"
+@using Rustzor.Browser.Storage
+
+<PageHeader Title="Tasks" Eyebrow="Saved in your browser" Text="A small list kept in localStorage: reload the page and it is still here." />
+
+<Card>
+    <div class="rz-row">
+        <input class="rz-input" placeholder="What needs doing?" aria-label="New task" @bind="draft" @bind:event="oninput" @onkeydown="OnKey" />
+        <button class="rz-btn primary" disabled="@(draft.Trim().Length == 0)" @onclick="Add">Add</button>
+    </div>
+    @if (items.Count == 0)
+    {
+        <EmptyState Icon="check" Title="Nothing to do" Text="Add a task above." />
+    }
+    <ul class="tasks">
+        @foreach (var item in items)
+        {
+            var task = item;
+            <li class="@(task.Done ? "done" : "")">
+                <label><input type="checkbox" checked="@task.Done" @onchange="() => Toggle(task)" /> @task.Text</label>
+                <button class="rz-btn ghost small" aria-label="Delete @task.Text" @onclick="() => Remove(task)"><Icon Name="trash" Size="14" /></button>
+            </li>
+        }
+    </ul>
+</Card>
+
+@code {
+    public sealed class TaskItem
+    {
+        public string Text { get; set; } = "";
+        public bool Done { get; set; }
+    }
+
+    private const string StorageKey = "rustzorapp-tasks";
+    private List<TaskItem> items = new();
+    private string draft = "";
+
+    protected override void OnInitialized() => items = WebStorage.Local.GetList<TaskItem>(StorageKey);
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Add();
+    }
+
+    private void Add()
+    {
+        if (draft.Trim().Length == 0) return;
+        items.Add(new TaskItem { Text = draft.Trim() });
+        draft = "";
+        Save();
+    }
+
+    private void Toggle(TaskItem task)
+    {
+        task.Done = !task.Done;
+        Save();
+    }
+
+    private void Remove(TaskItem task)
+    {
+        items.Remove(task);
+        Save();
+    }
+
+    private void Save() => WebStorage.Local.SetJson(StorageKey, items);
+}

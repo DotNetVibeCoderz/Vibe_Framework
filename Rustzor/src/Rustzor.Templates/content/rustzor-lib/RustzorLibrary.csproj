@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!--
+    A Rustzor library. Its browser code is rustzor.module.js, embedded in the
+    assembly: an app that references this library gets the module installed at
+    startup, and only apps that reference it download it.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" />
+    <PackageReference Include="Rustzor.Components" Version="RUSTZOR_VERSION" />
+  </ItemGroup>
+</Project>

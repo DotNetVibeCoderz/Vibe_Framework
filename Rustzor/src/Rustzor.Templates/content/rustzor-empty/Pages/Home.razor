@@ -1,0 +1,11 @@
+@page "/"
+
+<main class="hello">
+    <h1>Hello, Rustzor</h1>
+    <p>This page is C#, compiled to IL and run in your browser by RustNetRuntime.</p>
+    <button @onclick="() => clicks++">Clicked @clicks @(clicks == 1 ? "time" : "times")</button>
+</main>
+
+@code {
+    private int clicks;
+}

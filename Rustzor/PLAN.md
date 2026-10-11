@@ -56,10 +56,10 @@ Sensors, Gamepad, Media, Audio, Video.
 
 | Deliverable | Approach |
 | --- | --- |
-| `rustzor` CLI | .NET tool: `new`, `serve` (live reload), `publish`, `info` |
-| Project templates | `dotnet new` templates; Visual Studio and Rider pick them up from the template engine |
-| VS Code extension | Commands for new project, serve and publish; snippets for Razor and interop |
-| Marketplace | A catalog page listing every Rustzor package with its install command |
+| `rustzor` CLI | .NET tool: `new`, `serve` (live reload), `publish`, `info`, `add`. **Done** (`src/Rustzor.Cli`) |
+| Project templates | `dotnet new` templates; Visual Studio and Rider pick them up from the template engine. **Done** (`src/Rustzor.Templates`: `rustzor`, `rustzor-empty`, `rustzorlib`) |
+| VS Code extension | Commands for new project, serve and publish; snippets for Razor and interop. **Done** (`tools/vscode-rustzor`, `.vsix` from CI; Marketplace listing pending) |
+| Marketplace | A catalog page listing every Rustzor package with its install command. **Done** (`docs/catalog/index.html`, `docs/*/packages.md`, generated) |
 
 ## Supporting tool: RustzorAppGen
 

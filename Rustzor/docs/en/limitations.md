@@ -24,8 +24,7 @@ See [components](components.md#not-supported-yet): no `DataAnnotationsValidator`
 
 ## Tooling
 
-- There is no `rustzor` command-line tool or `dotnet new` template yet: start from the [getting-started guide](getting-started.md) or a [RustzorAppGen](appgen.md) template.
-- Hot reload is not available; rebuild and refresh.
+- Reloading keeps no state: `rustzor serve` rebuilds and reloads the whole page on every save (see [tooling](tooling.md)), so in-memory state starts over.
 - Debugging is through the browser console: unhandled exceptions are printed with their managed stack trace.
 
 ## Performance

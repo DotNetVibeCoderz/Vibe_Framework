@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+
+<AppShell Brand="APP_TITLE" BrandIcon="rust" Items="nav">
+    <ChildContent>@Body</ChildContent>
+</AppShell>
+
+@code {
+    private readonly List<NavItem> nav = new()
+    {
+        NavItem.Link("Home", "", "home"),
+        NavItem.Link("Counter", "counter", "plus"),
+        NavItem.Link("Tasks", "tasks", "check"),
+    };
+}

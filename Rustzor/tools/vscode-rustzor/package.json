@@ -1,0 +1,55 @@
+{
+  "name": "rustzor",
+  "displayName": "Rustzor",
+  "description": "Build C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly): new projects, serve with live reload, publish, packages and snippets.",
+  "version": "0.1.0",
+  "publisher": "gravicode",
+  "author": { "name": "Gravicode Studios" },
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "homepage": "https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/Rustzor",
+  "repository": { "type": "git", "url": "https://github.com/DotNetVibeCoderz/Vibe_Framework" },
+  "bugs": { "url": "https://github.com/DotNetVibeCoderz/Vibe_Framework/issues" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Programming Languages", "Snippets", "Other"],
+  "keywords": ["rustzor", "blazor", "razor", "webassembly", "wasm", "csharp", "rust"],
+  "main": "./extension.js",
+  "activationEvents": [
+    "workspaceContains:**/*.csproj",
+    "onCommand:rustzor.newProject"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "rustzor.newProject", "title": "New Project", "category": "Rustzor" },
+      { "command": "rustzor.serve", "title": "Serve with Live Reload", "category": "Rustzor", "icon": "$(play)" },
+      { "command": "rustzor.stop", "title": "Stop Serving", "category": "Rustzor" },
+      { "command": "rustzor.publish", "title": "Publish", "category": "Rustzor" },
+      { "command": "rustzor.publishAot", "title": "Publish with AOT", "category": "Rustzor" },
+      { "command": "rustzor.addPackage", "title": "Add Package…", "category": "Rustzor" },
+      { "command": "rustzor.info", "title": "Show Project Info", "category": "Rustzor" },
+      { "command": "rustzor.installCli", "title": "Install or Update the rustzor CLI", "category": "Rustzor" },
+      { "command": "rustzor.openDocs", "title": "Open Documentation", "category": "Rustzor" }
+    ],
+    "menus": {
+      "explorer/context": [
+        { "command": "rustzor.serve", "when": "resourceExtname == .csproj", "group": "rustzor@1" },
+        { "command": "rustzor.publish", "when": "resourceExtname == .csproj", "group": "rustzor@2" },
+        { "command": "rustzor.addPackage", "when": "resourceExtname == .csproj", "group": "rustzor@3" }
+      ]
+    },
+    "configuration": {
+      "title": "Rustzor",
+      "properties": {
+        "rustzor.port": { "type": "number", "default": 5080, "description": "Port for Rustzor: Serve with Live Reload." },
+        "rustzor.openBrowser": { "type": "boolean", "default": true, "description": "Open the browser when serving starts." },
+        "rustzor.cliPath": { "type": "string", "default": "rustzor", "description": "The rustzor command, if it is not on PATH." }
+      }
+    },
+    "snippets": [
+      { "language": "aspnetcorerazor", "path": "./snippets/razor.json" },
+      { "language": "razor", "path": "./snippets/razor.json" },
+      { "language": "csharp", "path": "./snippets/csharp.json" },
+      { "language": "javascript", "path": "./snippets/javascript.json" }
+    ]
+  }
+}

@@ -16,6 +16,15 @@ Model pemrogramannya sama dengan Blazor: file `.razor`, `@code`, `@bind`, `Event
 
 Anda hanya butuh [.NET 10 SDK](https://dotnet.microsoft.com/download). Tidak perlu yang lain: runtime-nya sudah termasuk di dalam package `Rustzor.Sdk`.
 
+```bash
+dotnet tool install -g Rustzor.Cli --prerelease
+rustzor new app HelloRustzor
+cd HelloRustzor
+rustzor serve --open          # mem-build ulang dan me-reload halaman setiap kali Anda menyimpan
+```
+
+Atau secara manual:
+
 ```xml
 <!-- HelloRustzor.csproj -->
 <Project Sdk="Rustzor.Sdk/0.1.0-preview.1">
@@ -78,11 +87,20 @@ Component di-render ke virtual DOM di C#; runtime hanya mengirimkan patch-nya ke
 
 | Kelompok | Package |
 | --- | --- |
-| Inti | `Rustzor.Sdk`, `Rustzor.Components` (model component yang kompatibel dengan Blazor), `Rustzor.Core` (bridge JavaScript, JSON, timer), `Rustzor.UI` (component kit) |
+| Inti | `Rustzor.Sdk`, `Rustzor.Components` (model component yang kompatibel dengan Blazor), `Rustzor.Core` (bridge JavaScript, JSON, timer), `Rustzor.UI` (component kit), `Rustzor.Cli` (perintah `rustzor`), `Rustzor.Templates` (`dotnet new`) |
 | API Browser | `Rustzor.Browser.*`: DOM, Fetch, WebSocket, Storage, FileSystem, Notifications, Push, BackgroundSync, Workers, Location, Sensors, Media, Audio, Video, Canvas, OffscreenCanvas, WebGL, WebGPU, WebRTC, WebXR, Bluetooth, USB, Serial, HID, NFC, Gamepad, AI |
 | Framework | `Rustzor.Data` (SQLite, IndexedDB, DuckDB), `Rustzor.Game`, `Rustzor.Graphics`, `Rustzor.AI` |
 | Integrasi | `Rustzor.UI.Bootstrap`, `Rustzor.UI.Tailwind`, `Rustzor.UI.Mui`, `Rustzor.Charts.ChartJs`, `Rustzor.Charts.ECharts`, `Rustzor.Charts.D3` |
 | Jaringan | `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb` |
+
+## Tooling
+
+- **CLI `rustzor`**: `new`, `serve` dengan live reload dan overlay error build di halaman, `publish` dengan laporan ukuran, `add`, `info`.
+- **Template `dotnet new`**: `rustzor`, `rustzor-empty`, `rustzorlib`.
+- **Extension VS Code**: command, tombol serve, snippet.
+- **[Katalog package](docs/catalog/index.html)**: setiap package beserta perintah instalasinya.
+
+Selengkapnya di [docs/id/tooling.md](docs/id/tooling.md).
 
 ## RustzorAppGen
 
@@ -94,7 +112,7 @@ Editor desktop (Avalonia) untuk membuat aplikasi Rustzor dengan bantuan asisten 
 
 English: [docs/en](docs/en/README.md) · Bahasa Indonesia: [docs/id](docs/id/README.md)
 
-Memulai · Arsitektur · Component, routing, dan form · Interop JavaScript · Rustzor.UI · API Browser · Framework · Integrasi · Jaringan · Mode build · Contoh Aplikasi · RustzorAppGen · Build dari source · Keterbatasan
+Memulai · Arsitektur · Component, routing, dan form · Interop JavaScript · Rustzor.UI · API Browser · Framework · Integrasi · Jaringan · Mode build · Contoh Aplikasi · Tooling · Package · RustzorAppGen · Build dari source · Keterbatasan
 
 ## Build dari source
 

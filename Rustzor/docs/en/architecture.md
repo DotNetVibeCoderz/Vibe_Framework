@@ -84,8 +84,11 @@ A typical sample starts in 50 to 150 ms after the files have arrived.
 | `src/Rustzor.Components` | Component model, routing, DI, forms |
 | `src/Rustzor.Build` | The bundler and the AOT compiler (runs at build time) |
 | `src/Rustzor.Sdk` | The MSBuild SDK package |
+| `src/Rustzor.Cli` | The `rustzor` command (a .NET tool) |
+| `src/Rustzor.Templates` | The `dotnet new` templates |
 | `src/Rustzor.UI` | The component kit |
 | `src/Browser`, `src/Frameworks`, `src/Integrations`, `src/Net` | The libraries |
 | `samples/` | Complete apps |
 | `tools/RustzorAppGen` | The AI-assisted app generator |
+| `tools/vscode-rustzor` | The VS Code extension |
 | `tools/e2e`, `tools/dev` | Browser tests and a development server |

@@ -37,6 +37,8 @@ node tools/dev/serve.mjs samples/Pos/bin/Debug/net10.0/wwwroot 5241
 | Mengendalikan aplikasi langkah demi langkah (click, fill, type, press, drag, eval, screenshot) | `node tools/e2e/probe.mjs <url> [shot.png] '<steps json>'` |
 | Setiap template AppGen berhasil di-generate, di-build, dan dijalankan | `bash tools/RustzorAppGen/scripts/test-templates.sh` |
 | Aplikasi yang di-build dari package hasil pack bisa berjalan | `bash scripts/package-smoke.sh 0.1.0-preview.1` |
+| CLI dan template dari package hasil pack: new, add, info, publish, lalu dijalankan | `bash scripts/tooling-smoke.sh 0.1.0-preview.1` |
+| Extension VS Code aktif dan mendaftarkan command-nya, di dalam VS Code | `code --extensionDevelopmentPath=tools/vscode-rustzor --extensionTestsPath=tools/vscode-rustzor/test/suite.js <a Rustzor app folder>`, dengan `RUSTZOR_EXT_REPORT=<file>` untuk hasilnya |
 | Runtime: unit test, conformance terhadap .NET, lintas assembly, target no_std | di repository Vibe_Runtime: `cargo test --workspace`, `bash tests/embedded.sh` |
 
 Tool browser membutuhkan `npm ci` di `tools/e2e` sekali saja, dan `CHROME_PATH` jika Chrome tidak berada di lokasi default Windows.
@@ -48,13 +50,13 @@ bash scripts/pack.sh                     # semua package dengan versi di src/Dir
 bash scripts/pack.sh 0.2.0-preview.1     # atau dengan versi tertentu
 ```
 
-Package-package hasilnya ada di `artifacts/packages`. `Rustzor.Sdk` membawa runtime (`runtime/`), build tool (`tools/`), dan `Version.props` yang mem-pin referensi implisit `Rustzor.Components` ke versi yang sama. Setiap package punya ikon sendiri di `assets/icons`, yang dibuat oleh `node tools/e2e/make-icons.mjs`; package baru perlu ditambahkan entrinya di sana.
+Package-package hasilnya ada di `artifacts/packages`. Setelah menambahkan package, jalankan juga `node tools/e2e/make-icons.mjs` (untuk ikonnya) dan `node tools/e2e/make-catalog.mjs` (untuk katalog dan `packages.md`). Extension VS Code di-pack dengan `npx @vscode/vsce package --no-dependencies` di `tools/vscode-rustzor`. `Rustzor.Sdk` membawa runtime (`runtime/`), build tool (`tools/`), dan `Version.props` yang mem-pin referensi implisit `Rustzor.Components` ke versi yang sama. Setiap package punya ikon sendiri di `assets/icons`, yang dibuat oleh `node tools/e2e/make-icons.mjs`; package baru perlu ditambahkan entrinya di sana.
 
 ## Rilis
 
 Rilis dipublikasikan dari GitHub Actions di repository Vibe_Framework:
 
-- `rustzor-ci.yml` mem-build runtime, solution, dan setiap package, lalu mem-build sebuah aplikasi hanya dari package-package tersebut dan menjalankannya di Chrome headless.
+- `rustzor-ci.yml` mem-build runtime, solution, dan setiap package; mem-build sebuah aplikasi hanya dari package-package tersebut dan menjalankannya di Chrome headless; menginstal CLI dari package tersebut lalu memakainya untuk membuat, mem-publish, dan menjalankan sebuah aplikasi; memeriksa bahwa katalog package sudah mutakhir; dan mem-pack extension VS Code (sebuah build artifact `.vsix`).
 - `rustzor-publish.yml` menjalankan CI tersebut pada versi rilis dan mem-push package yang sudah diuji ke nuget.org dengan secret `NUGET_API_KEY`. Workflow ini dimulai oleh tag `rustzor-v<version>` atau secara manual (dengan opsi dry-run yang melakukan semuanya kecuali push).
 
 Source workflow ada di `eng/workflows/`; salinan yang dijalankan GitHub berada di `.github/workflows/` pada root repository.

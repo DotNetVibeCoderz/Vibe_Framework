@@ -23,6 +23,8 @@ Rustzor menjalankan aplikasi C# Razor di browser di atas RustNetRuntime, runtime
 
 ## Tools dan proyek
 
+- [Tooling](tooling.md): CLI `rustzor`, template `dotnet new`, extension VS Code
+- [Package](packages.md): setiap package beserta perintah instalasinya, juga tersedia sebagai [katalog yang bisa dicari](../catalog/index.html)
 - [RustzorAppGen](appgen.md): generator aplikasi berbantuan AI
 - [Build dari source](building-from-source.md): build, test, pack, rilis
 - [Keterbatasan](limitations.md): apa saja yang belum didukung

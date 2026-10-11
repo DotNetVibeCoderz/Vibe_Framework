@@ -23,6 +23,8 @@ Rustzor runs C# Razor apps in the browser on RustNetRuntime, a .NET runtime writ
 
 ## Tools and project
 
+- [Tooling](tooling.md): the `rustzor` CLI, `dotnet new` templates, the VS Code extension
+- [Packages](packages.md): every package with its install command, also as a [searchable catalog](../catalog/index.html)
 - [RustzorAppGen](appgen.md): the AI-assisted app generator
 - [Building from source](building-from-source.md): build, test, pack, release
 - [Limitations](limitations.md): what is not supported yet
