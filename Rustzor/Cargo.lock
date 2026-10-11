@@ -11,6 +11,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 [[package]]
 name = "rustclr-bcl"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 dependencies = [
  "libm",
  "rustclr-core",
@@ -24,6 +25,7 @@ dependencies = [
 [[package]]
 name = "rustclr-core"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 dependencies = [
  "rustclr-gc",
  "rustclr-gfx",
@@ -34,10 +36,12 @@ dependencies = [
 [[package]]
 name = "rustclr-crypto"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 
 [[package]]
 name = "rustclr-flashfs"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 dependencies = [
  "rustclr-hal",
 ]
@@ -45,10 +49,12 @@ dependencies = [
 [[package]]
 name = "rustclr-gc"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 
 [[package]]
 name = "rustclr-gfx"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 dependencies = [
  "rustclr-hal",
 ]
@@ -56,10 +62,12 @@ dependencies = [
 [[package]]
 name = "rustclr-hal"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 
 [[package]]
 name = "rustclr-metadata"
 version = "0.1.0"
+source = "git+https://github.com/DotNetVibeCoderz/Vibe_Runtime?rev=25cd43baa5c345c643552a216086e80d02129dda#25cd43baa5c345c643552a216086e80d02129dda"
 
 [[package]]
 name = "rustzor-wasm"
