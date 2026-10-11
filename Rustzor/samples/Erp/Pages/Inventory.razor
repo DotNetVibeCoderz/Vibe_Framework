@@ -1,0 +1,141 @@
+@page "/inventory"
+@using System.Globalization
+@implements IDisposable
+@inject NavigationManager Nav
+
+<PageHeader Title="Inventory" Eyebrow="Three warehouses, one valuation" Text="Stock per warehouse at moving-average cost. The value of each group is checked against its account in the ledger.">
+    <Actions>
+        <button class="rz-btn" @onclick="StartTransfer"><Icon Name="arrow-right" /> Transfer stock</button>
+    </Actions>
+</PageHeader>
+
+@foreach (var (kind, title, account) in Groups)
+{
+    var items = ErpStore.Items.Where(i => i.Kind == kind).ToList();
+    var value = items.Sum(i => i.Value);
+    var ledger = Books.Balance(ErpStore.Journal, account);
+    <Card Title="@title" Class="section">
+        <Actions>
+            <span class="recon @(value == ledger ? "ok" : "off")">
+                <Icon Name="@(value == ledger ? "check" : "alert")" Size="14" />
+                @Fmt.Rp(value) @(value == ledger ? $"= account {account}" : $"≠ account {account} ({Fmt.Rp(ledger)})")
+            </span>
+        </Actions>
+        <ChildContent>
+            <div class="rz-table-wrap flat">
+                <table class="rz-table stock">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            @foreach (var w in WarehousesFor(kind))
+                            {
+                                <th class="num">@w.Id</th>
+                            }
+                            <th class="num">@(kind == "raw" ? "On order" : "Promised")</th>
+                            <th class="num">Avg cost</th>
+                            <th class="num">Value</th>
+                            <th>Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in items)
+                        {
+                            var item = i;
+                            var level = kind == "raw" ? item.OnHand : item.In(Catalog.GoodsStore);
+                            var pct = item.Reorder == 0 ? 100 : Math.Min(100, (double)(level / (item.Reorder * 2)) * 100);
+                            <tr class="clickable" @onclick="() => Nav.NavigateTo(Rel(item.Id))">
+                                <td><a href="@Rel(item.Id)">@item.Name</a><span class="mono muted sku">@item.Id</span></td>
+                                @foreach (var w in WarehousesFor(kind))
+                                {
+                                    <td class="num">@Fmt.Qty(item.In(w.Id))</td>
+                                }
+                                <td class="num muted">@Fmt.Qty(kind == "raw" ? ErpStore.OnOrder(item.Id) : ErpStore.Committed(item.Id))</td>
+                                <td class="num">@Fmt.Num(item.AvgCost)</td>
+                                <td class="num">@Fmt.Num(item.Value)</td>
+                                <td>
+                                    <div class="level @(level < item.Reorder ? "low" : "")" title="@($"{Fmt.Qty(level)} {item.Unit}; reorder at {Fmt.Qty(item.Reorder)}")">
+                                        <span style="width:@pct.ToString("0", CultureInfo.InvariantCulture)%"></span><i></i>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="muted small legend">@string.Join(" · ", WarehousesFor(kind).Select(w => $"{w.Id} {w.Name}, {w.Place}")). The bar fills to twice the reorder level; the tick marks the reorder level.</p>
+        </ChildContent>
+    </Card>
+}
+
+<Modal @bind-Open="moving" Title="Transfer stock">
+    <ChildContent>
+        <div class="rz-stack">
+            <Field Label="Item">
+                <select class="rz-input" @bind="moveItem">
+                    @foreach (var i in ErpStore.Items.Where(i => !i.IsRaw))
+                    {
+                        <option value="@i.Id">@i.Name</option>
+                    }
+                </select>
+            </Field>
+            <div class="pair">
+                <Field Label="From">
+                    <select class="rz-input" @bind="moveFrom">
+                        <option value="@Catalog.GoodsStore">Gudang Barang Jadi (@Fmt.Qty(ErpStore.Item(moveItem).In(Catalog.GoodsStore)))</option>
+                        <option value="@Catalog.Showroom">Showroom Semarang (@Fmt.Qty(ErpStore.Item(moveItem).In(Catalog.Showroom)))</option>
+                    </select>
+                </Field>
+                <Field Label="Pieces">
+                    <input class="rz-input mono" type="number" min="1" step="1" value="@moveQty.ToString(CultureInfo.InvariantCulture)"
+                           @onchange="e => moveQty = decimal.TryParse(e.Value?.ToString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var q) ? q : 0" />
+                </Field>
+            </div>
+            <p class="muted small">To @(moveFrom == Catalog.GoodsStore ? "Showroom Semarang" : "Gudang Barang Jadi"). Value travels with the pieces, so nothing is posted to the ledger.</p>
+            @if (moveQty > ErpStore.Item(moveItem).In(moveFrom))
+            {
+                <p class="form-error">Only @Fmt.Qty(ErpStore.Item(moveItem).In(moveFrom)) there.</p>
+            }
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => moving = false">Cancel</button>
+        <button class="rz-btn primary" disabled="@(moveQty <= 0 || moveQty > ErpStore.Item(moveItem).In(moveFrom))" @onclick="Transfer">Transfer</button>
+    </Footer>
+</Modal>
+
+@code {
+    private static readonly (string Kind, string Title, string Account)[] Groups =
+    {
+        ("finished", "Finished goods", Books.GoodsStock),
+        ("raw", "Materials", Books.RawStock),
+    };
+
+    private bool moving;
+    private string moveItem = "KRS-KTN";
+    private string moveFrom = Catalog.GoodsStore;
+    private decimal moveQty = 4;
+
+    private static string Rel(string id) => $"inventory/{id}";
+
+    private static IEnumerable<Warehouse> WarehousesFor(string kind) =>
+        kind == "raw" ? Catalog.Warehouses.Where(w => w.Id == Catalog.RawStore) : Catalog.Warehouses.Where(w => w.Id != Catalog.RawStore);
+
+    protected override void OnInitialized() => ErpStore.Changed += Refresh;
+
+    private void StartTransfer() => moving = true;
+
+    private async Task Transfer()
+    {
+        var item = ErpStore.Item(moveItem);
+        var to = moveFrom == Catalog.GoodsStore ? Catalog.Showroom : Catalog.GoodsStore;
+        if (await ErpStore.TransferAsync(item, moveFrom, to, moveQty, Fmt.Today))
+        {
+            moving = false;
+            Toasts.Success($"{Fmt.Qty(moveQty)} × {item.Name} moved to {Catalog.WarehouseOf(to).Name}");
+        }
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

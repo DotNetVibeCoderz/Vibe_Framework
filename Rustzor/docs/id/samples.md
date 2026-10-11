@@ -38,6 +38,19 @@ Mesin kasir kafe yang dirancang untuk tablet di meja kasir. Grid produk per kate
 
 Menunjukkan: layout kustom tanpa sidebar, keyboard shortcut (`Window.OnKeyDown`), modal, CSS untuk cetak, store IndexedDB, layout ponsel dengan bar pesanan di bagian bawah.
 
+## Jati Lestari ERP
+
+`samples/Erp` · `Rustzor.UI`, `Rustzor.Data` (IndexedDB)
+
+Back office sebuah workshop mebel jati di Tahunan, Jepara. Pembelian (purchase order, penerimaan barang yang menambah stok dan utang, pembayaran sesuai termin pemasok); penjualan (pesanan, surat jalan, faktur dengan PPN 11%, pembayaran; faktur yang lewat jatuh tempo ditandai); produksi (bill of materials beserta upah tukang, work order yang mengambil kayu, kain, dan perlengkapan dari gudang bahan lalu memasukkan barang jadi sebesar biayanya); persediaan di tiga gudang dengan harga pokok rata-rata bergerak, kartu stok per barang, dan transfer ke showroom Semarang; serta akuntansi berpasangan (double-entry) yang menerima jurnal dari setiap transaksi tadi: buku jurnal, neraca saldo, laba rugi per periode, dan neraca. Halaman persediaan mencocokkan nilai setiap kelompok stok dengan akunnya di buku besar. Riwayat sebelas minggu dibuat dengan menjalankan transaksi yang sama, jadi setiap angka berasal dari sebuah dokumen.
+
+| | |
+| --- | --- |
+| ![Ringkasan](../images/sample-erp.png) | ![Pesanan penjualan dan jejak dokumennya](../images/sample-erp-order.png) |
+| ![Produksi](../images/sample-erp-production.png) | ![Neraca, tema gelap](../images/sample-erp-dark.png) |
+
+Menunjukkan: model domain yang setiap perubahannya membukukan jurnal seimbang, uang dengan `decimal`, laporan yang dihitung dari jurnal, parameter route (`/sales/{Id}`), query string, modal dengan baris pesanan yang bisa diubah, store IndexedDB, layout ponsel.
+
 ## Arus grid dashboard
 
 `samples/Dashboard` · `Rustzor.UI`, `Rustzor.Charts.ECharts`
@@ -92,4 +105,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Sembilan sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: ERP, video conference, tool desain mirip Figma, editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Delapan sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: video conference, tool desain mirip Figma, editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.

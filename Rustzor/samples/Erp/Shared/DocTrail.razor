@@ -1,0 +1,27 @@
+@* The paper trail of one transaction, drawn as the stencilled tags on an
+   export crate: each document the order produced, its number and date, and
+   the step still to come. *@
+<ol class="trail" aria-label="Document trail">
+    @foreach (var step in Steps)
+    {
+        <li class="trail-step @(step.Number.Length > 0 ? "done" : "todo")">
+            <span class="trail-kind">@step.Kind</span>
+            @if (step.Number.Length > 0)
+            {
+                <span class="trail-no stencil">@step.Number</span>
+                <span class="trail-date">@Fmt.Date(step.Date)</span>
+            }
+            else
+            {
+                <span class="trail-no pending">not yet</span>
+                <span class="trail-date">@step.Hint</span>
+            }
+        </li>
+    }
+</ol>
+
+@code {
+    public sealed record Step(string Kind, string Number, string Date, string Hint = "");
+
+    [Parameter] public IReadOnlyList<Step> Steps { get; set; } = Array.Empty<Step>();
+}

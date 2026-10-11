@@ -1,0 +1,146 @@
+@page "/purchasing"
+@implements IDisposable
+@inject NavigationManager Nav
+
+<PageHeader Title="Purchasing" Eyebrow="Orders to suppliers" Text="A purchase order goes out, the goods are counted in with a receipt (which raises stock and the bill we owe), and the bill is paid on its terms.">
+    <Actions>
+        <button class="rz-btn" @onclick="StartRestock"><Icon Name="refresh" /> Reorder what is low</button>
+        <button class="rz-btn primary" @onclick="() => StartNew(null)"><Icon Name="plus" /> New purchase order</button>
+    </Actions>
+</PageHeader>
+
+<div class="filters" role="tablist" aria-label="Filter purchase orders">
+    @foreach (var (key, label) in Filters)
+    {
+        var k = key;
+        <button role="tab" class="filter @(filter == k ? "on" : "")" aria-selected="@(filter == k ? "true" : "false")" @onclick="() => filter = k">
+            @label <span class="count">@Matching(k).Count()</span>
+        </button>
+    }
+</div>
+
+<Card>
+    @{ var rows = Matching(filter).OrderByDescending(p => p.Id).ToList(); }
+    @if (rows.Count == 0)
+    {
+        <EmptyState Icon="cart" Title="No purchase orders here" Text="Nothing matches this filter." />
+    }
+    else
+    {
+        <div class="rz-table-wrap flat">
+            <table class="rz-table docs">
+                <thead><tr><th>Order</th><th>Supplier</th><th>Ordered</th><th>Expected</th><th>Bill due</th><th class="num">Total incl. PPN</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var p in rows)
+                    {
+                        var po = p;
+                        var late = po.Status == "ordered" && string.CompareOrdinal(po.Expected, today) < 0;
+                        <tr class="clickable" @onclick="() => Nav.NavigateTo(Rel(po.Id))">
+                            <td><a class="doc-no" href="@Rel(po.Id)">@po.Id</a></td>
+                            <td>@ErpStore.PartnerName(po.Supplier)</td>
+                            <td>@Fmt.DateShort(po.Date)</td>
+                            <td class="@(late ? "bad-text" : "")">@Fmt.DateShort(po.Expected)</td>
+                            <td>@Fmt.DateShort(po.Due)</td>
+                            <td class="num">@Fmt.Num(po.Total)</td>
+                            <td><StatusChip Status="@po.Status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</Card>
+
+<Modal @bind-Open="adding" Title="New purchase order">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="Supplier">
+                    <select class="rz-input" value="@supplier" @onchange="e => ChangeSupplier(e.Value?.ToString())">
+                        @foreach (var s in ErpStore.Suppliers)
+                        {
+                            <option value="@s.Id">@s.Name, @s.City</option>
+                        }
+                    </select>
+                </Field>
+                <Field Label="Expected on">
+                    <input class="rz-input" type="date" value="@expected" @onchange="e => expected = e.Value?.ToString() ?? expected" />
+                </Field>
+            </div>
+            <LineEditor Lines="lines" Choices="materials" PriceOf="Catalog.CostOf" OnChange="StateHasChanged" />
+            <p class="muted small">Goods go to Gudang Bahan, Tahunan. Terms: @(ErpStore.Suppliers.FirstOrDefault(s => s.Id == supplier)?.TermsDays ?? 30) days after receipt.</p>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" disabled="@(lines.All(l => l.Qty <= 0))" @onclick="Create">Send purchase order</button>
+    </Footer>
+</Modal>
+
+@code {
+    private static readonly (string Key, string Label)[] Filters =
+    {
+        ("ordered", "On order"), ("received", "Bills to pay"), ("paid", "Paid"), ("all", "All"),
+    };
+
+    private readonly string today = Fmt.Today;
+    private string filter = "ordered";
+    private bool adding;
+    private string supplier = "S-PHT";
+    private string expected = Fmt.Iso(DateTime.Today.AddDays(5));
+    private List<Line> lines = new();
+    private List<Item> materials = new();
+
+    private static string Rel(string id) => $"purchasing/{id}";
+
+    protected override void OnInitialized()
+    {
+        ErpStore.Changed += Refresh;
+        materials = ErpStore.Items.Where(i => i.IsRaw).ToList();
+        if (Nav.Uri.Contains("new=1")) StartNew(null);
+    }
+
+    private IEnumerable<PurchaseOrder> Matching(string key) => key == "all" ? ErpStore.Purchases : ErpStore.Purchases.Where(p => p.Status == key);
+
+    private void StartNew(string? forSupplier)
+    {
+        supplier = forSupplier ?? supplier;
+        var first = materials.FirstOrDefault(m => m.Supplier == supplier) ?? materials[0];
+        lines = new() { new() { Item = first.Id, Qty = first.Unit == "m³" ? 1 : 10, Price = Catalog.CostOf(first.Id) } };
+        adding = true;
+    }
+
+    private void ChangeSupplier(string? id)
+    {
+        supplier = id ?? supplier;
+        if (lines.Count == 1) StartNew(supplier);
+    }
+
+    /// <summary>Fills an order for the supplier of the material furthest below its reorder level.</summary>
+    private void StartRestock()
+    {
+        var low = materials.Select(m => (Item: m, Cover: m.OnHand + ErpStore.OnOrder(m.Id))).Where(x => x.Cover < x.Item.Reorder)
+            .OrderBy(x => x.Cover / x.Item.Reorder).ToList();
+        if (low.Count == 0)
+        {
+            Toasts.Info("Every material is above its reorder level, counting what is on order");
+            return;
+        }
+        supplier = low[0].Item.Supplier;
+        lines = low.Where(x => x.Item.Supplier == supplier)
+            .Select(x => new Line { Item = x.Item.Id, Qty = Math.Ceiling(x.Item.Reorder * 2 - x.Cover), Price = Catalog.CostOf(x.Item.Id) }).ToList();
+        adding = true;
+    }
+
+    private async Task Create()
+    {
+        var po = await ErpStore.CreatePurchaseAsync(supplier, lines.Where(l => l.Qty > 0).ToList(), today, expected);
+        adding = false;
+        Toasts.Success($"{po.Id} sent to {ErpStore.PartnerName(supplier)}");
+        Nav.NavigateTo(Rel(po.Id));
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

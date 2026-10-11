@@ -1,0 +1,150 @@
+@page "/"
+@implements IDisposable
+
+<PageHeader Title="The workshop today" Eyebrow="@DateTime.Today.ToString("dddd, d MMMM yyyy")" Text="Cash, what customers and suppliers owe, and the orders, batches and stock waiting on someone.">
+    <Actions>
+        <a class="rz-btn" href="purchasing?new=1"><Icon Name="cart" /> New purchase</a>
+        <a class="rz-btn primary" href="sales?new=1"><Icon Name="plus" /> New sales order</a>
+    </Actions>
+</PageHeader>
+
+@{
+    var journal = ErpStore.Journal;
+    var open = ErpStore.Sales.Where(s => s.Status == "invoiced").ToList();
+    var overdue = open.Where(s => s.Overdue(today)).ToList();
+    var bills = ErpStore.Purchases.Where(p => p.Status == "received").ToList();
+    var soon = Fmt.Iso(DateTime.Today.AddDays(7));
+    var billsSoon = bills.Where(p => string.CompareOrdinal(p.Due, soon) <= 0).ToList();
+    var rawValue = ErpStore.Items.Where(i => i.IsRaw).Sum(i => i.Value);
+    var goodsValue = ErpStore.Items.Where(i => !i.IsRaw).Sum(i => i.Value);
+    var month = Books.ProfitAndLoss(journal, monthStart, today);
+}
+
+<div class="rz-grid rz-grid-4">
+    <StatCard Label="Cash & bank" Value="@Fmt.Short(Books.Balance(journal, Books.Cash))" Hint="balance at the end of each of the last eight weeks" Trend="cashTrend" />
+    <StatCard Label="Customers owe" Value="@Fmt.Short(open.Sum(s => s.Total))" Hint="@(overdue.Count == 0 ? $"{open.Count} invoices, none overdue" : $"{overdue.Count} overdue · {Fmt.Short(overdue.Sum(s => s.Total))}")" />
+    <StatCard Label="We owe suppliers" Value="@Fmt.Short(bills.Sum(p => p.Total))" Hint="@($"{billsSoon.Count} bills due within 7 days")" />
+    <StatCard Label="Stock at cost" Value="@Fmt.Short(rawValue + goodsValue)" Hint="@($"{Fmt.Short(rawValue)} materials · {Fmt.Short(goodsValue)} finished")" />
+</div>
+
+<div class="two section">
+    <div class="rz-stack">
+        <Card Title="Needs attention" Subtitle="Overdue money, orders waiting to ship, batches to finish and stock to replace">
+            @if (todo.Count == 0)
+            {
+                <EmptyState Icon="check" Title="Nothing waiting" Text="Every order has shipped, every bill is paid and every shelf is above its reorder level." />
+            }
+            else
+            {
+                <ul class="todo">
+                    @foreach (var t in todo)
+                    {
+                        <li class="todo-@t.Tone">
+                            <span class="todo-ico"><Icon Name="@t.Icon" Size="16" /></span>
+                            <div class="todo-text">
+                                <a href="@t.Href">@t.Title</a>
+                                <span class="meta">@t.Meta</span>
+                            </div>
+                            <span class="todo-amt mono">@t.Amount</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </Card>
+        <Card Title="Sales and cost of sales" Subtitle="By month, before PPN (Rp juta)">
+            <BarChart Labels="months" Series="salesSeries" Height="230" AriaLabel="Sales and cost of goods sold by month" />
+        </Card>
+    </div>
+    <div class="rz-stack">
+        <Card Title="@($"{DateTime.Today:MMMM} so far")" Subtitle="Profit and loss from the journal">
+            <dl class="pnl-mini">
+                <dt>Sales</dt><dd class="mono">@Fmt.Num(month.Revenue)</dd>
+                <dt>Cost of goods sold</dt><dd class="mono">−@Fmt.Num(month.Cogs)</dd>
+                <dt class="sub">Gross profit <span class="muted">@month.Margin.ToString("P0")</span></dt><dd class="mono sub">@Fmt.Num(month.Gross)</dd>
+                <dt>Rent, salaries, freight</dt><dd class="mono">−@Fmt.Num(month.Operating)</dd>
+                <dt class="grand">Net profit</dt><dd class="mono grand @(month.Net < 0 ? "neg" : "")">@Fmt.Rp(month.Net)</dd>
+            </dl>
+            <a class="rz-btn small" href="accounting">Open the books <Icon Name="arrow-right" Size="14" /></a>
+        </Card>
+        <Card Title="Stock by warehouse" Subtitle="Value at average cost">
+            <DonutChart Labels="whLabels" Values="whValues" Center="@Fmt.Short(rawValue + goodsValue)" CenterLabel="at cost" ValueFormat="N1" AriaLabel="Stock value by warehouse in Rp juta" />
+        </Card>
+    </div>
+</div>
+
+@code {
+    private sealed record Todo(string Icon, string Tone, string Title, string Meta, string Amount, string Href);
+
+    private readonly string today = Fmt.Today;
+    private readonly string monthStart = Fmt.Iso(new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1));
+    private List<Todo> todo = new();
+    private List<string> months = new();
+    private List<ChartSeries> salesSeries = new();
+    private List<double> cashTrend = new();
+    private List<string> whLabels = new();
+    private List<double> whValues = new();
+
+    protected override void OnInitialized()
+    {
+        ErpStore.Changed += OnChanged;
+        Load();
+    }
+
+    private void Load()
+    {
+        var journal = ErpStore.Journal;
+        var first = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var span = Enumerable.Range(0, 3).Select(i => first.AddMonths(i - 2)).ToList();
+        months = span.Select(m => m.ToString("MMM")).ToList();
+        var pnls = span.Select(m => Books.ProfitAndLoss(journal, Fmt.Iso(m), Fmt.Iso(m.AddMonths(1).AddDays(-1)))).ToList();
+        salesSeries = new()
+        {
+            new("Sales", pnls.Select(p => (double)p.Revenue / 1_000_000d).ToList()) { Color = "var(--teak)" },
+            new("Cost of goods sold", pnls.Select(p => (double)p.Cogs / 1_000_000d).ToList()) { Color = "var(--sawdust-ink)" },
+        };
+        // Cash at the end of each of the last eight weeks: the sparkline under the balance.
+        cashTrend = Enumerable.Range(0, 8).Select(i => Fmt.Iso(DateTime.Today.AddDays(-7 * (7 - i))))
+            .Select(d => (double)Books.Balance(journal, Books.Cash, d)).ToList();
+
+        whLabels = Catalog.Warehouses.Select(w => w.Name).ToList();
+        whValues = Catalog.Warehouses.Select(w => (double)ErpStore.Items.Sum(i => i.OnHand == 0 ? 0 : i.Value * i.In(w.Id) / i.OnHand) / 1_000_000d).ToList();
+
+        todo = new();
+        foreach (var s in ErpStore.Sales.Where(s => s.Overdue(today)).OrderBy(s => s.Due))
+            todo.Add(new("alert", "red", $"{s.InvoiceNo} is {Days(Fmt.DaysBetween(s.Due, today))} overdue", ErpStore.PartnerName(s.Customer), Fmt.Short(s.Total), $"sales/{s.Id}"));
+        foreach (var s in ErpStore.Sales.Where(s => s.Status == "confirmed"))
+        {
+            var shortages = ErpStore.Shortages(s.Lines, s.Warehouse);
+            var meta = shortages.Count == 0
+                ? $"{ErpStore.PartnerName(s.Customer)} · all in stock at {Catalog.WarehouseOf(s.Warehouse).Name}"
+                : $"{ErpStore.PartnerName(s.Customer)} · short " + string.Join(", ", shortages.Select(x => $"{Fmt.Qty(x.Need - x.Have)} {ErpStore.Item(x.Item.Id).Name}"));
+            todo.Add(new(shortages.Count == 0 ? "send" : "box", shortages.Count == 0 ? "amber" : "red", $"{s.Id} is waiting to ship", meta, Fmt.Short(s.Total), $"sales/{s.Id}"));
+        }
+        foreach (var s in ErpStore.Sales.Where(s => s.Status == "delivered"))
+            todo.Add(new("receipt", "amber", $"{s.DeliveryNo} delivered, not invoiced", ErpStore.PartnerName(s.Customer), Fmt.Short(s.Total), $"sales/{s.Id}"));
+        foreach (var w in ErpStore.WorkOrders.Where(w => w.Status == "in progress" && Fmt.DaysBetween(w.Started, today) >= Catalog.BomOf(w.Item).Days))
+            todo.Add(new("factory", "amber", $"{w.Id} should be finished", $"{Fmt.Qty(w.Qty)} × {ErpStore.Item(w.Item).Name}, started {Fmt.DateShort(w.Started)}", "", "production"));
+        foreach (var p in ErpStore.Purchases.Where(p => p.Status == "ordered").OrderBy(p => p.Expected))
+        {
+            var late = string.CompareOrdinal(p.Expected, today) < 0;
+            todo.Add(new("cart", late ? "red" : "slate", late ? $"{p.Id} is late" : $"{p.Id} arrives {Fmt.DateShort(p.Expected)}", ErpStore.PartnerName(p.Supplier), Fmt.Short(p.Total), $"purchasing/{p.Id}"));
+        }
+        var soon = Fmt.Iso(DateTime.Today.AddDays(7));
+        foreach (var p in ErpStore.Purchases.Where(p => p.Status == "received" && string.CompareOrdinal(p.Due, soon) <= 0).OrderBy(p => p.Due))
+            todo.Add(new("wallet", string.CompareOrdinal(p.Due, today) < 0 ? "red" : "slate", $"Pay {ErpStore.PartnerName(p.Supplier)}", $"{p.Id} due {Fmt.DateShort(p.Due)}", Fmt.Short(p.Total), $"purchasing/{p.Id}"));
+        foreach (var i in ErpStore.Items.Where(i => i.IsRaw && i.OnHand + ErpStore.OnOrder(i.Id) < i.Reorder))
+            todo.Add(new("tag", "amber", $"Buy {i.Name.ToLowerInvariant()}", $"{Fmt.Qty(i.OnHand)} {i.Unit} left, reorder at {Fmt.Qty(i.Reorder)}", "", $"inventory/{i.Id}"));
+        foreach (var i in ErpStore.Items.Where(i => !i.IsRaw && i.In(Catalog.GoodsStore) + ErpStore.InProduction(i.Id) < i.Reorder))
+            todo.Add(new("factory", "amber", $"Make more: {i.Name}", $"{Fmt.Qty(i.In(Catalog.GoodsStore))} in the store, keep {Fmt.Qty(i.Reorder)}", "", $"inventory/{i.Id}"));
+    }
+
+    private static string Days(int n) => n == 1 ? "1 day" : $"{n} days";
+
+    private void OnChanged()
+    {
+        Load();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => ErpStore.Changed -= OnChanged;
+}

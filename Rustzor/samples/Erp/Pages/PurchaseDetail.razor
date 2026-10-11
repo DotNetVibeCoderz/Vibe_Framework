@@ -1,0 +1,121 @@
+@page "/purchasing/{Id}"
+@implements IDisposable
+
+@if (po is null)
+{
+    <EmptyState Icon="cart" Title="No such purchase order" Text="It may have been removed by a reset.">
+        <a class="rz-btn" href="purchasing">All purchase orders</a>
+    </EmptyState>
+}
+else
+{
+    var supplier = ErpStore.Partner(po.Supplier);
+    var late = po.Status == "ordered" && string.CompareOrdinal(po.Expected, today) < 0;
+
+    <a class="back" href="purchasing"><Icon Name="arrow-right" Size="14" Class="flip" /> Purchasing</a>
+    <header class="doc-head">
+        <div>
+            <span class="eyebrow">Purchase order</span>
+            <h1 class="stencil doc-title">@po.Id</h1>
+            <p class="doc-sub">@supplier.Name · @supplier.City · ordered @Fmt.Date(po.Date) · expected @Fmt.Date(po.Expected)@(late ? " (late)" : "")</p>
+        </div>
+        <div class="doc-actions">
+            <StatusChip Status="@po.Status" />
+            @switch (po.Status)
+            {
+                case "ordered":
+                    <button class="rz-btn" @onclick="Cancel">Cancel order</button>
+                    <button class="rz-btn primary" @onclick="Receive"><Icon Name="box" /> Receive goods</button>
+                    break;
+                case "received":
+                    <button class="rz-btn primary" @onclick="Pay"><Icon Name="wallet" /> Pay the bill</button>
+                    break;
+            }
+        </div>
+    </header>
+
+    <DocTrail Steps="Trail()" />
+
+    <div class="two section">
+        <div class="rz-stack">
+            <Card Title="Lines" Subtitle="Delivered to Gudang Bahan, Tahunan">
+                <div class="rz-table-wrap flat">
+                    <table class="rz-table">
+                        <thead><tr><th>Material</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">In store now</th></tr></thead>
+                        <tbody>
+                            @foreach (var l in po.Lines)
+                            {
+                                var item = ErpStore.Item(l.Item);
+                                <tr>
+                                    <td><a href="inventory/@l.Item">@item.Name</a> <span class="mono muted">@l.Item</span></td>
+                                    <td class="num">@Fmt.Qty(l.Qty) @item.Unit</td>
+                                    <td class="num">@Fmt.Num(l.Price)</td>
+                                    <td class="num">@Fmt.Num(l.Amount)</td>
+                                    <td class="num">@Fmt.Qty(item.In(Catalog.RawStore))</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr><td colspan="3">Subtotal</td><td class="num">@Fmt.Num(po.Subtotal)</td><td></td></tr>
+                            <tr><td colspan="3">PPN masukan 11%</td><td class="num">@Fmt.Num(po.Tax)</td><td></td></tr>
+                            <tr class="grand"><td colspan="3">Total</td><td class="num">@Fmt.Rp(po.Total)</td><td></td></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </Card>
+            <Card Title="Posted to the ledger">
+                <Postings Entries="ErpStore.EntriesFor(po.Receipt, po.Id)" Empty="Nothing is posted until the goods are received." />
+            </Card>
+        </div>
+        <div class="rz-stack">
+            <Card Title="@supplier.Name" Subtitle="@($"{supplier.City} · {supplier.TermsDays} days")">
+                @{ var theirs = ErpStore.Purchases.Where(p => p.Supplier == supplier.Id).ToList(); }
+                <dl class="facts">
+                    <dt>Bills unpaid</dt><dd>@Fmt.Rp(theirs.Where(p => p.Status == "received").Sum(p => p.Total))</dd>
+                    <dt>On order</dt><dd>@Fmt.Rp(theirs.Where(p => p.Status == "ordered").Sum(p => p.Total))</dd>
+                    <dt>Orders this year</dt><dd>@theirs.Count(p => p.Date.StartsWith(DateTime.Today.Year.ToString()) && !p.Cancelled)</dd>
+                </dl>
+            </Card>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private readonly string today = Fmt.Today;
+    private PurchaseOrder? po;
+
+    protected override void OnInitialized() => ErpStore.Changed += Refresh;
+
+    protected override void OnParametersSet() => po = ErpStore.Purchases.FirstOrDefault(p => p.Id == Id);
+
+    private List<DocTrail.Step> Trail() => new()
+    {
+        new("Purchase order", po!.Id, po.Date),
+        new("Goods receipt", po.Receipt, po.Received, po.Cancelled ? "cancelled" : $"expected {Fmt.DateShort(po.Expected)}"),
+        new("Bill paid", po.Paid.Length > 0 ? "LUNAS" : "", po.Paid, po.Due.Length > 0 ? $"due {Fmt.DateShort(po.Due)}" : "after receipt"),
+    };
+
+    private async Task Receive()
+    {
+        await ErpStore.ReceivePurchaseAsync(po!, today);
+        Toasts.Success($"{po!.Receipt}: goods counted into Gudang Bahan");
+    }
+
+    private async Task Pay()
+    {
+        await ErpStore.PayPurchaseAsync(po!, today);
+        Toasts.Success($"Paid {Fmt.Rp(po!.Total)} to {ErpStore.PartnerName(po.Supplier)}");
+    }
+
+    private async Task Cancel()
+    {
+        await ErpStore.CancelPurchaseAsync(po!);
+        Toasts.Info($"{po!.Id} cancelled");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

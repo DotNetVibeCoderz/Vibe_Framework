@@ -1,0 +1,40 @@
+@* Journal entries in the ledger's own layout: date and number, the memo,
+   then debits flush left and credits indented, as bookkeepers write them. *@
+@if (Entries.Count == 0)
+{
+    <p class="muted small">@Empty</p>
+}
+else
+{
+    <div class="rz-table-wrap">
+        <table class="rz-table ledger">
+            <thead>
+                <tr><th>Entry</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Entries)
+                {
+                    <tr class="entry-head">
+                        <td><span class="mono">@e.Id</span><span class="entry-date">@Fmt.DateShort(e.Date)</span></td>
+                        <td colspan="3" class="entry-memo">@e.Memo @if (ShowRef) { <span class="entry-ref mono">@e.Ref</span> }</td>
+                    </tr>
+                    @foreach (var l in e.Lines)
+                    {
+                        <tr class="entry-line">
+                            <td></td>
+                            <td class="@(l.Credit > 0 ? "cr" : "dr")"><span class="mono acct">@l.Account</span> @Books.Name(l.Account)</td>
+                            <td class="num">@(l.Debit > 0 ? Fmt.Num(l.Debit) : "")</td>
+                            <td class="num">@(l.Credit > 0 ? Fmt.Num(l.Credit) : "")</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<JournalEntry> Entries { get; set; } = Array.Empty<JournalEntry>();
+    [Parameter] public bool ShowRef { get; set; }
+    [Parameter] public string Empty { get; set; } = "Nothing posted yet.";
+}

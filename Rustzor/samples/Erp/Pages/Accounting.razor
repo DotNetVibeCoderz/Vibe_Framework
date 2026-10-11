@@ -1,0 +1,201 @@
+@page "/accounting"
+@using System.Globalization
+@implements IDisposable
+
+<PageHeader Title="Accounting" Eyebrow="Buku besar" Text="Every receipt, delivery, invoice, payment and finished batch posts a balanced entry here. The reports are summed from these entries, nothing else.">
+    <Actions>
+        <button class="rz-btn primary" @onclick="() => adding = true"><Icon Name="wallet" /> Record expense</button>
+    </Actions>
+</PageHeader>
+
+<Tabs Titles="tabs" @bind-Active="tab" />
+
+@{
+    var journal = ErpStore.Journal;
+}
+<div class="section">
+    @switch (tab)
+    {
+        case "Journal":
+            {
+                var rows = journal.AsEnumerable().Reverse().Where(e => query.Length == 0 || e.Memo.Contains(query, StringComparison.OrdinalIgnoreCase) || e.Ref.Contains(query, StringComparison.OrdinalIgnoreCase) || e.Id.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+                <Card>
+                    <Actions>
+                        <div class="rz-search journal-search">
+                            <Icon Name="search" Size="16" />
+                            <input class="rz-input" placeholder="Search memo or number" value="@query" @oninput="e => { query = e.Value?.ToString() ?? string.Empty; shown = 12; }" aria-label="Search the journal" />
+                        </div>
+                    </Actions>
+                    <ChildContent>
+                        <Postings Entries="rows.Take(shown).ToList()" ShowRef="true" Empty="No entries match." />
+                        <div class="rz-grid-foot">
+                            <span>@Math.Min(shown, rows.Count) of @rows.Count entries · debits @Fmt.Rp(journal.Sum(e => e.Lines.Sum(l => l.Debit))) = credits @Fmt.Rp(journal.Sum(e => e.Lines.Sum(l => l.Credit)))</span>
+                            @if (rows.Count > shown)
+                            {
+                                <button class="rz-btn small" @onclick="() => shown += 25">Show 25 more</button>
+                            }
+                        </div>
+                    </ChildContent>
+                </Card>
+            }
+            break;
+
+        case "Trial balance":
+            {
+                var rows = Books.Totals(journal).Where(r => r.Debit != 0 || r.Credit != 0).ToList();
+                var dr = rows.Sum(r => Math.Max(0, r.Debit - r.Credit));
+                var cr = rows.Sum(r => Math.Max(0, r.Credit - r.Debit));
+                <Card Title="@($"Trial balance at {Fmt.Date(Fmt.Today)}")" Subtitle="Each account's net balance on its debit or credit side">
+                    <Actions><span class="recon @(dr == cr ? "ok" : "off")"><Icon Name="@(dr == cr ? "check" : "alert")" Size="14" /> @(dr == cr ? "Balanced" : "Out of balance")</span></Actions>
+                    <ChildContent>
+                        <div class="rz-table-wrap flat">
+                            <table class="rz-table tb">
+                                <thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
+                                <tbody>
+                                    @foreach (var r in rows)
+                                    {
+                                        var net = r.Debit - r.Credit;
+                                        <tr>
+                                            <td><span class="mono acct">@r.Account.Code</span> @r.Account.Name</td>
+                                            <td class="num">@(net > 0 ? Fmt.Num(net) : "")</td>
+                                            <td class="num">@(net < 0 ? Fmt.Num(-net) : "")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot><tr class="grand"><td>Total</td><td class="num">@Fmt.Num(dr)</td><td class="num">@Fmt.Num(cr)</td></tr></tfoot>
+                            </table>
+                        </div>
+                    </ChildContent>
+                </Card>
+            }
+            break;
+
+        case "Profit and loss":
+            {
+                var (from, to, label) = Period();
+                var p = Books.ProfitAndLoss(journal, from, to);
+                <Card Title="@($"Profit and loss, {label}")" Subtitle="@($"{Fmt.Date(from)} to {Fmt.Date(to)}")">
+                    <Actions>
+                        <select class="rz-input period" aria-label="Period" @bind="period">
+                            <option value="month">This month</option>
+                            <option value="last">Last month</option>
+                            <option value="all">Since opening</option>
+                        </select>
+                    </Actions>
+                    <ChildContent>
+                        <div class="statement">
+                            <div class="st-row"><span><span class="mono acct">4100</span> Penjualan</span><span class="mono">@Fmt.Num(p.Revenue)</span></div>
+                            <div class="st-row"><span><span class="mono acct">5100</span> Harga Pokok Penjualan</span><span class="mono">(@Fmt.Num(p.Cogs))</span></div>
+                            <div class="st-row total"><span>Gross profit <em>@p.Margin.ToString("P1")</em></span><span class="mono">@Fmt.Num(p.Gross)</span></div>
+                            @foreach (var e in p.Expenses)
+                            {
+                                <div class="st-row"><span><span class="mono acct">@e.Account.Code</span> @e.Account.Name</span><span class="mono">(@Fmt.Num(e.Balance))</span></div>
+                            }
+                            <div class="st-row total"><span>Operating expenses</span><span class="mono">(@Fmt.Num(p.Operating))</span></div>
+                            <div class="st-row grand"><span>Net profit before tax</span><span class="mono @(p.Net < 0 ? "neg" : "")">@Fmt.Rp(p.Net)</span></div>
+                        </div>
+                    </ChildContent>
+                </Card>
+            }
+            break;
+
+        default:
+            {
+                var s = Books.BalanceSheet(journal, Fmt.Today);
+                <div class="sheet">
+                    <Card Title="Assets" Subtitle="@($"At {Fmt.Date(Fmt.Today)}")">
+                        <div class="statement">
+                            @foreach (var r in s.Assets)
+                            {
+                                <div class="st-row"><span><span class="mono acct">@r.Account.Code</span> @r.Account.Name</span><span class="mono">@Fmt.Num(r.Balance)</span></div>
+                            }
+                            <div class="st-row grand"><span>Total assets</span><span class="mono">@Fmt.Rp(s.TotalAssets)</span></div>
+                        </div>
+                    </Card>
+                    <Card Title="Liabilities and equity" Subtitle="@(s.Balances ? "Equal to total assets" : "Does not balance")">
+                        <div class="statement">
+                            @foreach (var r in s.Liabilities)
+                            {
+                                <div class="st-row"><span><span class="mono acct">@r.Account.Code</span> @r.Account.Name</span><span class="mono">@Fmt.Num(r.Balance)</span></div>
+                            }
+                            <div class="st-row total"><span>Total liabilities</span><span class="mono">@Fmt.Num(s.TotalLiabilities)</span></div>
+                            @foreach (var r in s.Equity.Where(r => r.Balance != 0))
+                            {
+                                <div class="st-row"><span><span class="mono acct">@r.Account.Code</span> @r.Account.Name</span><span class="mono">@Fmt.Num(r.Balance)</span></div>
+                            }
+                            <div class="st-row"><span>Profit to date, not yet closed</span><span class="mono">@Fmt.Num(s.Earnings)</span></div>
+                            <div class="st-row total"><span>Total equity</span><span class="mono">@Fmt.Num(s.TotalEquity)</span></div>
+                            <div class="st-row grand"><span>Total liabilities and equity</span><span class="mono">@Fmt.Rp(s.TotalLiabilities + s.TotalEquity)</span></div>
+                        </div>
+                    </Card>
+                </div>
+                <p class="balance-check @(s.Balances ? "ok" : "off")"><Icon Name="@(s.Balances ? "check" : "alert")" Size="15" /> Assets @Fmt.Rp(s.TotalAssets) @(s.Balances ? "=" : "≠") liabilities and equity @Fmt.Rp(s.TotalLiabilities + s.TotalEquity). PPN keluaran less masukan, @Fmt.Rp(Books.Balance(journal, Books.VatOut) - Books.Balance(journal, Books.VatIn)), is what the month's SPT Masa PPN would pay.</p>
+            }
+            break;
+    }
+</div>
+
+<Modal @bind-Open="adding" Title="Record an expense">
+    <ChildContent>
+        <div class="rz-stack">
+            <Field Label="Account">
+                <select class="rz-input" @bind="expAccount">
+                    @foreach (var acct in Books.ExpenseAccounts)
+                    {
+                        <option value="@acct">@acct @Books.Name(acct)</option>
+                    }
+                </select>
+            </Field>
+            <div class="pair">
+                <Field Label="Amount (Rp)">
+                    <input class="rz-input mono" type="number" min="0" step="50000" value="@expAmount.ToString(CultureInfo.InvariantCulture)"
+                           @onchange="e => expAmount = decimal.TryParse(e.Value?.ToString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var a) ? a : 0" />
+                </Field>
+                <Field Label="Paid from"><input class="rz-input" value="1100 Kas & Bank" disabled /></Field>
+            </div>
+            <Field Label="What for"><input class="rz-input" @bind="expMemo" placeholder="Truck hire to Semarang" /></Field>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" disabled="@(expAmount <= 0 || expMemo.Trim().Length == 0)" @onclick="Record">Post expense</button>
+    </Footer>
+</Modal>
+
+@code {
+    private readonly List<string> tabs = new() { "Journal", "Trial balance", "Profit and loss", "Balance sheet" };
+    private string tab = "Journal";
+    private string query = "";
+    private int shown = 12;
+    private string period = "month";
+    private bool adding;
+    private string expAccount = Books.Freight;
+    private decimal expAmount = 750_000;
+    private string expMemo = "";
+
+    protected override void OnInitialized() => ErpStore.Changed += Refresh;
+
+    private (string From, string To, string Label) Period()
+    {
+        var first = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        return period switch
+        {
+            "last" => (Fmt.Iso(first.AddMonths(-1)), Fmt.Iso(first.AddDays(-1)), first.AddMonths(-1).ToString("MMMM yyyy")),
+            "all" => (ErpStore.Journal.Count > 0 ? ErpStore.Journal[0].Date : Fmt.Today, Fmt.Today, "since opening"),
+            _ => (Fmt.Iso(first), Fmt.Today, first.ToString("MMMM yyyy")),
+        };
+    }
+
+    private async Task Record()
+    {
+        var entry = await ErpStore.RecordExpenseAsync(expAccount, expAmount, expMemo.Trim(), Fmt.Today);
+        adding = false;
+        expMemo = "";
+        tab = "Journal";
+        Toasts.Success($"{entry.Ref} posted: {Fmt.Rp(entry.Amount)} to {Books.Name(expAccount)}");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

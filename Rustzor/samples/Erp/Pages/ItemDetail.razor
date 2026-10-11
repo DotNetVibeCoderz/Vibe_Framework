@@ -1,0 +1,107 @@
+@page "/inventory/{Id}"
+@implements IDisposable
+
+@if (item is null)
+{
+    <EmptyState Icon="box" Title="No such item" Text="Check the code, or go back to the inventory.">
+        <a class="rz-btn" href="inventory">Inventory</a>
+    </EmptyState>
+}
+else
+{
+    var moves = ErpStore.Moves.Where(m => m.Item == item.Id).ToList();
+    <a class="back" href="inventory"><Icon Name="arrow-right" Size="14" Class="flip" /> Inventory</a>
+    <header class="doc-head">
+        <div>
+            <span class="eyebrow">@(item.IsRaw ? "Material" : "Finished good")</span>
+            <h1 class="doc-title item-title">@item.Name</h1>
+            <p class="doc-sub"><span class="stencil sku-big">@item.Id</span> · counted in @item.Unit@(item.IsRaw ? $" · bought from {ErpStore.PartnerName(item.Supplier)}" : $" · list price {Fmt.Rp(item.Price)}")</p>
+        </div>
+    </header>
+
+    <div class="rz-grid rz-grid-4">
+        <StatCard Label="On hand" Value="@($"{Fmt.Qty(item.OnHand)} {item.Unit}")" Hint="@string.Join(" · ", Catalog.Warehouses.Where(w => item.In(w.Id) != 0).Select(w => $"{w.Id} {Fmt.Qty(item.In(w.Id))}"))" />
+        <StatCard Label="Average cost" Value="@Fmt.Rp(item.AvgCost)" Hint="@(item.IsRaw ? $"supplier price {Fmt.Rp(Catalog.CostOf(item.Id))}" : $"standard {Fmt.Rp(Catalog.StandardCost(item.Id))}")" />
+        <StatCard Label="Value" Value="@Fmt.Short(item.Value)" Hint="at average cost" />
+        <StatCard Label="@(item.IsRaw ? "On order" : "In production")" Value="@($"{Fmt.Qty(item.IsRaw ? ErpStore.OnOrder(item.Id) : ErpStore.InProduction(item.Id))} {item.Unit}")" Hint="@($"reorder at {Fmt.Qty(item.Reorder)}")" />
+    </div>
+
+    <div class="two section">
+        <Card Title="Stock card" Subtitle="Every movement, newest first, with the running balance (kartu stok)">
+            <div class="rz-table-wrap flat">
+                <table class="rz-table">
+                    <thead><tr><th>Date</th><th>Movement</th><th>Ref</th><th>Where</th><th class="num">In / out</th><th class="num">Cost</th><th class="num">Balance</th></tr></thead>
+                    <tbody>
+                        @{ var balance = item.OnHand; }
+                        @foreach (var m in Enumerable.Reverse(moves).Take(40))
+                        {
+                            <tr>
+                                <td>@Fmt.DateShort(m.Date)</td>
+                                <td>@m.Kind</td>
+                                <td><a class="mono" href="@RefLink(m.Ref)">@m.Ref</a></td>
+                                <td>@m.Warehouse</td>
+                                <td class="num @(m.Qty < 0 ? "out" : "in")">@(m.Qty > 0 ? "+" : "")@Fmt.Qty(m.Qty)</td>
+                                <td class="num">@Fmt.Num(m.Cost)</td>
+                                <td class="num">@Fmt.Qty(balance)</td>
+                            </tr>
+                            balance -= m.Kind.StartsWith("transfer") ? 0 : m.Qty;
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (moves.Count > 40)
+            {
+                <p class="muted small">The latest 40 of @moves.Count movements.</p>
+            }
+        </Card>
+        <div class="rz-stack">
+            @if (item.IsRaw)
+            {
+                <Card Title="Used in" Subtitle="Per finished piece">
+                    <ul class="facts-list">
+                        @foreach (var b in Catalog.Boms.Where(b => b.Parts.Any(p => p.Item == item.Id)))
+                        {
+                            <li><a href="inventory/@b.Item">@ErpStore.Item(b.Item).Name</a><span class="mono">@Fmt.Qty(b.Parts.First(p => p.Item == item.Id).Qty) @item.Unit</span></li>
+                        }
+                    </ul>
+                </Card>
+            }
+            else
+            {
+                <Card Title="Made from" Subtitle="@($"Bill of materials · {Catalog.BomOf(item.Id).Days} days a batch")">
+                    <ul class="facts-list">
+                        @foreach (var (part, qty) in Catalog.BomOf(item.Id).Parts)
+                        {
+                            <li><a href="inventory/@part">@ErpStore.Item(part).Name</a><span class="mono">@Fmt.Qty(qty) @ErpStore.Item(part).Unit</span></li>
+                        }
+                        <li><span>Craftsmen's wages</span><span class="mono">@Fmt.Num(Catalog.BomOf(item.Id).Labour)</span></li>
+                    </ul>
+                    <a class="rz-btn small" href="production?make=@item.Id&qty=@(Math.Max(1, item.Reorder).ToString(System.Globalization.CultureInfo.InvariantCulture))"><Icon Name="factory" Size="14" /> Plan a batch</a>
+                </Card>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private Item? item;
+
+    protected override void OnInitialized() => ErpStore.Changed += Refresh;
+
+    protected override void OnParametersSet() => item = ErpStore.FindItem(Id);
+
+    /// <summary>The document behind a movement.</summary>
+    private static string RefLink(string reference)
+    {
+        if (reference.StartsWith("WO-")) return "production";
+        if (reference.StartsWith("GR-")) return ErpStore.Purchases.FirstOrDefault(p => p.Receipt == reference) is { } po ? $"purchasing/{po.Id}" : "purchasing";
+        if (reference.StartsWith("SJ-")) return ErpStore.Sales.FirstOrDefault(s => s.DeliveryNo == reference) is { } so ? $"sales/{so.Id}" : "sales";
+        return "inventory";
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

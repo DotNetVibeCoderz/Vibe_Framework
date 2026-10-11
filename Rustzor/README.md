@@ -10,7 +10,7 @@ Rustzor is a web platform for C#. You write Razor components and ordinary C#; `d
 
 The programming model is Blazor's: `.razor` files, `@code`, `@bind`, `EventCallback`, routing, layouts, dependency injection and forms. Around it sit a component kit, a C# library for each browser API, frameworks for data, games, graphics and AI, integrations with popular JavaScript UI and chart libraries, and clients for SignalR and gRPC-Web.
 
-> **Preview.** This is `0.1.0-preview.2`. The core works and is tested app by app (five sample apps and twenty-one generated templates run in Chrome), but APIs may change before 1.0. See [what is not supported yet](docs/en/limitations.md).
+> **Preview.** This is `0.1.0-preview.2`. The core works and is tested app by app (six sample apps and twenty-one generated templates run in Chrome), but APIs may change before 1.0. See [what is not supported yet](docs/en/limitations.md).
 
 ## Start an app
 
@@ -62,6 +62,7 @@ Add `App.razor` (a `Router`), `_Imports.razor` and `wwwroot/index.html`, then `d
 | --- | --- |
 | ![CRM](docs/images/sample-crm.png) **Nusantara CRM.** Pipeline board with drag and drop, companies, contacts, activities and SQL reports on SQLite in the browser. | ![POS](docs/images/sample-pos.png) **Kedai Senja POS.** A café till: drink options, promo codes, PB1 tax, cash, QRIS and card, receipts, shift reports, on IndexedDB. |
 | ![Chat](docs/images/sample-chat.png) **Serambi chat.** Channels, threads, reactions and typing indicators across browser tabs with no server, plus simulated teammates. | ![API Playground](docs/images/sample-api-grpc.png) **API Playground.** REST, WebSocket, SignalR and gRPC-Web against an ASP.NET Core server, with every frame on the wire shown. |
+| ![ERP](docs/images/sample-erp.png) **Jati Lestari ERP.** A Jepara furniture workshop: purchasing, sales with PPN 11%, production from bills of materials, three warehouses, and double-entry books every action posts to. | ![Dashboard](docs/images/sample-dashboard-grid.png) **Arus grid dashboard.** A live, simulated Java–Bali power grid: demand, frequency, generation by source and a one-line diagram of the 500 kV backbone. |
 
 Every sample, with more screenshots: [docs/en/samples.md](docs/en/samples.md).
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Rustzor is in preview (`0.1.0-preview.2`). The runtime integration, component model, UI kit, every `Rustzor.Browser.*` library, the four frameworks, the UI and chart integrations, the SignalR and gRPC-Web clients, RustzorAppGen and five sample apps exist and are tested in Chrome. Phase 5 tooling exists too: the `rustzor` CLI (`src/Rustzor.Cli`), `dotnet new` templates (`src/Rustzor.Templates`), the VS Code extension (`tools/vscode-rustzor`) and the generated package catalog (`docs/catalog`). Not done yet: nine of the thirteen sample apps in `solution-design.md`. `PLAN.md` has the roadmap and `Progress.md` what is done and how it was verified.
+Rustzor is in preview (`0.1.0-preview.2`). The runtime integration, component model, UI kit, every `Rustzor.Browser.*` library, the four frameworks, the UI and chart integrations, the SignalR and gRPC-Web clients, RustzorAppGen and six sample apps exist and are tested in Chrome. Phase 5 tooling exists too: the `rustzor` CLI (`src/Rustzor.Cli`), `dotnet new` templates (`src/Rustzor.Templates`), the VS Code extension (`tools/vscode-rustzor`) and the generated package catalog (`docs/catalog`). Not done yet: eight of the thirteen sample apps in `solution-design.md`. `PLAN.md` has the roadmap and `Progress.md` what is done and how it was verified.
 
 The original brief is `Rustzor.txt` (Indonesian) and the design is `solution-design.md`.
 
@@ -32,7 +32,7 @@ The browser tools need `npm ci` in `tools/e2e` and Chrome (`CHROME_PATH` if not 
 
 - `runtime/rustzor-wasm`: the browser seam over RustNetRuntime. `js/rustzor.js`: loader, core ops, DOM patcher (copied into the SDK by `build-runtime.sh`).
 - `src/`: `Rustzor.Core`, `Rustzor.Components` (assembly name `Microsoft.AspNetCore.Components`, package `Rustzor.Components`), `Rustzor.UI`, `Rustzor.Build`, `Rustzor.Sdk`, and `Browser/`, `Frameworks/`, `Integrations/`, `Net/`.
-- `samples/`: Crm, Pos, Dashboard, Chat, ApiPlayground (Client + ASP.NET Core Server).
+- `samples/`: Crm, Erp, Pos, Dashboard, Chat, ApiPlayground (Client + ASP.NET Core Server).
 - `tools/RustzorAppGen` (Avalonia + Semantic Kernel), `tools/e2e`, `tools/dev`.
 - `docs/en`, `docs/id`, `README.md`, `README.id.md`; screenshots in `docs/images`.
 - `eng/workflows`: source of the GitHub Actions workflows (the copies GitHub runs live in the monorepo root's `.github/workflows`).

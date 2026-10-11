@@ -2,6 +2,39 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-11: Jati Lestari ERP sample
+
+- `samples/Erp`: ERP for a teak furniture workshop in Jepara, on `Rustzor.UI`
+  and IndexedDB. Overview (cash, receivables, payables, stock value, what
+  needs attention, sales against cost of sales, this month's profit and loss,
+  stock by warehouse); sales (order, delivery note, invoice with PPN 11%,
+  payment, overdue invoices); purchasing (order, goods receipt, bill payment,
+  "reorder what is low"); production (bills of materials with wages, work
+  orders from planned to finished, standard cost and margin); inventory in
+  three warehouses at moving-average cost, stock cards and transfers; and
+  accounting: journal, trial balance, profit and loss by period, balance
+  sheet, cash expenses. Every action posts a balanced journal entry; the
+  inventory page checks each stock group against its ledger account.
+- Its own look: oiled-teak sidebar with grain, document numbers stencilled
+  like export-crate marks (Big Shoulders Stencil), the order's paper trail as
+  a row of crate tags; Hanken Grotesk and Fragment Mono; light and dark.
+- Seed: eleven weeks played through the same actions (purchases, batches,
+  sales, payments, rent and salaries), so every figure comes from a document.
+  The simulation also runs on .NET and on `rustnet run` from a console
+  harness; both produce the same history.
+- RustNetRuntime: `DateTime.ParseExact` (one format or several) and
+  `TryParseExact`, invariant culture, custom and standard formats; a
+  conformance check (`DateChecks.cs`) and unit tests. Found while building:
+  RustCLR's LINQ is eager (documented), so a key selector with side effects
+  runs at the call; the seed draws its random numbers outside selectors.
+- Verified in headless Chrome: every route renders with no console errors;
+  a scripted cycle (purchase 2 m³ of teak and receive it, sell 4 chairs,
+  deliver, invoice and collect, make 2 tables) checks the stock changes, each
+  posting (inventory 29.000.000, PPN masukan 3.190.000, receivable 8.214.000,
+  PPN keluaran 814.000, wages 1.700.000), the balanced trial balance and
+  balance sheet, the ledger reconciliation, a reload keeping the data and the
+  reset. No sideways scrolling at 400 px on any screen.
+
 ## 2026-10-11: release 0.1.0-preview.2
 
 - All 45 packages at `0.1.0-preview.2`, the first release with `Rustzor.Cli`

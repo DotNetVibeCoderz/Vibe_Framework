@@ -1,0 +1,137 @@
+@page "/sales"
+@implements IDisposable
+@inject NavigationManager Nav
+
+<PageHeader Title="Sales" Eyebrow="Orders, deliveries and invoices" Text="An order is confirmed, shipped with a delivery note (surat jalan), invoiced with PPN 11% and paid. Click an order to move it along.">
+    <Actions>
+        <button class="rz-btn primary" @onclick="StartNew"><Icon Name="plus" /> New sales order</button>
+    </Actions>
+</PageHeader>
+
+<div class="filters" role="tablist" aria-label="Filter orders">
+    @foreach (var (key, label) in Filters)
+    {
+        var k = key;
+        <button role="tab" class="filter @(filter == k ? "on" : "")" aria-selected="@(filter == k ? "true" : "false")" @onclick="() => filter = k">
+            @label <span class="count">@Matching(k).Count()</span>
+        </button>
+    }
+</div>
+
+<Card>
+    @{ var rows = Matching(filter).OrderByDescending(s => s.Id).ToList(); }
+    @if (rows.Count == 0)
+    {
+        <EmptyState Icon="receipt" Title="No orders here" Text="Nothing matches this filter. Try another, or create an order." />
+    }
+    else
+    {
+        <div class="rz-table-wrap flat">
+            <table class="rz-table docs">
+                <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Ships from</th><th>Invoice</th><th class="num">Total incl. PPN</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var s in rows)
+                    {
+                        var so = s;
+                        var status = so.Overdue(today) ? "overdue" : so.Status;
+                        <tr class="clickable" @onclick="() => Nav.NavigateTo(Rel(so.Id))">
+                            <td><a class="doc-no" href="@Rel(so.Id)">@so.Id</a></td>
+                            <td>@ErpStore.PartnerName(so.Customer)</td>
+                            <td>@Fmt.DateShort(so.Date)</td>
+                            <td>@Catalog.WarehouseOf(so.Warehouse).Name</td>
+                            <td class="mono">@(so.InvoiceNo.Length > 0 ? so.InvoiceNo : "—")</td>
+                            <td class="num">@Fmt.Num(so.Total)</td>
+                            <td><StatusChip Status="@status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</Card>
+
+<Modal @bind-Open="adding" Title="New sales order">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="Customer">
+                    <select class="rz-input" @bind="customer">
+                        @foreach (var c in ErpStore.Customers)
+                        {
+                            <option value="@c.Id">@c.Name, @c.City</option>
+                        }
+                    </select>
+                </Field>
+                <Field Label="Ships from">
+                    <select class="rz-input" @bind="warehouse">
+                        <option value="@Catalog.GoodsStore">Gudang Barang Jadi, Jepara</option>
+                        <option value="@Catalog.Showroom">Showroom Semarang</option>
+                    </select>
+                </Field>
+            </div>
+            <LineEditor Lines="lines" Choices="products" PriceOf="id => ErpStore.Item(id).Price" Warn="Shortage" OnChange="StateHasChanged" />
+            <p class="muted small">Payment terms: @(ErpStore.Customers.FirstOrDefault(c => c.Id == customer)?.TermsDays ?? 30) days after the invoice.</p>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" disabled="@(lines.All(l => l.Qty <= 0))" @onclick="Create">Confirm order</button>
+    </Footer>
+</Modal>
+
+@code {
+    private static readonly (string Key, string Label)[] Filters =
+    {
+        ("open", "To ship"), ("invoiced", "Awaiting payment"), ("overdue", "Overdue"), ("paid", "Paid"), ("all", "All"),
+    };
+
+    private readonly string today = Fmt.Today;
+    private string filter = "open";
+    private bool adding;
+    private string customer = "C-RKI";
+    private string warehouse = Catalog.GoodsStore;
+    private List<Line> lines = new();
+    private List<Item> products = new();
+
+    private static string Rel(string id) => $"sales/{id}";
+
+    protected override void OnInitialized()
+    {
+        ErpStore.Changed += Refresh;
+        products = ErpStore.Items.Where(i => !i.IsRaw).ToList();
+        if (Nav.Uri.Contains("new=1")) StartNew();
+    }
+
+    private IEnumerable<SalesOrder> Matching(string key) => key switch
+    {
+        "open" => ErpStore.Sales.Where(s => s.Status is "confirmed" or "delivered"),
+        "invoiced" => ErpStore.Sales.Where(s => s.Status == "invoiced"),
+        "overdue" => ErpStore.Sales.Where(s => s.Overdue(today)),
+        "paid" => ErpStore.Sales.Where(s => s.Status == "paid"),
+        _ => ErpStore.Sales,
+    };
+
+    private string Shortage(Line line)
+    {
+        var have = ErpStore.Item(line.Item).In(warehouse);
+        return have >= line.Qty ? "" : $"Only {Fmt.Qty(have)} at {Catalog.WarehouseOf(warehouse).Name}; the order can be confirmed, but ships after production.";
+    }
+
+    private void StartNew()
+    {
+        lines = new() { new() { Item = products[0].Id, Qty = 4, Price = products[0].Price } };
+        adding = true;
+    }
+
+    private async Task Create()
+    {
+        var so = await ErpStore.CreateSaleAsync(customer, warehouse, lines.Where(l => l.Qty > 0).ToList(), today);
+        adding = false;
+        Toasts.Success($"{so.Id} confirmed for {ErpStore.PartnerName(customer)}");
+        Nav.NavigateTo(Rel(so.Id));
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

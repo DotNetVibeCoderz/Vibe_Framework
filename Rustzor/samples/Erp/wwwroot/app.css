@@ -1,0 +1,6 @@
+/* App styles. Rustzor.UI supplies the design tokens (--rz-*) and components. */
+.app-loading { display: grid; place-items: center; height: 100vh; font: 500 14px/1 system-ui, sans-serif; color: #8a8178; }
+.app-error { margin: 2rem; padding: 1rem; border: 1px solid #c2410c; border-radius: 8px; white-space: pre-wrap; }
+.app-full { min-height: 100vh; display: flex; flex-direction: column; background: var(--rz-bg); color: var(--rz-fg); }
+.app-footer { margin-top: auto; padding: 12px 20px; font-size: 12px; text-align: center; }
+.app-credit { font-size: 11px; line-height: 1.4; margin: 0; }

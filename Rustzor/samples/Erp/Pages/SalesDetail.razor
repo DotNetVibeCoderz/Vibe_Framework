@@ -1,0 +1,156 @@
+@page "/sales/{Id}"
+@implements IDisposable
+@inject NavigationManager Nav
+
+@if (so is null)
+{
+    <EmptyState Icon="receipt" Title="No such order" Text="It may have been removed by a reset. Go back to the sales list.">
+        <a class="rz-btn" href="sales">All sales orders</a>
+    </EmptyState>
+}
+else
+{
+    var customer = ErpStore.Partner(so.Customer);
+    var shortages = ErpStore.Shortages(so.Lines, so.Warehouse);
+    var status = so.Overdue(today) ? "overdue" : so.Status;
+    var deliveryCost = ErpStore.EntriesFor(so.DeliveryNo).SelectMany(e => e.Lines).Where(l => l.Account == Books.Cogs).Sum(l => l.Debit);
+    var cost = so.Delivered.Length > 0 ? deliveryCost : so.Lines.Sum(l => Fmt.Whole(ErpStore.Item(l.Item).AvgCost * l.Qty));
+
+    <a class="back" href="sales"><Icon Name="arrow-right" Size="14" Class="flip" /> Sales</a>
+    <header class="doc-head">
+        <div>
+            <span class="eyebrow">Sales order</span>
+            <h1 class="stencil doc-title">@so.Id</h1>
+            <p class="doc-sub">@customer.Name · @customer.City · ordered @Fmt.Date(so.Date) · ships from @Catalog.WarehouseOf(so.Warehouse).Name</p>
+        </div>
+        <div class="doc-actions">
+            <StatusChip Status="@status" />
+            @switch (so.Status)
+            {
+                case "confirmed":
+                    <button class="rz-btn" @onclick="Cancel">Cancel order</button>
+                    <button class="rz-btn primary" disabled="@(shortages.Count > 0)" @onclick="Deliver"><Icon Name="send" /> Deliver</button>
+                    break;
+                case "delivered":
+                    <button class="rz-btn primary" @onclick="Invoice"><Icon Name="receipt" /> Create invoice</button>
+                    break;
+                case "invoiced":
+                    <button class="rz-btn primary" @onclick="Pay"><Icon Name="wallet" /> Record payment</button>
+                    break;
+            }
+        </div>
+    </header>
+
+    <DocTrail Steps="Trail()" />
+
+    @if (so.Status == "confirmed" && shortages.Count > 0)
+    {
+        <div class="callout bad">
+            <Icon Name="alert" />
+            <div>
+                <strong>Not enough stock at @Catalog.WarehouseOf(so.Warehouse).Name to ship.</strong>
+                <ul>
+                    @foreach (var s in shortages)
+                    {
+                        <li>@s.Item.Name: need @Fmt.Qty(s.Need), have @Fmt.Qty(s.Have) (@Fmt.Qty(ErpStore.InProduction(s.Item.Id)) in production)</li>
+                    }
+                </ul>
+                <a class="rz-btn small" href="production?make=@shortages[0].Item.Id&qty=@((shortages[0].Need - shortages[0].Have).ToString(System.Globalization.CultureInfo.InvariantCulture))"><Icon Name="factory" Size="14" /> Plan a work order</a>
+            </div>
+        </div>
+    }
+
+    <div class="two section">
+        <div class="rz-stack">
+            <Card Title="Lines">
+                <div class="rz-table-wrap flat">
+                    <table class="rz-table">
+                        <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead>
+                        <tbody>
+                            @foreach (var l in so.Lines)
+                            {
+                                <tr>
+                                    <td><a href="inventory/@l.Item">@ErpStore.Item(l.Item).Name</a> <span class="mono muted">@l.Item</span></td>
+                                    <td class="num">@Fmt.Qty(l.Qty)</td>
+                                    <td class="num">@Fmt.Num(l.Price)</td>
+                                    <td class="num">@Fmt.Num(l.Amount)</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr><td colspan="3">Subtotal</td><td class="num">@Fmt.Num(so.Subtotal)</td></tr>
+                            <tr><td colspan="3">PPN 11%</td><td class="num">@Fmt.Num(so.Tax)</td></tr>
+                            <tr class="grand"><td colspan="3">Total</td><td class="num">@Fmt.Rp(so.Total)</td></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </Card>
+            <Card Title="Posted to the ledger" Subtitle="The entries this order made, from the delivery to the payment">
+                <Postings Entries="ErpStore.EntriesFor(so.DeliveryNo, so.InvoiceNo)" Empty="Nothing is posted until the goods ship." />
+            </Card>
+        </div>
+        <div class="rz-stack">
+            <Card Title="Margin" Subtitle="@(so.Delivered.Length > 0 ? "Cost as issued from stock" : "Estimated at today's average cost")">
+                <dl class="pnl-mini">
+                    <dt>Sales, before PPN</dt><dd class="mono">@Fmt.Num(so.Subtotal)</dd>
+                    <dt>Cost of goods</dt><dd class="mono">−@Fmt.Num(cost)</dd>
+                    <dt class="grand">Gross margin <span class="muted">@(so.Subtotal == 0 ? "" : ((double)((so.Subtotal - cost) / so.Subtotal)).ToString("P0"))</span></dt><dd class="mono grand">@Fmt.Rp(so.Subtotal - cost)</dd>
+                </dl>
+            </Card>
+            <Card Title="@customer.Name" Subtitle="@($"{customer.City} · {customer.TermsDays} days")">
+                @{ var theirs = ErpStore.Sales.Where(s => s.Customer == customer.Id && s.Status == "invoiced").ToList(); }
+                <dl class="facts">
+                    <dt>Open invoices</dt><dd>@theirs.Count · @Fmt.Rp(theirs.Sum(s => s.Total))</dd>
+                    <dt>Overdue</dt><dd>@Fmt.Rp(theirs.Where(s => s.Overdue(today)).Sum(s => s.Total))</dd>
+                    <dt>Bought this year</dt><dd>@Fmt.Rp(ErpStore.Sales.Where(s => s.Customer == customer.Id && s.Invoiced.StartsWith(DateTime.Today.Year.ToString())).Sum(s => s.Subtotal))</dd>
+                </dl>
+            </Card>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private readonly string today = Fmt.Today;
+    private SalesOrder? so;
+
+    protected override void OnInitialized() => ErpStore.Changed += Refresh;
+
+    protected override void OnParametersSet() => so = ErpStore.Sales.FirstOrDefault(s => s.Id == Id);
+
+    private List<DocTrail.Step> Trail() => new()
+    {
+        new("Sales order", so!.Id, so.Date),
+        new("Delivery note", so.DeliveryNo, so.Delivered, so.Cancelled ? "cancelled" : "when the goods ship"),
+        new("Invoice", so.InvoiceNo, so.Invoiced, "after delivery"),
+        new("Payment", so.Paid.Length > 0 ? "LUNAS" : "", so.Paid, so.Due.Length > 0 ? $"due {Fmt.DateShort(so.Due)}" : $"{ErpStore.Partner(so.Customer).TermsDays} days after invoice"),
+    };
+
+    private async Task Deliver()
+    {
+        if (await ErpStore.DeliverSaleAsync(so!, today)) Toasts.Success($"{so!.DeliveryNo} printed; the goods are on the truck");
+    }
+
+    private async Task Invoice()
+    {
+        await ErpStore.InvoiceSaleAsync(so!, today);
+        Toasts.Success($"{so!.InvoiceNo} issued for {Fmt.Rp(so.Total)}, due {Fmt.Date(so.Due)}");
+    }
+
+    private async Task Pay()
+    {
+        await ErpStore.ReceivePaymentAsync(so!, today);
+        Toasts.Success($"Payment of {Fmt.Rp(so!.Total)} received");
+    }
+
+    private async Task Cancel()
+    {
+        await ErpStore.CancelSaleAsync(so!);
+        Toasts.Info($"{so!.Id} cancelled");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

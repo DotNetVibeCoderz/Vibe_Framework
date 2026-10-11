@@ -10,7 +10,7 @@ Rustzor adalah platform web untuk C#. Anda menulis Razor component dan kode C# b
 
 Model pemrogramannya sama dengan Blazor: file `.razor`, `@code`, `@bind`, `EventCallback`, routing, layout, dependency injection, dan form. Di sekelilingnya tersedia component kit, library C# untuk setiap API browser, framework untuk data, game, grafis, dan AI, integrasi dengan library UI dan chart JavaScript populer, serta client untuk SignalR dan gRPC-Web.
 
-> **Preview.** Ini adalah versi `0.1.0-preview.2`. Bagian inti sudah berfungsi dan diuji per aplikasi (lima sample app dan dua puluh satu template hasil generate berjalan di Chrome), tetapi API masih bisa berubah sebelum 1.0. Lihat [apa saja yang belum didukung](docs/id/limitations.md).
+> **Preview.** Ini adalah versi `0.1.0-preview.2`. Bagian inti sudah berfungsi dan diuji per aplikasi (enam sample app dan dua puluh satu template hasil generate berjalan di Chrome), tetapi API masih bisa berubah sebelum 1.0. Lihat [apa saja yang belum didukung](docs/id/limitations.md).
 
 ## Memulai aplikasi
 
@@ -62,6 +62,7 @@ Tambahkan `App.razor` (sebuah `Router`), `_Imports.razor`, dan `wwwroot/index.ht
 | --- | --- |
 | ![CRM](docs/images/sample-crm.png) **Nusantara CRM.** Papan pipeline dengan drag and drop, perusahaan, kontak, aktivitas, dan laporan SQL di atas SQLite di dalam browser. | ![POS](docs/images/sample-pos.png) **Kedai Senja POS.** Mesin kasir kafe: pilihan minuman, kode promo, pajak PB1, tunai, QRIS dan kartu, struk, laporan shift, di atas IndexedDB. |
 | ![Chat](docs/images/sample-chat.png) **Serambi chat.** Channel, thread, reaksi, dan indikator mengetik antar-tab browser tanpa server, ditambah rekan tim simulasi. | ![API Playground](docs/images/sample-api-grpc.png) **API Playground.** REST, WebSocket, SignalR, dan gRPC-Web ke server ASP.NET Core, dengan setiap frame yang lewat di jaringan ditampilkan. |
+| ![ERP](docs/images/sample-erp.png) **Jati Lestari ERP.** Workshop mebel Jepara: pembelian, penjualan dengan PPN 11%, produksi dari bill of materials, tiga gudang, dan pembukuan berpasangan yang menerima jurnal dari setiap transaksi. | ![Dashboard](docs/images/sample-dashboard-grid.png) **Arus grid dashboard.** Simulasi jaringan listrik Jawa–Bali secara langsung: beban, frekuensi, pembangkitan per sumber, dan diagram satu garis jaringan 500 kV. |
 
 Semua sample app, beserta screenshot lainnya: [docs/id/samples.md](docs/id/samples.md).
 

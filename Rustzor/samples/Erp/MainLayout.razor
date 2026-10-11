@@ -1,0 +1,75 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Nav
+@* AppShell's sidebar credits Gravicode Studios, led by Kang Fadhil. *@
+<AppShell Brand="Jati Lestari" BrandIcon="factory" Items="nav">
+    <TopBar>
+        <span class="top-firm">Mebel Jati Lestari · Tahunan, Jepara</span>
+        <span class="top-date mono">@DateTime.Today.ToString("ddd d MMM yyyy")</span>
+    </TopBar>
+    <SidebarFooter>
+        <button class="side-reset" @onclick="() => confirming = true"><Icon Name="refresh" Size="14" /> Reset sample data</button>
+    </SidebarFooter>
+    <ChildContent>
+        @if (ready)
+        {
+            @Body
+        }
+        else
+        {
+            <div class="loading-books">
+                <span class="stencil">JL</span>
+                <p>Opening the books…</p>
+            </div>
+        }
+    </ChildContent>
+</AppShell>
+
+<Modal @bind-Open="confirming" Title="Start over?">
+    <ChildContent>
+        <p class="lede">This deletes every order, receipt, work order and journal entry in this browser and replays the workshop's last eleven weeks from the opening balances.</p>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => confirming = false">Keep my data</button>
+        <button class="rz-btn primary danger-fill" @onclick="Reset">Reset the books</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool ready;
+    private bool confirming;
+
+    private readonly List<NavItem> nav = new()
+    {
+        NavItem.Link("Overview", "", "home"),
+        NavItem.Heading("Operations"),
+        NavItem.Link("Sales", "sales", "receipt"),
+        NavItem.Link("Purchasing", "purchasing", "cart"),
+        NavItem.Link("Production", "production", "factory"),
+        NavItem.Link("Inventory", "inventory", "box"),
+        NavItem.Heading("Finance"),
+        NavItem.Link("Accounting", "accounting", "wallet"),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        ErpStore.Changed += Refresh;
+        await ErpStore.ReadyAsync();
+        ready = true;
+    }
+
+    private async Task Reset()
+    {
+        confirming = false;
+        ready = false;
+        StateHasChanged();
+        await ErpStore.ResetAsync();
+        ready = true;
+        Toasts.Success("The books start again from the opening balances");
+        Nav.NavigateTo("");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}

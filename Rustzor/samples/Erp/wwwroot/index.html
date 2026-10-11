@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="/" />
+  <title>Jati Lestari ERP · Rustzor sample</title>
+  <meta name="description" content="ERP for a Jepara teak furniture workshop. Built with Rustzor by Gravicode Studios, led by Kang Fadhil." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Big+Shoulders+Stencil+Display:wght@700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Fragment+Mono&display=swap" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="erp.css" />
+</head>
+<body>
+  <div id="app"><div class="app-loading">Loading…</div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+      console.error(e);
+    });
+  </script>
+</body>
+</html>

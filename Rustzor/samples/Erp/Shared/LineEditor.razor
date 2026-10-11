@@ -1,0 +1,76 @@
+@using System.Globalization
+@* The lines of a new purchase or sales order, with PPN and the total below. *@
+<div class="lines">
+    <div class="lines-head"><span>Item</span><span>Qty</span><span>Unit price (Rp)</span><span class="num">Amount</span><span></span></div>
+    @for (var i = 0; i < Lines.Count; i++)
+    {
+        var line = Lines[i];
+        var index = i;
+        var item = ErpStore.FindItem(line.Item);
+        <div class="lines-row">
+            <select class="rz-input" aria-label="Item on line @(index + 1)" value="@line.Item" @onchange="e => Pick(line, e.Value?.ToString())">
+                @foreach (var c in Choices)
+                {
+                    <option value="@c.Id">@c.Name</option>
+                }
+            </select>
+            <span class="qty-in">
+                <input class="rz-input mono" type="number" min="0" step="@(item?.Unit == "m³" ? "0.5" : "1")" aria-label="Quantity on line @(index + 1)"
+                       value="@line.Qty.ToString(CultureInfo.InvariantCulture)" @onchange="e => { line.Qty = Parse(e.Value); Changed(); }" />
+                <span class="unit">@item?.Unit</span>
+            </span>
+            <input class="rz-input mono" type="number" min="0" step="1000" aria-label="Unit price on line @(index + 1)"
+                   value="@line.Price.ToString(CultureInfo.InvariantCulture)" @onchange="e => { line.Price = Parse(e.Value); Changed(); }" />
+            <span class="num mono">@Fmt.Num(line.Amount)</span>
+            <button class="rz-btn ghost icon small" aria-label="Remove line @(index + 1)" disabled="@(Lines.Count == 1)" @onclick="() => Remove(index)"><Icon Name="trash" Size="15" /></button>
+        </div>
+        @if (Warn?.Invoke(line) is { Length: > 0 } warning)
+        {
+            <p class="line-warn"><Icon Name="alert" Size="13" /> @warning</p>
+        }
+    }
+    <div class="lines-foot">
+        <button class="rz-btn small" @onclick="Add"><Icon Name="plus" Size="14" /> Add line</button>
+        <dl class="sums">
+            <dt>Subtotal</dt><dd class="mono">@Fmt.Num(Subtotal)</dd>
+            <dt>PPN 11%</dt><dd class="mono">@Fmt.Num(Fmt.Ppn(Subtotal))</dd>
+            <dt class="grand">Total</dt><dd class="mono grand">@Fmt.Rp(Subtotal + Fmt.Ppn(Subtotal))</dd>
+        </dl>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<Line> Lines { get; set; } = new();
+    [Parameter] public IReadOnlyList<Item> Choices { get; set; } = Array.Empty<Item>();
+    [Parameter] public Func<string, decimal> PriceOf { get; set; } = _ => 0m;
+    /// <summary>A note under a line, such as a stock shortage; empty for none.</summary>
+    [Parameter] public Func<Line, string>? Warn { get; set; }
+    [Parameter] public EventCallback OnChange { get; set; }
+
+    private decimal Subtotal => Lines.Sum(l => l.Amount);
+
+    private static decimal Parse(object? value) =>
+        decimal.TryParse(value?.ToString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var d) && d >= 0 ? d : 0m;
+
+    private void Pick(Line line, string? id)
+    {
+        line.Item = id ?? "";
+        line.Price = PriceOf(line.Item);
+        Changed();
+    }
+
+    private void Add()
+    {
+        var next = Choices.FirstOrDefault(c => Lines.All(l => l.Item != c.Id)) ?? Choices[0];
+        Lines.Add(new Line { Item = next.Id, Qty = 1, Price = PriceOf(next.Id) });
+        Changed();
+    }
+
+    private void Remove(int index)
+    {
+        Lines.RemoveAt(index);
+        Changed();
+    }
+
+    private void Changed() => OnChange.InvokeAsync();
+}

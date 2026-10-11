@@ -61,6 +61,7 @@
     <Project Path="samples/Chat/Chat.csproj" />
     <Project Path="samples/Crm/Crm.csproj" />
     <Project Path="samples/Dashboard/Dashboard.csproj" />
+    <Project Path="samples/Erp/Erp.csproj" />
     <Project Path="samples/Pos/Pos.csproj" />
   </Folder>
 </Solution>

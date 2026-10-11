@@ -1,0 +1,204 @@
+@page "/production"
+@using System.Globalization
+@implements IDisposable
+@inject NavigationManager Nav
+
+<PageHeader Title="Production" Eyebrow="Work orders and bills of materials" Text="A work order makes a batch from its bill of materials. Finishing it takes the timber, fabric and fittings out of Gudang Bahan, pays the craftsmen and puts the pieces into the finished-goods store at what they cost.">
+    <Actions>
+        <button class="rz-btn primary" @onclick="() => StartNew(null, null)"><Icon Name="plus" /> New work order</button>
+    </Actions>
+</PageHeader>
+
+<div class="lanes">
+    @foreach (var (status, title, hint) in Lanes)
+    {
+        var orders = ErpStore.WorkOrders.Where(w => w.Status == status).OrderByDescending(w => w.Id).Take(status == "done" ? 6 : 50).ToList();
+        <section class="lane">
+            <h2 class="lane-title">@title <span class="count">@ErpStore.WorkOrders.Count(w => w.Status == status)</span></h2>
+            <p class="lane-hint">@hint</p>
+            @if (orders.Count == 0)
+            {
+                <p class="lane-empty">None</p>
+            }
+            @foreach (var w in orders)
+            {
+                var wo = w;
+                var item = ErpStore.Item(wo.Item);
+                var bom = Catalog.BomOf(wo.Item);
+                var needs = ErpStore.Needs(wo);
+                var ready = needs.All(n => n.Have >= n.Need);
+                <article class="wo">
+                    <header>
+                        <span class="stencil wo-no">@wo.Id</span>
+                        <StatusChip Status="@wo.Status" />
+                    </header>
+                    <div class="wo-what"><strong>@Fmt.Qty(wo.Qty) ×</strong> <a href="inventory/@wo.Item">@item.Name</a></div>
+                    @if (wo.Status == "done")
+                    {
+                        <div class="wo-meta">Finished @Fmt.DateShort(wo.Completed) · @Fmt.Rp(Fmt.Whole((wo.MaterialCost + wo.LabourCost) / wo.Qty)) a piece</div>
+                    }
+                    else
+                    {
+                        var days = wo.Started.Length > 0 ? Fmt.DaysBetween(wo.Started, today) : 0;
+                        <div class="wo-meta">@(wo.Started.Length > 0 ? $"Started {Fmt.DateShort(wo.Started)} · day {days + 1} of {bom.Days}" : $"Planned {Fmt.DateShort(wo.Planned)} · takes {bom.Days} days")</div>
+                        @if (wo.Started.Length > 0)
+                        {
+                            <Progress Percent="@Math.Min(100, (days + 1) * 100.0 / bom.Days)" />
+                        }
+                        <ul class="needs">
+                            @foreach (var n in needs)
+                            {
+                                <li class="@(n.Have >= n.Need ? "" : "short")"><span>@n.Item.Name</span><span class="mono">@Fmt.Qty(n.Need) / @Fmt.Qty(n.Have) @n.Item.Unit</span></li>
+                            }
+                        </ul>
+                        <div class="wo-actions">
+                            @if (wo.Status == "planned")
+                            {
+                                <button class="rz-btn small primary" @onclick="() => Start(wo)">Start</button>
+                            }
+                            else
+                            {
+                                <button class="rz-btn small primary" disabled="@(!ready)" title="@(ready ? "" : "Materials are short in Gudang Bahan")" @onclick="() => Finish(wo)">Finish batch</button>
+                            }
+                            @if (!ready)
+                            {
+                                <a class="rz-btn small" href="purchasing?new=1">Buy materials</a>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        </section>
+    }
+</div>
+
+<Card Title="Bills of materials" Subtitle="What one piece takes, at today's supplier prices" Class="section">
+    <div class="bom-pick" role="tablist" aria-label="Product">
+        @foreach (var b in Catalog.Boms)
+        {
+            var id = b.Item;
+            <button role="tab" class="filter @(bomItem == id ? "on" : "")" aria-selected="@(bomItem == id ? "true" : "false")" @onclick="() => bomItem = id">@ErpStore.Item(id).Name</button>
+        }
+    </div>
+    @{
+        var bom = Catalog.BomOf(bomItem);
+        var product = ErpStore.Item(bomItem);
+        var standard = Catalog.StandardCost(bomItem);
+    }
+    <div class="bom">
+        <div class="rz-table-wrap flat">
+            <table class="rz-table">
+                <thead><tr><th>Material</th><th class="num">Per piece</th><th class="num">Unit cost</th><th class="num">Cost</th></tr></thead>
+                <tbody>
+                    @foreach (var (part, qty) in bom.Parts)
+                    {
+                        var m = ErpStore.Item(part);
+                        <tr>
+                            <td><a href="inventory/@part">@m.Name</a></td>
+                            <td class="num">@Fmt.Qty(qty) @m.Unit</td>
+                            <td class="num">@Fmt.Num(Catalog.CostOf(part))</td>
+                            <td class="num">@Fmt.Num(Fmt.Whole(qty * Catalog.CostOf(part)))</td>
+                        </tr>
+                    }
+                    <tr><td>Craftsmen's wages</td><td class="num">@bom.Days days a batch</td><td></td><td class="num">@Fmt.Num(bom.Labour)</td></tr>
+                </tbody>
+                <tfoot><tr class="grand"><td colspan="3">Standard cost per piece</td><td class="num">@Fmt.Rp(standard)</td></tr></tfoot>
+            </table>
+        </div>
+        <dl class="pnl-mini bom-sum">
+            <dt>List price</dt><dd class="mono">@Fmt.Num(product.Price)</dd>
+            <dt>Standard cost</dt><dd class="mono">−@Fmt.Num(standard)</dd>
+            <dt class="grand">Margin <span class="muted">@(((double)((product.Price - standard) / product.Price)).ToString("P0"))</span></dt><dd class="mono grand">@Fmt.Rp(product.Price - standard)</dd>
+            <dt>Average cost in stock</dt><dd class="mono">@Fmt.Num(product.AvgCost)</dd>
+        </dl>
+    </div>
+</Card>
+
+<Modal @bind-Open="adding" Title="New work order">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="Make">
+                    <select class="rz-input" @bind="draftItem">
+                        @foreach (var b in Catalog.Boms)
+                        {
+                            <option value="@b.Item">@ErpStore.Item(b.Item).Name</option>
+                        }
+                    </select>
+                </Field>
+                <Field Label="Pieces">
+                    <input class="rz-input mono" type="number" min="1" step="1" value="@draftQty.ToString(CultureInfo.InvariantCulture)"
+                           @onchange="e => draftQty = decimal.TryParse(e.Value?.ToString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var q) && q > 0 ? Math.Ceiling(q) : 1" />
+                </Field>
+            </div>
+            <p class="muted small">Materials for @Fmt.Qty(draftQty), checked against Gudang Bahan:</p>
+            <ul class="needs wide">
+                @foreach (var n in ErpStore.Needs(new WorkOrder { Item = draftItem, Qty = draftQty }))
+                {
+                    <li class="@(n.Have >= n.Need ? "" : "short")"><span>@n.Item.Name</span><span class="mono">need @Fmt.Qty(n.Need) · have @Fmt.Qty(n.Have) @n.Item.Unit</span></li>
+                }
+            </ul>
+            <p class="small">Estimated cost: <strong class="mono">@Fmt.Rp(Catalog.StandardCost(draftItem) * draftQty)</strong>, ready in @Catalog.BomOf(draftItem).Days working days.</p>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn" @onclick="() => Create(false)">Plan it</button>
+        <button class="rz-btn primary" @onclick="() => Create(true)">Plan and start</button>
+    </Footer>
+</Modal>
+
+@code {
+    private static readonly (string Status, string Title, string Hint)[] Lanes =
+    {
+        ("planned", "Planned", "Waiting for a bench"),
+        ("in progress", "In the workshop", "Cutting, joinery, sanding and oiling"),
+        ("done", "Finished", "Most recent batches"),
+    };
+
+    private readonly string today = Fmt.Today;
+    private string bomItem = "KRS-KTN";
+    private bool adding;
+    private string draftItem = "KRS-KTN";
+    private decimal draftQty = 10;
+
+    protected override void OnInitialized()
+    {
+        ErpStore.Changed += Refresh;
+        var at = Nav.Uri.IndexOf('?');
+        var query = (at < 0 ? "" : Nav.Uri.Substring(at + 1)).Split('&').Select(p => p.Split('=')).Where(p => p.Length == 2).ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
+        if (query.TryGetValue("make", out var make) && Catalog.Boms.Any(b => b.Item == make))
+            StartNew(make, query.TryGetValue("qty", out var q) && decimal.TryParse(q, NumberStyles.Number, CultureInfo.InvariantCulture, out var n) ? n : null);
+    }
+
+    private void StartNew(string? item, decimal? qty)
+    {
+        draftItem = item ?? draftItem;
+        draftQty = Math.Max(1, Math.Ceiling(qty ?? 10));
+        adding = true;
+    }
+
+    private async Task Create(bool start)
+    {
+        var wo = await ErpStore.CreateWorkOrderAsync(draftItem, draftQty, today);
+        if (start) await ErpStore.StartWorkOrderAsync(wo, today);
+        adding = false;
+        Toasts.Success($"{wo.Id}: {Fmt.Qty(wo.Qty)} × {ErpStore.Item(wo.Item).Name} {(start ? "started" : "planned")}");
+    }
+
+    private async Task Start(WorkOrder wo)
+    {
+        await ErpStore.StartWorkOrderAsync(wo, today);
+        Toasts.Success($"{wo.Id} is on the benches");
+    }
+
+    private async Task Finish(WorkOrder wo)
+    {
+        if (await ErpStore.CompleteWorkOrderAsync(wo, today))
+            Toasts.Success($"{wo.Id} finished: {Fmt.Qty(wo.Qty)} pieces into Gudang Barang Jadi at {Fmt.Rp(wo.MaterialCost + wo.LabourCost)}");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ErpStore.Changed -= Refresh;
+}
