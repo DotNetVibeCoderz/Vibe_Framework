@@ -3,7 +3,7 @@
 const vscode = require("vscode");
 const path = require("path");
 const fs = require("fs");
-const cp = require("child_process");
+const { execFile } = require("child_process");
 
 const DOCS = "https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/Rustzor/docs/en";
 
@@ -102,7 +102,7 @@ function run(name, cwd, command) {
 /** Checks that the CLI runs; offers to install it when it does not. */
 function ensureCli() {
   return new Promise((resolve) => {
-    cp.exec(`${cli()} --version`, (error) => {
+    execFile(cli(), ["--version"], (error) => {
       if (!error) return resolve(true);
       vscode.window
         .showWarningMessage("The rustzor command was not found. Install it now (dotnet tool install -g Rustzor.Cli)?", "Install", "Cancel")
@@ -139,7 +139,7 @@ async function newProject() {
   if (!folder?.length) return;
   const parent = folder[0].fsPath;
   const target = path.join(parent, name);
-  cp.exec(`${cli()} new ${template.value} ${name}`, { cwd: parent }, async (error, stdout, stderr) => {
+  execFile(cli(), ["new", template.value, name], { cwd: parent }, async (error, stdout, stderr) => {
     if (error) {
       vscode.window.showErrorMessage(`rustzor new failed: ${(stderr || stdout || error.message).trim()}`);
       return;

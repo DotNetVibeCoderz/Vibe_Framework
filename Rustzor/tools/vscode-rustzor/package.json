@@ -3,7 +3,7 @@
   "displayName": "Rustzor",
   "description": "Build C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly): new projects, serve with live reload, publish, packages and snippets.",
   "version": "0.1.0",
-  "publisher": "gravicode",
+  "publisher": "GravicodeStudios",
   "author": { "name": "Gravicode Studios" },
   "license": "MIT",
   "icon": "images/icon.png",
@@ -12,7 +12,7 @@
   "bugs": { "url": "https://github.com/DotNetVibeCoderz/Vibe_Framework/issues" },
   "engines": { "vscode": "^1.90.0" },
   "categories": ["Programming Languages", "Snippets", "Other"],
-  "keywords": ["rustzor", "blazor", "razor", "webassembly", "wasm", "csharp", "rust"],
+  "keywords": ["rustzor", "razor", "webassembly", "wasm", "rust"],
   "main": "./extension.js",
   "activationEvents": [
     "workspaceContains:**/*.csproj",
