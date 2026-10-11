@@ -36,8 +36,8 @@ node tools/dev/serve.mjs samples/Pos/bin/Debug/net10.0/wwwroot 5241
 | Every route of an app renders, with no console errors, and a screenshot of each | `node tools/e2e/pages.mjs http://localhost:5240/ out "" deals companies` |
 | Drive an app step by step (click, fill, type, press, drag, eval, screenshot) | `node tools/e2e/probe.mjs <url> [shot.png] '<steps json>'` |
 | Every AppGen template generates, builds and runs | `bash tools/RustzorAppGen/scripts/test-templates.sh` |
-| An app built from the packed packages runs | `bash scripts/package-smoke.sh 0.1.0-preview.1` |
-| The CLI and templates from the packed packages: new, add, info, publish, then run | `bash scripts/tooling-smoke.sh 0.1.0-preview.1` |
+| An app built from the packed packages runs | `bash scripts/package-smoke.sh 0.1.0-preview.2` |
+| The CLI and templates from the packed packages: new, add, info, publish, then run | `bash scripts/tooling-smoke.sh 0.1.0-preview.2` |
 | The VS Code extension activates and registers its commands, inside VS Code | `code --extensionDevelopmentPath=tools/vscode-rustzor --extensionTestsPath=tools/vscode-rustzor/test/suite.js <a Rustzor app folder>`, with `RUSTZOR_EXT_REPORT=<file>` for the result |
 | The runtime: unit tests, conformance against .NET, cross-assembly, no_std targets | in the Vibe_Runtime repository: `cargo test --workspace`, `bash tests/embedded.sh` |
 

@@ -10,7 +10,7 @@ Rustzor adalah platform web untuk C#. Anda menulis Razor component dan kode C# b
 
 Model pemrogramannya sama dengan Blazor: file `.razor`, `@code`, `@bind`, `EventCallback`, routing, layout, dependency injection, dan form. Di sekelilingnya tersedia component kit, library C# untuk setiap API browser, framework untuk data, game, grafis, dan AI, integrasi dengan library UI dan chart JavaScript populer, serta client untuk SignalR dan gRPC-Web.
 
-> **Preview.** Ini adalah versi `0.1.0-preview.1`. Bagian inti sudah berfungsi dan diuji per aplikasi (lima sample app dan dua puluh satu template hasil generate berjalan di Chrome), tetapi API masih bisa berubah sebelum 1.0. Lihat [apa saja yang belum didukung](docs/id/limitations.md).
+> **Preview.** Ini adalah versi `0.1.0-preview.2`. Bagian inti sudah berfungsi dan diuji per aplikasi (lima sample app dan dua puluh satu template hasil generate berjalan di Chrome), tetapi API masih bisa berubah sebelum 1.0. Lihat [apa saja yang belum didukung](docs/id/limitations.md).
 
 ## Memulai aplikasi
 
@@ -27,9 +27,9 @@ Atau secara manual:
 
 ```xml
 <!-- HelloRustzor.csproj -->
-<Project Sdk="Rustzor.Sdk/0.1.0-preview.1">
+<Project Sdk="Rustzor.Sdk/0.1.0-preview.2">
   <ItemGroup>
-    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.1" />
+    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.2" />
   </ItemGroup>
 </Project>
 ```

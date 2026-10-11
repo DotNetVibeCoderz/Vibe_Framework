@@ -1,8 +1,8 @@
 # Package
 
-Semua package Rustzor versi `0.1.0-preview.1`. Versi yang bisa dicari, dengan tombol salin: [catalog/index.html](../catalog/index.html).
+Semua package Rustzor versi `0.1.0-preview.2`. Versi yang bisa dicari, dengan tombol salin: [catalog/index.html](../catalog/index.html).
 
-Mulai dengan `dotnet tool install -g Rustzor.Cli --prerelease`, lalu `rustzor new app MyApp`. Tambahkan package dengan `rustzor add <nama pendek>` atau `dotnet add package <id> --version 0.1.0-preview.1`.
+Mulai dengan `dotnet tool install -g Rustzor.Cli --prerelease`, lalu `rustzor new app MyApp`. Tambahkan package dengan `rustzor add <nama pendek>` atau `dotnet add package <id> --version 0.1.0-preview.2`.
 
 ## Inti
 
@@ -13,7 +13,7 @@ SDK, model component, UI kit, dan tool-nya.
 | [`Rustzor.Cli`](https://www.nuget.org/packages/Rustzor.Cli) |  | The rustzor command for Rustzor apps (C# Razor in the browser on RustNetRuntime): rustzor new, rustzor serve with live reload, rustzor publish, rustzor add, rustzor info. |
 | [`Rustzor.Components`](https://www.nuget.org/packages/Rustzor.Components) |  | Rustzor components: a Blazor-compatible component model (ComponentBase, RenderTreeBuilder, EventCallback, @bind, routing, layouts, forms, DI) rendered by a virtual-DOM diff on RustNetRuntime in the browser. Write .razor files; no ASP.NET Core assemblies are needed. |
 | [`Rustzor.Core`](https://www.nuget.org/packages/Rustzor.Core) |  | Rustzor core: the JavaScript bridge, callbacks, timers and a JSON reader/writer for C# running on RustNetRuntime in the browser. |
-| [`Rustzor.Sdk`](https://www.nuget.org/packages/Rustzor.Sdk) |  | Rustzor SDK: build C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). Use as <Project Sdk="Rustzor.Sdk/0.1.0-preview.1">. dotnet build produces a static site; -p:RustzorAot=true adds ahead-of-time WebAssembly. |
+| [`Rustzor.Sdk`](https://www.nuget.org/packages/Rustzor.Sdk) |  | Rustzor SDK: build C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). Use as <Project Sdk="Rustzor.Sdk/0.1.0-preview.2">. dotnet build produces a static site; -p:RustzorAot=true adds ahead-of-time WebAssembly. |
 | [`Rustzor.Templates`](https://www.nuget.org/packages/Rustzor.Templates) |  | Project templates for Rustzor: C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). dotnet new rustzor, rustzor-empty, rustzorlib. |
 | [`Rustzor.UI`](https://www.nuget.org/packages/Rustzor.UI) | `ui` | Rustzor.UI: a professional component kit for Rustzor apps — app shell, data grid, SVG charts, stat cards, modals, tabs, toasts, forms and icons, themed for light and dark. |
 

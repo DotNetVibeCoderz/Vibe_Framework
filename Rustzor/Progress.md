@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-11: release 0.1.0-preview.2
+
+- All 45 packages at `0.1.0-preview.2`, the first release with `Rustzor.Cli`
+  and `Rustzor.Templates`, so `dotnet tool install -g Rustzor.Cli --prerelease`
+  works from nuget.org. Docs, READMEs and the catalog point at the new version.
+- VS Code extension: publisher `GravicodeStudios`; the CLI runs through
+  `execFile` with an argument list, never a shell. The Marketplace rejects the
+  upload ("suspicious content") whatever the manifest, README, icon or snippets;
+  it waits on Marketplace support. The `.vsix` from CI installs by hand.
+
 ## 2026-10-11: phase 5, tooling
 
 - `Rustzor.Cli`, the `rustzor` command (a .NET tool): `new` (installs the

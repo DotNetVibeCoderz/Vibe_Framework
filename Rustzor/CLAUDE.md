@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Rustzor is in preview (`0.1.0-preview.1`). The runtime integration, component model, UI kit, every `Rustzor.Browser.*` library, the four frameworks, the UI and chart integrations, the SignalR and gRPC-Web clients, RustzorAppGen and five sample apps exist and are tested in Chrome. Phase 5 tooling exists too: the `rustzor` CLI (`src/Rustzor.Cli`), `dotnet new` templates (`src/Rustzor.Templates`), the VS Code extension (`tools/vscode-rustzor`) and the generated package catalog (`docs/catalog`). Not done yet: nine of the thirteen sample apps in `solution-design.md`. `PLAN.md` has the roadmap and `Progress.md` what is done and how it was verified.
+Rustzor is in preview (`0.1.0-preview.2`). The runtime integration, component model, UI kit, every `Rustzor.Browser.*` library, the four frameworks, the UI and chart integrations, the SignalR and gRPC-Web clients, RustzorAppGen and five sample apps exist and are tested in Chrome. Phase 5 tooling exists too: the `rustzor` CLI (`src/Rustzor.Cli`), `dotnet new` templates (`src/Rustzor.Templates`), the VS Code extension (`tools/vscode-rustzor`) and the generated package catalog (`docs/catalog`). Not done yet: nine of the thirteen sample apps in `solution-design.md`. `PLAN.md` has the roadmap and `Progress.md` what is done and how it was verified.
 
 The original brief is `Rustzor.txt` (Indonesian) and the design is `solution-design.md`.
 
