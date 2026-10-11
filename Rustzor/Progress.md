@@ -4,6 +4,11 @@ Newest first. Each entry says what was built and how it was checked.
 
 ## 2026-10-11: packages, documentation, release pipeline
 
+**Published:** `0.1.0-preview.1`, all 43 packages, to nuget.org by the
+`rustzor-v0.1.0-preview.1` tag (run 38132584251: CI at the release version,
+package smoke test passed, 43 pushes). Rustzor now lives in
+`Vibe_Framework/Rustzor`.
+
 - Every package has its own icon (`assets/icons`, 43 icons from
   `tools/e2e/make-icons.mjs`: the Rustzor hex mark, a label per package, a
   colour per group) and a real package README (`assets/nuget-readme.md`).
