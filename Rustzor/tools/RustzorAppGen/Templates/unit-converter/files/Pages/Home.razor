@@ -1,0 +1,156 @@
+@page "/"
+@using System.Globalization
+
+<div class="quantities" role="tablist">
+    @foreach (var q in Units.All)
+    {
+        var quantity = q;
+        <button role="tab" aria-selected="@(quantity == current)" class="quantity @(quantity == current ? "on" : "")" @onclick="() => Pick(quantity)">
+            <Icon Name="@quantity.Icon" Size="16" /> @quantity.Name
+        </button>
+    }
+</div>
+
+<div class="converter">
+    <div class="side">
+        <input class="big-input mono" inputmode="decimal" aria-label="Value in @from.Name" value="@fromText" @oninput="FromChanged" @onchange="_ => Remember()" />
+        <select class="rz-input" aria-label="From unit" @onchange="e => { from = Find(e); Recalc(true); }">
+            @foreach (var u in current.Units) { <option value="@u.Id" selected="@(u == from)">@u.Name (@u.Symbol)</option> }
+        </select>
+    </div>
+    <button class="swap" aria-label="Swap units" title="Swap" @onclick="Swap"><Icon Name="refresh" Size="20" /></button>
+    <div class="side">
+        <input class="big-input mono" inputmode="decimal" aria-label="Value in @to.Name" value="@toText" @oninput="ToChanged" />
+        <select class="rz-input" aria-label="To unit" @onchange="e => { to = Find(e); Recalc(true); }">
+            @foreach (var u in current.Units) { <option value="@u.Id" selected="@(u == to)">@u.Name (@u.Symbol)</option> }
+        </select>
+    </div>
+</div>
+<p class="formula mono">@Formula()</p>
+
+<div class="lower">
+    <Card Title="@($"{fromText} {from.Symbol} in every unit")">
+        <table class="rz-table every">
+            <tbody>
+                @foreach (var u in current.Units)
+                {
+                    var unit = u;
+                    <tr class="@(unit == to ? "on" : "")" @onclick="() => { to = unit; Recalc(true); }">
+                        <td>@unit.Name</td>
+                        <td class="num">@Units.Format(Units.Convert(Value, from, unit))</td>
+                        <td class="sym">@unit.Symbol</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </Card>
+    <Card Title="Recent">
+        @if (recent.Count == 0)
+        {
+            <p class="rz-muted">Conversions you make appear here, so you can come back to them.</p>
+        }
+        else
+        {
+            <ul class="recent">
+                @foreach (var r in recent)
+                {
+                    var item = r;
+                    <li><button @onclick="() => Restore(item)">@item</button></li>
+                }
+            </ul>
+            <button class="rz-btn ghost small" @onclick="ClearRecent">Clear</button>
+        }
+    </Card>
+</div>
+
+@code {
+    private Quantity current = Units.All[0];
+    private Unit from = Units.All[0].Units[2];
+    private Unit to = Units.All[0].Units[5];
+    private string fromText = "1";
+    private string toText = "";
+    private List<string> recent = new();
+
+    private double Value => double.TryParse(fromText.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : 0;
+
+    protected override void OnInitialized()
+    {
+        recent = WebStorage.Local.GetList<string>("units-recent");
+        Recalc(false);
+    }
+
+    private void Pick(Quantity q)
+    {
+        current = q;
+        from = q.Units[Math.Min(1, q.Units.Length - 1)];
+        to = q.Units[Math.Min(q.Units.Length - 1, q.Id == "temp" ? 0 : 4)];
+        if (q.Id == "temp") { from = q.Units[0]; to = q.Units[1]; fromText = "20"; }
+        Recalc(false);
+    }
+
+    private Unit Find(ChangeEventArgs e) => current.Units.First(u => u.Id == e.Value?.ToString());
+
+    private void FromChanged(ChangeEventArgs e)
+    {
+        fromText = e.Value?.ToString() ?? "";
+        Recalc(false);
+    }
+
+    private void ToChanged(ChangeEventArgs e)
+    {
+        toText = e.Value?.ToString() ?? "";
+        if (double.TryParse(toText.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+            fromText = Units.Format(Units.Convert(v, to, from)).Replace(",", "");
+    }
+
+    private void Recalc(bool remember)
+    {
+        toText = fromText.Trim().Length == 0 ? "" : Units.Format(Units.Convert(Value, from, to));
+        if (remember) Remember();
+    }
+
+    private void Swap()
+    {
+        (from, to) = (to, from);
+        fromText = toText.Replace(",", "");
+        Recalc(true);
+    }
+
+    private void Remember()
+    {
+        var entry = $"{Units.Format(Value)} {from.Symbol} = {toText} {to.Symbol}";
+        recent.Remove(entry);
+        recent.Insert(0, entry);
+        if (recent.Count > 8) recent.RemoveAt(recent.Count - 1);
+        WebStorage.Local.SetJson("units-recent", recent);
+    }
+
+    private void Restore(string entry)
+    {
+        // "12 km = 7.456 mi": find the quantity whose units have both symbols.
+        var parts = entry.Split(' ');
+        var (fromSym, toSym) = (parts[1], parts[^1]);
+        foreach (var q in Units.All)
+        {
+            var f = q.Units.FirstOrDefault(u => u.Symbol == fromSym);
+            var t = q.Units.FirstOrDefault(u => u.Symbol == toSym);
+            if (f is null || t is null) continue;
+            current = q; from = f; to = t;
+            fromText = parts[0].Replace(",", "");
+            Recalc(false);
+            return;
+        }
+    }
+
+    private void ClearRecent()
+    {
+        recent.Clear();
+        WebStorage.Local.SetJson("units-recent", recent);
+    }
+
+    private string Formula()
+    {
+        if (current.Id == "temp") return from == to ? "same unit" : $"{from.Symbol} → K: ×{Units.Format(from.Factor)} + {Units.Format(from.Offset)}, then back to {to.Symbol}";
+        return $"1 {from.Symbol} = {Units.Format(from.Factor / to.Factor)} {to.Symbol}";
+    }
+}

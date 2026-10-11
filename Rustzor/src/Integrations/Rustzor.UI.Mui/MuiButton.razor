@@ -1,0 +1,31 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle">@ChildContent</MuiIsland>
+
+@code {
+    [Parameter] public string? Text { get; set; }
+    /// <summary>"contained", "outlined" or "text".</summary>
+    [Parameter] public string Variant { get; set; } = "contained";
+    /// <summary>"primary", "secondary", "success", "error", "info", "warning", "inherit".</summary>
+    [Parameter] public string Color { get; set; } = "primary";
+    /// <summary>"small", "medium" or "large".</summary>
+    [Parameter] public string Size { get; set; } = "medium";
+    /// <summary>A Material Icons name shown before the text.</summary>
+    [Parameter] public string? StartIcon { get; set; }
+    [Parameter] public string? EndIcon { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool FullWidth { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private object Tree() => Mui.El("Button", new MuiProps
+    {
+        ["variant"] = Variant,
+        ["color"] = Color,
+        ["size"] = Size,
+        ["disabled"] = Disabled,
+        ["fullWidth"] = FullWidth,
+        ["onClick"] = Mui.Event("click"),
+    }.Set("startIcon", StartIcon is null ? null : Mui.Icon(StartIcon)).Set("endIcon", EndIcon is null ? null : Mui.Icon(EndIcon)),
+        ChildContent is not null ? Mui.Slot() : Text);
+
+    private Task Handle(MuiEvent e) => OnClick.InvokeAsync();
+}

@@ -1,0 +1,176 @@
+@page "/companies/{Id:long}"
+@implements IDisposable
+
+@if (company is null)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    var open = deals.Where(d => d.Stage is not ("won" or "lost")).ToList();
+    <div class="rz-page-head">
+        <div class="company-head">
+            <div class="company-mark">@Initials(company.Name)</div>
+            <div>
+                <div class="rz-label"><a href="companies">Companies</a> / @company.Industry</div>
+                <h1>@company.Name</h1>
+            </div>
+        </div>
+        <div class="rz-row">
+            <button class="rz-btn" @onclick="() => addingContact = true"><Icon Name="user" /> Add contact</button>
+            <button class="rz-btn primary" @onclick="() => addingActivity = true"><Icon Name="calendar" /> Plan activity</button>
+        </div>
+    </div>
+
+    <Card>
+        <dl class="facts">
+            <div><dt>Tier</dt><dd><span class="tier">@company.Tier</span></dd></div>
+            <div><dt>City</dt><dd>@company.City</dd></div>
+            <div><dt>Account owner</dt><dd>@company.Owner</dd></div>
+            <div><dt>Website</dt><dd class="mono">@company.Website</dd></div>
+            <div><dt>Open pipeline</dt><dd class="mono">@Catalog.Money(open.Sum(d => d.Value))</dd></div>
+            <div><dt>Won to date</dt><dd class="mono">@Catalog.Money(deals.Where(d => d.Stage == "won").Sum(d => d.Value))</dd></div>
+            <div><dt>Deals</dt><dd>@deals.Count</dd></div>
+            <div><dt>Contacts</dt><dd>@contacts.Count</dd></div>
+        </dl>
+    </Card>
+
+    <div class="two section">
+        <Card Title="Deals">
+            <div class="rz-table-wrap">
+                <table class="rz-table">
+                    <thead><tr><th>Deal</th><th>Stage</th><th>Close</th><th class="num">Value</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in deals)
+                        {
+                            <tr><td>@d.Title<div class="muted" style="font-size:12px">@d.Source · @d.Owner</div></td><td><StageChip Stage="@d.Stage" /></td><td class="mono">@d.CloseDate</td><td class="num">@Catalog.Money(d.Value)</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+        <div class="rz-stack">
+            <Card Title="People">
+                <ul class="timeline">
+                    @foreach (var p in contacts)
+                    {
+                        <li>
+                            <Avatar Name="@p.Name" Size="30" />
+                            <div><div class="what">@p.Name</div><div class="meta">@p.Title · @p.Email</div></div>
+                            <span class="mono meta">@p.Phone</span>
+                        </li>
+                    }
+                </ul>
+            </Card>
+            <Card Title="Activity">
+                <ul class="timeline">
+                    @foreach (var a in activities)
+                    {
+                        var item = a;
+                        <li class="@(item.Done == 1 ? "done" : string.CompareOrdinal(item.Due, Today) < 0 ? "late" : "")">
+                            <span class="ico"><Icon Name="@Catalog.KindIcon(item.Kind)" Size="15" /></span>
+                            <div><div class="what">@item.Subject</div><div class="meta">@item.Owner · <span class="when">@item.Due</span></div></div>
+                            <input type="checkbox" checked="@(item.Done == 1)" aria-label="Done" @onchange="@(() => CrmDb.CompleteActivityAsync(item.Id, item.Done == 0))" />
+                        </li>
+                    }
+                </ul>
+            </Card>
+        </div>
+    </div>
+}
+
+<Modal @bind-Open="addingContact" Title="Add contact">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="Name"><input class="rz-input" @bind="contact.Name" /></Field>
+                <Field Label="Title"><input class="rz-input" @bind="contact.Title" /></Field>
+            </div>
+            <div class="pair">
+                <Field Label="Email"><input class="rz-input" type="email" @bind="contact.Email" /></Field>
+                <Field Label="Phone"><input class="rz-input" @bind="contact.Phone" /></Field>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => addingContact = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="AddContact">Add contact</button>
+    </Footer>
+</Modal>
+
+<Modal @bind-Open="addingActivity" Title="Plan an activity">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="Kind"><select class="rz-input" @bind="activity.Kind">@foreach (var k in Catalog.ActivityKinds) { <option value="@k">@k</option> }</select></Field>
+                <Field Label="Due"><input class="rz-input" type="date" value="@activity.Due" @onchange="e => activity.Due = e.Value?.ToString() ?? string.Empty" /></Field>
+            </div>
+            <Field Label="Subject"><input class="rz-input" @bind="activity.Subject" placeholder="Call about the renewal" /></Field>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => addingActivity = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="AddActivity">Plan it</button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private Company? company;
+    private List<Deal> deals = new();
+    private List<Contact> contacts = new();
+    private List<Activity> activities = new();
+    private bool addingContact, addingActivity;
+    private Contact contact = new();
+    private Activity activity = NewActivity();
+    private static string Today => DateTime.Today.ToString("yyyy-MM-dd");
+
+    private static Activity NewActivity() => new() { Kind = "call", Due = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd") };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        CrmDb.Changed -= OnChanged;
+        CrmDb.Changed += OnChanged;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        company = await CrmDb.CompanyAsync(Id);
+        deals = await CrmDb.DealsAsync(Id);
+        contacts = await CrmDb.ContactsAsync(Id);
+        activities = await CrmDb.ActivitiesAsync(Id);
+    }
+
+    private async Task AddContact()
+    {
+        if (contact.Name.Trim().Length == 0) return;
+        contact.CompanyId = Id;
+        await CrmDb.AddContactAsync(contact);
+        Toasts.Success($"Added {contact.Name}");
+        contact = new();
+        addingContact = false;
+    }
+
+    private async Task AddActivity()
+    {
+        if (activity.Subject.Trim().Length == 0) return;
+        activity.CompanyId = Id;
+        activity.Owner = company?.Owner ?? Catalog.Owners[0];
+        await CrmDb.AddActivityAsync(activity);
+        Toasts.Success("Activity planned");
+        activity = NewActivity();
+        addingActivity = false;
+    }
+
+    private static string Initials(string name) => string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+
+    private async void OnChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CrmDb.Changed -= OnChanged;
+}

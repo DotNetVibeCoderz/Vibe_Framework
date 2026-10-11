@@ -1,0 +1,88 @@
+@page "/"
+
+<PageHeader Title="Sales overview" Eyebrow="@Sales.Source" Text="@($"{current.Count:N0} orders in the last {filter.Months} months, compared with the {filter.Months} months before.")">
+    <Actions>
+        <select class="rz-input pick" aria-label="Region" @onchange="e => { filter.Region = e.Value!.ToString()!; Refresh(); }">
+            <option value="All">All regions</option>
+            @foreach (var r in Sales.Regions) { <option value="@r" selected="@(filter.Region == r)">@r</option> }
+        </select>
+        <select class="rz-input pick" aria-label="Channel" @onchange="e => { filter.Channel = e.Value!.ToString()!; Refresh(); }">
+            <option value="All">All channels</option>
+            @foreach (var c in Sales.Channels) { <option value="@c" selected="@(filter.Channel == c)">@c</option> }
+        </select>
+        <div class="period" role="group" aria-label="Period">
+            @foreach (var m in new[] { 3, 6, 12 })
+            {
+                var months = m;
+                <button class="@(filter.Months == months ? "on" : "")" aria-pressed="@(filter.Months == months)" @onclick="() => { filter.Months = months; Refresh(); }">@(months)M</button>
+            }
+        </div>
+    </Actions>
+</PageHeader>
+
+<div class="rz-grid rz-grid-4">
+    <StatCard Label="Revenue" Value="@Sales.Rupiah(revenue)" Delta="@Change(revenue, prevRevenue)" Trend="monthlyRevenue" />
+    <StatCard Label="Gross margin" Value="@Sales.Rupiah(margin)" Delta="@Change(margin, prevMargin)" Hint="@($"{(revenue == 0 ? 0 : margin / revenue):0.0%} of revenue")" />
+    <StatCard Label="Orders" Value="@current.Count.ToString("N0")" Delta="@Change(current.Count, previous.Count)" />
+    <StatCard Label="Average order" Value="@Sales.Rupiah(current.Count == 0 ? 0 : revenue / current.Count)" Delta="@Change(current.Count == 0 ? 0 : revenue / current.Count, previous.Count == 0 ? 0 : prevRevenue / previous.Count)" />
+</div>
+
+<div class="dash-grid">
+    <Card Title="Revenue by month" Subtitle="Million rupiah" Class="wide">
+        <LineChart Labels="monthLabels" Series="@(new List<ChartSeries> { new("Revenue", monthlyRevenue), new("Margin", monthlyMargin) { Color = "var(--rz-patina)" } })" Height="250" ValueFormat="N0" AriaLabel="Revenue and margin by month" />
+    </Card>
+    <Card Title="By channel">
+        <DonutChart Labels="Sales.Channels" Values="@(Sales.Channels.Select(c => current.Where(o => o.Channel == c).Sum(o => o.Revenue) / 1e6).ToList())" Center="@Sales.Rupiah(revenue)" CenterLabel="revenue" ValueFormat="N0" AriaLabel="Revenue by channel" />
+    </Card>
+    <Card Title="Products" Subtitle="Sorted by revenue; click a heading to re-sort" Class="wide">
+        <DataGrid TItem="ProductRow" Items="products" Columns="productColumns" PageSize="6" Searchable="false" />
+    </Card>
+    <Card Title="By region" Subtitle="Revenue, million rupiah">
+        <BarChart Labels="Sales.Regions" Series="@(new List<ChartSeries> { new("Revenue", Sales.Regions.Select(r => current.Where(o => o.Region == r).Sum(o => o.Revenue) / 1e6).ToList()) })" Height="230" AriaLabel="Revenue by region" />
+    </Card>
+</div>
+
+@code {
+    public sealed record ProductRow(string Product, string Category, int Units, double Revenue, double Margin, double Share);
+
+    private readonly Filter filter = new();
+    private List<Order> current = new(), previous = new();
+    private double revenue, prevRevenue, margin, prevMargin;
+    private List<string> monthLabels = new();
+    private List<double> monthlyRevenue = new(), monthlyMargin = new();
+    private List<ProductRow> products = new();
+
+    private readonly List<GridColumn<ProductRow>> productColumns = new()
+    {
+        new("Product", p => p.Product),
+        new("Category", p => p.Category),
+        new("Units", p => p.Units) { Numeric = true, Format = "N0" },
+        new("Revenue", p => p.Revenue / 1e6) { Numeric = true, Format = "N1" },
+        new("Margin %", p => p.Revenue == 0 ? 0 : p.Margin / p.Revenue * 100) { Numeric = true, Format = "0.0" },
+        new("Share %", p => p.Share * 100) { Numeric = true, Format = "0.0" },
+    };
+
+    protected override void OnInitialized() => Refresh();
+
+    private void Refresh()
+    {
+        current = Sales.Apply(filter).ToList();
+        previous = Sales.Apply(filter, previous: true).ToList();
+        revenue = current.Sum(o => o.Revenue);
+        margin = current.Sum(o => o.Margin);
+        prevRevenue = previous.Sum(o => o.Revenue);
+        prevMargin = previous.Sum(o => o.Margin);
+
+        var byMonth = current.GroupBy(o => new DateTime(o.Date.Year, o.Date.Month, 1)).OrderBy(g => g.Key).ToList();
+        monthLabels = byMonth.Select(g => g.Key.ToString("MMM yy")).ToList();
+        monthlyRevenue = byMonth.Select(g => Math.Round(g.Sum(o => o.Revenue) / 1e6, 1)).ToList();
+        monthlyMargin = byMonth.Select(g => Math.Round(g.Sum(o => o.Margin) / 1e6, 1)).ToList();
+
+        products = current.GroupBy(o => (o.Product, o.Category))
+            .Select(g => new ProductRow(g.Key.Product, g.Key.Category, g.Sum(o => o.Quantity), g.Sum(o => o.Revenue), g.Sum(o => o.Margin), revenue == 0 ? 0 : g.Sum(o => o.Revenue) / revenue))
+            .OrderByDescending(p => p.Revenue)
+            .ToList();
+    }
+
+    private static double? Change(double now, double before) => before == 0 ? null : Math.Round((now - before) / before * 100, 1);
+}

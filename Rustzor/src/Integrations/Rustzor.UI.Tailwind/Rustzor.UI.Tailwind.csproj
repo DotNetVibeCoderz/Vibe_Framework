@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>Rustzor.UI.Tailwind: Tailwind CSS 3.4 for Rustzor. The in-browser compiler picks up any utility class your Razor markup renders, a Tw class helper builds conditional class lists, and a set of ready-made components (buttons, cards, inputs, tabs, modals, tables, stats) gets you started.</Description>
+    <RootNamespace>Rustzor.UI.Tailwind</RootNamespace>
+    <PackageTags>$(PackageTags);tailwind;tailwindcss;ui;utility-css</PackageTags>
+  </PropertyGroup>
+</Project>

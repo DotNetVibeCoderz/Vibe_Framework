@@ -1,0 +1,172 @@
+@page "/"
+@implements IDisposable
+@using System.Globalization
+
+<PageHeader Title="Lorenz attractor" Eyebrow="Chaos · ODE · RK4" Text="dx/dt = σ(y − x), dy/dt = x(ρ − z) − y, dz/dt = xy − βz. Two trajectories start 10⁻⁶ apart." />
+
+<div class="lorenz">
+    <Card Class="params">
+        <Field Label="@($"σ (sigma) · {sigma:0.0}")"><input type="range" min="1" max="30" step="0.5" value="@Fmt(sigma)" @oninput="e => sigma = Read(e)" /></Field>
+        <Field Label="@($"ρ (rho) · {rho:0.0}")"><input type="range" min="0.5" max="60" step="0.5" value="@Fmt(rho)" @oninput="e => rho = Read(e)" /></Field>
+        <Field Label="@($"β (beta) · {beta:0.000}")"><input type="range" min="0.2" max="6" step="0.05" value="@Fmt(beta)" @oninput="e => beta = Read(e)" /></Field>
+        <Field Label="@($"Speed · {stepsPerFrame} steps/frame")"><input type="range" min="1" max="20" step="1" value="@stepsPerFrame" @oninput="e => stepsPerFrame = (int)Read(e)" /></Field>
+        <div class="rz-row presets">
+            <button class="rz-btn small" @onclick="() => Preset(10, 28, 8.0 / 3)">Classic</button>
+            <button class="rz-btn small" @onclick="() => Preset(10, 14, 8.0 / 3)">Stable (ρ=14)</button>
+            <button class="rz-btn small" @onclick="() => Preset(10, 99.96, 8.0 / 3)">Periodic</button>
+        </div>
+        <div class="rz-row">
+            <button class="rz-btn" @onclick="Reset">Reset</button>
+            <button class="rz-btn primary" @onclick="() => running = !running">@(running ? "Pause" : "Resume")</button>
+        </div>
+        <dl class="readout">
+            <dt>t</dt><dd>@time.ToString("0.00")</dd>
+            <dt>x, y, z</dt><dd>@a.X.ToString("0.00"), @a.Y.ToString("0.00"), @a.Z.ToString("0.00")</dd>
+            <dt>separation</dt><dd>@Separation().ToString("0.###e+0")</dd>
+        </dl>
+    </Card>
+    <div class="view">
+        <canvas @ref="canvasRef" @onpointerdown="Grab" @onpointermove="Drag" @onpointerup="() => dragging = false"></canvas>
+        <p class="rz-muted hint">Drag to rotate. Orange and teal are the two trajectories.</p>
+    </div>
+</div>
+
+@code {
+    private readonly record struct P3(double X, double Y, double Z);
+    private ElementReference canvasRef;
+    private Canvas2D? g;
+    private double sigma = 10, rho = 28, beta = 8.0 / 3, time, yaw = -0.75, pitch = 0.18, lastX;
+    private int stepsPerFrame = 6;
+    private bool running = true, dragging, disposed;
+    private P3 a = new(1, 1, 1), b = new(1.000001, 1, 1);
+    private readonly List<P3> trailA = new(), trailB = new();
+    private const double Dt = 0.005;
+
+    private static string Fmt(double v) => v.ToString(CultureInfo.InvariantCulture);
+    private static double Read(ChangeEventArgs e) => double.Parse(e.Value!.ToString()!, CultureInfo.InvariantCulture);
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        g = Canvas2D.FromElement(canvasRef);
+        Scheduler.RequestAnimationFrame(Frame);
+    }
+
+    private P3 Derivative(P3 p) => new(sigma * (p.Y - p.X), p.X * (rho - p.Z) - p.Y, p.X * p.Y - beta * p.Z);
+
+    private P3 Rk4(P3 p)
+    {
+        static P3 Add(P3 p, P3 d, double h) => new(p.X + d.X * h, p.Y + d.Y * h, p.Z + d.Z * h);
+        var k1 = Derivative(p);
+        var k2 = Derivative(Add(p, k1, Dt / 2));
+        var k3 = Derivative(Add(p, k2, Dt / 2));
+        var k4 = Derivative(Add(p, k3, Dt));
+        return new P3(
+            p.X + Dt / 6 * (k1.X + 2 * k2.X + 2 * k3.X + k4.X),
+            p.Y + Dt / 6 * (k1.Y + 2 * k2.Y + 2 * k3.Y + k4.Y),
+            p.Z + Dt / 6 * (k1.Z + 2 * k2.Z + 2 * k3.Z + k4.Z));
+    }
+
+    private double Separation() => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) + (a.Z - b.Z) * (a.Z - b.Z));
+
+    private void Frame(double _)
+    {
+        if (disposed || g is null) return;
+        if (running)
+        {
+            for (var i = 0; i < stepsPerFrame; i++)
+            {
+                a = Rk4(a);
+                b = Rk4(b);
+                time += Dt;
+            }
+            trailA.Add(a);
+            trailB.Add(b);
+            if (trailA.Count > 900) { trailA.RemoveAt(0); trailB.RemoveAt(0); }
+        }
+        Render();
+        if ((int)(time * 100) % 10 == 0) StateHasChanged();
+        Scheduler.RequestAnimationFrame(Frame);
+    }
+
+    private (double X, double Y) Project(P3 p)
+    {
+        // Centre the attractor, rotate about the vertical then the horizontal axis.
+        double x = p.X, y = p.Y, z = p.Z - rho + 2;
+        double cy = Math.Cos(yaw), sy = Math.Sin(yaw), cp = Math.Cos(pitch), sp = Math.Sin(pitch);
+        var x1 = x * cy - y * sy;
+        var y1 = x * sy + y * cy;
+        var z1 = z * cp - y1 * sp;
+        var scale = Math.Min(g!.Width, g.Height) / 70;
+        return (g.Width / 2 + x1 * scale, g.Height / 2 - z1 * scale);
+    }
+
+    private void Render()
+    {
+        var c = g!;
+        c.Fill("#0c0f14").FillRect(0, 0, c.Width, c.Height);
+        DrawTrail(c, trailB, "45,212,191");
+        DrawTrail(c, trailA, "249,115,22");
+        var (ax, ay) = Project(a);
+        var (bx, by) = Project(b);
+        c.Shadow("#f97316", 14).Fill("#fed7aa").FillCircle(ax, ay, 4).NoShadow();
+        c.Shadow("#2dd4bf", 14).Fill("#99f6e4").FillCircle(bx, by, 4).NoShadow();
+        c.Fill("#64748b").Font("12px monospace").TextAlign("left").FillText($"σ={sigma:0.0}  ρ={rho:0.0}  β={beta:0.000}", 14, 22);
+        c.Flush();
+    }
+
+    private void DrawTrail(Canvas2D c, List<P3> trail, string rgb)
+    {
+        if (trail.Count < 2) return;
+        c.LineWidth(1.4).LineCap("round");
+        // Batches of segments with fading alpha: older is dimmer.
+        const int Chunk = 70;
+        // One Polyline command per chunk rather than a LineTo per point.
+        for (var start = 0; start < trail.Count - 1; start += Chunk)
+        {
+            var end = Math.Min(trail.Count - 1, start + Chunk);
+            var alpha = 0.12 + 0.88 * end / trail.Count;
+            var points = new double[(end - start + 1) * 2];
+            for (var i = start; i <= end; i++)
+            {
+                var (x, y) = Project(trail[i]);
+                points[(i - start) * 2] = Math.Round(x, 1);
+                points[(i - start) * 2 + 1] = Math.Round(y, 1);
+            }
+            c.Stroke($"rgba({rgb},{alpha.ToString("0.00", CultureInfo.InvariantCulture)})").Polyline(points);
+        }
+    }
+
+    private void Preset(double s, double r, double bb)
+    {
+        sigma = s;
+        rho = r;
+        beta = bb;
+        Reset();
+    }
+
+    private void Reset()
+    {
+        a = new P3(1, 1, 1);
+        b = new P3(1.000001, 1, 1);
+        time = 0;
+        trailA.Clear();
+        trailB.Clear();
+        running = true;
+    }
+
+    private void Grab(PointerEventArgs e)
+    {
+        dragging = true;
+        lastX = e.ClientX;
+    }
+
+    private void Drag(PointerEventArgs e)
+    {
+        if (!dragging) return;
+        yaw += (e.ClientX - lastX) * 0.01;
+        lastX = e.ClientX;
+    }
+
+    public void Dispose() => disposed = true;
+}

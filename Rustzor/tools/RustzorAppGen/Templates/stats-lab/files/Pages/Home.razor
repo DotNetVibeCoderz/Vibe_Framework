@@ -1,0 +1,77 @@
+@page "/"
+
+<PageHeader Title="Describe a sample" Eyebrow="Statistics lab" Text="Paste numbers separated by commas, spaces or new lines. Everything updates as you type." />
+
+<div class="lab">
+    <Card Title="Data">
+        <textarea class="rz-input data" rows="12" @bind="input" @bind:event="oninput"></textarea>
+        <div class="rz-row sample-buttons">
+            <button class="rz-btn small" @onclick="() => Load(heights)">Heights (cm)</button>
+            <button class="rz-btn small" @onclick="() => Load(waits)">Wait times (min)</button>
+            <button class="rz-btn small" @onclick="() => input = string.Empty">Clear</button>
+        </div>
+        <Field Label="@($"Histogram bins · {bins}")">
+            <input type="range" min="3" max="30" value="@bins" @oninput="e => bins = int.Parse(e.Value!.ToString()!)" />
+        </Field>
+    </Card>
+
+    @if (Values.Count == 0)
+    {
+        <EmptyState Icon="chart" Title="No numbers yet" Text="Paste a dataset on the left, or load one of the samples." />
+    }
+    else
+    {
+        var s = Stats.Describe(Values);
+        var (labels, counts) = Stats.Histogram(Values, bins);
+        var outliers = Values.Where(v => v < s.LowerFence || v > s.UpperFence).ToList();
+        <div class="results">
+            <div class="rz-grid rz-grid-4">
+                <StatCard Label="n" Value="@s.N.ToString()" />
+                <StatCard Label="Mean" Value="@s.Mean.ToString("0.###")" />
+                <StatCard Label="Median" Value="@s.Median.ToString("0.###")" />
+                <StatCard Label="Std. deviation" Value="@s.StdDev.ToString("0.###")" Hint="sample (n − 1)" />
+            </div>
+            <Card Title="Distribution" Subtitle="@($"Skewness {s.Skewness:0.00} · {(Math.Abs(s.Skewness) < 0.5 ? "roughly symmetric" : s.Skewness > 0 ? "right-skewed" : "left-skewed")}")">
+                <BarChart Labels="labels" Series="@(new List<ChartSeries> { new("Count", counts) })" Height="220" AriaLabel="Histogram" />
+            </Card>
+            <Card Title="Five-number summary" Subtitle="Whiskers reach 1.5 × IQR; points beyond are outliers.">
+                <div class="box">
+                    @{
+                        var range = Math.Max(s.Max - s.Min, 1e-9);
+                        string At(double v) => ((v - s.Min) / range * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                        var lowWhisker = Values.Where(v => v >= s.LowerFence).DefaultIfEmpty(s.Min).Min();
+                        var highWhisker = Values.Where(v => v <= s.UpperFence).DefaultIfEmpty(s.Max).Max();
+                    }
+                    <div class="whisker" style="left:@At(lowWhisker);width:calc(@At(highWhisker) - @At(lowWhisker))"></div>
+                    <div class="iqr" style="left:@At(s.Q1);width:calc(@At(s.Q3) - @At(s.Q1))"></div>
+                    <div class="median" style="left:@At(s.Median)"></div>
+                    @foreach (var o in outliers)
+                    {
+                        <div class="outlier" style="left:@At(o)" title="@o"></div>
+                    }
+                </div>
+                <dl class="five">
+                    <div><dt>Min</dt><dd>@s.Min.ToString("0.##")</dd></div>
+                    <div><dt>Q1</dt><dd>@s.Q1.ToString("0.##")</dd></div>
+                    <div><dt>Median</dt><dd>@s.Median.ToString("0.##")</dd></div>
+                    <div><dt>Q3</dt><dd>@s.Q3.ToString("0.##")</dd></div>
+                    <div><dt>Max</dt><dd>@s.Max.ToString("0.##")</dd></div>
+                    <div><dt>Outliers</dt><dd>@outliers.Count</dd></div>
+                </dl>
+            </Card>
+        </div>
+    }
+</div>
+
+@code {
+    private string input = "";
+    private int bins = 10;
+    private const string heights = "162 171 168 175 158 180 177 169 172 165 183 174 170 166 178 161 176 173 167 179 190 155 171 169 174";
+    private const string waits = "2.1, 3.4, 1.8, 5.6, 2.9, 4.4, 12.5, 3.1, 2.6, 3.8, 6.2, 2.2, 4.9, 3.3, 15.8, 2.7, 3.9, 4.1, 2.4, 3.0";
+
+    private List<double> Values => Stats.ParseNumbers(input);
+
+    protected override void OnInitialized() => input = heights;
+
+    private void Load(string sample) => input = sample;
+}

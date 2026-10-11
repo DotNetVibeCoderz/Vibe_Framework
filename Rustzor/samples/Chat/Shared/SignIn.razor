@@ -1,0 +1,22 @@
+@* Each tab is one person. Pick someone here; open a second tab as someone
+   else and the two talk to each other through the browser. *@
+<div class="signin">
+    <div class="signin-card">
+        <span class="ws-mark big">S</span>
+        <h1>Who's on this tab?</h1>
+        <p>Serambi is Studio Lontar's chat. Pick a person for this tab, then open the page in a second tab as someone else: messages, reactions and typing travel between them instantly, with no server.</p>
+        <div class="people">
+            @foreach (var p in ChatStore.People.Where(p => !p.Bot))
+            {
+                var person = p;
+                <button class="person" style="--who:@person.Color" @onclick="() => ChatStore.SignIn(person)">
+                    <span class="avatar lg" style="--who:@person.Color">@MessageItem.Initials(person.Name)</span>
+                    <strong>@person.Name</strong>
+                    <span>@person.Title</span>
+                </button>
+            }
+        </div>
+        <p class="note">Dewi, Raka and Sari are simulated teammates: mention them or message them directly and they answer.</p>
+        <p class="credit">Built with Rustzor · Gravicode Studios, led by Kang Fadhil</p>
+    </div>
+</div>

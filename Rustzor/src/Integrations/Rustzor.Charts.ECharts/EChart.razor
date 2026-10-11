@@ -1,0 +1,47 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Rustzor.Interop
+@implements IDisposable
+@* An Apache ECharts chart. A new Option is applied with setOption, merged unless NotMerge. *@
+<div @ref="_host" class="rz-echart" style="height:@(Height)px;width:100%" role="img" aria-label="@AriaLabel"></div>
+
+@code {
+    private ElementReference _host;
+    private int _handle;
+    private int _callback;
+    private string _last = "";
+
+    /// <summary>An ECharts option: an anonymous object, a JsonValue, or an EChartOption.</summary>
+    [Parameter] public object? Option { get; set; }
+    [Parameter] public int Height { get; set; } = 320;
+    /// <summary>Replace the previous option instead of merging into it.</summary>
+    [Parameter] public bool NotMerge { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Chart";
+    /// <summary>Clicks on a data item: series name, item name, value and index.</summary>
+    [Parameter] public EventCallback<EChartClick> OnClick { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var json = Option is EChartOption built ? built.ToJson() : Json.Serialize(Option);
+        if (!firstRender && json == _last) return;
+        _last = json;
+        if (firstRender)
+        {
+            if (OnClick.HasDelegate)
+                _callback = Callbacks.Register(v => _ = OnClick.InvokeAsync(new EChartClick(v["series"].AsString(), v["name"].AsString(), v["value"].AsDouble(), v["index"].AsInt())));
+            _handle = (await Js.CallAsync("echarts.create", Js.Args("el", _host.Id, "option", new JsonRaw(json), "click", _callback))).AsInt();
+        }
+        else if (_handle != 0)
+        {
+            Js.Send("echarts.set", Js.Args("h", _handle, "option", new JsonRaw(json), "notMerge", NotMerge));
+        }
+    }
+
+    /// <summary>The chart as a PNG data URL.</summary>
+    public string ToDataUrl() => Js.Call("echarts.image", Js.Args("h", _handle)).AsString();
+
+    public void Dispose()
+    {
+        if (_handle != 0) Js.Send("echarts.dispose", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

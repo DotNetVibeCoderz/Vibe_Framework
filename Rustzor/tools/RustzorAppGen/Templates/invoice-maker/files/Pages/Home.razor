@@ -1,0 +1,149 @@
+@page "/"
+@page "/edit/{Number}"
+@inject NavigationManager Nav
+
+<PageHeader Title="@(isNew ? "New invoice" : invoice.Number)" Eyebrow="Invoice editor" Text="The page on the right is what your client receives. It updates as you type.">
+    <Actions>
+        <button class="rz-btn" @onclick="ExportCsv"><Icon Name="download" /> CSV</button>
+        <button class="rz-btn" @onclick="Print"><Icon Name="file" /> Print</button>
+        <button class="rz-btn primary" @onclick="Save"><Icon Name="check" /> Save invoice</button>
+    </Actions>
+</PageHeader>
+
+<div class="invoice-layout">
+    <div class="editor rz-stack">
+        <Card Title="Details">
+            <div class="fields-3">
+                <Field Label="Invoice number"><input class="rz-input mono" @bind="invoice.Number" /></Field>
+                <Field Label="Issued"><input class="rz-input" type="date" value="@invoice.Issued" @onchange="e => invoice.Issued = Text(e)" /></Field>
+                <Field Label="Due"><input class="rz-input" type="date" value="@invoice.Due" @onchange="e => invoice.Due = Text(e)" /></Field>
+            </div>
+            <div class="fields-3">
+                <Field Label="Currency">
+                    <select class="rz-input" @bind="invoice.Currency">
+                        @foreach (var c in InvoiceBook.Currencies) { <option value="@c.Code">@c.Code</option> }
+                    </select>
+                </Field>
+                <Field Label="Tax rate (%)"><input class="rz-input" type="number" min="0" step="0.5" @bind="invoice.TaxRate" @bind:event="oninput" /></Field>
+                <Field Label="Discount"><input class="rz-input" type="number" min="0" step="1" @bind="invoice.Discount" @bind:event="oninput" /></Field>
+            </div>
+        </Card>
+        <div class="fields-2">
+            <Card Title="From">
+                <div class="rz-stack">
+                    <input class="rz-input" placeholder="Your business" @bind="invoice.FromName" @bind:event="oninput" />
+                    <textarea class="rz-input" rows="3" placeholder="Address" @bind="invoice.FromAddress" @bind:event="oninput"></textarea>
+                </div>
+            </Card>
+            <Card Title="Bill to">
+                <div class="rz-stack">
+                    <input class="rz-input @(showErrors && invoice.ToName.Trim().Length == 0 ? "invalid" : "")" placeholder="Client name" @bind="invoice.ToName" @bind:event="oninput" />
+                    <textarea class="rz-input" rows="3" placeholder="Address" @bind="invoice.ToAddress" @bind:event="oninput"></textarea>
+                </div>
+            </Card>
+        </div>
+        <Card Title="Line items" Subtitle="@($"{invoice.Lines.Count} item{(invoice.Lines.Count == 1 ? "" : "s")}")">
+            <div class="lines">
+                <div class="line head"><span>Description</span><span>Qty</span><span>Unit price</span><span>Amount</span><span></span></div>
+                @foreach (var l in invoice.Lines)
+                {
+                    var line = l;
+                    <div class="line">
+                        <input class="rz-input" placeholder="What you did" @bind="line.Description" @bind:event="oninput" aria-label="Description" />
+                        <input class="rz-input num" type="number" min="0" step="1" @bind="line.Quantity" @bind:event="oninput" aria-label="Quantity" />
+                        <input class="rz-input num" type="number" min="0" step="0.01" @bind="line.UnitPrice" @bind:event="oninput" aria-label="Unit price" />
+                        <span class="amount">@InvoiceBook.Money(line.Amount, invoice.Currency)</span>
+                        <button class="rz-btn ghost icon" aria-label="Remove line" @onclick="() => invoice.Lines.Remove(line)"><Icon Name="trash" Size="16" /></button>
+                    </div>
+                }
+            </div>
+            <button class="rz-btn small add-line" @onclick="() => invoice.Lines.Add(new LineItem())"><Icon Name="plus" Size="16" /> Add line</button>
+        </Card>
+        <Card Title="Notes">
+            <textarea class="rz-input" rows="3" placeholder="Payment terms, bank details, a thank-you" @bind="invoice.Notes" @bind:event="oninput"></textarea>
+        </Card>
+    </div>
+
+    <article class="paper" aria-label="Invoice preview">
+        <header class="paper-head">
+            <div>
+                <div class="paper-from">@invoice.FromName</div>
+                <div class="paper-address">@invoice.FromAddress</div>
+            </div>
+            <div class="paper-title">
+                <span>Invoice</span>
+                <b>@invoice.Number</b>
+            </div>
+        </header>
+        <div class="paper-meta">
+            <div><span>Billed to</span><strong>@(invoice.ToName.Length > 0 ? invoice.ToName : "—")</strong><div class="paper-address">@invoice.ToAddress</div></div>
+            <div><span>Issued</span><strong>@Pretty(invoice.Issued)</strong></div>
+            <div><span>Due</span><strong>@Pretty(invoice.Due)</strong></div>
+        </div>
+        <table class="paper-lines">
+            <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead>
+            <tbody>
+                @foreach (var l in invoice.Lines.Where(l => l.Description.Length > 0 || l.UnitPrice != 0))
+                {
+                    <tr><td>@l.Description</td><td class="r">@l.Quantity.ToString("0.##")</td><td class="r">@InvoiceBook.Money(l.UnitPrice, invoice.Currency)</td><td class="r">@InvoiceBook.Money(l.Amount, invoice.Currency)</td></tr>
+                }
+            </tbody>
+        </table>
+        <dl class="paper-totals">
+            <dt>Subtotal</dt><dd>@InvoiceBook.Money(invoice.Subtotal, invoice.Currency)</dd>
+            @if (invoice.Discount > 0)
+            {
+                <dt>Discount</dt><dd>-@InvoiceBook.Money(invoice.Discount, invoice.Currency)</dd>
+            }
+            <dt>Tax @invoice.TaxRate.ToString("0.##")%</dt><dd>@InvoiceBook.Money(invoice.Tax, invoice.Currency)</dd>
+            <dt class="grand">Total due</dt><dd class="grand">@InvoiceBook.Money(invoice.Total, invoice.Currency)</dd>
+        </dl>
+        @if (invoice.Notes.Length > 0) { <p class="paper-notes">@invoice.Notes</p> }
+    </article>
+</div>
+
+@code {
+    [Parameter] public string? Number { get; set; }
+
+    private Invoice invoice = new();
+    private bool isNew = true;
+    private bool showErrors;
+
+    // "/" and "/edit/{Number}" share this page. Going from an edit back to "/"
+    // reuses the component and does not pass Number, so clear it first.
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        Number = null;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnParametersSet()
+    {
+        var existing = Number is null ? null : InvoiceBook.All().FirstOrDefault(i => i.Number == Number);
+        isNew = existing is null;
+        invoice = existing is null ? InvoiceBook.New() : InvoiceBook.Clone(existing);
+    }
+
+    private void Save()
+    {
+        if (invoice.ToName.Trim().Length == 0)
+        {
+            showErrors = true;
+            Toasts.Error("Add the client's name before saving.");
+            return;
+        }
+        invoice.Lines.RemoveAll(l => l.Description.Trim().Length == 0 && l.UnitPrice == 0);
+        InvoiceBook.Save(invoice);
+        Toasts.Success($"Saved {invoice.Number}");
+        if (isNew) Nav.NavigateTo($"edit/{invoice.Number}");
+    }
+
+    private void Print() => Window.Print();
+
+    private void ExportCsv() => Download.Text($"{invoice.Number}.csv", InvoiceBook.Csv(invoice), "text/csv");
+
+    private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
+
+    private static string Pretty(string isoDate) =>
+        DateTime.TryParse(isoDate, out var d) ? d.ToString("d MMM yyyy") : "—";
+}

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>Rustzor.Charts.ChartJs: Chart.js 4 charts (line, bar, pie, doughnut, radar, polar area, scatter, bubble) as Razor components for Rustzor, themed for light and dark.</Description>
+    <RootNamespace>Rustzor.Charts.ChartJs</RootNamespace>
+    <PackageTags>$(PackageTags);chartjs;charts</PackageTags>
+  </PropertyGroup>
+</Project>

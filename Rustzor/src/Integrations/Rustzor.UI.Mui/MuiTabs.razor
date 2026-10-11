@@ -1,0 +1,29 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle" />
+
+@code {
+    [Parameter] public IReadOnlyList<string> Titles { get; set; } = Array.Empty<string>();
+    [Parameter] public string Active { get; set; } = "";
+    [Parameter] public EventCallback<string> ActiveChanged { get; set; }
+    /// <summary>"standard", "scrollable" or "fullWidth".</summary>
+    [Parameter] public string Variant { get; set; } = "standard";
+
+    private object Tree()
+    {
+        var tabs = new List<object>();
+        foreach (var t in Titles) tabs.Add(Mui.El("Tab", new MuiProps { ["key"] = t, ["label"] = t, ["value"] = t }));
+        var active = Active == "" && Titles.Count > 0 ? Titles[0] : Active;
+        return Mui.El("Tabs", new MuiProps
+        {
+            ["value"] = active,
+            ["variant"] = Variant,
+            ["onChange"] = Mui.Event("change"),
+            ["sx"] = new { borderBottom = 1, borderColor = "divider" },
+        }, tabs);
+    }
+
+    private Task Handle(MuiEvent e)
+    {
+        Active = e.Value.AsString();
+        return ActiveChanged.InvokeAsync(Active);
+    }
+}

@@ -1,0 +1,6 @@
+@{ var stage = Catalog.StageOf(Stage); }
+<span class="stage-chip tone-@stage.Tone">@stage.Name</span>
+
+@code {
+    [Parameter] public string Stage { get; set; } = "lead";
+}

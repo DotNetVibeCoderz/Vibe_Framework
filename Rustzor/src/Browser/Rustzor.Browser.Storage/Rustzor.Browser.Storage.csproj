@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Browser.Storage</RootNamespace>
+    <Description>Rustzor.Browser.Storage: the browser's Storage API for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+  </PropertyGroup>
+</Project>

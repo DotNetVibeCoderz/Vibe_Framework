@@ -1,0 +1,21 @@
+@* Alarms, newest first: severity, place, what happened, and whether someone has seen it. *@
+<ul class="alarms">
+    @foreach (var a in Items)
+    {
+        var alarm = a;
+        <li class="@alarm.Severity @(alarm.Acked ? "acked" : "")">
+            <span class="sev">@(alarm.Severity switch { "crit" => "CRIT", "warn" => "WARN", _ => "INFO" })</span>
+            <span class="time mono">@alarm.Time.ToString("HH:mm:ss")</span>
+            <span class="what"><strong>@alarm.Where</strong> @alarm.Text</span>
+            @if (Ackable && !alarm.Acked)
+            {
+                <button class="rz-btn small" @onclick="() => alarm.Acked = true">Acknowledge</button>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter] public IEnumerable<Alarm> Items { get; set; } = Array.Empty<Alarm>();
+    [Parameter] public bool Ackable { get; set; }
+}

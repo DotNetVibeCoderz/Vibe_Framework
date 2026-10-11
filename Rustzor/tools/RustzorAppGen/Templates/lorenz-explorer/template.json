@@ -1,0 +1,10 @@
+{
+  "id": "lorenz-explorer",
+  "name": "Lorenz attractor",
+  "category": "Science",
+  "description": "Integrate the Lorenz system with Runge–Kutta 4 and watch chaos unfold in a rotating 3D view. Tune σ, ρ and β live.",
+  "icon": "trend",
+  "shell": true,
+  "packages": [ "Rustzor.Browser.Canvas" ],
+  "nav": [ { "title": "Explorer", "href": "", "icon": "trend" } ]
+}

@@ -1,0 +1,64 @@
+@page "/companies"
+@inject NavigationManager Nav
+
+<PageHeader Title="Companies" Eyebrow="Accounts" Text="Every account, its tier and the pipeline open with it. Click a row for the full picture.">
+    <Actions>
+        <button class="rz-btn primary" @onclick="() => adding = true"><Icon Name="plus" /> New company</button>
+    </Actions>
+</PageHeader>
+
+<Card>
+    <DataGrid TItem="Company" Items="companies" Columns="columns" PageSize="12" SearchPlaceholder="Search name, city, industry" OnRowClick="Open" />
+</Card>
+
+<Modal @bind-Open="adding" Title="New company">
+    <ChildContent>
+        <div class="rz-stack">
+            <Field Label="Name"><input class="rz-input" @bind="draft.Name" /></Field>
+            <div class="pair">
+                <Field Label="Industry"><select class="rz-input" @bind="draft.Industry">@foreach (var x in Catalog.Industries) { <option value="@x">@x</option> }</select></Field>
+                <Field Label="City"><input class="rz-input" @bind="draft.City" /></Field>
+            </div>
+            <div class="pair">
+                <Field Label="Owner"><select class="rz-input" @bind="draft.Owner">@foreach (var x in Catalog.Owners) { <option value="@x">@x</option> }</select></Field>
+                <Field Label="Tier" Help="A is strategic, C is occasional.">
+                    <select class="rz-input" @bind="draft.Tier"><option>A</option><option>B</option><option>C</option></select>
+                </Field>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Add">Add company</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<Company> companies = new();
+    private bool adding;
+    private Company draft = new() { Industry = Catalog.Industries[0], Owner = Catalog.Owners[0], Tier = "B" };
+
+    private readonly List<GridColumn<Company>> columns = new()
+    {
+        new("Company", c => c.Name),
+        new("Tier", c => c.Tier),
+        new("Industry", c => c.Industry),
+        new("City", c => c.City),
+        new("Owner", c => c.Owner),
+        new("Deals", c => c.Deals) { Numeric = true },
+        new("Open pipeline (Rp jt)", c => c.OpenValue / 1_000_000) { Numeric = true, Format = "N1" },
+    };
+
+    protected override async Task OnInitializedAsync() => companies = await CrmDb.CompaniesAsync();
+
+    private void Open(Company c) => Nav.NavigateTo($"companies/{c.Id}");
+
+    private async Task Add()
+    {
+        if (draft.Name.Trim().Length == 0) return;
+        var id = await CrmDb.AddCompanyAsync(draft);
+        adding = false;
+        Toasts.Success($"Added {draft.Name}");
+        Nav.NavigateTo($"companies/{id}");
+    }
+}

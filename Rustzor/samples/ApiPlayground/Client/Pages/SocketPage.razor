@@ -1,0 +1,143 @@
+@page "/websocket"
+@implements IDisposable
+@using Rustzor.Browser.WebSocket
+
+<section class="ws-head ws">
+    <span class="proto-tag">WebSocket</span>
+    <h1>One socket, both directions</h1>
+    <p>Open a socket to <code>/ws</code> with <code>WebSocketClient</code>. The server echoes what you send and pushes a tick every two seconds without being asked.</p>
+</section>
+
+<div class="conn">
+    <span class="state @(Links.SocketOpen ? "on" : "")">@(Links.Socket?.State ?? "closed")</span>
+    <code class="mono">@Server.SocketUrl("/ws")</code>
+    <span class="pg-spacer"></span>
+    @if (Links.SocketOpen)
+    {
+        <button class="rz-btn" @onclick="Disconnect">Disconnect</button>
+    }
+    else
+    {
+        <button class="rz-btn primary" @onclick="Connect">Connect</button>
+    }
+</div>
+
+<div class="split">
+    <div class="pane">
+        <h2 class="sub">Send</h2>
+        <div class="composer-line">
+            <input class="rz-input mono" placeholder="Type a message" aria-label="Message" value="@draft" disabled="@(!Links.SocketOpen)"
+                   @oninput="e => draft = e.Value?.ToString() ?? string.Empty" @onkeydown="Key" />
+            <button class="rz-btn primary" disabled="@(!Links.SocketOpen || draft.Length == 0)" @onclick="Send">Send</button>
+        </div>
+        <div class="presets small">
+            <button class="preset" disabled="@(!Links.SocketOpen)" @onclick="@(() => Quick("ping"))">ping</button>
+            <button class="preset" disabled="@(!Links.SocketOpen)" @onclick="@(() => Quick("Selamat siang dari Rustzor 👋"))">a greeting</button>
+            <button class="preset" disabled="@(!Links.SocketOpen)" @onclick="@(() => Quick("{\"type\":\"order\",\"id\":42}"))">some JSON</button>
+        </div>
+        <h2 class="sub">Server load <small>from the ticks</small></h2>
+        <div class="tick-chart">
+            <Sparkline Values="loads" Color="var(--ws)" />
+            <span class="mono">@(loads.Count == 0 ? "–" : loads[^1].ToString("0.00"))</span>
+        </div>
+        <p class="hint">@clients client@(clients == 1 ? "" : "s") connected. Open this page in another tab to see the count change.</p>
+    </div>
+    <div class="pane">
+        <h2 class="sub">Messages</h2>
+        @if (messages.Count == 0)
+        {
+            <p class="hint">Connect, then send something.</p>
+        }
+        <ul class="msgs">
+            @foreach (var m in messages.AsEnumerable().Reverse().Take(30))
+            {
+                <li class="@m.Kind"><span class="k">@m.Kind</span><span class="mono">@m.Text</span><time>@m.At.ToString("HH:mm:ss")</time></li>
+            }
+        </ul>
+    </div>
+</div>
+
+@code {
+    private sealed record Line(string Kind, string Text, DateTime At);
+
+    private static readonly List<Line> messages = new();
+    private static readonly List<double> loads = new();
+    private static int clients;
+    private string draft = "";
+
+    protected override void OnInitialized() => Links.Changed += Refresh;
+
+    private async Task Connect()
+    {
+        var socket = new WebSocketClient(Server.SocketUrl("/ws"));
+        Links.Socket = socket;
+        socket.OnMessage += Received;
+        socket.OnClose += (code, reason) =>
+        {
+            Wire.Log(Protocol.WebSocket, "note", $"closed ({code})", reason);
+            Links.Notify();
+        };
+        Wire.Log(Protocol.WebSocket, "note", "connecting", Server.SocketUrl("/ws"));
+        try
+        {
+            await socket.ConnectAsync();
+            Wire.Log(Protocol.WebSocket, "note", "open");
+        }
+        catch (Exception e)
+        {
+            Toasts.Error("Could not open the socket: " + e.Message);
+        }
+        Links.Notify();
+    }
+
+    private void Disconnect()
+    {
+        Links.Socket?.Close();
+        Links.Notify();
+    }
+
+    private static void Received(string text)
+    {
+        var v = JsonValue.Parse(text);
+        var type = v["type"].AsString();
+        if (type == "tick")
+        {
+            loads.Add(v["load"].AsDouble());
+            if (loads.Count > 40) loads.RemoveAt(0);
+            clients = v["clients"].AsInt();
+            Wire.Log(Protocol.WebSocket, "in", $"tick #{v["n"].AsInt()}", text);
+        }
+        else
+        {
+            if (type == "welcome") clients = v["clients"].AsInt();
+            var shown = type == "echo" ? v["text"].AsString() : type == "pong" ? "pong" : v["text"].AsString();
+            messages.Add(new Line(type, shown, DateTime.Now));
+            Wire.Log(Protocol.WebSocket, "in", type, text);
+        }
+        Links.Notify();
+    }
+
+    private void Quick(string text)
+    {
+        draft = text;
+        Send();
+    }
+
+    private void Key(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Send();
+    }
+
+    private void Send()
+    {
+        if (!Links.SocketOpen || draft.Length == 0) return;
+        Links.Socket!.Send(draft);
+        messages.Add(new Line("sent", draft, DateTime.Now));
+        Wire.Log(Protocol.WebSocket, "out", "text frame", draft);
+        draft = "";
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Links.Changed -= Refresh;
+}

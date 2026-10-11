@@ -1,0 +1,10 @@
+{
+  "id": "solar-system",
+  "name": "Solar system orrery",
+  "category": "Simulator",
+  "description": "The eight planets on their real orbits from J2000 elements, solved with Kepler's equation. Run time forward or back, jump to a date, switch scales, and click a planet for its distance, speed and light time.",
+  "icon": "sun",
+  "shell": true,
+  "packages": [ "Rustzor.Game" ],
+  "nav": [ { "title": "Orrery", "href": "", "icon": "sun" } ]
+}

@@ -1,0 +1,34 @@
+@* Shown on the register when no shift is open: who is on the till, and the
+   float counted into the drawer. *@
+<div class="open-shift">
+    <div class="open-card">
+        <span class="rz-label">Till closed</span>
+        <h1>Open a shift</h1>
+        <p>Count the float into the drawer and say who is on the till. Every sale until you close the shift is counted against it.</p>
+        <Field Label="Cashier">
+            <div class="seg wide" role="group" aria-label="Cashier">
+                @foreach (var c in Menu.Cashiers)
+                {
+                    var name = c;
+                    <button class="@(cashier == name ? "on" : "")" @onclick="() => cashier = name">@name</button>
+                }
+            </div>
+        </Field>
+        <Field Label="Opening float (Rp)">
+            <input class="rz-input mono cash-in" inputmode="numeric" value="@Menu.Num(opening)" aria-label="Opening float"
+                   @onchange="e => opening = long.TryParse(new string((e.Value?.ToString() ?? string.Empty).Where(char.IsDigit).ToArray()), out var v) ? v : 0" />
+        </Field>
+        <button class="rz-btn primary charge" @onclick="Open"><Icon Name="wallet" /> Open shift with @Menu.Rp(opening)</button>
+    </div>
+</div>
+
+@code {
+    private string cashier = Menu.Cashiers[0];
+    private long opening = 500_000;
+
+    private async Task Open()
+    {
+        await PosStore.OpenShiftAsync(cashier, opening);
+        Toasts.Success($"Shift open. Good luck, {cashier}.");
+    }
+}

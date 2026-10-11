@@ -1,0 +1,120 @@
+@page "/"
+
+<PageHeader Title="Physics sandbox" Eyebrow="Rustzor.Game" Text="Click to drop shapes. Everything is simulated in C# at 60 steps a second.">
+    <Actions>
+        <button class="rz-btn" @onclick="Clear">Clear</button>
+        <button class="rz-btn primary" @onclick="Rain">Make it rain</button>
+    </Actions>
+</PageHeader>
+
+<div class="sandbox">
+    <Card Class="controls">
+        <Field Label="Drop">
+            <div class="rz-row">
+                <button class="rz-btn small @(shape == "ball" ? "primary" : "")" @onclick='() => shape = "ball"'>Balls</button>
+                <button class="rz-btn small @(shape == "crate" ? "primary" : "")" @onclick='() => shape = "crate"'>Crates</button>
+            </div>
+        </Field>
+        <Field Label="@($"Gravity · {gravity:0} px/s²")">
+            <input type="range" min="0" max="1600" step="50" value="@gravity" @oninput="e => gravity = double.Parse(e.Value!.ToString()!)" />
+        </Field>
+        <Field Label="@($"Bounciness · {bounce:0.00}")">
+            <input type="range" min="0" max="0.95" step="0.05" value="@bounce" @oninput="e => bounce = double.Parse(e.Value!.ToString()!, System.Globalization.CultureInfo.InvariantCulture)" />
+        </Field>
+        <div class="stats">
+            <StatCard Label="Bodies" Value="@bodies.ToString()" />
+            <StatCard Label="Collisions/s" Value="@collisionsPerSecond.ToString()" />
+        </div>
+    </Card>
+    <div class="stage">
+        <GameView Height="520" Background="#f6f4f0" OnStart="Start" OnUpdate="Update" OnDraw="Draw" />
+    </div>
+</div>
+
+@code {
+    private string shape = "ball";
+    private double gravity = 900, bounce = 0.45;
+    private int bodies, collisions, collisionsPerSecond;
+    private double second;
+    private GameContext? game;
+    private static readonly string[] Colors = { "#c2410c", "#0f766e", "#a16207", "#475569", "#9f1239", "#4d7c0f" };
+
+    private void Start(GameContext g)
+    {
+        game = g;
+        foreach (var wall in new[]
+                 {
+                     Body.Box(new Vec2(g.Width / 2, g.Height - 8), g.Width, 16, 0),
+                     Body.Box(new Vec2(8, g.Height / 2), 16, g.Height, 0),
+                     Body.Box(new Vec2(g.Width - 8, g.Height / 2), 16, g.Height, 0),
+                 })
+        {
+            wall.Tag = "#d6d3d1";
+            g.Physics.Add(wall);
+        }
+        var ramp = g.Physics.Add(Body.Box(new Vec2(g.Width * 0.3, g.Height * 0.55), 220, 14, 0));
+        ramp.Tag = "#334155";
+        g.Physics.OnCollision += _ => collisions++;
+    }
+
+    private void Update(GameContext g, double dt)
+    {
+        g.Physics.Gravity = new Vec2(0, gravity);
+        if (g.Input.Clicks > 0 && g.Input.PointerInside) Drop(g.Input.Pointer);
+        second += dt;
+        if (second >= 1)
+        {
+            second = 0;
+            collisionsPerSecond = collisions;
+            collisions = 0;
+            bodies = g.Physics.Bodies.Count(b => !b.IsStatic);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void Drop(Vec2 at)
+    {
+        if (game is null) return;
+        var r = game.Random;
+        var body = shape == "ball" ? Body.Circle(at, r.Range(10, 22)) : Body.Box(at, r.Range(22, 44), r.Range(22, 44));
+        body.Restitution = bounce;
+        body.Friction = 0.4;
+        body.Tag = r.Pick(Colors);
+        game.Physics.Add(body);
+    }
+
+    private void Rain()
+    {
+        if (game is null) return;
+        for (var i = 0; i < 25; i++) Drop(new Vec2(game.Random.Range(40, game.Width - 40), game.Random.Range(-200, 40)));
+    }
+
+    private void Clear()
+    {
+        if (game is null) return;
+        foreach (var b in game.Physics.Bodies.Where(b => !b.IsStatic).ToList()) game.Physics.Remove(b);
+    }
+
+    private void Draw(GameContext g)
+    {
+        var c = g.Canvas;
+        c.Fill("#f6f4f0").FillRect(0, 0, g.Width, g.Height);
+        c.Stroke("rgba(0,0,0,0.05)").LineWidth(1);
+        for (var x = 0.0; x < g.Width; x += 40) c.Line(x, 0, x, g.Height);
+        for (var y = 0.0; y < g.Height; y += 40) c.Line(0, y, g.Width, y);
+        foreach (var b in g.Physics.Bodies)
+        {
+            var color = b.Tag as string ?? "#1c1917";
+            if (b.Shape == ShapeKind.Circle)
+            {
+                c.Fill(color).FillCircle(b.Position.X, b.Position.Y, b.Radius);
+                c.Stroke("rgba(255,255,255,0.6)").LineWidth(2).Line(b.Position.X, b.Position.Y, b.Position.X + b.Radius * 0.7, b.Position.Y - b.Radius * 0.4);
+            }
+            else
+            {
+                c.Fill(color).BeginPath().RoundRect(b.Position.X - b.Width / 2, b.Position.Y - b.Height / 2, b.Width, b.Height, b.IsStatic ? 2 : 5).FillPath();
+            }
+        }
+        c.Fill("#78716c").Font("13px sans-serif").TextAlign("left").FillText("Click anywhere to drop a " + (shape == "ball" ? "ball" : "crate"), 24, 30);
+    }
+}

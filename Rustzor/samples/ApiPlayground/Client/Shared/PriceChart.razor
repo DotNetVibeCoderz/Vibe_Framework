@@ -1,0 +1,32 @@
+@* Price lines per symbol from streamed ticks, scaled to what has arrived. *@
+@{
+    var groups = Ticks.GroupBy(t => t.Symbol).OrderBy(g => g.Key).ToList();
+    var min = Ticks.Count == 0 ? 0 : Ticks.Min(t => t.Price);
+    var max = Ticks.Count == 0 ? 1 : Ticks.Max(t => t.Price);
+    if (max - min < 1) { max += 500; min -= 500; }
+    var last = Math.Max(1, Ticks.Count == 0 ? 1 : Ticks.Max(t => t.Sequence));
+    string X(int seq) => (seq / (double)last * 600).ToString("0.0", Inv);
+    string Y(double p) => (170 - (p - min) / (max - min) * 150).ToString("0.0", Inv);
+    var palette = new[] { "var(--grpc)", "var(--ws)", "var(--signalr)" };
+}
+<svg class="price-chart" viewBox="0 0 600 190" preserveAspectRatio="none" role="img" aria-label="Streamed prices">
+    <line x1="0" x2="600" y1="20" y2="20" class="grid" />
+    <line x1="0" x2="600" y1="95" y2="95" class="grid" />
+    <line x1="0" x2="600" y1="170" y2="170" class="grid" />
+    @for (var i = 0; i < groups.Count; i++)
+    {
+        var d = string.Join(" ", groups[i].Select((t, k) => $"{(k == 0 ? "M" : "L")}{X(t.Sequence)} {Y(t.Price)}"));
+        <path d="@d" style="stroke:@palette[i % palette.Length]" />
+    }
+    @if (Ticks.Count == 0)
+    {
+        @* Razor reserves <text>, so the SVG element goes in as markup. *@
+        @((MarkupString)"<text x=\"300\" y=\"100\" text-anchor=\"middle\">Press Watch to stream prices</text>")
+    }
+</svg>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    [Parameter] public List<PriceTick> Ticks { get; set; } = new();
+}

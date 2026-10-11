@@ -1,0 +1,24 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle" />
+
+@code {
+    [Parameter] public double Value { get; set; }
+    [Parameter] public EventCallback<double> ValueChanged { get; set; }
+    [Parameter] public int Max { get; set; } = 5;
+    [Parameter] public double Precision { get; set; } = 1;
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private object Tree() => Mui.El("Rating", new MuiProps
+    {
+        ["value"] = Value,
+        ["max"] = Max,
+        ["precision"] = Precision,
+        ["readOnly"] = ReadOnly,
+        ["onChange"] = Mui.Event("change"),
+    });
+
+    private Task Handle(MuiEvent e)
+    {
+        Value = e.Value.IsNull ? 0 : e.Value.AsDouble();
+        return ValueChanged.InvokeAsync(Value);
+    }
+}

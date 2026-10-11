@@ -1,0 +1,41 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+
+<AppShell Brand="Arus" BrandIcon="zap" Items="nav">
+    <TopBar>
+        <span class="live"><span class="live-dot"></span>Live · Java–Bali system</span>
+        <a class="bell @(open > 0 ? "on" : "")" href="alarms" aria-label="@($"{open} alarms not acknowledged")"><Icon Name="bell" Size="17" />@if (open > 0) { <span>@open</span> }</a>
+        <span class="clock mono">@DateTime.Now.ToString("HH:mm:ss")</span>
+    </TopBar>
+    <SidebarFooter>
+        <p class="sim-note">Plant names are real places. Every figure is simulated.</p>
+    </SidebarFooter>
+    <ChildContent>@Body</ChildContent>
+</AppShell>
+
+@code {
+    private readonly List<NavItem> nav = new()
+    {
+        NavItem.Link("Overview", "", "gauge"),
+        NavItem.Link("Plants", "plants", "factory"),
+        NavItem.Link("Demand", "demand", "chart"),
+        NavItem.Link("Alarms", "alarms", "bell"),
+    };
+
+    private int open;
+
+    protected override void OnInitialized()
+    {
+        Grid.Start();
+        Grid.Ticked += Refresh;
+        open = Grid.Alarms.Count(a => !a.Acked);
+    }
+
+    private void Refresh()
+    {
+        open = Grid.Alarms.Count(a => !a.Acked);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Grid.Ticked -= Refresh;
+}

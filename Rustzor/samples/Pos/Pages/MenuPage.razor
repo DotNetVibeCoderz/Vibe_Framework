@@ -1,0 +1,130 @@
+@page "/menu"
+@implements IDisposable
+
+<div class="screen">
+    <PageHeader Title="Menu" Eyebrow="Back office" Text="Prices and availability. Mark an item sold out and the register greys it out at once.">
+        <Actions>
+            <button class="rz-btn primary" @onclick="New"><Icon Name="plus" /> New item</button>
+        </Actions>
+    </PageHeader>
+
+    @foreach (var c in Menu.Categories)
+    {
+        var cat = c;
+        var items = PosStore.Products.Where(p => p.Category == cat).ToList();
+        <section class="menu-cat tone-@Menu.Tone(cat)">
+            <h2>@cat <span>@items.Count items · @items.Count(p => p.SoldOut) sold out</span></h2>
+            <div class="rz-table-wrap">
+                <table class="rz-table">
+                    <thead><tr><th>Item</th><th class="num">Price (Rp)</th><th>Sold today</th><th>Available</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var p in items)
+                        {
+                            var item = p;
+                            var sold = PosStore.Orders.Where(o => o.Day == Menu.Today() && o.Status == "paid").SelectMany(o => o.Lines).Where(l => l.ProductId == item.Id).Sum(l => l.Qty);
+                            <tr class="@(item.SoldOut ? "out" : "")">
+                                <td><span class="menu-mark">@Menu.Initials(item.Name)</span> @item.Name</td>
+                                <td class="num mono">@Menu.Num(item.Price)</td>
+                                <td class="mono">@sold</td>
+                                <td>
+                                    <label class="switch">
+                                        <input type="checkbox" checked="@(!item.SoldOut)" @onchange="() => Toggle(item)" aria-label="@item.Name available" />
+                                        <span></span>@(item.SoldOut ? "Sold out" : "On sale")
+                                    </label>
+                                </td>
+                                <td class="num"><button class="rz-btn small ghost" @onclick="() => Edit(item)"><Icon Name="edit" Size="14" /> Edit</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>
+
+<Modal @bind-Open="editing" Title="@(draft.Id.Length == 0 ? "New item" : $"Edit {draft.Name}")">
+    <ChildContent>
+        <Field Label="Name"><input class="rz-input" value="@draft.Name" @onchange="e => draft.Name = e.Value?.ToString() ?? string.Empty" /></Field>
+        <div class="rz-grid rz-grid-2">
+            <Field Label="Category">
+                <select class="rz-input" value="@draft.Category" @onchange="e => draft.Category = e.Value?.ToString() ?? Menu.Categories[0]">
+                    @foreach (var c in Menu.Categories) { <option value="@c">@c</option> }
+                </select>
+            </Field>
+            <Field Label="Price (Rp)" Help="Before PB1; the register adds 10%.">
+                <input class="rz-input mono" inputmode="numeric" value="@Menu.Num(draft.Price)" @onchange="e => draft.Price = Digits(e.Value?.ToString())" />
+            </Field>
+        </div>
+        @if (error is not null) { <p class="form-error">@error</p> }
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => editing = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Save">@(draft.Id.Length == 0 ? "Add item" : "Save item")</button>
+    </Footer>
+</Modal>
+
+@code {
+    private bool editing;
+    private Product draft = new();
+    private Product? original;
+    private string? error;
+
+    protected override void OnInitialized() => PosStore.Changed += Refresh;
+
+    private static long Digits(string? text)
+    {
+        var d = new string((text ?? "").Where(char.IsDigit).ToArray());
+        return d.Length == 0 ? 0 : long.Parse(d);
+    }
+
+    private void New()
+    {
+        original = null;
+        draft = new Product { Category = Menu.Categories[0], Price = 25_000 };
+        error = null;
+        editing = true;
+    }
+
+    private void Edit(Product p)
+    {
+        original = p;
+        draft = new Product { Id = p.Id, Name = p.Name, Category = p.Category, Price = p.Price, SoldOut = p.SoldOut, Rank = p.Rank };
+        error = null;
+        editing = true;
+    }
+
+    private async Task Save()
+    {
+        if (draft.Name.Trim().Length == 0 || draft.Price <= 0)
+        {
+            error = "An item needs a name and a price above zero.";
+            return;
+        }
+        draft.Name = draft.Name.Trim();
+        if (original is null)
+        {
+            await PosStore.SaveProductAsync(draft);
+            Toasts.Success($"Added {draft.Name} to {draft.Category}");
+        }
+        else
+        {
+            original.Name = draft.Name;
+            original.Category = draft.Category;
+            original.Price = draft.Price;
+            await PosStore.SaveProductAsync(original);
+            Toasts.Success($"Saved {original.Name}");
+        }
+        editing = false;
+    }
+
+    private async Task Toggle(Product p)
+    {
+        p.SoldOut = !p.SoldOut;
+        await PosStore.SaveProductAsync(p);
+        if (p.SoldOut) Toasts.Info($"{p.Name} is sold out on the register");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => PosStore.Changed -= Refresh;
+}

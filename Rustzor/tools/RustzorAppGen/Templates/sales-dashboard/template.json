@@ -1,0 +1,10 @@
+{
+  "id": "sales-dashboard",
+  "name": "Sales dashboard",
+  "category": "Data",
+  "description": "A year of orders sliced by region, channel and period: revenue, margin and order KPIs against the previous period, a monthly trend, breakdowns and a sortable product table. Import your own CSV or export the filtered rows.",
+  "icon": "chart",
+  "shell": true,
+  "packages": [ "Rustzor.Browser.DOM", "Rustzor.Browser.FileSystem", "Rustzor.Data" ],
+  "nav": [ { "title": "Overview", "href": "", "icon": "chart" }, { "title": "Orders", "href": "orders", "icon": "receipt" } ]
+}

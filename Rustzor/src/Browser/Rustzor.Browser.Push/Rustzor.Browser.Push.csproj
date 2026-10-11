@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Browser.Push</RootNamespace>
+    <Description>Rustzor.Browser.Push: the browser's Push API for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+  </PropertyGroup>
+</Project>

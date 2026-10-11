@@ -1,0 +1,95 @@
+/* Nusantara CRM: indigo dye and turmeric, the colours of the region's cloth.
+   Rustzor.UI's tokens are overridden here; its components follow. */
+:root {
+  --rz-bg: #f3f2ee;
+  --rz-surface: #ffffff;
+  --rz-surface-2: #e9e8f0;
+  --rz-line: #d9d8e2;
+  --rz-fg: #1b1c2b;
+  --rz-muted: #636478;
+  --rz-accent: #2d3a8c;
+  --rz-accent-fg: #ffffff;
+  --rz-accent-soft: #e2e5f7;
+  --rz-patina: #0f766e;
+  --rz-sidebar: #161a3a;
+  --rz-sidebar-fg: #d7dbf2;
+  --rz-sidebar-muted: #8c92bf;
+  --rz-sidebar-active: #232a5c;
+  --rz-chart-1: #2d3a8c;
+  --rz-chart-2: #d4900f;
+  --rz-chart-3: #0f766e;
+  --rz-chart-4: #7c6aa8;
+  --rz-chart-5: #b4532a;
+  --turmeric: #d4900f;
+  --turmeric-soft: #fbefd5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --rz-bg: #10121f; --rz-surface: #181b2d; --rz-surface-2: #20243b; --rz-line: #2e3352; --rz-fg: #e8e9f4; --rz-muted: #9ea2c0;
+    --rz-accent: #8c9bf2; --rz-accent-fg: #10121f; --rz-accent-soft: #232a54; --rz-sidebar: #0b0d1a; --rz-sidebar-active: #1d2346;
+    --rz-chart-1: #8c9bf2; --turmeric: #f0b648; --turmeric-soft: #3a2c12;
+  }
+}
+:root[data-theme="dark"] {
+  --rz-bg: #10121f; --rz-surface: #181b2d; --rz-surface-2: #20243b; --rz-line: #2e3352; --rz-fg: #e8e9f4; --rz-muted: #9ea2c0;
+  --rz-accent: #8c9bf2; --rz-accent-fg: #10121f; --rz-accent-soft: #232a54; --rz-sidebar: #0b0d1a; --rz-sidebar-active: #1d2346;
+  --rz-chart-1: #8c9bf2; --turmeric: #f0b648; --turmeric-soft: #3a2c12;
+}
+
+.mono { font-family: var(--rz-font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--rz-muted); }
+.section { margin-top: 16px; }
+.two { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+/* Stage chips share one tone vocabulary across pages. */
+.tone-slate { --tone: #64748b; } .tone-patina { --tone: var(--rz-patina); } .tone-indigo { --tone: var(--rz-accent); }
+.tone-turmeric { --tone: var(--turmeric); } .tone-good { --tone: var(--rz-good); } .tone-bad { --tone: var(--rz-bad); }
+.stage-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+  color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); }
+.stage-chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tone); }
+
+/* Funnel on the overview: bars narrow with each stage. */
+.funnel { display: grid; gap: 6px; }
+.funnel-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 120px; gap: 10px; align-items: center; font-size: 14px; }
+.funnel-bar { height: 26px; border-radius: 6px; background: var(--tone); opacity: .9; min-width: 4px; display: flex; align-items: center; padding: 0 8px; color: #fff; font-size: 12px; font-weight: 600; }
+.funnel-row .mono { text-align: right; }
+
+/* Deal board. */
+.board { display: grid; grid-template-columns: repeat(6, minmax(190px, 1fr)); gap: 10px; overflow-x: auto; align-items: start; padding-bottom: 8px; }
+.lane { background: var(--rz-surface-2); border-radius: var(--rz-radius); padding: 8px; border-top: 3px solid var(--tone); min-height: 300px; transition: background .12s; }
+.lane.over { background: var(--rz-accent-soft); }
+.lane-head { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 4px 8px; }
+.lane-head h2 { margin: 0; font-size: 14px; font-family: var(--rz-font-display); }
+.lane-head span { font-size: 12px; color: var(--rz-muted); }
+.deal { background: var(--rz-surface); border: 1px solid var(--rz-line); border-radius: var(--rz-radius-sm); padding: 9px 10px; margin-bottom: 7px; cursor: grab; box-shadow: var(--rz-shadow); }
+.deal h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.deal .co { font-size: 12px; color: var(--rz-muted); }
+.deal-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; }
+.deal-foot .value { font-family: var(--rz-font-mono); font-weight: 600; }
+.deal.late .due { color: var(--rz-bad); font-weight: 600; }
+
+/* Activity timeline. */
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rz-line); }
+.timeline li:last-child { border-bottom: 0; }
+.timeline .ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--rz-accent-soft); color: var(--rz-accent); }
+.timeline li.done .what { text-decoration: line-through; color: var(--rz-muted); }
+.timeline li.late .when { color: var(--rz-bad); font-weight: 600; }
+.timeline .what { font-weight: 500; }
+.timeline .meta { font-size: 12px; color: var(--rz-muted); }
+.timeline .when { font-size: 12px; font-family: var(--rz-font-mono); }
+.group-title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--rz-muted); margin: 14px 0 4px; }
+
+/* Company header. */
+.company-head { display: flex; gap: 16px; align-items: center; }
+.company-mark { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-family: var(--rz-font-display); font-weight: 700; font-size: 22px;
+  color: #fff; background: linear-gradient(135deg, var(--rz-accent), color-mix(in srgb, var(--rz-accent) 55%, var(--turmeric))); }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.facts dt { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--rz-muted); }
+.facts dd { margin: 2px 0 0; font-weight: 600; }
+.tier { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-weight: 700; font-size: 12px; background: var(--turmeric-soft); color: var(--turmeric); }
+.sql-box { font-family: var(--rz-font-mono); font-size: 13px; width: 100%; }
+.owner-pick { width: auto; min-width: 150px; }
+.stage-pick { width: auto; padding: 2px 4px; font-size: 12px; }

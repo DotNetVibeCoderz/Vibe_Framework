@@ -1,0 +1,10 @@
+{
+  "id": "pomodoro-timer",
+  "name": "Pomodoro timer",
+  "category": "Tools",
+  "description": "Focus in 25-minute blocks with short and long breaks, a task list with estimates, a chime and a countdown in the tab title, and today's focus time. Durations are adjustable.",
+  "icon": "clock",
+  "shell": true,
+  "packages": [ "Rustzor.Browser.Storage", "Rustzor.Browser.DOM", "Rustzor.Browser.Audio" ],
+  "nav": [ { "title": "Timer", "href": "", "icon": "clock" } ]
+}

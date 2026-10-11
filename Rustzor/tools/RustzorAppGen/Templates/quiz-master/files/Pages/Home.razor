@@ -1,0 +1,149 @@
+@page "/"
+@implements IDisposable
+
+@if (topic is null)
+{
+    <PageHeader Title="Pick a quiz" Eyebrow="Quiz master" Text="Each question has 20 seconds. A fast answer earns more, and a streak multiplies it." />
+    <div class="topics">
+        @foreach (var t in QuestionBank.Topics)
+        {
+            var tp = t;
+            <button class="topic" @onclick="() => Start(tp)">
+                <span class="topic-icon"><Icon Name="@tp.Icon" Size="22" /></span>
+                <span class="topic-title">@tp.Title</span>
+                <span class="topic-blurb">@tp.Blurb</span>
+                <span class="topic-meta">@tp.Questions.Length questions · best @Best(tp)</span>
+            </button>
+        }
+    </div>
+}
+else if (index < order.Count)
+{
+    var q = order[index];
+    <div class="quiz">
+        <div class="quiz-top">
+            <span class="rz-label">@topic.Title · @(index + 1) of @order.Count</span>
+            <span class="score mono">@score pts@(streak > 1 ? $" · streak ×{streak}" : "")</span>
+        </div>
+        <div class="timer"><span style="width:@((timeLeft / QuestionSeconds * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%" class="@(timeLeft < 5 ? "late" : "")"></span></div>
+        <h2 class="question">@q.Text</h2>
+        <div class="choices">
+            @for (var c = 0; c < q.Choices.Length; c++)
+            {
+                var choice = c;
+                <button class="choice @ChoiceClass(q, choice)" disabled="@(picked is not null)" @onclick="() => Answer(choice)">
+                    <span class="key">@((char)('A' + choice))</span>@q.Choices[choice]
+                </button>
+            }
+        </div>
+        @if (picked is not null)
+        {
+            <div class="feedback @(picked == q.Answer ? "right" : "wrong")">
+                <strong>@(picked == q.Answer ? $"Correct, +{lastPoints}" : picked == -1 ? "Out of time" : "Not quite")</strong>
+                <span>@q.Why</span>
+                <button class="rz-btn primary" @onclick="Next">@(index + 1 == order.Count ? "See results" : "Next question") <Icon Name="arrow-right" /></button>
+            </div>
+        }
+    </div>
+}
+else
+{
+    var correct = answers.Count(a => a.Picked == a.Question.Answer);
+    <PageHeader Title="@($"{score} points")" Eyebrow="@($"{topic.Title} · finished")" Text="@($"{correct} of {order.Count} correct.{(newBest ? " A new best score." : "")}")">
+        <Actions>
+            <button class="rz-btn" @onclick="() => topic = null">All quizzes</button>
+            <button class="rz-btn primary" @onclick="() => Start(topic)"><Icon Name="refresh" /> Play again</button>
+        </Actions>
+    </PageHeader>
+    <Card Title="Review">
+        <ol class="review">
+            @foreach (var a in answers)
+            {
+                <li class="@(a.Picked == a.Question.Answer ? "right" : "wrong")">
+                    <div class="r-q">@a.Question.Text</div>
+                    <div class="r-a">
+                        @if (a.Picked == a.Question.Answer) { <span>✓ @a.Question.Choices[a.Question.Answer]</span> }
+                        else
+                        {
+                            <span class="r-mine">@(a.Picked < 0 ? "No answer" : "✗ " + a.Question.Choices[a.Picked])</span>
+                            <span>✓ @a.Question.Choices[a.Question.Answer]</span>
+                        }
+                    </div>
+                    <div class="r-why">@a.Question.Why</div>
+                </li>
+            }
+        </ol>
+    </Card>
+}
+
+@code {
+    private const double QuestionSeconds = 20;
+    private Topic? topic;
+    private List<Question> order = new();
+    private int index, score, streak, lastPoints;
+    private int? picked;
+    private double timeLeft;
+    private bool newBest;
+    private readonly List<(Question Question, int Picked)> answers = new();
+    private IDisposable? timer;
+    private readonly Random rng = new();
+
+    private void Start(Topic t)
+    {
+        topic = t;
+        order = t.Questions.OrderBy(_ => rng.Next()).ToList();
+        index = score = streak = 0;
+        answers.Clear();
+        newBest = false;
+        Begin();
+    }
+
+    private void Begin()
+    {
+        picked = null;
+        timeLeft = QuestionSeconds;
+        timer?.Dispose();
+        timer = Scheduler.SetInterval(() =>
+        {
+            if (picked is not null) return;
+            timeLeft = Math.Max(0, timeLeft - 0.1);
+            if (timeLeft <= 0) Answer(-1);
+            StateHasChanged();
+        }, 100);
+    }
+
+    private void Answer(int choice)
+    {
+        if (picked is not null) return;
+        picked = choice;
+        timer?.Dispose();
+        var q = order[index];
+        answers.Add((q, choice));
+        if (choice == q.Answer)
+        {
+            streak++;
+            lastPoints = (int)Math.Round((50 + 50 * timeLeft / QuestionSeconds) * Math.Min(streak, 4));
+            score += lastPoints;
+        }
+        else
+        {
+            streak = 0;
+        }
+    }
+
+    private void Next()
+    {
+        index++;
+        if (index < order.Count) { Begin(); return; }
+        var key = "quiz-best-" + topic!.Id;
+        var best = int.TryParse(WebStorage.Local.Get(key), out var b) ? b : 0;
+        if (score > best) { WebStorage.Local.Set(key, score.ToString()); newBest = true; }
+    }
+
+    private string ChoiceClass(Question q, int choice) =>
+        picked is null ? "" : choice == q.Answer ? "right" : choice == picked ? "wrong" : "faded";
+
+    private static string Best(Topic t) => WebStorage.Local.Get("quiz-best-" + t.Id) is { } s ? s + " pts" : "none yet";
+
+    public void Dispose() => timer?.Dispose();
+}

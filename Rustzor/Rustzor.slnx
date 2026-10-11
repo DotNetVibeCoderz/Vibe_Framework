@@ -1,0 +1,64 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Rustzor.Build/Rustzor.Build.csproj" />
+    <Project Path="src/Rustzor.Components/Rustzor.Components.csproj" />
+    <Project Path="src/Rustzor.Core/Rustzor.Core.csproj" />
+    <Project Path="src/Rustzor.Sdk/Rustzor.Sdk.csproj" />
+    <Project Path="src/Rustzor.UI/Rustzor.UI.csproj" />
+  </Folder>
+  <Folder Name="/src/Browser/">
+    <Project Path="src/Browser/Rustzor.Browser.AI/Rustzor.Browser.AI.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Audio/Rustzor.Browser.Audio.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.BackgroundSync/Rustzor.Browser.BackgroundSync.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Bluetooth/Rustzor.Browser.Bluetooth.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Canvas/Rustzor.Browser.Canvas.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.DOM/Rustzor.Browser.DOM.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Fetch/Rustzor.Browser.Fetch.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.FileSystem/Rustzor.Browser.FileSystem.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Gamepad/Rustzor.Browser.Gamepad.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.HID/Rustzor.Browser.HID.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Location/Rustzor.Browser.Location.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Media/Rustzor.Browser.Media.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.NFC/Rustzor.Browser.NFC.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Notifications/Rustzor.Browser.Notifications.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.OffscreenCanvas/Rustzor.Browser.OffscreenCanvas.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Push/Rustzor.Browser.Push.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Sensors/Rustzor.Browser.Sensors.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Serial/Rustzor.Browser.Serial.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Storage/Rustzor.Browser.Storage.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.USB/Rustzor.Browser.USB.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Video/Rustzor.Browser.Video.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.WebGL/Rustzor.Browser.WebGL.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.WebGPU/Rustzor.Browser.WebGPU.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.WebRTC/Rustzor.Browser.WebRTC.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.WebSocket/Rustzor.Browser.WebSocket.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.WebXR/Rustzor.Browser.WebXR.csproj" />
+    <Project Path="src/Browser/Rustzor.Browser.Workers/Rustzor.Browser.Workers.csproj" />
+  </Folder>
+  <Folder Name="/src/Integrations/">
+    <Project Path="src/Integrations/Rustzor.Charts.ChartJs/Rustzor.Charts.ChartJs.csproj" />
+    <Project Path="src/Integrations/Rustzor.Charts.D3/Rustzor.Charts.D3.csproj" />
+    <Project Path="src/Integrations/Rustzor.Charts.ECharts/Rustzor.Charts.ECharts.csproj" />
+    <Project Path="src/Integrations/Rustzor.UI.Bootstrap/Rustzor.UI.Bootstrap.csproj" />
+    <Project Path="src/Integrations/Rustzor.UI.Mui/Rustzor.UI.Mui.csproj" />
+    <Project Path="src/Integrations/Rustzor.UI.Tailwind/Rustzor.UI.Tailwind.csproj" />
+  </Folder>
+  <Folder Name="/src/Frameworks/">
+    <Project Path="src/Frameworks/Rustzor.AI/Rustzor.AI.csproj" />
+    <Project Path="src/Frameworks/Rustzor.Data/Rustzor.Data.csproj" />
+    <Project Path="src/Frameworks/Rustzor.Game/Rustzor.Game.csproj" />
+    <Project Path="src/Frameworks/Rustzor.Graphics/Rustzor.Graphics.csproj" />
+  </Folder>
+  <Folder Name="/src/Net/">
+    <Project Path="src/Net/Rustzor.Net.GrpcWeb/Rustzor.Net.GrpcWeb.csproj" />
+    <Project Path="src/Net/Rustzor.Net.SignalR/Rustzor.Net.SignalR.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/ApiPlayground/Client/ApiPlayground.Client.csproj" />
+    <Project Path="samples/ApiPlayground/Server/ApiPlayground.Server.csproj" />
+    <Project Path="samples/Chat/Chat.csproj" />
+    <Project Path="samples/Crm/Crm.csproj" />
+    <Project Path="samples/Dashboard/Dashboard.csproj" />
+    <Project Path="samples/Pos/Pos.csproj" />
+  </Folder>
+</Solution>

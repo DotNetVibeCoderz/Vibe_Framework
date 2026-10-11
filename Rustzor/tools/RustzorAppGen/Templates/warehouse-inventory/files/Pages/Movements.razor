@@ -1,0 +1,44 @@
+@page "/movements"
+
+<PageHeader Title="Movements" Eyebrow="History" Text="Every receipt, pick and adjustment, newest first. Received units are positive, picked units negative." />
+
+@if (movements is null)
+{
+    <p class="rz-muted">Opening the database…</p>
+}
+else
+{
+    <div class="rz-grid rz-grid-3">
+        <StatCard Label="Received" Value="@movements.Where(m => m.Quantity > 0).Sum(m => m.Quantity).ToString("N0")" Hint="units, last 200 movements" />
+        <StatCard Label="Picked" Value="@((-movements.Where(m => m.Quantity < 0).Sum(m => m.Quantity)).ToString("N0"))" Hint="units" />
+        <StatCard Label="Busiest SKU" Value="@Busiest()" Hint="by picks" />
+    </div>
+    <Card>
+        <div class="rz-table-wrap">
+            <table class="rz-table">
+                <thead><tr><th>When</th><th>SKU</th><th>Type</th><th class="num">Quantity</th><th>Reference</th></tr></thead>
+                <tbody>
+                    @foreach (var m in movements)
+                    {
+                        <tr>
+                            <td class="mono">@m.At</td>
+                            <td class="mono">@m.Sku</td>
+                            <td><Badge Kind="@(m.Kind == "receive" ? "good" : m.Kind == "pick" ? "accent" : "plain")" Text="@m.Kind" /></td>
+                            <td class="num @(m.Quantity < 0 ? "out" : "in")">@(m.Quantity > 0 ? "+" : "")@m.Quantity</td>
+                            <td>@m.Reference</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </Card>
+}
+
+@code {
+    private List<Movement>? movements;
+
+    protected override async Task OnInitializedAsync() => movements = await Warehouse.MovementsAsync();
+
+    private string Busiest() =>
+        movements!.Where(m => m.Kind == "pick").GroupBy(m => m.Sku).OrderBy(g => g.Sum(m => m.Quantity)).Select(g => g.Key).FirstOrDefault() ?? "—";
+}

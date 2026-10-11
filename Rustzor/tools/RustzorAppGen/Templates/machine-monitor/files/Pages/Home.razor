@@ -1,0 +1,98 @@
+@page "/"
+@implements IDisposable
+
+<PageHeader Title="Line 3 · Assembly" Eyebrow="Live" Text="Readings update every second. Select a machine for its trends and controls.">
+    <Actions>
+        <span class="clock mono">@DateTime.Now.ToString("HH:mm:ss")</span>
+        <button class="rz-btn" @onclick="() => paused = !paused"><Icon Name="@(paused ? "zap" : "clock")" /> @(paused ? "Resume" : "Pause")</button>
+    </Actions>
+</PageHeader>
+
+<div class="rz-grid rz-grid-4">
+    <StatCard Label="Line OEE" Value="@Pct(plant.Machines.Average(m => m.Oee))" Hint="world class is 85%" Trend="oeeTrend" />
+    <StatCard Label="Running" Value="@($"{plant.Machines.Count(m => m.State == MachineState.Running)} / {plant.Machines.Count}")" Hint="machines" />
+    <StatCard Label="Good parts" Value="@plant.Machines.Sum(m => m.Good).ToString("N0")" Hint="@($"{plant.Machines.Sum(m => m.Scrap)} scrapped")" />
+    <StatCard Label="Open alarms" Value="@plant.Alarms.Count(a => a.Acknowledged is null).ToString()" Hint="@(plant.Alarms.Any(a => a.Acknowledged is null && a.Severity == "critical") ? "includes a trip" : "none critical")" />
+</div>
+
+<div class="floor">
+    @foreach (var m in plant.Machines)
+    {
+        var machine = m;
+        <button class="machine state-@machine.State.ToString().ToLowerInvariant() @(selected == machine ? "sel" : "")" @onclick="() => selected = machine">
+            <div class="m-head">
+                <span class="m-id mono">@machine.Id</span>
+                <span class="m-state">@machine.State</span>
+            </div>
+            <div class="m-name">@machine.Name</div>
+            <dl class="m-readings">
+                <div class="@(machine.Temperature > plant.Limits.MaxTemperature ? "hot" : "")"><dt>Temp</dt><dd>@machine.Temperature.ToString("0.0")<small>°C</small></dd></div>
+                <div class="@(machine.Vibration > plant.Limits.MaxVibration ? "hot" : "")"><dt>Vib</dt><dd>@machine.Vibration.ToString("0.0")<small>mm/s</small></dd></div>
+                <div><dt>OEE</dt><dd>@Pct(machine.Oee)</dd></div>
+            </dl>
+            <Sparkline Values="machine.TempHistory" Width="200" Height="28" Color="@(machine.Temperature > plant.Limits.MaxTemperature ? "var(--rz-bad)" : "var(--rz-patina)")" />
+            <div class="wear" title="Wear @Pct(machine.Wear)"><span style="width:@((machine.Wear * 100).ToString("0"))%"></span></div>
+        </button>
+    }
+</div>
+
+@if (selected is { } s)
+{
+    <div class="detail-grid">
+        <Card Title="@($"{s.Id} · {s.Name}")" Subtitle="Temperature, last two minutes">
+            <LineChart Labels="labels" Series="@(new List<ChartSeries> { new("°C", s.TempHistory), new("Limit", Enumerable.Repeat(plant.Limits.MaxTemperature, s.TempHistory.Count).ToList()) { Color = "var(--rz-bad)" } })" Height="200" ValueFormat="0" AriaLabel="Temperature trend" />
+        </Card>
+        <Card Title="Controls" Subtitle="@($"{s.Kind} · cycle {s.CycleSeconds:0} s · wear {Pct(s.Wear)}")">
+            <dl class="oee">
+                <div><dt>Availability</dt><dd>@Pct(s.Availability)</dd></div>
+                <div><dt>Performance</dt><dd>@Pct(s.Performance)</dd></div>
+                <div><dt>Quality</dt><dd>@Pct(s.Quality)</dd></div>
+                <div><dt>Spindle</dt><dd>@(s.Rpm > 0 ? s.Rpm.ToString("N0") + " rpm" : "—")</dd></div>
+            </dl>
+            <div class="rz-row controls">
+                @if (s.State == MachineState.Running)
+                {
+                    <button class="rz-btn" @onclick="() => plant.SetState(s, MachineState.Idle)">Stop</button>
+                }
+                else
+                {
+                    <button class="rz-btn primary" @onclick="() => plant.SetState(s, MachineState.Running)">@(s.State == MachineState.Fault ? "Reset and start" : "Start")</button>
+                }
+                <button class="rz-btn" @onclick="() => plant.SetState(s, MachineState.Maintenance)"><Icon Name="settings" /> Service now</button>
+            </div>
+            <div class="rz-divider"></div>
+            <Field Label="@($"Temperature limit · {plant.Limits.MaxTemperature:0} °C")">
+                <input type="range" min="50" max="110" value="@plant.Limits.MaxTemperature" @oninput="e => plant.Limits.MaxTemperature = double.Parse(e.Value!.ToString()!)" />
+            </Field>
+            <Field Label="@($"Vibration limit · {plant.Limits.MaxVibration:0.0} mm/s")">
+                <input type="range" min="2" max="12" step="0.1" value="@plant.Limits.MaxVibration" @oninput="e => plant.Limits.MaxVibration = double.Parse(e.Value!.ToString()!, System.Globalization.CultureInfo.InvariantCulture)" />
+            </Field>
+        </Card>
+    </div>
+}
+
+@code {
+    private readonly Plant plant = Plant.Instance;
+    private Machine? selected;
+    private bool paused;
+    private IDisposable? timer;
+    private readonly List<double> oeeTrend = new();
+    private readonly List<string> labels = Enumerable.Range(0, Plant.HistoryLength).Select(i => (i - Plant.HistoryLength) % 30 == 0 ? $"-{Plant.HistoryLength - i}s" : "").ToList();
+
+    protected override void OnInitialized()
+    {
+        selected = plant.Machines[3];
+        timer = Scheduler.SetInterval(() =>
+        {
+            if (paused) return;
+            plant.Tick(1);
+            oeeTrend.Add(plant.Machines.Average(m => m.Oee));
+            if (oeeTrend.Count > 30) oeeTrend.RemoveAt(0);
+            StateHasChanged();
+        }, 1000);
+    }
+
+    public static string Pct(double v) => (v * 100).ToString("0.0") + "%";
+
+    public void Dispose() => timer?.Dispose();
+}

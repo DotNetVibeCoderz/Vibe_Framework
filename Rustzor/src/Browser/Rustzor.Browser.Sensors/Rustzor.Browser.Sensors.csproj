@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Browser.Sensors</RootNamespace>
+    <Description>Rustzor.Browser.Sensors: the browser's Sensors API for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+  </PropertyGroup>
+</Project>

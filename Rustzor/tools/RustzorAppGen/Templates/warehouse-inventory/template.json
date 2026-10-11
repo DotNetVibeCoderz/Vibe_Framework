@@ -1,0 +1,10 @@
+{
+  "id": "warehouse-inventory",
+  "name": "Warehouse inventory",
+  "category": "Industry",
+  "description": "Stock by SKU and bin location in a real SQLite database inside the browser: receive, pick and adjust with a full movement history, reorder alerts, stock value, and a SQL console.",
+  "icon": "box",
+  "shell": true,
+  "packages": [ "Rustzor.Data" ],
+  "nav": [ { "title": "Stock", "href": "", "icon": "box" }, { "title": "Movements", "href": "movements", "icon": "refresh" }, { "title": "SQL console", "href": "sql", "icon": "cpu" } ]
+}

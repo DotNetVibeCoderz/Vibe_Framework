@@ -1,0 +1,103 @@
+@page "/contacts"
+
+<PageHeader Title="Contacts" Eyebrow="People" Text="Everyone you are selling to. Click a row to edit, set a follow-up, or see their deals." />
+
+<Card>
+    <DataGrid TItem="Contact" Items="crm.Contacts" Columns="columns" PageSize="8" SearchPlaceholder="Search name, company, email" OnRowClick="Edit">
+        <Toolbar>
+            <button class="rz-btn primary" @onclick="() => Edit(new Contact())"><Icon Name="plus" /> Add contact</button>
+        </Toolbar>
+    </DataGrid>
+</Card>
+
+<Modal @bind-Open="editing" Title="@(draft.Id == 0 ? "New contact" : draft.Name)">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="Name"><input class="rz-input @(showErrors && draft.Name.Trim().Length == 0 ? "invalid" : "")" @bind="draft.Name" @bind:event="oninput" /></Field>
+                <Field Label="Company"><input class="rz-input" @bind="draft.Company" /></Field>
+            </div>
+            <div class="pair">
+                <Field Label="Email"><input class="rz-input" type="email" @bind="draft.Email" /></Field>
+                <Field Label="Phone"><input class="rz-input" type="tel" @bind="draft.Phone" /></Field>
+            </div>
+            <div class="pair">
+                <Field Label="Source">
+                    <select class="rz-input" @bind="draft.Source">
+                        @foreach (var s in Crm.Sources) { <option value="@s">@s</option> }
+                    </select>
+                </Field>
+                <Field Label="Follow up on" Help="Leave empty when nothing is planned.">
+                    <input class="rz-input" type="date" value="@draft.FollowUp" @onchange="e => draft.FollowUp = e.Value?.ToString() ?? string.Empty" />
+                </Field>
+            </div>
+            @if (original is not null)
+            {
+                var deals = crm.DealsOf(original).ToList();
+                <div>
+                    <div class="rz-label">Deals</div>
+                    @if (deals.Count == 0) { <p class="rz-muted">No deals yet.</p> }
+                    @foreach (var d in deals)
+                    {
+                        <div class="deal-line"><span>@d.Title</span><Badge Kind="@StageKind(d.Stage)" Text="@Crm.Stages.First(s => s.Id == d.Stage).Title" /><span class="mono">@Home.Money(d.Value)</span></div>
+                    }
+                </div>
+            }
+        </div>
+    </ChildContent>
+    <Footer>
+        @if (original is not null)
+        {
+            <button class="rz-btn danger" @onclick="Delete"><Icon Name="trash" /> Delete</button>
+        }
+        <span class="rz-topbar-spacer"></span>
+        <button class="rz-btn" @onclick="() => editing = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Save">Save contact</button>
+    </Footer>
+</Modal>
+
+@code {
+    private readonly Crm crm = Crm.Instance;
+    private bool editing, showErrors;
+    private Contact draft = new();
+    private Contact? original;
+
+    private List<GridColumn<Contact>> columns = new()
+    {
+        new("Name", c => c.Name),
+        new("Company", c => c.Company),
+        new("Email", c => c.Email),
+        new("Source", c => c.Source),
+        new("Follow up", c => c.FollowUp),
+        new("Open value", c => Crm.Instance.DealsOf(c).Where(d => d.Stage is not ("won" or "lost")).Sum(d => d.Value)) { Numeric = true, Format = "#,##0" },
+    };
+
+    public static string StageKind(string stage) => stage switch { "won" => "good", "lost" => "bad", "proposal" => "accent", "qualified" => "patina", _ => "plain" };
+
+    private void Edit(Contact c)
+    {
+        original = c.Id == 0 ? null : c;
+        draft = new Contact { Id = c.Id, Name = c.Name, Company = c.Company, Email = c.Email, Phone = c.Phone, Source = c.Source, FollowUp = c.FollowUp };
+        showErrors = false;
+        editing = true;
+    }
+
+    private void Save()
+    {
+        if (draft.Name.Trim().Length == 0) { showErrors = true; return; }
+        var target = original ?? new Contact();
+        target.Name = draft.Name.Trim(); target.Company = draft.Company.Trim(); target.Email = draft.Email.Trim();
+        target.Phone = draft.Phone.Trim(); target.Source = draft.Source; target.FollowUp = draft.FollowUp;
+        crm.Save(target);
+        editing = false;
+        Toasts.Success(original is null ? "Contact added" : "Contact saved");
+    }
+
+    private void Delete()
+    {
+        if (original is null) return;
+        crm.Delete(original);
+        editing = false;
+        Toasts.Show($"Deleted {original.Name} and their deals", "bad");
+    }
+}

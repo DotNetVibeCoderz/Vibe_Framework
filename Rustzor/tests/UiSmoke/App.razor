@@ -1,0 +1,30 @@
+@namespace UiSmoke
+<AppShell Brand="Smoke" Title="Overview" Items="nav">
+    <PageHeader Title="Sales overview" Eyebrow="March 2026" Text="Revenue by store." />
+    <div class="rz-grid rz-grid-4">
+        <StatCard Label="Revenue" Value="Rp 1.284.000" Delta="12.4" Trend="trend" />
+        <StatCard Label="Orders" Value="3,412" Delta="-3.1" Trend="trend2" />
+    </div>
+    <Card Title="Monthly revenue">
+        <LineChart Labels="months" Series="series" />
+    </Card>
+    <Card Title="Stores">
+        <BarChart Labels="stores" Series="bars" />
+        <DonutChart Labels="stores" Values="shares" Center="100%" CenterLabel="share" />
+    </Card>
+    <DataGrid Items="rows" Columns="cols" PageSize="3" />
+    <button class="rz-btn primary" @onclick="@(() => Toasts.Success("Saved"))">Toast</button>
+</AppShell>
+@code {
+    List<NavItem> nav = new() { NavItem.Link("Overview", "", "home"), NavItem.Link("Orders", "orders", "cart") };
+    List<double> trend = new() { 3, 5, 4, 7, 8, 11 };
+    List<double> trend2 = new() { 9, 8, 8, 6, 7, 5 };
+    string[] months = { "Jan", "Feb", "Mar", "Apr", "May", "Jun" };
+    List<ChartSeries> series = new() { new("2026", new double[] { 120, 180, 150, 220, 260, 310 }), new("2025", new double[] { 90, 110, 140, 150, 170, 200 }) };
+    string[] stores = { "Bogor", "Depok", "Jakarta" };
+    List<ChartSeries> bars = new() { new("Q1", new double[] { 40, 25, 80 }) };
+    double[] shares = { 40, 25, 80 };
+    record Row(string Name, string City, double Total);
+    List<Row> rows = new() { new("Ana", "Bogor", 1200), new("Budi", "Depok", 800.5), new("Citra", "Jakarta", 2300), new("Dedi", "Bogor", 450) };
+    List<GridColumn<Row>> cols = new() { new("Name", r => r.Name), new("City", r => r.City), new("Total", r => r.Total) { Numeric = true, Format = "N2" } };
+}

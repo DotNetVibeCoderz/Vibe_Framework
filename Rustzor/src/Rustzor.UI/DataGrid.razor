@@ -1,0 +1,145 @@
+@typeparam TItem
+@* A sortable, searchable, paged table over an in-memory list. *@
+<div class="rz-stack">
+    @if (Searchable || Toolbar is not null)
+    {
+        <div class="rz-row" style="justify-content:space-between">
+            @if (Searchable)
+            {
+                <div class="rz-search" style="flex:1;max-width:340px">
+                    <Icon Name="search" Size="16" />
+                    <input class="rz-input" placeholder="@SearchPlaceholder" value="@_query" @oninput="OnSearch" aria-label="Search" />
+                </div>
+            }
+            @Toolbar
+        </div>
+    }
+    <div class="rz-table-wrap">
+        <table class="rz-table">
+            <thead>
+                <tr>
+                    @for (var i = 0; i < Columns.Count; i++)
+                    {
+                        var index = i;
+                        var col = Columns[i];
+                        <th class="@(col.Sortable ? "sortable" : "") @(col.Numeric ? "num" : "")" @onclick="() => Sort(index)">
+                            @col.Title
+                            @if (_sortColumn == index)
+                            {
+                                <Icon Name="@(_ascending ? "arrow-up" : "arrow-down")" Size="12" />
+                            }
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Page())
+                {
+                    <tr class="@(OnRowClick.HasDelegate ? "clickable" : "")" @onclick="() => OnRowClick.InvokeAsync(item)">
+                        @foreach (var col in Columns)
+                        {
+                            <td class="@(col.Numeric ? "num" : "")">
+                                @if (col.Template is not null)
+                                {
+                                    @col.Template(item)
+                                }
+                                else
+                                {
+                                    @col.Text(item)
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (Filtered().Count == 0)
+        {
+            <EmptyState Icon="search" Title="@EmptyTitle" Text="@EmptyText" />
+        }
+    </div>
+    @if (Filtered().Count > PageSize)
+    {
+        <div class="rz-grid-foot">
+            <span>@(_page * PageSize + 1)–@Math.Min((_page + 1) * PageSize, Filtered().Count) of @Filtered().Count</span>
+            <div class="rz-row">
+                <button class="rz-btn small" disabled="@(_page == 0)" @onclick="() => _page--">Previous</button>
+                <button class="rz-btn small" disabled="@((_page + 1) * PageSize >= Filtered().Count)" @onclick="() => _page++">Next</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string _query = "";
+    private int _sortColumn = -1;
+    private bool _ascending = true;
+    private int _page;
+    private List<TItem>? _cache;
+    private IReadOnlyList<TItem>? _cachedSource;
+    private int _cachedCount = -1;
+
+    [Parameter] public IReadOnlyList<TItem> Items { get; set; } = Array.Empty<TItem>();
+    [Parameter] public List<GridColumn<TItem>> Columns { get; set; } = new();
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public bool Searchable { get; set; } = true;
+    [Parameter] public string SearchPlaceholder { get; set; } = "Search";
+    [Parameter] public string EmptyTitle { get; set; } = "Nothing matches";
+    [Parameter] public string? EmptyText { get; set; } = "Try a different search.";
+    [Parameter] public RenderFragment? Toolbar { get; set; }
+    [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
+
+    protected override void OnParametersSet() => _cache = null;
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+        _page = 0;
+        _cache = null;
+    }
+
+    private void Sort(int index)
+    {
+        if (!Columns[index].Sortable) return;
+        if (_sortColumn == index) _ascending = !_ascending;
+        else
+        {
+            _sortColumn = index;
+            _ascending = true;
+        }
+        _cache = null;
+    }
+
+    private List<TItem> Filtered()
+    {
+        if (_cache is not null && ReferenceEquals(_cachedSource, Items) && _cachedCount == Items.Count) return _cache;
+        IEnumerable<TItem> rows = Items;
+        if (_query.Length > 0)
+        {
+            rows = rows.Where(item => Columns.Any(c => c.Text(item).Contains(_query, StringComparison.OrdinalIgnoreCase)));
+        }
+        if (_sortColumn >= 0)
+        {
+            var col = Columns[_sortColumn];
+            rows = _ascending ? rows.OrderBy(i => SortKey(col.Value(i))) : rows.OrderByDescending(i => SortKey(col.Value(i)));
+        }
+        _cache = rows.ToList();
+        _cachedSource = Items;
+        _cachedCount = Items.Count;
+        if (_page * PageSize >= _cache.Count) _page = 0;
+        return _cache;
+    }
+
+    // Numbers sort as numbers, everything else as text.
+    private static object SortKey(object? v) => v switch
+    {
+        null => "",
+        int i => (double)i,
+        long l => (double)l,
+        double d => d,
+        DateTime dt => (double)dt.Ticks,
+        _ => v.ToString() ?? "",
+    };
+
+    private IEnumerable<TItem> Page() => Filtered().Skip(_page * PageSize).Take(PageSize);
+}

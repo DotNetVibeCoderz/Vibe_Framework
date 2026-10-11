@@ -1,0 +1,30 @@
+<div class="@Bs.Css("card", Class)">
+    @if (Header is not null)
+    {
+        <div class="card-header">@Header</div>
+    }
+    <div class="card-body">
+        @if (Title is not null)
+        {
+            <h5 class="card-title">@Title</h5>
+        }
+        @if (Subtitle is not null)
+        {
+            <h6 class="card-subtitle mb-2 text-body-secondary">@Subtitle</h6>
+        }
+        @ChildContent
+    </div>
+    @if (Footer is not null)
+    {
+        <div class="card-footer">@Footer</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? Header { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

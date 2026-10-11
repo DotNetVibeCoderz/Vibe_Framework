@@ -1,0 +1,6 @@
+<div class="child">@Label: @Value <button @onclick="() => OnPing.InvokeAsync(10)">+10</button></div>
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> OnPing { get; set; }
+}

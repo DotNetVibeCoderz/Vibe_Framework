@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Rustzor core: the JavaScript bridge, callbacks, timers and a JSON reader/writer for C# running on RustNetRuntime in the browser.</Description>
+    <RootNamespace>Rustzor</RootNamespace>
+  </PropertyGroup>
+
+</Project>

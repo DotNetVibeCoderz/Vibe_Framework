@@ -1,0 +1,31 @@
+@typeparam TItem
+<div class="table-responsive">
+    <table class="@Bs.Css("table", "align-middle", Striped ? "table-striped" : null, Hover ? "table-hover" : null, Small ? "table-sm" : null, Class)">
+        @if (Header is not null)
+        {
+            <thead><tr>@Header</tr></thead>
+        }
+        <tbody>
+            @foreach (var item in Items)
+            {
+                <tr class="@(Equals(item, Selected) ? "table-active" : null)" style="@(OnRowClick.HasDelegate ? "cursor:pointer" : null)" @onclick="() => Click(item)">@Row(item)</tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = Array.Empty<TItem>();
+    /// <summary>The th cells.</summary>
+    [Parameter] public RenderFragment? Header { get; set; }
+    /// <summary>The td cells of one row.</summary>
+    [Parameter] public RenderFragment<TItem> Row { get; set; } = default!;
+    [Parameter] public bool Striped { get; set; } = true;
+    [Parameter] public bool Hover { get; set; } = true;
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public TItem? Selected { get; set; }
+    [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
+
+    private Task Click(TItem item) => OnRowClick.HasDelegate ? OnRowClick.InvokeAsync(item) : Task.CompletedTask;
+}

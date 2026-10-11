@@ -1,0 +1,10 @@
+{
+  "id": "ai-chat",
+  "name": "AI chat",
+  "category": "AI",
+  "description": "A streaming chat client for OpenAI, Azure OpenAI, Claude, Ollama or Chrome's built-in model, with system-prompt presets, Markdown replies and a saved conversation. Starts on an offline demo model so it runs without a key.",
+  "icon": "chat",
+  "shell": true,
+  "packages": [ "Rustzor.AI", "Rustzor.Browser.Storage", "Rustzor.Browser.DOM" ],
+  "nav": [ { "title": "Chat", "href": "", "icon": "chat" }, { "title": "Settings", "href": "settings", "icon": "settings" } ]
+}

@@ -1,0 +1,7 @@
+# Build against a local RustNetRuntime checkout instead of the pinned commit.
+# Copy to .cargo/config.toml (which git ignores) and fix the path.
+[patch."https://github.com/DotNetVibeCoderz/Vibe_Runtime"]
+rustclr-core = { path = "C:/experiment/VibeCoding/Vibe_Runtime/RustNetRuntime/crates/rustclr-core" }
+rustclr-bcl = { path = "C:/experiment/VibeCoding/Vibe_Runtime/RustNetRuntime/crates/rustclr-bcl" }
+rustclr-gc = { path = "C:/experiment/VibeCoding/Vibe_Runtime/RustNetRuntime/crates/rustclr-gc" }
+rustclr-metadata = { path = "C:/experiment/VibeCoding/Vibe_Runtime/RustNetRuntime/crates/rustclr-metadata" }

@@ -1,0 +1,25 @@
+@page "/contacts"
+@inject NavigationManager Nav
+
+<PageHeader Title="Contacts" Eyebrow="People" Text="Everyone you talk to at your accounts. Click a row to open their company." />
+
+<Card>
+    <DataGrid TItem="Contact" Items="contacts" Columns="columns" PageSize="14" SearchPlaceholder="Search name, company, title, email" OnRowClick="Open" />
+</Card>
+
+@code {
+    private List<Contact> contacts = new();
+
+    private readonly List<GridColumn<Contact>> columns = new()
+    {
+        new("Name", c => c.Name),
+        new("Title", c => c.Title),
+        new("Company", c => c.Company),
+        new("Email", c => c.Email),
+        new("Phone", c => c.Phone) { Sortable = false },
+    };
+
+    protected override async Task OnInitializedAsync() => contacts = await CrmDb.ContactsAsync();
+
+    private void Open(Contact c) => Nav.NavigateTo($"companies/{c.CompanyId}");
+}

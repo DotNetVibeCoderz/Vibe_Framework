@@ -1,0 +1,190 @@
+@page "/"
+@using System.Globalization
+
+<PageHeader Title="@date.ToString("d MMMM yyyy")" Eyebrow="Orrery" Text="Positions from Kepler's equation and J2000 orbital elements. Click a planet.">
+    <Actions>
+        <input class="rz-input date" type="date" value="@date.ToString("yyyy-MM-dd")" @onchange="Jump" aria-label="Jump to date" />
+        <button class="rz-btn" @onclick="() => date = DateTime.Today"><Icon Name="calendar" /> Today</button>
+    </Actions>
+</PageHeader>
+
+<div class="orrery">
+    <div class="space">
+        <GameView Height="600" Background="#07090d" UsePhysics="false" OnUpdate="Update" OnDraw="Draw" />
+        <div class="timebar rz-row">
+            <button class="rz-btn small" @onclick="() => speed = -Math.Abs(speed == 0 ? 10 : speed)" aria-label="Run backwards">◀</button>
+            <button class="rz-btn small" @onclick="() => speed = speed == 0 ? 10 : 0">@(speed == 0 ? "Play" : "Pause")</button>
+            <button class="rz-btn small" @onclick="() => speed = Math.Abs(speed == 0 ? 10 : speed)" aria-label="Run forwards">▶</button>
+            <label class="speed">
+                <span>@SpeedLabel</span>
+                <input type="range" min="0" max="5" step="1" value="@SpeedStep" @oninput="SetSpeed" aria-label="Speed" />
+            </label>
+            <span class="rz-topbar-spacer"></span>
+            <label class="rz-switch"><input type="checkbox" checked="@logScale" @onchange="_ => logScale = !logScale" /> Log distances</label>
+        </div>
+    </div>
+
+    <aside class="info">
+        @{
+            var p = selected;
+            var (x, y) = Orbits.Position(p, date);
+            var r = Math.Sqrt(x * x + y * y);
+            var (ex, ey) = Orbits.Position(Orbits.Planets[2], date);
+            var fromEarth = Math.Sqrt((x - ex) * (x - ex) + (y - ey) * (y - ey));
+        }
+        <Card>
+            <div class="planet-head">
+                <span class="dot" style="background:@p.Color"></span>
+                <h2>@p.Name</h2>
+            </div>
+            <p class="fact">@p.Fact</p>
+            <dl class="facts">
+                <div><dt>From the Sun</dt><dd>@r.ToString("0.000") AU</dd></div>
+                <div><dt>Orbital speed</dt><dd>@Orbits.SpeedKmS(p, r).ToString("0.0") km/s</dd></div>
+                <div><dt>Sunlight takes</dt><dd>@Duration(r * Orbits.LightSecondsPerAu)</dd></div>
+                @if (p.Name != "Earth")
+                {
+                    <div><dt>From Earth</dt><dd>@fromEarth.ToString("0.00") AU</dd></div>
+                    <div><dt>Radio delay</dt><dd>@Duration(fromEarth * Orbits.LightSecondsPerAu)</dd></div>
+                }
+                <div><dt>Year</dt><dd>@(p.PeriodYears < 2 ? $"{p.PeriodYears * 365.25:0} days" : $"{p.PeriodYears:0.0} years")</dd></div>
+                <div><dt>Eccentricity</dt><dd>@p.E.ToString("0.0000")</dd></div>
+                <div><dt>Radius</dt><dd>@p.RadiusKm.ToString("N0") km</dd></div>
+            </dl>
+        </Card>
+        <div class="picker">
+            @foreach (var planet in Orbits.Planets)
+            {
+                var pl = planet;
+                <button class="chip @(pl == selected ? "on" : "")" @onclick="() => selected = pl"><span style="background:@pl.Color"></span>@pl.Name</button>
+            }
+        </div>
+    </aside>
+</div>
+
+@code {
+    private DateTime date = DateTime.Today;
+    private double speed; // days per second
+    private bool logScale = true;
+    private Planet selected = Orbits.Planets[2];
+    private readonly (double X, double Y)[] screen = new (double, double)[8];
+    private static readonly double[] Speeds = { 1, 10, 60, 365, 3650, 36500 };
+    private double sinceRender;
+
+    private int SpeedStep => Math.Max(0, Array.IndexOf(Speeds, Math.Abs(speed) == 0 ? 10 : Math.Abs(speed)));
+    private string SpeedLabel => speed == 0 ? "paused" : $"{(speed < 0 ? "−" : "")}{Describe(Math.Abs(speed))}/s";
+
+    private void Update(GameContext g, double dt)
+    {
+        if (speed != 0)
+        {
+            date = date.AddDays(speed * dt);
+            if (date.Year < 1600) date = new DateTime(1600, 1, 1);
+            if (date.Year > 2600) date = new DateTime(2600, 1, 1);
+        }
+        if (g.Input.Clicks > 0)
+        {
+            var best = -1;
+            var bestD = 22.0 * 22.0;
+            for (var i = 0; i < screen.Length; i++)
+            {
+                var dx = screen[i].X - g.Input.Pointer.X;
+                var dy = screen[i].Y - g.Input.Pointer.Y;
+                if (dx * dx + dy * dy < bestD) { bestD = dx * dx + dy * dy; best = i; }
+            }
+            if (best >= 0) selected = Orbits.Planets[best];
+        }
+        // The page around the canvas only needs a few updates a second.
+        sinceRender += dt;
+        if (sinceRender > 0.2 || g.Input.Clicks > 0) { sinceRender = 0; InvokeAsync(StateHasChanged); }
+    }
+
+    private double Scale(double au, double maxPx) =>
+        logScale ? Math.Log(1 + au * 3) / Math.Log(1 + 30.5 * 3) * maxPx : au / 30.5 * maxPx;
+
+    private void Draw(GameContext g)
+    {
+        var c = g.Canvas;
+        var cx = g.Width / 2;
+        var cy = g.Height / 2;
+        var maxPx = Math.Min(cx, cy) - 24;
+
+        // Stars: fixed pseudo-random points.
+        c.Fill("rgba(255,255,255,0.55)");
+        for (var i = 0; i < 140; i++)
+        {
+            var sx = (i * 7919 % 997) / 997.0 * g.Width;
+            var sy = (i * 104729 % 991) / 991.0 * g.Height;
+            c.FillRect(sx, sy, i % 7 == 0 ? 1.6 : 1, i % 7 == 0 ? 1.6 : 1);
+        }
+
+        // Orbits, traced from the elements.
+        c.LineWidth(1);
+        for (var i = 0; i < Orbits.Planets.Length; i++)
+        {
+            var p = Orbits.Planets[i];
+            var pts = new double[121 * 2];
+            for (var k = 0; k <= 120; k++)
+            {
+                var ecc = k / 120.0 * Math.PI * 2;
+                var nu = 2 * Math.Atan2(Math.Sqrt(1 + p.E) * Math.Sin(ecc / 2), Math.Sqrt(1 - p.E) * Math.Cos(ecc / 2));
+                var r = p.A * (1 - p.E * Math.Cos(ecc));
+                var a = nu + Orbits.Rad(p.Perihelion);
+                var px = Scale(r, maxPx);
+                pts[k * 2] = cx + px * Math.Cos(a);
+                pts[k * 2 + 1] = cy - px * Math.Sin(a);
+            }
+            c.Stroke(p == selected ? "rgba(246,194,107,0.7)" : "rgba(148,163,184,0.22)").Polyline(pts, close: true);
+        }
+
+        // The Sun.
+        c.FillRadialGradient(cx, cy, 0, cx, cy, 26, (0, "rgba(255,236,170,1)"), (0.35, "rgba(255,190,80,0.9)"), (1, "rgba(255,140,40,0)")).FillCircle(cx, cy, 26);
+
+        // Planets.
+        c.Font("12px 'IBM Plex Sans', sans-serif").TextAlign("left");
+        for (var i = 0; i < Orbits.Planets.Length; i++)
+        {
+            var p = Orbits.Planets[i];
+            var (x, y) = Orbits.Position(p, date);
+            var r = Math.Sqrt(x * x + y * y);
+            var px = Scale(r, maxPx) / Math.Max(r, 1e-9);
+            var sx = cx + x * px;
+            var sy = cy - y * px;
+            screen[i] = (sx, sy);
+            var size = 3 + Math.Log10(p.RadiusKm / 1000 + 1) * 3.2;
+            if (p == selected) c.Stroke("#f6c26b").LineWidth(2).StrokeCircle(sx, sy, size + 6);
+            c.Fill(p.Color).FillCircle(sx, sy, size);
+            if (p.Name == "Saturn") c.Stroke("rgba(233,216,166,0.8)").LineWidth(1.5).BeginPath().Ellipse(sx, sy, size * 2.1, size * 0.7, -0.4).StrokePath();
+            // Labels near the right edge go on the planet's left.
+            var flip = sx + size + 6 + p.Name.Length * 7.5 > g.Width - 8;
+            c.Fill(p == selected ? "#f6c26b" : "rgba(226,232,240,0.75)").TextAlign(flip ? "right" : "left")
+             .FillText(p.Name, flip ? sx - size - 6 : sx + size + 6, sy + 4);
+        }
+        c.Fill("rgba(226,232,240,0.5)").Font("11px 'JetBrains Mono', monospace").TextAlign("left").FillText(logScale ? "distance: log scale" : "distance: to scale", 14, g.Height - 14);
+    }
+
+    private void Jump(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var d)) date = d;
+    }
+
+    private void SetSpeed(ChangeEventArgs e)
+    {
+        var step = int.Parse(e.Value!.ToString()!, CultureInfo.InvariantCulture);
+        var sign = speed < 0 ? -1 : 1;
+        speed = sign * Speeds[Math.Clamp(step, 0, Speeds.Length - 1)];
+    }
+
+    private static string Describe(double days) => days switch
+    {
+        < 2 => "1 day",
+        < 60 => $"{days:0} days",
+        < 365 => $"{days / 30.4:0} months",
+        < 3650 => "1 year",
+        < 36500 => "10 years",
+        _ => "100 years",
+    };
+
+    private static string Duration(double seconds) =>
+        seconds < 120 ? $"{seconds:0} s" : seconds < 7200 ? $"{seconds / 60:0.0} min" : $"{seconds / 3600:0.0} h";
+}

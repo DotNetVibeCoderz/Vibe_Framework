@@ -1,0 +1,4 @@
+<Project>
+  <!-- Executable Razor projects here are Rustzor apps; ASP.NET Core servers (the Web SDK) are not. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\eng\Rustzor.InRepo.targets" Condition="'$(OutputType)' == 'Exe' and '$(UsingMicrosoftNETSdkRazor)' == 'true' and '$(UsingMicrosoftNETSdkWeb)' != 'true'" />
+</Project>

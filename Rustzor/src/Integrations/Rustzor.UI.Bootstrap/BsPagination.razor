@@ -1,0 +1,49 @@
+<nav aria-label="Pagination">
+    <ul class="@Bs.Css("pagination", "mb-0", Size is null ? null : "pagination-" + Size)">
+        <li class="@Bs.Css("page-item", Page <= 1 ? "disabled" : null)"><button class="page-link" aria-label="Previous" @onclick="() => Go(Page - 1)">&laquo;</button></li>
+        @foreach (var p in Window())
+        {
+            if (p == 0)
+            {
+                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+            }
+            else
+            {
+                var n = p;
+                <li class="@Bs.Css("page-item", n == Page ? "active" : null)"><button class="page-link" @onclick="() => Go(n)">@n</button></li>
+            }
+        }
+        <li class="@Bs.Css("page-item", Page >= PageCount ? "disabled" : null)"><button class="page-link" aria-label="Next" @onclick="() => Go(Page + 1)">&raquo;</button></li>
+    </ul>
+</nav>
+
+@code {
+    /// <summary>1-based current page; two-way bindable.</summary>
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+    [Parameter] public int PageCount { get; set; } = 1;
+    [Parameter] public string? Size { get; set; }
+
+    // 1 … p-1 p p+1 … n, with 0 standing for an ellipsis.
+    private List<int> Window()
+    {
+        var pages = new List<int>();
+        var last = 0;
+        for (var p = 1; p <= PageCount; p++)
+        {
+            if (p != 1 && p != PageCount && Math.Abs(p - Page) > 1) continue;
+            if (last != 0 && p - last > 1) pages.Add(0);
+            pages.Add(p);
+            last = p;
+        }
+        return pages;
+    }
+
+    private Task Go(int page)
+    {
+        page = Math.Clamp(page, 1, Math.Max(1, PageCount));
+        if (page == Page) return Task.CompletedTask;
+        Page = page;
+        return PageChanged.InvokeAsync(page);
+    }
+}

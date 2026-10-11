@@ -1,0 +1,104 @@
+@page "/sql"
+
+<PageHeader Title="SQL console" Eyebrow="SQLite in the browser" Text="Query the warehouse directly. Tables: items (sku, name, category, bin, onHand, reorderPoint, unitCost) and movements (id, at, sku, kind, quantity, reference).">
+    <Actions>
+        <button class="rz-btn danger" @onclick="Reset"><Icon Name="refresh" /> Reset sample data</button>
+    </Actions>
+</PageHeader>
+
+<div class="sql-layout">
+    <Card Title="Query">
+        <textarea class="rz-input sql" rows="7" spellcheck="false" @bind="sql" @bind:event="oninput" @onkeydown="Keys" aria-label="SQL"></textarea>
+        <div class="rz-row sql-tools">
+            <button class="rz-btn primary" @onclick="Run"><Icon Name="zap" /> Run</button>
+            <span class="rz-muted hint">Ctrl+Enter runs</span>
+            <span class="rz-topbar-spacer"></span>
+            @foreach (var (label, text) in examples)
+            {
+                var query = text;
+                <button class="rz-btn small" @onclick="() => sql = query">@label</button>
+            }
+        </div>
+    </Card>
+
+    <Card Title="Result" Subtitle="@status">
+        @if (error is not null)
+        {
+            <pre class="error">@error</pre>
+        }
+        else if (result is not null && result.Columns.Count > 0)
+        {
+            <div class="rz-table-wrap result">
+                <table class="rz-table">
+                    <thead><tr>@foreach (var c in result.Columns) { <th>@c</th> }</tr></thead>
+                    <tbody>
+                        @foreach (var row in result.Rows)
+                        {
+                            <tr>@foreach (var cell in row) { <td class="mono">@(cell.IsNull ? "NULL" : cell.IsString ? cell.AsString() : cell.ToString())</td> }</tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <EmptyState Icon="cpu" Title="Run a query" Text="Results appear here. Statements that change data report how many rows they touched." />
+        }
+    </Card>
+</div>
+
+@code {
+    private string sql = "select category, count(*) skus, sum(onHand) units, round(sum(onHand * unitCost), 2) value\nfrom items\ngroup by category\norder by value desc";
+    private QueryResult? result;
+    private string? error;
+    private string status = "";
+
+    private readonly (string, string)[] examples =
+    {
+        ("Value by category", "select category, count(*) skus, sum(onHand) units, round(sum(onHand * unitCost), 2) value\nfrom items\ngroup by category\norder by value desc"),
+        ("Reorder list", "select sku, name, bin, onHand, reorderPoint, reorderPoint * 2 - onHand as suggestedOrder\nfrom items\nwhere onHand <= reorderPoint\norder by bin"),
+        ("Picks per day", "select substr(at, 1, 10) day, sum(-quantity) picked\nfrom movements\nwhere kind = 'pick'\ngroup by day\norder by day desc"),
+    };
+
+    protected override async Task OnInitializedAsync() => await Run();
+
+    private async Task Keys(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey) await Run();
+    }
+
+    private async Task Run()
+    {
+        error = null;
+        try
+        {
+            var db = await Warehouse.Db;
+            var started = DateTime.Now;
+            var text = sql.Trim();
+            if (text.StartsWith("select", StringComparison.OrdinalIgnoreCase) || text.StartsWith("with", StringComparison.OrdinalIgnoreCase) || text.StartsWith("pragma", StringComparison.OrdinalIgnoreCase))
+            {
+                result = await db.QueryAsync(text);
+                status = $"{result.Count} row{(result.Count == 1 ? "" : "s")} · {(DateTime.Now - started).TotalMilliseconds:0} ms";
+            }
+            else
+            {
+                var (changes, _) = await db.RunAsync(text);
+                await db.SaveAsync();
+                result = null;
+                status = $"{changes} row{(changes == 1 ? "" : "s")} changed";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            status = "Error";
+        }
+    }
+
+    private async Task Reset()
+    {
+        await Warehouse.ResetAsync();
+        Toasts.Success("Sample data restored");
+        await Run();
+    }
+}

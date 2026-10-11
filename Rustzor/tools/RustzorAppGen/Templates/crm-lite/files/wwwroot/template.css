@@ -1,0 +1,30 @@
+.mono { font-family: var(--rz-font-mono); font-variant-numeric: tabular-nums; }
+.dash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin: 16px 0; }
+@media (max-width: 900px) { .dash { grid-template-columns: minmax(0, 1fr); } }
+.followups { list-style: none; margin: 0; padding: 0; }
+.followups li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rz-line); }
+.followups li:last-child { border-bottom: 0; }
+.followups .who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.followups .who span { font-size: 13px; color: var(--rz-muted); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.deal-line { display: grid; grid-template-columns: minmax(0, 1fr) auto 80px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--rz-line); font-size: 14px; }
+.deal-line .mono { text-align: right; }
+
+.stages { display: grid; grid-template-columns: repeat(5, minmax(165px, 1fr)); gap: 12px; overflow-x: auto; align-items: start; padding-bottom: 8px; }
+.stage { background: var(--rz-surface-2); border-radius: var(--rz-radius); padding: 10px; border-top: 3px solid var(--tone); }
+.stage-lead { --tone: var(--rz-line); }
+.stage-qualified { --tone: var(--rz-patina); }
+.stage-proposal { --tone: var(--rz-accent); }
+.stage-won { --tone: var(--rz-good); }
+.stage-lost { --tone: var(--rz-bad); }
+.stage header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.stage h2 { margin: 0; font-family: var(--rz-font-display); font-size: var(--rz-step-0); }
+.stage header .mono { font-size: 13px; }
+.stage .prob { font-size: 12px; color: var(--rz-muted); margin: 2px 0 10px; }
+.deal { background: var(--rz-surface); border: 1px solid var(--rz-line); border-radius: var(--rz-radius-sm); padding: 10px; margin-bottom: 8px; box-shadow: var(--rz-shadow); }
+.deal h3 { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+.deal p { margin: 0 0 8px; font-size: 12px; color: var(--rz-muted); }
+.deal-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.deal .value { font-weight: 600; }
+.stage-pick { width: auto; padding: 3px 6px; font-size: 12px; }
+.stage-lost .deal { opacity: .7; }

@@ -1,0 +1,36 @@
+<div class="dropdown d-inline-block position-relative">
+    <button class="@Bs.Css("btn", "btn-" + Color, "dropdown-toggle")" type="button" aria-expanded="@(_open ? "true" : "false")" @onclick="() => _open = !_open">@Label</button>
+    @if (_open)
+    {
+        <div class="rz-bs-backdrop" style="background:transparent" @onclick="() => _open = false"></div>
+        <ul class="dropdown-menu rz-bs-dropdown-menu shadow" style="z-index:1060">
+            @foreach (var item in Items)
+            {
+                if (item == "-")
+                {
+                    <li><hr class="dropdown-divider" /></li>
+                }
+                else
+                {
+                    <li><button class="dropdown-item" type="button" @onclick="() => Pick(item)">@item</button></li>
+                }
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private bool _open;
+
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Color { get; set; } = BsColor.Secondary;
+    /// <summary>Menu entries; "-" draws a divider.</summary>
+    [Parameter] public IReadOnlyList<string> Items { get; set; } = Array.Empty<string>();
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private Task Pick(string item)
+    {
+        _open = false;
+        return OnSelect.InvokeAsync(item);
+    }
+}

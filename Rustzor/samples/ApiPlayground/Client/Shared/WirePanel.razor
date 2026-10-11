@@ -1,0 +1,53 @@
+@implements IDisposable
+
+@* The wire: every request, response and frame from all four protocols, in
+   the order they crossed, colour-keyed by protocol. Click one to read it. *@
+<aside class="wire" aria-label="Wire log">
+    <header class="wire-head">
+        <h2>Wire</h2>
+        <div class="wire-filters" role="group" aria-label="Show protocol">
+            @foreach (var p in new[] { Protocol.Rest, Protocol.WebSocket, Protocol.SignalR, Protocol.Grpc })
+            {
+                var proto = p;
+                <button class="wf @Wire.Key(proto) @(hidden.Contains(proto) ? "off" : "")" title="@Wire.Name(proto)" aria-pressed="@(hidden.Contains(proto) ? "false" : "true")" @onclick="() => Toggle(proto)">@Wire.Name(proto)</button>
+            }
+        </div>
+        <button class="rz-btn ghost small" @onclick="Wire.Clear">Clear</button>
+    </header>
+    @{ var shown = Wire.Entries.Where(e => !hidden.Contains(e.Protocol)).Reverse().Take(200).ToList(); }
+    @if (shown.Count == 0)
+    {
+        <p class="wire-empty">Nothing on the wire yet. Send a request, connect a socket or call a method, and every frame shows up here.</p>
+    }
+    <ol class="wire-list">
+        @foreach (var e in shown)
+        {
+            var entry = e;
+            <li class="we @Wire.Key(entry.Protocol) @entry.Direction @(open == entry.Id ? "open" : "")" @onclick="() => open = open == entry.Id ? 0 : entry.Id">
+                <span class="we-dir" aria-label="@(entry.Direction == "out" ? "sent" : entry.Direction == "in" ? "received" : "note")">@(entry.Direction == "out" ? "↑" : entry.Direction == "in" ? "↓" : "•")</span>
+                <span class="we-sum">@entry.Summary</span>
+                <span class="we-meta">@(entry.Bytes > 0 ? Wire.Size(entry.Bytes) : "") @entry.At.ToString("HH:mm:ss")</span>
+                @if (open == entry.Id && entry.Detail.Length > 0)
+                {
+                    <pre class="we-detail">@entry.Detail</pre>
+                }
+            </li>
+        }
+    </ol>
+</aside>
+
+@code {
+    private readonly HashSet<Protocol> hidden = new();
+    private int open;
+
+    protected override void OnInitialized() => Wire.Changed += Refresh;
+
+    private void Toggle(Protocol p)
+    {
+        if (!hidden.Remove(p)) hidden.Add(p);
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Wire.Changed -= Refresh;
+}

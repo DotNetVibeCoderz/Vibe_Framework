@@ -1,0 +1,7 @@
+body, .app-full { background: #010208; }
+.space { max-width: 1000px; margin: 0 auto; padding: 18px 16px 8px; color: #e2e8f0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+.hud { display: flex; align-items: baseline; gap: 24px; margin-bottom: 12px; flex-wrap: wrap; }
+.hud h1 { font-family: "Bricolage Grotesque", sans-serif; font-size: 22px; margin: 0 auto 0 0; }
+.hud span { font-size: 13px; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.hud b { color: #5eead4; font-size: 16px; margin-left: 4px; }
+.help { color: #94a3b8; font-size: 13px; margin-top: 12px; }

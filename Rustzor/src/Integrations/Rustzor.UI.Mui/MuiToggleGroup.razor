@@ -1,0 +1,31 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle" />
+
+@code {
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Color { get; set; } = "primary";
+    [Parameter] public string Size { get; set; } = "medium";
+
+    private object Tree()
+    {
+        var buttons = new List<object>();
+        foreach (var o in Options) buttons.Add(Mui.El("ToggleButton", new MuiProps { ["key"] = o, ["value"] = o }, o));
+        return Mui.El("ToggleButtonGroup", new MuiProps
+        {
+            ["value"] = Value,
+            ["exclusive"] = true,
+            ["color"] = Color,
+            ["size"] = Size,
+            ["onChange"] = Mui.Event("change"),
+        }, buttons);
+    }
+
+    private Task Handle(MuiEvent e)
+    {
+        // A click on the selected button reports null; keep the selection.
+        if (e.Value.IsNull) return Task.CompletedTask;
+        Value = e.Value.AsString();
+        return ValueChanged.InvokeAsync(Value);
+    }
+}

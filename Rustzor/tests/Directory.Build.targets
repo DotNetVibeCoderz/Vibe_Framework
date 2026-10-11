@@ -1,0 +1,4 @@
+<Project>
+  <!-- Executable Razor projects here are Rustzor apps. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\eng\Rustzor.InRepo.targets" Condition="'$(OutputType)' == 'Exe' and '$(UsingMicrosoftNETSdkRazor)' == 'true'" />
+</Project>

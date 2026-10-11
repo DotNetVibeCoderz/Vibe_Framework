@@ -1,0 +1,10 @@
+{
+  "id": "kanban-board",
+  "name": "Kanban board",
+  "category": "Work",
+  "description": "Drag cards between Backlog, In progress, Review and Done. Priorities, tags, WIP limits and everything saved in the browser with IndexedDB.",
+  "icon": "layers",
+  "shell": true,
+  "packages": [ "Rustzor.Data" ],
+  "nav": [ { "title": "Board", "href": "", "icon": "layers" } ]
+}

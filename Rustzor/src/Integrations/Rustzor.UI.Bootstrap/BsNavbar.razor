@@ -1,0 +1,33 @@
+<nav class="@Bs.Css("navbar", "navbar-expand-" + Expand, Dark ? "bg-dark" : "bg-body-tertiary", Class)" data-bs-theme="@(Dark ? "dark" : null)">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-semibold" href="@BrandHref">@Brand</a>
+        <button class="navbar-toggler" type="button" aria-label="Toggle navigation" aria-expanded="@(_open ? "true" : "false")" @onclick="() => _open = !_open">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="@Bs.Css("collapse", "navbar-collapse", _open ? "show" : null)">
+            <ul class="navbar-nav me-auto">
+                @foreach (var link in Links)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="@link.Href" Match="@(link.Href is "" or "/" ? NavLinkMatch.All : NavLinkMatch.Prefix)">@link.Text</NavLink>
+                    </li>
+                }
+            </ul>
+            @End
+        </div>
+    </div>
+</nav>
+
+@code {
+    private bool _open;
+
+    [Parameter] public string Brand { get; set; } = "";
+    [Parameter] public string BrandHref { get; set; } = "/";
+    [Parameter] public IReadOnlyList<BsLink> Links { get; set; } = Array.Empty<BsLink>();
+    /// <summary>The breakpoint above which the menu is expanded: "sm", "md", "lg", "xl".</summary>
+    [Parameter] public string Expand { get; set; } = "lg";
+    [Parameter] public bool Dark { get; set; }
+    [Parameter] public string? Class { get; set; }
+    /// <summary>Content at the end of the bar (search box, buttons).</summary>
+    [Parameter] public RenderFragment? End { get; set; }
+}

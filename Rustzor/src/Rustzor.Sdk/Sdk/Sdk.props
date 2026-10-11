@@ -1,0 +1,21 @@
+<Project>
+  <!--
+    <Project Sdk="Rustzor.Sdk/0.1.0"> : a Razor project that builds a browser app
+    running on RustNetRuntime. Dibuat oleh Gravicode Studios, dipimpin oleh Kang Fadhil.
+  -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk.Razor" />
+  <!-- RustzorSdkVersion: written when the package is packed, so it always matches it. -->
+  <Import Project="Version.props" Condition="Exists('$(MSBuildThisFileDirectory)Version.props')" />
+
+  <PropertyGroup>
+    <TargetFramework Condition="'$(TargetFramework)' == '' and '$(TargetFrameworks)' == ''">net10.0</TargetFramework>
+    <!-- The Razor SDK's props default to Library; an app is an executable. A project can still set its own. -->
+    <OutputType>Exe</OutputType>
+    <Nullable Condition="'$(Nullable)' == ''">enable</Nullable>
+    <ImplicitUsings Condition="'$(ImplicitUsings)' == ''">enable</ImplicitUsings>
+    <LangVersion Condition="'$(LangVersion)' == ''">latest</LangVersion>
+    <!-- Release IL is what RustCLR is conformance-tested against. -->
+    <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
+    <RustzorRuntimeDir Condition="'$(RustzorRuntimeDir)' == ''">$(MSBuildThisFileDirectory)..\runtime\</RustzorRuntimeDir>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="/" />
+  <title>Hello Rustzor</title>
+</head>
+<body>
+  <div id="app"><div class="app-loading">Loading…</div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+    });
+  </script>
+</body>
+</html>

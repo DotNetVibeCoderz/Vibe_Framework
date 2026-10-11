@@ -1,0 +1,19 @@
+@* Tabs by title; the active title is two-way bindable. *@
+<div class="rz-tabs" role="tablist">
+    @foreach (var t in Titles)
+    {
+        <button class="rz-tab @(t == Active ? "active" : "")" role="tab" aria-selected="@(t == Active ? "true" : "false")" @onclick="() => Select(t)">@t</button>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<string> Titles { get; set; } = Array.Empty<string>();
+    [Parameter] public string Active { get; set; } = "";
+    [Parameter] public EventCallback<string> ActiveChanged { get; set; }
+
+    private Task Select(string title)
+    {
+        Active = title;
+        return ActiveChanged.InvokeAsync(title);
+    }
+}

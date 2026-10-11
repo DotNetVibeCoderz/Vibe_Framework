@@ -1,0 +1,149 @@
+@* Taking payment for the open ticket: cash with change, QRIS, or a card on
+   the EDC machine. Records the order and hands it back through OnPaid. *@
+<Modal Open="Open" OpenChanged="OpenChanged" Title="Take payment">
+    <ChildContent>
+        <div class="pay-due"><span>Amount due</span><strong>@Menu.Rp(Cart.Total)</strong></div>
+        <div class="seg wide" role="group" aria-label="Payment method">
+            @foreach (var m in new[] { "cash", "qris", "card" })
+            {
+                var method = m;
+                <button class="@(this.method == method ? "on" : "")" @onclick="() => Choose(method)"><Icon Name="@(method == "cash" ? "wallet" : method == "qris" ? "layers" : "receipt")" Size="16" /> @Menu.MethodName(method)</button>
+            }
+        </div>
+
+        @if (method == "cash")
+        {
+            <div class="tender">
+                @foreach (var amount in Tenders())
+                {
+                    var a = amount;
+                    <button class="tender-btn @(tendered == a ? "on" : "")" @onclick="() => tendered = a">@(a == Cart.Total ? "Exact" : Menu.Short(a))</button>
+                }
+            </div>
+            <Field Label="Cash received (Rp)">
+                <input class="rz-input cash-in mono" inputmode="numeric" value="@(tendered == 0 ? "" : Menu.Num(tendered))"
+                       @onchange="e => tendered = ParseRp(e.Value?.ToString())" aria-label="Cash received" />
+            </Field>
+            <div class="change-line @(tendered >= Cart.Total ? "ok" : "short")">
+                @if (tendered >= Cart.Total)
+                {
+                    <span>Change</span><strong>@Menu.Rp(tendered - Cart.Total)</strong>
+                }
+                else
+                {
+                    <span>Still short</span><strong>@Menu.Rp(Cart.Total - tendered)</strong>
+                }
+            </div>
+        }
+        else if (method == "qris")
+        {
+            <div class="qris">
+                <svg viewBox="0 0 29 29" class="qris-code" role="img" aria-label="Demo payment code">
+                    <rect width="29" height="29" fill="#fff" />
+                    @foreach (var (x, y) in Modules())
+                    {
+                        <rect x="@x" y="@y" width="1" height="1" fill="#111" />
+                    }
+                </svg>
+                <div>
+                    <strong>Show this to the customer</strong>
+                    <p>They scan it with any banking or e-wallet app. This sample draws a demo pattern and takes no real money, so confirm by hand.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <Field Label="EDC approval code" Help="Six digits, printed on the card slip.">
+                <input class="rz-input mono" inputmode="numeric" maxlength="6" value="@approval" @oninput="e => approval = e.Value?.ToString() ?? string.Empty" aria-label="EDC approval code" />
+            </Field>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => OpenChanged.InvokeAsync(false)">Back to order</button>
+        <button class="rz-btn primary" disabled="@(!CanComplete)" @onclick="Complete">@(method == "qris" ? "Payment received" : "Complete sale")</button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public EventCallback<Order> OnPaid { get; set; }
+
+    private string method = "cash";
+    private long tendered;
+    private string approval = "";
+    private bool wasOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !wasOpen)
+        {
+            method = "cash";
+            tendered = 0;
+            approval = "";
+        }
+        wasOpen = Open;
+    }
+
+    private bool CanComplete => method switch
+    {
+        "cash" => tendered >= Cart.Total,
+        "card" => approval.Trim().Length == 6 && approval.Trim().All(char.IsDigit),
+        _ => true,
+    };
+
+    private void Choose(string m) => method = m;
+
+    /// <summary>
+    /// What a customer is likely to hand over: the exact amount, the next round
+    /// 5k, 10k, 20k, 50k and 100k above it, topped up with 50k steps to five buttons.
+    /// </summary>
+    private IEnumerable<long> Tenders()
+    {
+        var total = Cart.Total;
+        var list = new List<long> { total };
+        foreach (var step in new long[] { 5_000, 10_000, 20_000, 50_000, 100_000 })
+        {
+            var up = (total / step + 1) * step;
+            if (!list.Contains(up)) list.Add(up);
+        }
+        list.Sort();
+        while (list.Count < 5) list.Add(list[^1] + 50_000);
+        return list.Take(5);
+    }
+
+    private static long ParseRp(string? text)
+    {
+        var digits = new string((text ?? "").Where(char.IsDigit).ToArray());
+        return digits.Length == 0 ? 0 : long.Parse(digits);
+    }
+
+    /// <summary>Three finder squares and a pattern seeded by the amount: a stand-in, not a scannable code.</summary>
+    private IEnumerable<(int X, int Y)> Modules()
+    {
+        var rng = new Random((int)(Cart.Total % int.MaxValue));
+        bool Finder(int x, int y, int ox, int oy)
+        {
+            int dx = x - ox, dy = y - oy;
+            if (dx < 0 || dy < 0 || dx > 6 || dy > 6) return false;
+            return dx is 0 or 6 || dy is 0 or 6 || (dx is >= 2 and <= 4 && dy is >= 2 and <= 4);
+        }
+        bool InFinderZone(int x, int y) => (x < 9 && y < 9) || (x > 19 && y < 9) || (x < 9 && y > 19);
+        for (var y = 1; y < 28; y++)
+        for (var x = 1; x < 28; x++)
+        {
+            var on = InFinderZone(x, y) ? Finder(x, y, 1, 1) || Finder(x, y, 21, 1) || Finder(x, y, 1, 21) : rng.Next(2) == 0;
+            if (on) yield return (x, y);
+        }
+    }
+
+    private async Task Complete()
+    {
+        if (!CanComplete || PosStore.CurrentShift is not { } shift) return;
+        var order = Cart.ToOrder(method, method == "cash" ? tendered : Cart.Total, method == "card" ? approval.Trim() : method == "qris" ? "QR" + DateTime.Now.ToString("HHmmss") : "", shift);
+        await PosStore.RecordAsync(order);
+        Cart.Clear();
+        Toasts.Success(order.Change > 0 ? $"Paid #{order.Number:000} · change {Menu.Rp(order.Change)}" : $"Paid #{order.Number:000} by {Menu.MethodName(order.Method)}");
+        await OnPaid.InvokeAsync(order);
+    }
+}

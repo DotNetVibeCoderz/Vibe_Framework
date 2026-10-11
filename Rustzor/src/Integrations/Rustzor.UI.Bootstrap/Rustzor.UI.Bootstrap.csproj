@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>Rustzor.UI.Bootstrap: Bootstrap 5.3 for Rustzor. Buttons, cards, alerts, modals, tabs, accordions, dropdowns, tables, pagination, toasts and form inputs as Razor components whose state lives in C#, so Bootstrap's own JavaScript is not needed.</Description>
+    <RootNamespace>Rustzor.UI.Bootstrap</RootNamespace>
+    <PackageTags>$(PackageTags);bootstrap;ui;components;css</PackageTags>
+  </PropertyGroup>
+</Project>

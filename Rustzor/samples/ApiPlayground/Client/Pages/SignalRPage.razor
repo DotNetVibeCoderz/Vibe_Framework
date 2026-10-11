@@ -1,0 +1,195 @@
+@page "/signalr"
+@implements IDisposable
+@using Rustzor.Net.SignalR
+
+<section class="ws-head signalr">
+    <span class="proto-tag">SignalR</span>
+    <h1>A hub: rooms, calls and streams</h1>
+    <p><code>Rustzor.Net.SignalR</code> speaks the JSON hub protocol over a WebSocket to <code>/hubs/chat</code>. Join a room, then try a call that returns a value, a stream, and one that fails.</p>
+</section>
+
+@if (!Links.HubOpen)
+{
+    <div class="join">
+        <label>Name <input class="rz-input" value="@name" aria-label="Your name" @oninput="e => name = e.Value?.ToString() ?? string.Empty" /></label>
+        <label>Room <input class="rz-input" value="@room" aria-label="Room" @oninput="e => room = e.Value?.ToString() ?? string.Empty" /></label>
+        <button class="rz-btn primary" disabled="@(connecting || name.Trim().Length == 0)" @onclick="Connect">@(connecting ? "Connecting…" : "Connect and join")</button>
+    </div>
+    @if (Links.Hub?.State == HubConnectionState.Reconnecting) { <p class="hint warn">Reconnecting…</p> }
+}
+else
+{
+    <div class="conn">
+        <span class="state on">connected</span>
+        <span>#@Links.HubRoom as <strong>@Links.HubName</strong></span>
+        <code class="mono">id @Links.Hub!.ConnectionId</code>
+        <span class="pg-spacer"></span>
+        <button class="rz-btn" @onclick="Disconnect">Disconnect</button>
+    </div>
+    <div class="split">
+        <div class="pane">
+            <h2 class="sub">Room <small>@presence.Count here: @string.Join(", ", presence)</small></h2>
+            <ul class="room-log">
+                @foreach (var m in log.AsEnumerable().Reverse().Take(40).Reverse())
+                {
+                    <li class="@(m.Who.Length == 0 ? "sys" : m.Who == Links.HubName ? "me" : "")">
+                        @if (m.Who.Length > 0) { <strong>@m.Who</strong> }
+                        <span>@m.Text</span><time>@m.At.ToString("HH:mm:ss")</time>
+                    </li>
+                }
+            </ul>
+            <div class="composer-line">
+                <input class="rz-input" placeholder="Say something to the room" aria-label="Message" value="@draft" @oninput="e => draft = e.Value?.ToString() ?? string.Empty" @onkeydown="Key" />
+                <button class="rz-btn primary" disabled="@(draft.Trim().Length == 0)" @onclick="Say">Send</button>
+            </div>
+            <p class="hint">Open a second tab, join the same room under another name, and chat between them.</p>
+        </div>
+        <div class="pane">
+            <h2 class="sub">InvokeAsync&lt;int&gt;("Add", a, b)</h2>
+            <div class="calc">
+                <input class="rz-input mono" type="number" aria-label="a" value="@a" @onchange="e => a = int.TryParse(e.Value?.ToString(), out var v) ? v : 0" />
+                <span>+</span>
+                <input class="rz-input mono" type="number" aria-label="b" value="@b" @onchange="e => b = int.TryParse(e.Value?.ToString(), out var v) ? v : 0" />
+                <button class="rz-btn" @onclick="Add">=</button>
+                <strong class="mono result">@(sum?.ToString() ?? "?")</strong>
+            </div>
+            <h2 class="sub">StreamAsync&lt;int&gt;("Countdown", n)</h2>
+            <div class="calc">
+                <input class="rz-input mono" type="number" min="1" max="50" aria-label="Count from" value="@from" @onchange="e => from = int.TryParse(e.Value?.ToString(), out var v) ? v : 10" />
+                <button class="rz-btn" disabled="@counting" @onclick="Count">@(counting ? "Streaming…" : "Start stream")</button>
+            </div>
+            <div class="countdown">
+                @foreach (var n in counted) { <span class="tickbox">@n</span> }
+                @if (!counting && counted.Count > 0) { <span class="done">stream completed</span> }
+            </div>
+            <h2 class="sub">InvokeAsync("Fail")</h2>
+            <div class="calc">
+                <button class="rz-btn danger" @onclick="Fail">Call a method that throws</button>
+            </div>
+            @if (failure is not null) { <p class="hub-error"><strong>HubException</strong> @failure</p> }
+        </div>
+    </div>
+}
+
+@code {
+    private sealed record Said(string Who, string Text, DateTime At);
+
+    private static readonly List<Said> log = new();
+    private static List<string> presence = new();
+    private string name = Links.HubName.Length > 0 ? Links.HubName : "Ayu";
+    private string room = Links.HubRoom;
+    private string draft = "";
+    private bool connecting;
+    private int a = 19, b = 23;
+    private int? sum;
+    private int from = 10;
+    private bool counting;
+    private readonly List<int> counted = new();
+    private string? failure;
+
+    protected override void OnInitialized() => Links.Changed += Refresh;
+
+    private async Task Connect()
+    {
+        connecting = true;
+        var hub = new HubConnectionBuilder().WithUrl(Server.Url("/hubs/chat")).WithAutomaticReconnect().Build();
+        hub.Frame += (dir, json) => Wire.Log(Protocol.SignalR, dir == "send" ? "out" : "in", Describe(json), json);
+        hub.On<string, string, DateTime>("Message", (who, text, at) => { log.Add(new Said(who, text, at.ToLocalTime())); Links.Notify(); });
+        hub.On<string>("System", text => { log.Add(new Said("", text, DateTime.Now)); Links.Notify(); });
+        hub.On<List<string>>("Presence", names => { presence = names; Links.Notify(); });
+        hub.Reconnecting += () => { Wire.Log(Protocol.SignalR, "note", "reconnecting"); Links.Notify(); };
+        hub.Reconnected += () => { Wire.Log(Protocol.SignalR, "note", "reconnected"); _ = hub.InvokeAsync("Join", Links.HubRoom, Links.HubName); Links.Notify(); };
+        hub.Closed += e => { Wire.Log(Protocol.SignalR, "note", "closed", e?.Message ?? ""); Links.Notify(); };
+        try
+        {
+            Wire.Log(Protocol.SignalR, "note", "negotiate and connect", Server.Url("/hubs/chat"));
+            await hub.StartAsync();
+            Links.Hub = hub;
+            Links.HubName = name.Trim();
+            Links.HubRoom = room.Trim().TrimStart('#').ToLowerInvariant() is { Length: > 0 } r ? r : "lobby";
+            log.Clear();
+            await hub.InvokeAsync("Join", Links.HubRoom, Links.HubName);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error("Could not connect to the hub: " + e.Message);
+        }
+        connecting = false;
+        Links.Notify();
+    }
+
+    private async Task Disconnect()
+    {
+        if (Links.Hub is not null) await Links.Hub.StopAsync();
+        Links.Notify();
+    }
+
+    private async Task Say()
+    {
+        var text = draft.Trim();
+        if (text.Length == 0 || Links.Hub is null) return;
+        draft = "";
+        try { await Links.Hub.InvokeAsync("Say", text); }
+        catch (Exception e) { Toasts.Error(e.Message); }
+    }
+
+    private async Task Key(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Say();
+    }
+
+    private async Task Add()
+    {
+        sum = await Links.Hub!.InvokeAsync<int>("Add", a, b);
+    }
+
+    private async Task Count()
+    {
+        counted.Clear();
+        counting = true;
+        try
+        {
+            await Links.Hub!.StreamAsync<int>("Countdown", n => { counted.Add(n); StateHasChanged(); }, from);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error(e.Message);
+        }
+        counting = false;
+    }
+
+    private async Task Fail()
+    {
+        failure = null;
+        try
+        {
+            await Links.Hub!.InvokeAsync<string>("Fail");
+        }
+        catch (HubException e)
+        {
+            failure = e.Message;
+        }
+    }
+
+    /// <summary>A one-line name for a hub frame, from its message type.</summary>
+    private static string Describe(string json)
+    {
+        var v = JsonValue.Parse(json);
+        if (v.Has("protocol")) return "handshake request";
+        if (!v.Has("type")) return v.Has("error") ? "handshake error" : "handshake response";
+        return v["type"].AsInt() switch
+        {
+            1 => $"invocation {v["target"].AsString()}" + (v.Has("invocationId") ? $" #{v["invocationId"].AsString()}" : ""),
+            2 => $"stream item #{v["invocationId"].AsString()}",
+            3 => $"completion #{v["invocationId"].AsString()}" + (v.Has("error") ? " (error)" : ""),
+            4 => $"stream invocation {v["target"].AsString()} #{v["invocationId"].AsString()}",
+            6 => "ping",
+            7 => "close",
+            var t => $"message type {t}",
+        };
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Links.Changed -= Refresh;
+}

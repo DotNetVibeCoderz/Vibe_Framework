@@ -1,0 +1,24 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle">@ChildContent</MuiIsland>
+
+@code {
+    /// <summary>"success", "info", "warning" or "error".</summary>
+    [Parameter] public string Severity { get; set; } = "info";
+    /// <summary>"standard", "filled" or "outlined".</summary>
+    [Parameter] public string Variant { get; set; } = "standard";
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private object Tree()
+    {
+        var p = new MuiProps { ["severity"] = Severity, ["variant"] = Variant };
+        if (OnClose.HasDelegate) p["onClose"] = Mui.Event("close");
+        var body = new List<object?>();
+        if (Title is not null) body.Add(Mui.El("AlertTitle", null, Title));
+        body.Add(ChildContent is not null ? Mui.Slot() : Text);
+        return Mui.El("Alert", p, body);
+    }
+
+    private Task Handle(MuiEvent e) => OnClose.InvokeAsync();
+}

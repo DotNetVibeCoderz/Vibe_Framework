@@ -1,0 +1,21 @@
+<Project>
+  <Import Project="..\Directory.Build.props" />
+
+  <!--
+    Integrations with established JavaScript UI and chart libraries. Each is a
+    Razor class library whose embedded rustzor.module.js loads its library from
+    a CDN at a pinned version, the first time a component needs it. Apps that
+    must work offline can set window.RustzorCdn to their own mirror.
+  -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" Condition="Exists('rustzor.module.js')" />
+    <EmbeddedResource Include="rustzor.module.css" LogicalName="rustzor.module.css" Condition="Exists('rustzor.module.css')" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Rustzor.Core\Rustzor.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Rustzor.Components\Rustzor.Components.csproj" />
+  </ItemGroup>
+</Project>

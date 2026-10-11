@@ -1,0 +1,175 @@
+@page "/"
+
+<PageHeader Title="Team board" Eyebrow="Kanban" Text="Drag cards between columns. Columns with a WIP limit turn amber when they are full.">
+    <Actions>
+        <input class="rz-input board-search" placeholder="Filter cards" @bind="query" @bind:event="oninput" />
+        <button class="rz-btn primary" @onclick="() => Edit(new TaskCard())"><Icon Name="plus" /> New card</button>
+    </Actions>
+</PageHeader>
+
+@if (!loaded)
+{
+    <p class="rz-muted">Opening the board…</p>
+}
+else
+{
+    <div class="board">
+        @foreach (var col in Board.Columns)
+        {
+            var column = col;
+            var cards = board.In(column.Id).Where(Matches).ToList();
+            var count = board.In(column.Id).Count();
+            var full = column.Limit > 0 && count >= column.Limit;
+            <section class="lane @(dragOver == column.Id ? "over" : "") @(full ? "full" : "")"
+                     @ondragover="() => dragOver = column.Id" @ondragover:preventDefault="true"
+                     @ondragleave="() => { if (dragOver == column.Id) dragOver = null; }"
+                     @ondrop="() => Drop(column.Id)" @ondrop:preventDefault="true">
+                <header>
+                    <h2>@column.Title</h2>
+                    <span class="count">@count@(column.Limit > 0 ? $" / {column.Limit}" : "")</span>
+                </header>
+                <div class="cards">
+                    @foreach (var c in cards)
+                    {
+                        var card = c;
+                        <article class="task prio-@card.Priority @(dragging == card ? "dragging" : "")" draggable="true"
+                                 @ondragstart="() => dragging = card" @ondragend="() => { dragging = null; dragOver = null; }"
+                                 @onclick="() => Edit(card)" tabindex="0">
+                            <div class="task-top">
+                                @if (card.Tag.Length > 0) { <span class="tag">@card.Tag</span> }
+                                <span class="prio" title="@card.Priority priority"></span>
+                            </div>
+                            <h3>@card.Title</h3>
+                            @if (card.Notes.Length > 0) { <p>@card.Notes</p> }
+                            <div class="task-foot">
+                                <span class="age">@Age(card.Created)</span>
+                                <span class="move">
+                                    <button class="rz-btn ghost icon small" aria-label="Move left" disabled="@(column == Board.Columns[0])"
+                                            @onclick="() => Shift(card, -1)" @onclick:stopPropagation="true"><Icon Name="arrow-right" Class="flip" Size="14" /></button>
+                                    <button class="rz-btn ghost icon small" aria-label="Move right" disabled="@(column == Board.Columns[^1])"
+                                            @onclick="() => Shift(card, 1)" @onclick:stopPropagation="true"><Icon Name="arrow-right" Size="14" /></button>
+                                </span>
+                            </div>
+                        </article>
+                    }
+                    @if (cards.Count == 0)
+                    {
+                        <div class="drop-hint">Drop a card here</div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+<Modal @bind-Open="editing" Title="@(draft.Id.Length == 0 ? "New card" : "Edit card")">
+    <ChildContent>
+        <div class="rz-stack">
+            <Field Label="Title"><input class="rz-input @(showErrors && draft.Title.Trim().Length == 0 ? "invalid" : "")" @bind="draft.Title" @bind:event="oninput" /></Field>
+            <Field Label="Notes"><textarea class="rz-input" rows="3" @bind="draft.Notes" @bind:event="oninput"></textarea></Field>
+            <div class="rz-grid rz-grid-3">
+                <Field Label="Column">
+                    <select class="rz-input" @bind="draft.Column">
+                        @foreach (var c in Board.Columns) { <option value="@c.Id">@c.Title</option> }
+                    </select>
+                </Field>
+                <Field Label="Priority">
+                    <select class="rz-input" @bind="draft.Priority">
+                        @foreach (var p in Board.Priorities) { <option value="@p">@p</option> }
+                    </select>
+                </Field>
+                <Field Label="Tag"><input class="rz-input" @bind="draft.Tag" placeholder="bug, ui, docs…" /></Field>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        @if (original is not null)
+        {
+            <button class="rz-btn danger" @onclick="Delete"><Icon Name="trash" /> Delete</button>
+        }
+        <span class="rz-topbar-spacer"></span>
+        <button class="rz-btn" @onclick="() => editing = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Save">Save card</button>
+    </Footer>
+</Modal>
+
+@code {
+    private readonly Board board = new();
+    private bool loaded;
+    private string query = "";
+    private TaskCard? dragging;
+    private string? dragOver;
+    private bool editing;
+    private bool showErrors;
+    private TaskCard draft = new();
+    private TaskCard? original;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await board.LoadAsync();
+        loaded = true;
+    }
+
+    private bool Matches(TaskCard c) =>
+        query.Trim().Length == 0
+        || c.Title.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase)
+        || c.Tag.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private async Task Drop(string column)
+    {
+        if (dragging is not null) await board.MoveAsync(dragging, column);
+        dragging = null;
+        dragOver = null;
+    }
+
+    private async Task Shift(TaskCard card, int step)
+    {
+        var index = Array.FindIndex(Board.Columns, c => c.Id == card.Column) + step;
+        if (index >= 0 && index < Board.Columns.Length) await board.MoveAsync(card, Board.Columns[index].Id);
+    }
+
+    private void Edit(TaskCard card)
+    {
+        original = card.Id.Length == 0 ? null : card;
+        draft = new TaskCard { Id = card.Id, Title = card.Title, Notes = card.Notes, Column = card.Column, Priority = card.Priority, Tag = card.Tag, Order = card.Order, Created = card.Created };
+        showErrors = false;
+        editing = true;
+    }
+
+    private async Task Save()
+    {
+        if (draft.Title.Trim().Length == 0) { showErrors = true; return; }
+        draft.Title = draft.Title.Trim();
+        draft.Tag = draft.Tag.Trim().ToLowerInvariant();
+        if (original is null)
+        {
+            await board.SaveAsync(draft);
+            Toasts.Success("Card added");
+        }
+        else
+        {
+            var moved = original.Column != draft.Column;
+            original.Title = draft.Title; original.Notes = draft.Notes; original.Priority = draft.Priority; original.Tag = draft.Tag;
+            if (moved) await board.MoveAsync(original, draft.Column); else await board.SaveAsync(original);
+            Toasts.Success("Card saved");
+        }
+        editing = false;
+    }
+
+    private async Task Delete()
+    {
+        if (original is null) return;
+        await board.DeleteAsync(original);
+        editing = false;
+        Toasts.Show("Card deleted", "bad");
+    }
+
+    private static string Age(long created)
+    {
+        var span = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds(created);
+        if (span.TotalMinutes < 1) return "just now";
+        if (span.TotalHours < 1) return $"{(int)span.TotalMinutes} min ago";
+        if (span.TotalDays < 1) return $"{(int)span.TotalHours} h ago";
+        return $"{(int)span.TotalDays} d ago";
+    }
+}

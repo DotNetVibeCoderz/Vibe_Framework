@@ -1,0 +1,31 @@
+@page "/mui"
+<MuiAppBar Title="Rustzor + MUI" OnMenu="() => _menu++"><span id="menu-count">menu @_menu</span></MuiAppBar>
+<div style="display:grid;gap:16px;max-width:560px;padding:16px">
+    <MuiTextField Label="Name" @bind-Value="_name" StartIcon="person" />
+    <p id="mui-name">name: @_name</p>
+    <MuiSelect Label="Role" Options='new[] { "Admin", "Editor", "Viewer" }' @bind-Value="_role" />
+    <MuiSwitch Label="Enabled" @bind-Checked="_on" />
+    <p id="mui-on">on: @_on</p>
+    <MuiSlider @bind-Value="_volume" AriaLabel="Volume" />
+    <MuiTabs Titles='new[] { "Overview", "Details" }' @bind-Active="_tab" />
+    <p id="mui-tab">tab: @_tab</p>
+    <MuiRating @bind-Value="_stars" />
+    <MuiToggleGroup Options='new[] { "Day", "Week", "Month" }' @bind-Value="_range" />
+    <MuiChip Label="Rust" Color="primary" Icon="bolt" OnDelete="() => _deleted = true" />
+    <MuiAlert Severity="success" Title="Saved">All changes stored. <b id="mui-slot">@_name</b></MuiAlert>
+    <MuiCard Title="Order #42" Subheader="Today" Avatar="KF">
+        <ChildContent><p id="card-body">Card body from Razor: @_count</p></ChildContent>
+        <Actions><button id="card-inc" @onclick="() => _count++">inc</button></Actions>
+    </MuiCard>
+    <MuiButton Text="Click me" StartIcon="send" OnClick="() => _count++" />
+    <MuiProgress Value="_volume" />
+    <MuiProgress Circular="true" />
+    <MuiIsland Tree='Mui.El("Stack", new { direction = "row", spacing = 1 }, new object[] { Mui.El("Avatar", null, "A"), Mui.El("Badge", new { badgeContent = 4, color = "secondary" }, Mui.Icon("mail")) })' />
+</div>
+
+@code {
+    private string _name = "", _role = "Editor", _tab = "Overview", _range = "Week";
+    private bool _on, _deleted;
+    private double _volume = 30, _stars = 3;
+    private int _count, _menu;
+}

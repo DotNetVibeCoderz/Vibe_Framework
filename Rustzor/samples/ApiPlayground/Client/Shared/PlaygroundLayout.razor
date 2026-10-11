@@ -1,0 +1,75 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@using Rustzor.Browser.Fetch
+
+@* Three columns: the protocols, the workspace, and the wire. *@
+<div class="pg">
+    <header class="pg-bar">
+        <a class="pg-brand" href="">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 22h6l3-12 4 16 4-20 3 16h6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <span>API Playground</span>
+        </a>
+        <label class="pg-server">
+            <span class="health @health" title="@healthText"></span>
+            <span class="lbl">Server</span>
+            <input placeholder="this origin" aria-label="Server address" value="@address" @onchange="SetAddress" spellcheck="false" />
+        </label>
+        <span class="pg-spacer"></span>
+        <ThemeToggle />
+    </header>
+    <nav class="pg-rail" aria-label="Protocols">
+        <NavLink href="" Match="NavLinkMatch.All" class="proto rest"><i></i><span><strong>REST</strong><small>Rustzor.Browser.Fetch</small></span></NavLink>
+        <NavLink href="websocket" class="proto ws"><i></i><span><strong>WebSocket</strong><small>@(Links.SocketOpen ? "connected" : "Rustzor.Browser.WebSocket")</small></span>@if (Links.SocketOpen) { <b class="live"></b> }</NavLink>
+        <NavLink href="signalr" class="proto signalr"><i></i><span><strong>SignalR</strong><small>@(Links.HubOpen ? $"#{Links.HubRoom} as {Links.HubName}" : "Rustzor.Net.SignalR")</small></span>@if (Links.HubOpen) { <b class="live"></b> }</NavLink>
+        <NavLink href="grpc" class="proto grpc"><i></i><span><strong>gRPC-Web</strong><small>Rustzor.Net.GrpcWeb</small></span></NavLink>
+        <p class="pg-credit">C# in the browser on Rustzor, talking to ASP.NET Core.<br />Built by Gravicode Studios, led by Kang Fadhil.</p>
+    </nav>
+    <main class="pg-main">@Body</main>
+    <WirePanel />
+</div>
+<Toaster />
+
+@code {
+    private string address = Server.Address;
+    private string health = "unknown";
+    private string healthText = "Checking the server…";
+    private IDisposable? timer;
+
+    protected override void OnInitialized()
+    {
+        Links.Changed += Refresh;
+        timer = Scheduler.SetInterval(() => _ = Check(), 10_000);
+        _ = Check();
+    }
+
+    private async Task Check()
+    {
+        try
+        {
+            var r = await new FetchClient().SendAsync(new FetchRequest(Server.Url("/api/slow?ms=0")) { TimeoutMs = 4000 });
+            health = r.Ok ? "up" : "down";
+            healthText = r.Ok ? $"Server is up ({(r.Headers.TryGetValue("x-elapsed-ms", out var ms) ? ms : "?")} ms)" : $"Server answered HTTP {r.Status}";
+        }
+        catch (Exception e)
+        {
+            health = "down";
+            healthText = "Server unreachable: " + e.Message;
+        }
+        StateHasChanged();
+    }
+
+    private void SetAddress(ChangeEventArgs e)
+    {
+        Server.Address = e.Value?.ToString() ?? "";
+        address = Server.Address;
+        _ = Check();
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Links.Changed -= Refresh;
+        timer?.Dispose();
+    }
+}

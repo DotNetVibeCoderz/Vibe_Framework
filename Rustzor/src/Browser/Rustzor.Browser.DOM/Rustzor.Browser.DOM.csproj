@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Browser.DOM</RootNamespace>
+    <Description>Rustzor.Browser.DOM: the browser's DOM API for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+  </PropertyGroup>
+</Project>

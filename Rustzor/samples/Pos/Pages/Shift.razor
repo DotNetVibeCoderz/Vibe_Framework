@@ -1,0 +1,126 @@
+@page "/shift"
+@implements IDisposable
+
+@{ var shift = PosStore.CurrentShift ?? PosStore.Shifts.LastOrDefault(); }
+<div class="screen">
+    @if (shift is null)
+    {
+        <Card><EmptyState Icon="wallet" Title="No shift yet" Text="Open one on the register to start selling." /></Card>
+    }
+    else
+    {
+        var paid = PosStore.PaidIn(shift).ToList();
+        var sales = paid.Sum(o => o.Total);
+        var expected = PosStore.ExpectedCash(shift);
+        <PageHeader Title="@(shift.IsOpen ? "Shift report" : "Last shift")" Eyebrow="@($"{shift.Cashier} · {shift.Opened.Replace('T', ' ').Substring(0, 16)}{(shift.IsOpen ? "" : " to " + shift.Closed.Substring(11, 5))}")"
+                    Text="Takings by hour, by payment method and by item, then the drawer count that closes the shift." />
+
+        <div class="rz-grid rz-grid-4">
+            <StatCard Label="Sales" Value="@Menu.Rp(sales)" Hint="after promo, with PB1" />
+            <StatCard Label="Orders" Value="@paid.Count.ToString()" Hint="@($"{paid.Sum(o => o.Items)} items")" />
+            <StatCard Label="Average ticket" Value="@Menu.Rp(paid.Count == 0 ? 0 : sales / paid.Count)" />
+            <StatCard Label="PB1 collected" Value="@Menu.Rp(paid.Sum(o => o.Tax))" Hint="owed to the city" />
+        </div>
+
+        <div class="shift-grid">
+            <Card Title="Sales by hour" Subtitle="Rp thousand">
+                @{ var hours = Enumerable.Range(7, 15).ToList(); }
+                <BarChart Labels="@hours.Select(h => h.ToString("00")).ToList()"
+                          Series="@(new List<ChartSeries> { new("Sales", hours.Select(h => paid.Where(o => int.Parse(o.Clock.Substring(0, 2)) == h).Sum(o => o.Total) / 1000d).ToList()) { Color = "var(--rz-accent)" } })"
+                          Height="210" AriaLabel="Sales by hour" />
+            </Card>
+            <Card Title="By payment method" Subtitle="Rp thousand">
+                @{ var methods = new[] { "qris", "cash", "card" }; }
+                <DonutChart Labels="@methods.Select(Menu.MethodName).ToList()" Values="@methods.Select(m => paid.Where(o => o.Method == m).Sum(o => o.Total) / 1000d).ToList()"
+                            Center="@paid.Count.ToString()" CenterLabel="orders" ValueFormat="N0" AriaLabel="Sales by payment method, Rp thousand" />
+            </Card>
+        </div>
+
+        <div class="shift-grid">
+            <Card Title="Best sellers" Subtitle="Items sold this shift">
+                @{
+                    var items = paid.SelectMany(o => o.Lines).GroupBy(l => l.Name)
+                        .Select(g => (Name: g.Key, Category: g.First().Category, Qty: g.Sum(l => l.Qty), Value: g.Sum(l => l.Unit * l.Qty)))
+                        .OrderByDescending(x => x.Qty).Take(8).ToList();
+                    var most = Math.Max(1, items.Select(x => x.Qty).DefaultIfEmpty(1).Max());
+                }
+                <ol class="sellers">
+                    @foreach (var it in items)
+                    {
+                        <li class="tone-@Menu.Tone(it.Category)">
+                            <span class="s-name">@it.Name</span>
+                            <span class="s-bar"><span style="width:@((it.Qty * 100 / most))%"></span></span>
+                            <span class="s-qty mono">@it.Qty</span>
+                            <span class="s-val mono">@Menu.Short(it.Value)</span>
+                        </li>
+                    }
+                </ol>
+            </Card>
+            <Card Title="Cash drawer" Subtitle="@(shift.IsOpen ? "Count the drawer, then close the shift" : "Counted at close")">
+                <dl class="drawer">
+                    <div><dt>Opening float</dt><dd>@Menu.Num(shift.OpeningCash)</dd></div>
+                    <div><dt>Cash sales · @paid.Count(o => o.Method == "cash") orders</dt><dd>+@Menu.Num(paid.Where(o => o.Method == "cash").Sum(o => o.Total))</dd></div>
+                    <div class="sum"><dt>Expected in drawer</dt><dd>@Menu.Rp(expected)</dd></div>
+                    @if (shift.IsOpen)
+                    {
+                        <div class="count"><dt><label for="counted">Counted</label></dt><dd><input id="counted" class="rz-input mono" inputmode="numeric" placeholder="0" value="@(counted == 0 ? "" : Menu.Num(counted))" @onchange="e => counted = Digits(e.Value?.ToString())" /></dd></div>
+                    }
+                    else
+                    {
+                        <div><dt>Counted</dt><dd>@Menu.Num(shift.CountedCash)</dd></div>
+                    }
+                    @{ var diff = (shift.IsOpen ? counted : shift.CountedCash) - expected; var showDiff = !shift.IsOpen || counted > 0; }
+                    @if (showDiff)
+                    {
+                        <div class="diff @(diff == 0 ? "even" : diff > 0 ? "over" : "short")"><dt>@(diff == 0 ? "Balanced" : diff > 0 ? "Over" : "Short")</dt><dd>@Menu.Rp(Math.Abs(diff))</dd></div>
+                    }
+                </dl>
+                @if (shift.IsOpen)
+                {
+                    <button class="rz-btn primary charge" disabled="@(counted == 0)" @onclick="Close"><Icon Name="logout" /> Close shift</button>
+                }
+                else
+                {
+                    <p class="muted">The register asks for a new float before the next sale.</p>
+                }
+            </Card>
+        </div>
+
+        <div class="danger-zone">
+            <span>Training mode: wipe every order and start a fresh demo day.</span>
+            <button class="rz-btn small danger" @onclick="Reset"><Icon Name="refresh" Size="14" /> Reset demo data</button>
+        </div>
+    }
+</div>
+
+@code {
+    private long counted;
+
+    protected override void OnInitialized() => PosStore.Changed += Refresh;
+
+    private static long Digits(string? text)
+    {
+        var d = new string((text ?? "").Where(char.IsDigit).ToArray());
+        return d.Length == 0 ? 0 : long.Parse(d);
+    }
+
+    private async Task Close()
+    {
+        if (PosStore.CurrentShift is not { } shift || counted == 0) return;
+        var diff = counted - PosStore.ExpectedCash(shift);
+        await PosStore.CloseShiftAsync(shift, counted);
+        counted = 0;
+        if (diff == 0) Toasts.Success("Shift closed. The drawer balances.");
+        else Toasts.Warning($"Shift closed {(diff > 0 ? "over" : "short")} by {Menu.Rp(Math.Abs(diff))}.");
+    }
+
+    private async Task Reset()
+    {
+        await PosStore.ResetAsync();
+        Toasts.Info("Demo data restored");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => PosStore.Changed -= Refresh;
+}

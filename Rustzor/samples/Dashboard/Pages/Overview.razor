@@ -1,0 +1,162 @@
+@page "/"
+@implements IDisposable
+
+<div class="readouts">
+    <div class="readout">
+        <span class="rz-label">Demand</span>
+        <strong>@((Grid.Demand / 1000).ToString("0.00"))<small>GW</small></strong>
+        <span class="sub">@PeakNote()</span>
+    </div>
+    <div class="readout freq @(Grid.Hz < 49.8 ? "alarm" : Grid.Hz < 49.9 ? "warn" : "")">
+        <span class="rz-label">Frequency</span>
+        <strong>@Grid.Hz.ToString("0.000")<small>Hz</small></strong>
+        <FrequencyTrace />
+    </div>
+    <div class="readout">
+        <span class="rz-label">Spinning reserve</span>
+        <strong>@((Grid.Reserve / 1000).ToString("0.00"))<small>GW</small></strong>
+        <span class="sub @(Grid.Reserve < 1500 ? "bad" : "")">@((Grid.Reserve / Grid.Demand).ToString("P0")) of demand</span>
+    </div>
+    <div class="readout">
+        <span class="rz-label">Renewables</span>
+        <strong>@((Grid.RenewableShare * 100).ToString("0.0"))<small>%</small></strong>
+        <span class="sub">hydro, geothermal, solar, wind</span>
+    </div>
+    <div class="readout">
+        <span class="rz-label">Carbon intensity</span>
+        <strong>@Grid.Carbon.ToString("0")<small>g/kWh</small></strong>
+        <span class="sub">CO₂ per kWh delivered</span>
+    </div>
+</div>
+
+<div class="ov-grid">
+    <Card Title="Generation, last 24 hours" Subtitle="Stacked by source against demand, 15-minute intervals" Class="span-2">
+        <EChart Option="GenerationOption()" Height="300" AriaLabel="Generation by source over the last 24 hours" />
+    </Card>
+    <Card Title="Mix now" Subtitle="@Grid.Mw(Grid.Supply)">
+        <EChart Option="MixOption()" Height="300" AriaLabel="Current generation mix" />
+    </Card>
+</div>
+
+<Card Title="500 kV backbone" Subtitle="Flow follows the dashes; colour is loading against rating. Click a region." Class="section">
+    <div class="oneline-wrap"><OneLine Selected="@region" Select="r => region = r" /></div>
+    <div class="legend-row">
+        <span><i class="sw cool"></i>under 70%</span><span><i class="sw warm"></i>70–90%</span><span><i class="sw hot"></i>over 90%</span>
+    </div>
+    @{ var r = Grid.Regions.First(x => x.Id == region); var net = Grid.RegionSupply[r.Id] - Grid.RegionDemand[r.Id]; }
+    <div class="region-panel">
+        <div class="region-head">
+            <h3>@r.Name</h3>
+            <div class="region-figs">
+                <div><span>Demand</span><strong class="mono">@Grid.Mw(Grid.RegionDemand[r.Id])</strong></div>
+                <div><span>Generation</span><strong class="mono">@Grid.Mw(Grid.RegionSupply[r.Id])</strong></div>
+                <div><span>@(net >= 0 ? "Exporting" : "Importing")</span><strong class="mono @(net >= 0 ? "exp" : "imp")">@Grid.Mw(Math.Abs(net))</strong></div>
+            </div>
+        </div>
+        <ul class="plant-bars">
+            @foreach (var p in Grid.Plants.Where(p => p.Region == r.Id).OrderByDescending(p => p.Capacity))
+            {
+                <li class="@p.Status">
+                    <span class="pb-name"><i style="background:@Grid.Color(p.Source)"></i>@p.Name</span>
+                    <span class="pb-bar"><span style="width:@((p.Output / p.Capacity * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%;background:@Grid.Color(p.Source)"></span></span>
+                    <span class="pb-val mono">@(p.Online ? $"{p.Output:N0} / {p.Capacity:N0}" : p.Status == "tripped" ? "TRIPPED" : "MAINT.")</span>
+                </li>
+            }
+        </ul>
+    </div>
+</Card>
+
+<div class="ov-grid section">
+    <Card Title="Latest alarms" Class="span-2">
+        <AlarmList Items="Grid.Alarms.Take(5)" />
+        <a class="more" href="alarms">All alarms <Icon Name="arrow-right" Size="14" /></a>
+    </Card>
+    <Card Title="Drill: lose a unit" Subtitle="Trip a plant and watch the frequency dip and the reserve take the load.">
+        <div class="rz-stack">
+            <select class="rz-input" aria-label="Unit to trip" @onchange="e => trip = e.Value?.ToString() ?? string.Empty">
+                @foreach (var p in Grid.Plants.Where(p => p.Online && p.Output > 200).OrderByDescending(p => p.Output))
+                {
+                    <option value="@p.Name" selected="@(p.Name == trip)">@p.Name · @p.Output.ToString("N0") MW</option>
+                }
+            </select>
+            <button class="rz-btn danger-solid" @onclick="Trip"><Icon Name="zap" /> Trip unit</button>
+            @{ var tripped = Grid.Plants.Where(p => p.Status == "tripped").ToList(); }
+            @foreach (var p in tripped)
+            {
+                var plant = p;
+                <div class="tripped"><span>@plant.Name is off the grid</span><button class="rz-btn small" @onclick="() => Grid.Restore(plant)">Resynchronise</button></div>
+            }
+        </div>
+    </Card>
+</div>
+
+@code {
+    private string region = "west";
+    private string trip = "PLTU Paiton";
+
+    protected override void OnInitialized() => Grid.Ticked += Refresh;
+
+    private string PeakNote()
+    {
+        var today = Grid.History.Where(i => i.Time.Date == DateTime.Today).ToList();
+        var peak = today.Count == 0 ? Grid.Demand : today.Max(i => i.Demand);
+        return $"today's peak so far {peak / 1000:0.00} GW";
+    }
+
+    private object GenerationOption()
+    {
+        var last = Grid.History.TakeLast(96).ToList();
+        var series = new List<object>();
+        foreach (var s in Grid.Sources)
+            series.Add(new
+            {
+                type = "line", name = Grid.Label(s), stack = "mix", smooth = true, symbol = "none",
+                lineStyle = new { width = 0 }, areaStyle = new { opacity = 0.88 }, color = Grid.Color(s),
+                data = last.Select(i => Math.Round(i.BySource[(int)s])).ToArray(),
+            });
+        series.Add(new
+        {
+            type = "line", name = "Demand", smooth = true, symbol = "none", color = Theme.Current == "dark" ? "#e8edf5" : "#0e1a2b",
+            lineStyle = new { width = 2, type = "dashed" }, data = last.Select(i => Math.Round(i.Demand)).ToArray(),
+        });
+        return new
+        {
+            animation = false,
+            tooltip = new { trigger = "axis" },
+            legend = new { top = 0, icon = "roundRect", itemWidth = 12, itemHeight = 8 },
+            grid = new { left = 52, right = 12, top = 34, bottom = 28 },
+            xAxis = new { type = "category", boundaryGap = false, data = last.Select(i => i.Time.ToString("HH:mm")).ToArray(), axisLabel = new { interval = 15 } },
+            yAxis = new { type = "value", name = "MW", splitLine = new { lineStyle = new { type = "dashed" } } },
+            series,
+        };
+    }
+
+    private object MixOption() => new
+    {
+        tooltip = new { trigger = "item", formatter = "{b}: {c} MW ({d}%)" },
+        legend = new { bottom = 0, icon = "circle", itemWidth = 8 },
+        series = new[]
+        {
+            new
+            {
+                type = "pie", radius = new[] { "52%", "76%" }, center = new[] { "50%", "44%" }, padAngle = 1.5,
+                itemStyle = new { borderRadius = 4 }, label = new { show = false },
+                data = Grid.Sources.Where(s => Grid.Mix[s] > 0).Select(s => new { name = Grid.Label(s), value = Math.Round(Grid.Mix[s]), itemStyle = new { color = Grid.Color(s) } }).ToArray(),
+            },
+        },
+    };
+
+    private void Trip()
+    {
+        if (Grid.Plants.FirstOrDefault(p => p.Name == trip && p.Online) is { } p)
+        {
+            Grid.Trip(p);
+            region = p.Region;
+            Toasts.Error($"{p.Name} tripped. Watch the frequency.");
+        }
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Grid.Ticked -= Refresh;
+}

@@ -1,0 +1,30 @@
+@page "/tailwind"
+<div class="mx-auto max-w-3xl space-y-4 p-6" id="tw-root">
+    <h1 class="font-display text-3xl font-bold text-rust-700">Tailwind</h1>
+    <div class="grid grid-cols-3 gap-4">
+        <TwStat Label="Revenue" Value="$12.4k" Delta="8%" Caption="vs last week" />
+        <TwStat Label="Orders" Value="318" Delta="2%" Positive="false" />
+        <TwStat Label="Users" Value="1,024" />
+    </div>
+    <TwCard Title="Profile" Subtitle="Edit details">
+        <TwInput Label="Email" @bind-Value="_email" Placeholder="you@example.com" />
+        <p id="tw-email">@_email</p>
+        <TwToggle Label="Dark mode" Value="_dark" ValueChanged="Dark" />
+        <TwTabs Titles='new[] { "Week", "Month" }' @bind-Active="_tab" />
+        <TwBadge Tone="success">Active</TwBadge>
+        <TwButton Variant="primary" OnClick="() => _modal = true">Open</TwButton>
+    </TwCard>
+    <TwAlert Tone="warning" Title="Heads up">Utility classes compile in the browser.</TwAlert>
+    <TwModal @bind-Open="_modal" Title="Dialog">Body text</TwModal>
+</div>
+
+@code {
+    private string _email = "", _tab = "Week";
+    private bool _modal, _dark;
+
+    private void Dark(bool on)
+    {
+        _dark = on;
+        Tw.SetTheme(on ? "dark" : "light");
+    }
+}

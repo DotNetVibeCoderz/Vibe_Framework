@@ -1,0 +1,8 @@
+<div class="rz-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent.ToString("F0")">
+    <span style="width:@Percent.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%;@(Color is null ? "" : "background:" + Color)"></span>
+</div>
+
+@code {
+    [Parameter] public double Percent { get; set; }
+    [Parameter] public string? Color { get; set; }
+}

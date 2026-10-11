@@ -1,0 +1,88 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Rustzor.Interop
+@implements IDisposable
+@* A Chart.js chart. Changes to Labels, Datasets or Options update it in place. *@
+<div class="rz-chartjs" style="position:relative;height:@(Height)px;width:100%">
+    <canvas @ref="_canvas" role="img" aria-label="@AriaLabel"></canvas>
+</div>
+
+@code {
+    private ElementReference _canvas;
+    private int _handle;
+    private int _callback;
+    private string _lastJson = "";
+
+    /// <summary>"line", "bar", "pie", "doughnut", "radar", "polarArea", "scatter", "bubble".</summary>
+    [Parameter] public string Type { get; set; } = "line";
+    [Parameter] public IReadOnlyList<string> Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public List<ChartJsDataset> Datasets { get; set; } = new();
+    /// <summary>Chart.js options as any object (anonymous objects work); merged over the themed defaults.</summary>
+    [Parameter] public object? Options { get; set; }
+    [Parameter] public int Height { get; set; } = 300;
+    /// <summary>Horizontal bars.</summary>
+    [Parameter] public bool Horizontal { get; set; }
+    [Parameter] public bool Stacked { get; set; }
+    [Parameter] public bool ShowLegend { get; set; } = true;
+    [Parameter] public string AriaLabel { get; set; } = "Chart";
+    [Parameter] public EventCallback<ChartJsClick> OnClick { get; set; }
+
+    private string Config()
+    {
+        var w = new JsonWriter();
+        w.BeginObject();
+        w.Prop("type", Type);
+        w.Prop("horizontal", Horizontal);
+        w.Prop("stacked", Stacked);
+        w.Prop("legend", ShowLegend);
+        w.Name("labels").Any(Labels);
+        w.Name("datasets").BeginArray();
+        foreach (var d in Datasets)
+        {
+            w.BeginObject();
+            w.Prop("label", d.Label);
+            if (d.Points is not null)
+            {
+                w.Name("data").BeginArray();
+                foreach (var (x, y, r) in d.Points) w.BeginObject().Prop("x", x).Prop("y", y).Prop("r", r).EndObject();
+                w.EndArray();
+            }
+            else w.Name("data").Any(d.Data);
+            if (d.BackgroundColors is not null) w.Name("backgroundColor").Any(d.BackgroundColors);
+            else if (d.BackgroundColor is not null) w.Prop("backgroundColor", d.BackgroundColor);
+            if (d.BorderColor is not null) w.Prop("borderColor", d.BorderColor);
+            w.Prop("borderWidth", d.BorderWidth);
+            w.Prop("fill", d.Fill);
+            w.Prop("tension", d.Tension);
+            w.Prop("pointRadius", d.PointRadius);
+            if (d.Type is not null) w.Prop("type", d.Type);
+            w.EndObject();
+        }
+        w.EndArray();
+        w.Name("options").Any(Options);
+        w.EndObject();
+        return w.ToString();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var json = Config();
+        if (json == _lastJson && !firstRender) return;
+        _lastJson = json;
+        if (firstRender)
+        {
+            if (OnClick.HasDelegate)
+                _callback = Callbacks.Register(v => _ = OnClick.InvokeAsync(new ChartJsClick(v["dataset"].AsInt(), v["index"].AsInt(), v["label"].AsString(), v["value"].AsDouble())));
+            _handle = (await Js.CallAsync("chartjs.create", Js.Args("el", _canvas.Id, "config", new JsonRaw(json), "click", _callback))).AsInt();
+        }
+        else if (_handle != 0)
+        {
+            Js.Send("chartjs.update", Js.Args("h", _handle, "config", new JsonRaw(json)));
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_handle != 0) Js.Send("chartjs.destroy", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

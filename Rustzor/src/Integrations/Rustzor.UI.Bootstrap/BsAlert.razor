@@ -1,0 +1,30 @@
+@if (!_closed)
+{
+    <div class="@Bs.Css("alert", "alert-" + Color, Dismissible ? "alert-dismissible" : null)" role="alert">
+        @if (Heading is not null)
+        {
+            <h5 class="alert-heading">@Heading</h5>
+        }
+        @ChildContent
+        @if (Dismissible)
+        {
+            <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+        }
+    </div>
+}
+
+@code {
+    private bool _closed;
+
+    [Parameter] public string Color { get; set; } = BsColor.Info;
+    [Parameter] public string? Heading { get; set; }
+    [Parameter] public bool Dismissible { get; set; }
+    [Parameter] public EventCallback OnDismiss { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private Task Close()
+    {
+        _closed = true;
+        return OnDismiss.InvokeAsync();
+    }
+}

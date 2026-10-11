@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:s="using:RustzorAppGen.Services"
+        x:Class="RustzorAppGen.Views.NewProjectWindow"
+        x:DataType="s:ProjectTemplate"
+        Title="New project"
+        Width="1040" Height="720" MinWidth="820" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="28,22,28,14" Spacing="4">
+      <TextBlock Text="New project" Classes="display" FontSize="26" />
+      <TextBlock Text="Start blank, or from a template that already runs. Jack can take it from there." Classes="muted" />
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="210,*" Margin="28,0">
+      <StackPanel Spacing="4">
+        <TextBlock Text="START" Classes="label" Margin="8,0,0,6" />
+        <RadioButton x:Name="BlankChoice" GroupName="kind" Content="Blank app" Click="OnKindChanged" />
+        <RadioButton x:Name="TemplateChoice" GroupName="kind" Content="From template" IsChecked="True" Click="OnKindChanged" />
+        <TextBlock Text="CATEGORY" Classes="label" Margin="8,18,0,6" />
+        <ListBox x:Name="Categories" SelectionChanged="OnCategoryChanged" Background="Transparent" />
+      </StackPanel>
+
+      <Border Grid.Column="1" Margin="18,0,0,0" Background="{DynamicResource Bg1}" CornerRadius="12" BorderBrush="{DynamicResource Line}" BorderThickness="1">
+        <ScrollViewer Padding="14">
+          <ItemsControl x:Name="Gallery">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="s:ProjectTemplate">
+                <Border Classes="card" Width="236" Height="168" Margin="0,0,12,12" Tag="{Binding}" PointerPressed="OnCardPressed" DoubleTapped="OnCardDoubleTapped">
+                  <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Text="{Binding CategoryGlyph}" FontSize="22" />
+                      <TextBlock Grid.Column="1" Text="{Binding Category}" Classes="label" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" Margin="0,8,0,4" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Row="2" Text="{Binding Description}" TextWrapping="Wrap" FontSize="12" Classes="muted" LineHeight="17" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Row="3" Text="{Binding Packages, Converter={x:Static s:TemplateConverters.Libraries}}" Classes="mono" FontSize="10" Foreground="{DynamicResource Patina}" TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="2" Margin="0,16,0,0" Background="{DynamicResource Bg1}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="28,16,28,18">
+        <StackPanel Spacing="6" Margin="0,0,14,0">
+          <TextBlock Text="Project name" FontWeight="Medium" />
+          <TextBox x:Name="NameBox" Watermark="Coffee Shop POS" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6" Margin="0,0,14,0">
+          <TextBlock Text="Location" FontWeight="Medium" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBox x:Name="LocationBox" />
+            <Button Grid.Column="1" Classes="secondary" Content="Browse…" Margin="6,0,0,0" Click="OnBrowse" />
+          </Grid>
+        </StackPanel>
+        <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Orientation="Horizontal" Spacing="8">
+          <Button Classes="secondary" Content="Cancel" Click="OnCancel" IsCancel="True" />
+          <Button Classes="primary" x:Name="CreateButton" Content="Create project" Click="OnCreate" IsDefault="True" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Spacing="6" Margin="0,12,0,0">
+          <TextBlock Text="Ask Jack to (optional)" FontWeight="Medium" />
+          <TextBox x:Name="PromptBox" Watermark="e.g. add a reports page with monthly revenue charts and export to CSV" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="70" />
+        </StackPanel>
+        <TextBlock Grid.Row="2" Grid.ColumnSpan="3" x:Name="Note" Margin="0,10,0,0" FontSize="12" Classes="muted" TextWrapping="Wrap" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

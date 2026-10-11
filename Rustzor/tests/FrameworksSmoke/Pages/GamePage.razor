@@ -1,0 +1,62 @@
+@page "/"
+<p id="game-info">balls: @_balls fps: @_fps.ToString("0") frame: @_frame upd: @_upd.ToString("0.0") draw: @_draw.ToString("0.0") gap: @_gap.ToString("0.0")</p>
+<GameView Height="360" OnStart="Start" OnUpdate="Update" OnDraw="Draw" />
+
+@code {
+    private int _balls;
+    private double _fps;
+    private long _frame;
+    private Body? _player;
+    private double _upd, _draw, _gap, _lastEnd;
+
+    private void Start(GameContext g)
+    {
+        g.Physics.Gravity = new Vec2(0, 600);
+        g.Physics.Add(Body.Box(new Vec2(g.Width / 2, g.Height - 10), g.Width, 20, 0));
+        g.Physics.Add(Body.Box(new Vec2(10, g.Height / 2), 20, g.Height, 0));
+        g.Physics.Add(Body.Box(new Vec2(g.Width - 10, g.Height / 2), 20, g.Height, 0));
+        _player = g.Physics.Add(Body.Box(new Vec2(g.Width / 2, g.Height - 60), 40, 40));
+        _player.Restitution = 0;
+        g.Timers.Every(0.25, () =>
+        {
+            if (_balls >= 40) return;
+            var b = g.Physics.Add(Body.Circle(new Vec2(g.Random.Range(60, g.Width - 60), 30), g.Random.Range(8, 18)));
+            b.Restitution = 0.6;
+            b.Tag = Color.FromHsl(g.Random.Range(0, 360), 0.7, 0.55).ToCss();
+            _balls++;
+        });
+        g.Physics.OnCollision += c =>
+        {
+            if (c.A == _player || c.B == _player) g.Particles.Burst(_player!.Position, 3, "#f97316", 120, 0.4, 2);
+        };
+    }
+
+    private void Update(GameContext g, double dt)
+    {
+        var t0 = Js.Now();
+        var axis = g.Input.Axis();
+        _player!.Velocity = new Vec2(axis.X * 320, _player.Velocity.Y);
+        if (g.Input.WasPressed("Space") && _player.OnGround) _player.Velocity = new Vec2(_player.Velocity.X, -420);
+        _fps = g.Loop.Fps;
+        _frame = g.Loop.Frame;
+        _upd = Js.Now() - t0;
+    }
+
+    private void Draw(GameContext g)
+    {
+        var t0 = Js.Now();
+        if (_lastEnd > 0) _gap = t0 - _lastEnd;
+        var c = g.Canvas;
+        c.Fill("#111827").FillRect(0, 0, g.Width, g.Height);
+        foreach (var b in g.Physics.Bodies)
+        {
+            if (b.Shape == ShapeKind.Circle) c.Fill((string?)b.Tag ?? "#e5e7eb").FillCircle(b.Position.X, b.Position.Y, b.Radius);
+            else c.Fill(b == _player ? "#f97316" : "#374151").FillRect(b.Position.X - b.Width / 2, b.Position.Y - b.Height / 2, b.Width, b.Height);
+        }
+        g.Particles.Draw(c);
+        c.Fill("#9ca3af").Font("12px monospace").FillText($"fps {g.Loop.Fps:0}", 30, 24);
+        if (g.Loop.Frame % 30 == 0) InvokeAsync(StateHasChanged);
+        _draw = Js.Now() - t0;
+        _lastEnd = Js.Now();
+    }
+}

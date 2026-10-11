@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- The API Playground's server: REST, WebSocket, SignalR and gRPC-Web on ASP.NET Core. Built by Gravicode Studios, led by Kang Fadhil. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ApiPlayground.Server</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.84.0" />
+    <PackageReference Include="Grpc.AspNetCore.Web" Version="2.84.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Protobuf Include="Protos\playground.proto" GrpcServices="Server" />
+  </ItemGroup>
+</Project>

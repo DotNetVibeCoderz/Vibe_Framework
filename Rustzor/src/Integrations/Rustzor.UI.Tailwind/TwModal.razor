@@ -1,0 +1,33 @@
+@if (Open)
+{
+    <div class="fixed inset-0 z-50 flex items-end justify-center bg-stone-950/50 p-4 backdrop-blur-sm sm:items-center" @onclick="Close">
+        <div role="dialog" aria-modal="true" aria-label="@Title" @onclick:stopPropagation="true"
+             class="@Tw.Css("w-full overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-900/5 dark:bg-stone-900 dark:ring-white/10", Width)">
+            <div class="flex items-center justify-between border-b border-stone-200 px-6 py-4 dark:border-stone-800">
+                <h2 class="font-display text-lg font-semibold text-stone-900 dark:text-stone-50">@Title</h2>
+                <button type="button" aria-label="Close" class="rounded-md p-1 text-xl leading-none text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800" @onclick="Close">&times;</button>
+            </div>
+            <div class="px-6 py-5 text-sm text-stone-700 dark:text-stone-300">@ChildContent</div>
+            @if (Footer is not null)
+            {
+                <div class="flex justify-end gap-2 bg-stone-50 px-6 py-3 dark:bg-stone-950/40">@Footer</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    /// <summary>A max-width utility for the dialog.</summary>
+    [Parameter] public string Width { get; set; } = "max-w-lg";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    public Task Close()
+    {
+        Open = false;
+        return OpenChanged.InvokeAsync(false);
+    }
+}

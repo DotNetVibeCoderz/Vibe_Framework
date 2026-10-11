@@ -1,0 +1,10 @@
+{
+  "id": "invoice-maker",
+  "name": "Invoice maker",
+  "category": "Work",
+  "description": "Write invoices with line items, tax and discount, see the printed page as you type, and keep a history saved in the browser. Print or export CSV.",
+  "icon": "receipt",
+  "shell": true,
+  "packages": [ "Rustzor.Browser.Storage", "Rustzor.Browser.DOM" ],
+  "nav": [ { "title": "Editor", "href": "", "icon": "edit" }, { "title": "Invoices", "href": "invoices", "icon": "receipt" } ]
+}

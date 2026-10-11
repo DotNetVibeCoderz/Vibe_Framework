@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Net.SignalR</RootNamespace>
+    <Description>Rustzor.Net.SignalR: an ASP.NET Core SignalR client (JSON hub protocol over WebSockets) for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+    <PackageTags>$(PackageTags);signalr;realtime;websocket;hub</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.Fetch\Rustzor.Browser.Fetch.csproj" />
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.WebSocket\Rustzor.Browser.WebSocket.csproj" />
+  </ItemGroup>
+</Project>

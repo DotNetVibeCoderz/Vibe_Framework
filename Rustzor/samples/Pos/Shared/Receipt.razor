@@ -1,0 +1,51 @@
+@* A finished order as the thermal printer prints it: 58 mm paper, monospace,
+   dashed rules. Used on the payment confirmation and in the order history. *@
+<article class="receipt @(Order.Status == "void" ? "is-void" : "")" aria-label="Receipt @Order.Id">
+    <header class="receipt-head">
+        <strong>KEDAI SENJA</strong>
+        <span>Jl. Braga No. 27, Bandung</span>
+        <span>0812-2000-2727</span>
+    </header>
+    <div class="receipt-rule"></div>
+    <div class="receipt-row"><span>No. #@Order.Number.ToString("000")</span><span>@Order.Time.Replace('T', ' ').Substring(0, 16)</span></div>
+    <div class="receipt-row"><span>Cashier @Order.Cashier</span><span>@(Order.Service == "takeaway" ? "TAKEAWAY" : $"TABLE {Order.Table}")</span></div>
+    <div class="receipt-rule"></div>
+    @foreach (var l in Order.Lines)
+    {
+        <div class="receipt-line">
+            <span class="receipt-name">@l.Name</span>
+            @if (l.Options.Length > 0) { <span class="receipt-opt">@l.Options</span> }
+            <div class="receipt-row"><span>@l.Qty x @Menu.Num(l.Unit)</span><span>@Menu.Num(l.Unit * l.Qty)</span></div>
+        </div>
+    }
+    <div class="receipt-rule"></div>
+    <div class="receipt-row"><span>Subtotal</span><span>@Menu.Num(Order.Subtotal)</span></div>
+    @if (Order.Discount > 0)
+    {
+        <div class="receipt-row"><span>Promo @Order.Promo</span><span>-@Menu.Num(Order.Discount)</span></div>
+    }
+    <div class="receipt-row"><span>PB1 10%</span><span>@Menu.Num(Order.Tax)</span></div>
+    @if (Order.Rounding != 0)
+    {
+        <div class="receipt-row"><span>Rounding</span><span>-@Menu.Num(-Order.Rounding)</span></div>
+    }
+    <div class="receipt-row receipt-total"><span>TOTAL</span><span>@Menu.Rp(Order.Total)</span></div>
+    <div class="receipt-row"><span>@Menu.MethodName(Order.Method)@(Order.Reference.Length > 0 ? $" #{Order.Reference}" : "")</span><span>@Menu.Num(Order.Tendered)</span></div>
+    @if (Order.Change > 0)
+    {
+        <div class="receipt-row"><span>Change</span><span>@Menu.Num(Order.Change)</span></div>
+    }
+    <div class="receipt-rule"></div>
+    <footer class="receipt-foot">
+        <span>@Order.Items item@(Order.Items == 1 ? "" : "s") · @Order.Id</span>
+        <span>Terima kasih, sampai jumpa di senja berikutnya.</span>
+    </footer>
+    @if (Order.Status == "void")
+    {
+        <div class="receipt-stamp" title="@Order.VoidReason">VOID</div>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Order Order { get; set; } = default!;
+}

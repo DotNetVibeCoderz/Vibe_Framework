@@ -1,0 +1,41 @@
+<Project>
+
+  <!--
+    Shared by every Rustzor library.
+
+    They are separate assemblies on purpose, the lesson RustNetRuntime learned on
+    microcontrollers and that holds in a browser too: the runtime registers every
+    type of every assembly it loads, whether the app uses it or not. An app that
+    only renders components should not download or register WebRTC, WebXR and a
+    DuckDB client. Reference what you use.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CS1591;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;NU5128</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Release IL is what RustCLR is tested against. -->
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <DebugType>portable</DebugType>
+
+    <!-- CI passes -p:Version=<tag>; this is the version local packs get. -->
+    <Version>0.1.0-preview.1</Version>
+    <Authors>Gravicode Studios</Authors>
+    <Company>Gravicode Studios</Company>
+    <Product>Rustzor</Product>
+    <Copyright>Copyright (c) 2026 Gravicode Studios. Dibuat oleh Gravicode Studios, dipimpin oleh Kang Fadhil.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/Rustzor</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>rustzor;webassembly;wasm;rust;csharp;razor;components;browser</PackageTags>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- The icon and README are packed by Directory.Build.targets, once PackageId is known. -->
+
+</Project>

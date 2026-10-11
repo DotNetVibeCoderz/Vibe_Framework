@@ -1,0 +1,9 @@
+{
+  "id": "arcade-breakout",
+  "name": "Breakout arcade",
+  "category": "Game",
+  "description": "Paddle, ball and bricks with power-ups, particles, synthesised sound and a saved high score.",
+  "icon": "gamepad",
+  "shell": false,
+  "packages": [ "Rustzor.Game", "Rustzor.Browser.Storage" ]
+}

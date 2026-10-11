@@ -1,0 +1,18 @@
+@implements IDisposable
+<div class="rz-toasts" role="status" aria-live="polite">
+    @foreach (var t in Toasts.Items)
+    {
+        <div class="rz-toast @t.Kind" @key="t.Id">
+            <Icon Name="@(t.Kind switch { "bad" or "warn" => "alert", "info" or "plain" => "info", _ => "check" })" />
+            <span>@t.Text</span>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.Changed += Refresh;
+
+    private void Refresh() => StateHasChanged();
+
+    public void Dispose() => Toasts.Changed -= Refresh;
+}

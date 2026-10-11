@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Game</RootNamespace>
+    <Description>Rustzor.Game: a 2D game framework for Rustzor. Entity-component-system world, fixed-step game loop, keyboard/pointer/gamepad input, 2D physics with collisions, tweens, cameras, sound effects and multiplayer sessions over WebSocket or BroadcastChannel.</Description>
+    <PackageTags>$(PackageTags);game;ecs;physics;gamedev;multiplayer</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.Canvas\Rustzor.Browser.Canvas.csproj" />
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.Audio\Rustzor.Browser.Audio.csproj" />
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.Gamepad\Rustzor.Browser.Gamepad.csproj" />
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.WebSocket\Rustzor.Browser.WebSocket.csproj" />
+  </ItemGroup>
+</Project>

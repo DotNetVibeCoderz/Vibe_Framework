@@ -1,0 +1,15 @@
+<div class="rz-page-head">
+    <div>
+        @if (Eyebrow is not null) { <div class="rz-label" style="margin-bottom:6px">@Eyebrow</div> }
+        <h1>@Title</h1>
+        @if (Text is not null) { <p>@Text</p> }
+    </div>
+    @if (Actions is not null) { <div class="rz-row">@Actions</div> }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Eyebrow { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

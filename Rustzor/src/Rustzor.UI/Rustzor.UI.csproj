@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <Description>Rustzor.UI: a professional component kit for Rustzor apps — app shell, data grid, SVG charts, stat cards, modals, tabs, toasts, forms and icons, themed for light and dark.</Description>
+    <RootNamespace>Rustzor.UI</RootNamespace>
+    <!-- Razor class library, not an app: no bundling. -->
+    <OutputType>Library</OutputType>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The kit's stylesheet; the Rustzor bundler links it into every app that references the kit. -->
+    <EmbeddedResource Include="rustzor.module.css" LogicalName="rustzor.module.css" />
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" />
+    <ProjectReference Include="..\Rustzor.Core\Rustzor.Core.csproj" />
+    <ProjectReference Include="..\Rustzor.Components\Rustzor.Components.csproj" />
+  </ItemGroup>
+
+</Project>

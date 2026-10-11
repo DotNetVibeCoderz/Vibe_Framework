@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The tool the Rustzor build targets run: `bundle` assembles the static site,
+    `aot` compiles IL to WebAssembly. Shipped inside the Rustzor.Sdk package
+    (tools/), not as a package of its own.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Rustzor.Build</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,42 @@
+@* The 500 kV backbone as a one-line diagram over the outline of Java and Bali.
+   Each line is coloured by loading; dashes march in the direction of flow,
+   faster the harder the line works. Click a region to inspect it. *@
+<svg class="oneline" viewBox="0 0 1000 260" role="img" aria-label="One-line diagram of the Java–Bali 500 kV system">
+    <path class="land" d="M18 58 L70 44 L150 62 L215 68 L280 80 L350 92 L420 96 L470 84 L530 80 L590 88 L650 92 L720 86 L790 98 L850 112 L905 128 L905 214 L860 222 L780 232 L700 236 L620 230 L540 236 L460 236 L380 226 L300 214 L230 190 L160 162 L90 140 L40 110 Z" />
+    <path class="land" d="M918 150 L958 140 L992 160 L996 210 L968 238 L930 226 L916 190 Z" />
+    @foreach (var r in Grid.Regions)
+    {
+        var region = r;
+        var xs = Grid.Nodes.Where(n => n.Region == region.Id).Select(n => n.X).ToList();
+        var x0 = xs.Min() - 34;
+        var x1 = xs.Max() + 34;
+        <g class="region @(Selected == region.Id ? "on" : "")" @onclick="() => Select.InvokeAsync(region.Id)" role="button" aria-label="@region.Name">
+            <rect x="@x0" y="22" width="@(x1 - x0)" height="226" rx="10" />
+            <text x="@((x0 + x1) / 2)" y="40" text-anchor="middle">@region.Name.ToUpperInvariant()</text>
+        </g>
+    }
+    @foreach (var l in Grid.Lines)
+    {
+        var a = Grid.Nodes.First(n => n.Id == l.From);
+        var b = Grid.Nodes.First(n => n.Id == l.To);
+        var tone = l.Loading > 0.9 ? "hot" : l.Loading > 0.7 ? "warm" : "cool";
+        var seconds = Math.Clamp(2.4 - l.Loading * 2, 0.35, 2.4).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        <g class="line @tone">
+            <line x1="@a.X" y1="@a.Y" x2="@b.X" y2="@b.Y" />
+            <line class="flow @(l.Flow < 0 ? "back" : "")" x1="@a.X" y1="@a.Y" x2="@b.X" y2="@b.Y" style="animation-duration:@(seconds)s" />
+            <title>@Grid.Name(l.From) – @Grid.Name(l.To): @Math.Abs(l.Flow).ToString("N0") MW (@l.Loading.ToString("P0"))</title>
+        </g>
+    }
+    @foreach (var n in Grid.Nodes)
+    {
+        <g class="node">
+            <rect x="@(n.X - 6)" y="@(n.Y - 6)" width="12" height="12" />
+            <text x="@n.X" y="@(n.Y + 22)" text-anchor="middle">@n.Name</text>
+        </g>
+    }
+</svg>
+
+@code {
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string> Select { get; set; }
+}

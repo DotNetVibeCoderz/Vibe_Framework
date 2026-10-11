@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>Rustzor.UI.Mui: Material UI 5 for Rustzor. Typed Razor wrappers (buttons, text fields, selects, switches, sliders, tabs, chips, alerts, cards, app bars, progress) plus MuiIsland for any MUI component, rendered with React 18 and themed with the Rustzor palette in light and dark mode. Razor content can be nested inside MUI components.</Description>
+    <RootNamespace>Rustzor.UI.Mui</RootNamespace>
+    <PackageTags>$(PackageTags);mui;material-ui;material-design;react;ui</PackageTags>
+  </PropertyGroup>
+</Project>

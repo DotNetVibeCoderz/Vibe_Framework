@@ -1,0 +1,147 @@
+@page "/"
+@using Rustzor.Browser.Storage
+
+<div class="space">
+    <header class="hud">
+        <h1>{{ProjectName}}</h1>
+        <span>Time <b>@survived.ToString("0.0")s</b></span>
+        <span>Shield <b>@shield</b></span>
+        <span>Best <b>@best.ToString("0.0")s</b></span>
+    </header>
+    <GameView Height="560" Background="#02040a" UsePhysics="false" OnStart="Start" OnUpdate="Update" OnDraw="Draw" />
+    <p class="help">Fly with WASD or the arrow keys (or a gamepad). Hold Shift to boost. Space restarts after a crash.</p>
+</div>
+
+@code {
+    private sealed class Rock { public Vec2 Pos; public Vec2 Vel; public double R; public double Spin; public double Angle; }
+    private readonly List<Rock> rocks = new();
+    private readonly List<(Vec2 Pos, double Speed, double Size)> stars = new();
+    private Vec2 ship, shipVel;
+    private double survived, best, spawn, invulnerable;
+    private int shield = 3;
+    private bool crashed;
+
+    private void Start(GameContext g)
+    {
+        best = double.TryParse(WebStorage.Local.Get("dodger-best"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var b) ? b : 0;
+        for (var i = 0; i < 140; i++) stars.Add((new Vec2(g.Random.Range(0, g.Width), g.Random.Range(0, g.Height)), g.Random.Range(20, 120), g.Random.Range(0.5, 2)));
+        Reset(g);
+    }
+
+    private void Reset(GameContext g)
+    {
+        rocks.Clear();
+        ship = new Vec2(g.Width / 2, g.Height * 0.75);
+        shipVel = Vec2.Zero;
+        survived = 0;
+        shield = 3;
+        crashed = false;
+        invulnerable = 1.5;
+    }
+
+    private void Update(GameContext g, double dt)
+    {
+        for (var i = 0; i < stars.Count; i++)
+        {
+            var s = stars[i];
+            var y = s.Pos.Y + s.Speed * dt * (crashed ? 0.2 : 1);
+            stars[i] = (new Vec2(s.Pos.X, y > g.Height ? 0 : y), s.Speed, s.Size);
+        }
+        if (crashed)
+        {
+            if (g.Input.WasPressed("Space") || g.Input.WasPressed("Enter")) Reset(g);
+            return;
+        }
+        survived += dt;
+        invulnerable = Math.Max(0, invulnerable - dt);
+        var boost = g.Input.AnyDown("ShiftLeft", "ShiftRight") ? 1.8 : 1;
+        shipVel = Vec2.Lerp(shipVel, g.Input.Axis() * 360 * boost, 1 - Math.Exp(-10 * dt));
+        ship += shipVel * dt;
+        ship = new Vec2(MathX.Clamp(ship.X, 20, g.Width - 20), MathX.Clamp(ship.Y, 20, g.Height - 20));
+        if (boost > 1) g.Particles.Emit(ship + new Vec2(0, 16), new Vec2(g.Random.Range(-30, 30), 220), "#f97316", 0.35, 3);
+
+        spawn -= dt;
+        if (spawn <= 0)
+        {
+            var difficulty = 1 + survived / 20;
+            spawn = Math.Max(0.12, 0.7 / difficulty);
+            var r = g.Random.Range(12, 34);
+            rocks.Add(new Rock
+            {
+                Pos = new Vec2(g.Random.Range(0, g.Width), -r),
+                Vel = new Vec2(g.Random.Range(-60, 60), g.Random.Range(120, 220) * difficulty),
+                R = r,
+                Spin = g.Random.Range(-2, 2),
+            });
+        }
+        foreach (var rock in rocks)
+        {
+            rock.Pos += rock.Vel * dt;
+            rock.Angle += rock.Spin * dt;
+            if (invulnerable <= 0 && Vec2.Distance(rock.Pos, ship) < rock.R + 12)
+            {
+                shield--;
+                invulnerable = 1.2;
+                g.Camera.Shake(14);
+                g.Particles.Burst(ship, 30, "#fca5a5", 260, 0.7, 3);
+                Sfx.Hit();
+                rock.Pos = new Vec2(rock.Pos.X, g.Height + 100);
+                if (shield <= 0) Crash(g);
+            }
+        }
+        rocks.RemoveAll(r => r.Pos.Y > g.Height + 60);
+        if (g.Loop.Frame % 10 == 0) InvokeAsync(StateHasChanged);
+    }
+
+    private void Crash(GameContext g)
+    {
+        crashed = true;
+        g.Particles.Burst(ship, 80, "#f97316", 360, 1.2, 4);
+        Sfx.Explosion();
+        if (survived > best)
+        {
+            best = survived;
+            WebStorage.Local.Set("dodger-best", best.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Draw(GameContext g)
+    {
+        var c = g.Canvas;
+        c.Fill("#02040a").FillRect(0, 0, g.Width, g.Height);
+        foreach (var s in stars) c.Fill("#cbd5e1").Alpha(Math.Min(1, s.Speed / 120)).FillRect(s.Pos.X, s.Pos.Y, s.Size, s.Size);
+        c.Alpha(1);
+        g.Camera.Begin(c);
+        foreach (var rock in rocks)
+        {
+            c.Save().Translate(rock.Pos.X, rock.Pos.Y).Rotate(rock.Angle);
+            var pts = new double[16];
+            for (var k = 0; k < 8; k++)
+            {
+                var a = k * Math.PI / 4;
+                var rr = rock.R * (0.8 + 0.2 * Math.Sin(k * 2.3 + rock.R));
+                pts[k * 2] = Math.Cos(a) * rr;
+                pts[k * 2 + 1] = Math.Sin(a) * rr;
+            }
+            c.Fill("#57534e").Stroke("#a8a29e").LineWidth(2).Polyline(pts, close: true, fill: true);
+            c.Restore();
+        }
+        if (!crashed && (invulnerable <= 0 || (int)(invulnerable * 10) % 2 == 0))
+        {
+            c.Save().Translate(ship.X, ship.Y).Rotate(shipVel.X / 900);
+            c.Shadow("#2dd4bf", 16).Fill("#e2e8f0").Polyline(new double[] { 0, -18, 13, 14, 0, 7, -13, 14 }, close: true, fill: true).NoShadow();
+            c.Fill("#2dd4bf").FillCircle(0, -2, 4);
+            c.Restore();
+        }
+        g.Particles.Draw(c);
+        g.Camera.End(c);
+        if (crashed)
+        {
+            c.Alpha(0.7).Fill("#000000").FillRect(0, 0, g.Width, g.Height).Alpha(1);
+            c.Fill("#ffffff").Font("bold 40px sans-serif").TextAlign("center").TextBaseline("middle").FillText("Hull breached", g.Width / 2, g.Height / 2 - 24);
+            c.Fill("#5eead4").Font("18px sans-serif").FillText($"You lasted {survived:0.0}s · best {best:0.0}s", g.Width / 2, g.Height / 2 + 16);
+            c.Fill("#94a3b8").Font("14px sans-serif").FillText("Press Space to fly again", g.Width / 2, g.Height / 2 + 48);
+        }
+    }
+}

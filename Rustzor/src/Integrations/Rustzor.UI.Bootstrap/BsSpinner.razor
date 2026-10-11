@@ -1,0 +1,10 @@
+<div class="@Bs.Css(Grow ? "spinner-grow" : "spinner-border", "text-" + Color, Small ? (Grow ? "spinner-grow-sm" : "spinner-border-sm") : null)" role="status">
+    <span class="visually-hidden">@Label</span>
+</div>
+
+@code {
+    [Parameter] public string Color { get; set; } = BsColor.Primary;
+    [Parameter] public bool Grow { get; set; }
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public string Label { get; set; } = "Loading...";
+}

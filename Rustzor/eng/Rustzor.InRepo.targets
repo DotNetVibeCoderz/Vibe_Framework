@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    For apps inside this repository: the same build integration a NuGet user
+    gets from <Project Sdk="Rustzor.Sdk">, wired to the source tree. Run
+    scripts/build-runtime.sh once first so src/Rustzor.Sdk/runtime is populated.
+  -->
+  <PropertyGroup>
+    <RustzorRuntimeDir>$(MSBuildThisFileDirectory)..\src\Rustzor.Sdk\runtime\</RustzorRuntimeDir>
+    <RustzorBuildTool>$(MSBuildThisFileDirectory)..\src\Rustzor.Build\bin\Release\net10.0\Rustzor.Build.dll</RustzorBuildTool>
+  </PropertyGroup>
+  <Import Project="..\src\Rustzor.Sdk\build\Rustzor.targets" />
+</Project>

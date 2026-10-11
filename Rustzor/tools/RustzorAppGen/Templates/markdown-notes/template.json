@@ -1,0 +1,10 @@
+{
+  "id": "markdown-notes",
+  "name": "Markdown notes",
+  "category": "Tools",
+  "description": "A notes app with a split Markdown editor and live preview, search, pinned notes, word counts and .md export. The Markdown renderer is plain C# you can extend.",
+  "icon": "file",
+  "shell": true,
+  "packages": [ "Rustzor.Browser.Storage", "Rustzor.Browser.DOM" ],
+  "nav": [ { "title": "Notes", "href": "", "icon": "file" } ]
+}

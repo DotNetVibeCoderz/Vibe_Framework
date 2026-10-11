@@ -1,0 +1,76 @@
+@page "/graphics"
+@using Rustzor.Browser.Canvas
+@using Rustzor.Browser.WebGL
+<p id="g-info">hit: @_hit picked: @_picked svg: @_svgLength json: @_jsonOk</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <canvas @ref="_c2" id="c2" style="width:100%;height:300px;border:1px solid #ddd" @onclick="Click2D"></canvas>
+    <canvas @ref="_c3" id="c3" style="width:100%;height:300px" @onclick="Click3D"></canvas>
+    <canvas @ref="_px" id="px" style="width:100%;height:160px;border:1px solid #ddd"></canvas>
+</div>
+
+@code {
+    private ElementReference _c2, _c3, _px;
+    private Canvas2D? _g2;
+    private readonly Scene2D _scene = new() { GridSize = 20 };
+    private Scene3D _world = new();
+    private Renderer3D? _r3;
+    private GlContext? _gl;
+    private string _hit = "", _picked = "";
+    private int _svgLength;
+    private bool _jsonOk;
+    private readonly List<Node> _selection = new();
+
+    protected override void OnAfterRender(bool first)
+    {
+        if (!first) return;
+        _g2 = Canvas2D.FromElement(_c2);
+        _scene.Add(Node.Rect(40, 40, 120, 80, "#fdba74", 10));
+        _scene.Add(Node.Ellipse(200, 60, 100, 100, "#5eead4"));
+        var r = _scene.Add(Node.Rect(80, 160, 100, 50, "#c4b5fd"));
+        r.Rotation = 0.4;
+        _scene.Add(Node.Path(new[] { (300.0, 180.0), (380.0, 150.0), (360.0, 240.0) }, true, "#fca5a5", "#7f1d1d"));
+        _scene.Add(Node.Label(40, 250, "Rustzor.Graphics", 22, "#1c1917"));
+        _scene.Render(_g2, _selection);
+        _g2.Flush();
+        _svgLength = _scene.ToSvg().Length;
+        var copy = Scene2D.FromJson(_scene.ToJson());
+        _jsonOk = copy.Nodes.Count == _scene.Nodes.Count && copy.Nodes[2].Rotation == 0.4;
+
+        _gl = GlContext.FromElement(_c3);
+        _r3 = new Renderer3D(_gl);
+        _world.Add(new Model(Mesh.Cube(1.5), "#f97316") { Name = "cube", Position = new Vec3(-1.5, 0.75, 0) });
+        _world.Add(new Model(Mesh.Sphere(0.9), "#14b8a6") { Name = "sphere", Position = new Vec3(1.2, 0.9, 0) });
+        _world.Add(new Model(Mesh.Cylinder(0.5, 2), "#a78bfa") { Name = "cylinder", Position = new Vec3(0, 1, -2) });
+        _world.Camera.Frame(new Vec3(-3, 0, -3), new Vec3(3, 2, 3));
+        _r3.Render(_world);
+
+        var g = Canvas2D.FromElement(_px);
+        g.FillLinearGradient(0, 0, g.Width, 0, (0, "#ef4444"), (0.5, "#22c55e"), (1, "#3b82f6")).FillRect(0, 0, g.Width, g.Height);
+        g.Flush();
+        var w = 120;
+        var h = 40;
+        var px = g.GetPixels(0, 0, w, h);
+        PixelOps.Grayscale(px);
+        PixelOps.BoxBlur(px, w, h, 2);
+        g.PutPixels(px, 0, 0, w, h);
+        StateHasChanged();
+    }
+
+    private void Click2D(MouseEventArgs e)
+    {
+        var n = _scene.HitTest(e.OffsetX, e.OffsetY);
+        _hit = n?.Name ?? "none";
+        _selection.Clear();
+        if (n is not null) _selection.Add(n);
+        _scene.Render(_g2!, _selection);
+        _g2!.Flush();
+    }
+
+    private void Click3D(MouseEventArgs e)
+    {
+        var m = _world.Pick(e.OffsetX, e.OffsetY, _gl!.Width / Js.Call("js.eval", Js.Args("code", "devicePixelRatio")).AsDouble(), _gl.Height / Js.Call("js.eval", Js.Args("code", "devicePixelRatio")).AsDouble());
+        foreach (var x in _world.Models) x.Selected = x == m;
+        _picked = m?.Name ?? "none";
+        _r3!.Render(_world);
+    }
+}

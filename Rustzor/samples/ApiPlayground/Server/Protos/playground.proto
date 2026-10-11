@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option csharp_namespace = "ApiPlayground.Server.Grpc";
+
+package playground;
+
+// A small shop's stock, for trying gRPC-Web from the browser.
+service Inventory {
+  // One item by id; NOT_FOUND when there is none.
+  rpc GetItem (GetItemRequest) returns (Item);
+  // Every item in a category, one message each.
+  rpc ListItems (ListItemsRequest) returns (stream Item);
+  // Live prices: a tick per symbol roughly every half second, `count` ticks in all.
+  rpc WatchPrices (WatchRequest) returns (stream PriceTick);
+}
+
+message GetItemRequest {
+  int32 id = 1;
+}
+
+message ListItemsRequest {
+  string category = 1;
+}
+
+message Item {
+  int32 id = 1;
+  string name = 2;
+  string category = 3;
+  double price = 4;
+  int32 stock = 5;
+  repeated string tags = 6;
+}
+
+message WatchRequest {
+  repeated string symbols = 1;
+  int32 count = 2;
+}
+
+message PriceTick {
+  string symbol = 1;
+  double price = 2;
+  double change = 3;
+  int64 unix_ms = 4;
+  int32 sequence = 5;
+}

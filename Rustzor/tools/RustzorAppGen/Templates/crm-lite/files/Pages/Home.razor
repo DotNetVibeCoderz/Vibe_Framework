@@ -1,0 +1,90 @@
+@page "/"
+
+<PageHeader Title="Pipeline at a glance" Eyebrow="Dashboard" Text="Open deals, what they are likely worth, and who to call next." />
+
+<div class="rz-grid rz-grid-4">
+    <StatCard Label="Open pipeline" Value="@Money(crm.Open.Sum(d => d.Value))" Hint="@($"{crm.Open.Count()} open deals")" />
+    <StatCard Label="Weighted forecast" Value="@Money(crm.Weighted)" Hint="value × stage probability" />
+    <StatCard Label="Won" Value="@Money(Won.Sum(d => d.Value))" Hint="@($"{Won.Count()} deals closed")" />
+    <StatCard Label="Win rate" Value="@WinRate" Hint="won ÷ (won + lost)" />
+</div>
+
+<div class="dash">
+    <Card Title="Value by stage" Subtitle="Open and closed deals, in USD">
+        <BarChart Labels="@(Crm.Stages.Select(s => s.Title).ToList())"
+                  Series="@(new List<ChartSeries> { new("Value", Crm.Stages.Select(s => crm.Deals.Where(d => d.Stage == s.Id).Sum(d => d.Value)).ToList()) })"
+                  Height="240" AriaLabel="Deal value by stage" />
+    </Card>
+    <Card Title="Where leads come from">
+        <DonutChart Labels="@Crm.Sources" Values="@(Crm.Sources.Select(s => (double)crm.Contacts.Count(c => c.Source == s)).ToList())"
+                    Center="@crm.Contacts.Count.ToString()" CenterLabel="contacts" AriaLabel="Contacts by source" />
+    </Card>
+</div>
+
+<Card Title="Follow-ups" Subtitle="Overdue first, then the next seven days">
+    @if (followUps.Count == 0)
+    {
+        <EmptyState Icon="calendar" Title="Nothing to chase" Text="Set a follow-up date on a contact and it will show up here." />
+    }
+    else
+    {
+        <ul class="followups">
+            @foreach (var (contact, due) in followUps)
+            {
+                var days = (due - DateTime.Today).Days;
+                <li>
+                    <Avatar Name="@contact.Name" Size="32" />
+                    <div class="who"><strong>@contact.Name</strong><span>@contact.Company · @OpenDeals(contact)</span></div>
+                    <Badge Kind="@(days < 0 ? "bad" : days == 0 ? "warn" : "plain")" Text="@(days < 0 ? $"{-days} d overdue" : days == 0 ? "Today" : $"in {days} d")" />
+                    <button class="rz-btn small" @onclick="() => Done(contact)"><Icon Name="check" Size="14" /> Done</button>
+                </li>
+            }
+        </ul>
+    }
+</Card>
+
+@code {
+    private readonly Crm crm = Crm.Instance;
+    private List<(Contact Contact, DateTime Due)> followUps = new();
+
+    private IEnumerable<Deal> Won => crm.Deals.Where(d => d.Stage == "won");
+
+    private string WinRate
+    {
+        get
+        {
+            var won = crm.Deals.Count(d => d.Stage == "won");
+            var closed = won + crm.Deals.Count(d => d.Stage == "lost");
+            return closed == 0 ? "—" : $"{won * 100 / closed}%";
+        }
+    }
+
+    protected override void OnInitialized() => Refresh();
+
+    private string OpenDeals(Contact c)
+    {
+        var n = crm.DealsOf(c).Count(d => d.Stage is not ("won" or "lost"));
+        return n == 0 ? "no open deals" : n == 1 ? "1 open deal" : $"{n} open deals";
+    }
+
+    private void Refresh()
+    {
+        var horizon = DateTime.Today.AddDays(7);
+        followUps = crm.Contacts
+            .Select(c => (Contact: c, Ok: DateTime.TryParse(c.FollowUp, out var d), Due: d))
+            .Where(x => x.Ok && x.Due <= horizon)
+            .OrderBy(x => x.Due)
+            .Select(x => (x.Contact, x.Due))
+            .ToList();
+    }
+
+    private void Done(Contact contact)
+    {
+        contact.FollowUp = "";
+        crm.Save(contact);
+        Refresh();
+        Toasts.Success($"Followed up with {contact.Name}");
+    }
+
+    public static string Money(double v) => v >= 1_000_000 ? $"${v / 1_000_000:0.0}M" : v >= 10_000 ? $"${v / 1000:0}k" : $"${v:#,##0}";
+}

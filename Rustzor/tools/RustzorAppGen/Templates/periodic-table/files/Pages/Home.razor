@@ -1,0 +1,59 @@
+@page "/"
+
+<PageHeader Title="Periodic table" Eyebrow="Elements 1–54" Text="Select an element for its details. Filter by category or search by name, symbol or number." />
+
+<div class="toolbar rz-row">
+    <input class="rz-input search" placeholder="Search: iron, Fe, 26…" @bind="query" @bind:event="oninput" />
+    <div class="legend">
+        @foreach (var c in PeriodicTable.Categories)
+        {
+            var cat = c;
+            <button class="chip cat-@cat @(filter == cat ? "on" : "")" @onclick="() => filter = filter == cat ? null : cat">@Label(cat)</button>
+        }
+    </div>
+</div>
+
+<div class="ptable-wrap">
+    <div class="ptable">
+        @foreach (var e in PeriodicTable.All)
+        {
+            var el = e;
+            <button class="cell cat-@el.Category @(Dim(el) ? "dim" : "") @(selected == el ? "sel" : "")"
+                    style="grid-column:@el.Group;grid-row:@el.Period" @onclick="() => selected = el" title="@el.Name">
+                <span class="num">@el.Number</span>
+                <span class="sym">@el.Symbol</span>
+                <span class="name">@el.Name</span>
+            </button>
+        }
+        <div class="detail" style="grid-column:3 / 13;grid-row:1 / 4">
+            @if (selected is { } s)
+            {
+                <div class="big cat-@s.Category"><span>@s.Number</span><b>@s.Symbol</b></div>
+                <div class="facts">
+                    <h2>@s.Name</h2>
+                    <p class="rz-muted">@s.CategoryLabel · group @s.Group · period @s.Period · @s.State.ToLowerInvariant() at 25 °C</p>
+                    <dl>
+                        <dt>Atomic mass</dt><dd>@s.Mass.ToString("0.###") u</dd>
+                        <dt>Electrons</dt><dd>@s.Configuration</dd>
+                    </dl>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string query = "";
+    private string? filter;
+    private Element? selected = PeriodicTable.All.First(e => e.Symbol == "Fe");
+
+    private static string Label(string category) => PeriodicTable.All.First(e => e.Category == category).CategoryLabel;
+
+    private bool Dim(Element e)
+    {
+        if (filter is not null && e.Category != filter) return true;
+        if (query.Trim().Length == 0) return false;
+        var q = query.Trim();
+        return !(e.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || e.Symbol.Equals(q, StringComparison.OrdinalIgnoreCase) || e.Number.ToString() == q);
+    }
+}

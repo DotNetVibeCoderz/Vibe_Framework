@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Browser.WebGL</RootNamespace>
+    <Description>Rustzor.Browser.WebGL: the browser's WebGL API for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+  </PropertyGroup>
+</Project>

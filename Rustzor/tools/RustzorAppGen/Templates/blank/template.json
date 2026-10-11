@@ -1,0 +1,9 @@
+{
+  "id": "blank",
+  "name": "Blank app",
+  "category": "Starter",
+  "description": "One page in the Rustzor.UI shell, ready for whatever you build next.",
+  "icon": "rust",
+  "packages": [],
+  "nav": [ { "title": "Home", "href": "", "icon": "home" } ]
+}

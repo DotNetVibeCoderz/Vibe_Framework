@@ -1,0 +1,63 @@
+@page "/regression"
+
+<PageHeader Title="Linear regression" Eyebrow="Statistics lab" Text="One x,y pair per line. The least-squares line and R² update as you type." />
+
+<div class="lab">
+    <Card Title="Pairs">
+        <textarea class="rz-input data" rows="14" @bind="input" @bind:event="oninput"></textarea>
+        <p class="rz-muted note">Sample: hours studied vs. exam score.</p>
+    </Card>
+    @{
+        var points = Stats.ParsePairs(input);
+        var (a, b, r2, r) = Stats.Regression(points);
+    }
+    @if (points.Count < 2)
+    {
+        <EmptyState Icon="trend" Title="Need two pairs or more" Text="Enter at least two lines like 3, 64." />
+    }
+    else
+    {
+        <div class="results">
+            <div class="rz-grid rz-grid-3">
+                <StatCard Label="Slope" Value="@b.ToString("0.###")" Hint="change in y per unit of x" />
+                <StatCard Label="Intercept" Value="@a.ToString("0.###")" Hint="y when x = 0" />
+                <StatCard Label="R²" Value="@r2.ToString("0.000")" Hint="@($"r = {r:0.000}")" />
+            </div>
+            <Card Title="@($"y = {a:0.##} + {b:0.###}·x")" Subtitle="Points and fitted line">
+                @{
+                    double minX = points.Min(p => p.X), maxX = points.Max(p => p.X), minY = Math.Min(points.Min(p => p.Y), a + b * minX), maxY = Math.Max(points.Max(p => p.Y), a + b * maxX);
+                    double W = 640, H = 300, pad = 36;
+                    double Sx(double x) => pad + (x - minX) / Math.Max(maxX - minX, 1e-9) * (W - 2 * pad);
+                    double Sy(double y) => H - pad - (y - minY) / Math.Max(maxY - minY, 1e-9) * (H - 2 * pad);
+                    string F(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                }
+                <svg viewBox="0 0 @W @H" class="scatter" role="img" aria-label="Scatter plot with regression line">
+                    <line x1="@pad" y1="@F(H - pad)" x2="@F(W - pad)" y2="@F(H - pad)" class="axis" />
+                    <line x1="@pad" y1="@pad" x2="@pad" y2="@F(H - pad)" class="axis" />
+                    <line x1="@F(Sx(minX))" y1="@F(Sy(a + b * minX))" x2="@F(Sx(maxX))" y2="@F(Sy(a + b * maxX))" class="fit" />
+                    @foreach (var p in points)
+                    {
+                        <circle cx="@F(Sx(p.X))" cy="@F(Sy(p.Y))" r="5" class="dot"><title>@p.X, @p.Y</title></circle>
+                    }
+                    @Svg.Text(pad, H - 10, "start", minX.ToString("0.##"))
+                    @Svg.Text(W - pad, H - 10, "end", maxX.ToString("0.##"))
+                    @Svg.Text(pad - 6, H - pad, "end", minY.ToString("0.#"))
+                    @Svg.Text(pad - 6, pad + 4, "end", maxY.ToString("0.#"))
+                </svg>
+                <p class="rz-muted note">@Interpret(r2, b)</p>
+            </Card>
+        </div>
+    }
+</div>
+
+@code {
+    private string input = "1, 52\n2, 55\n2.5, 61\n3, 64\n4, 66\n4.5, 72\n5, 75\n6, 79\n6.5, 80\n7, 86\n8, 89";
+
+    private static string Interpret(double r2, double slope) =>
+        r2 switch
+        {
+            > 0.8 => $"A strong linear relationship: x explains {r2:P0} of the variation in y. Each extra unit of x adds about {slope:0.##} to y.",
+            > 0.4 => $"A moderate relationship: x explains {r2:P0} of the variation. Other factors matter too.",
+            _ => $"A weak linear relationship (R² = {r2:0.00}). A straight line is not a good model here.",
+        };
+}

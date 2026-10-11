@@ -1,0 +1,32 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle" />
+
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+    [Parameter] public string? HelperText { get; set; }
+    [Parameter] public bool FullWidth { get; set; } = true;
+    [Parameter] public string Size { get; set; } = "medium";
+
+    private object Tree()
+    {
+        var items = new List<object>();
+        foreach (var o in Options) items.Add(Mui.El("MenuItem", new MuiProps { ["key"] = o, ["value"] = o }, o));
+        return Mui.El("TextField", new MuiProps
+        {
+            ["select"] = true,
+            ["label"] = Label,
+            ["value"] = Value,
+            ["fullWidth"] = FullWidth,
+            ["size"] = Size,
+            ["onChange"] = Mui.Event("change"),
+        }.Set("helperText", HelperText), items);
+    }
+
+    private Task Handle(MuiEvent e)
+    {
+        Value = e.Value.AsString();
+        return ValueChanged.InvokeAsync(Value);
+    }
+}

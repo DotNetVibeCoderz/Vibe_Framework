@@ -1,0 +1,7 @@
+<span class="@Bs.Css("badge", "text-bg-" + Color, Pill ? "rounded-pill" : null)">@ChildContent</span>
+
+@code {
+    [Parameter] public string Color { get; set; } = BsColor.Secondary;
+    [Parameter] public bool Pill { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

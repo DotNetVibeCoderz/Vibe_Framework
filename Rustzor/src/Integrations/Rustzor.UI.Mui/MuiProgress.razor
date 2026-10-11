@@ -1,0 +1,18 @@
+<MuiIsland Tree="Tree()" />
+
+@code {
+    /// <summary>0–100; null for an indeterminate indicator.</summary>
+    [Parameter] public double? Value { get; set; }
+    [Parameter] public bool Circular { get; set; }
+    [Parameter] public string Color { get; set; } = "primary";
+    /// <summary>Diameter of the circular indicator, in pixels.</summary>
+    [Parameter] public int Size { get; set; } = 40;
+
+    private object Tree()
+    {
+        var p = new MuiProps { ["color"] = Color, ["variant"] = Value is null ? "indeterminate" : "determinate" }.Set("value", Value);
+        if (Circular) p["size"] = Size;
+        else p["sx"] = new { height = 8, borderRadius = 4 };
+        return Mui.El(Circular ? "CircularProgress" : "LinearProgress", p);
+    }
+}

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>Rustzor.Charts.ECharts: Apache ECharts 5 for Rustzor. Pass any ECharts option from C# (anonymous objects work) or build common charts with EChartOption helpers.</Description>
+    <RootNamespace>Rustzor.Charts.ECharts</RootNamespace>
+    <PackageTags>$(PackageTags);echarts;charts;apache</PackageTags>
+  </PropertyGroup>
+</Project>

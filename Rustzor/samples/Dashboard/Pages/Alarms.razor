@@ -1,0 +1,38 @@
+@page "/alarms"
+@implements IDisposable
+
+<PageHeader Title="Alarms" Eyebrow="Event log" Text="Everything the system raised this session, newest first. Acknowledge an alarm once someone is on it.">
+    <Actions>
+        <button class="rz-btn" disabled="@(!Grid.Alarms.Any(a => !a.Acked))" @onclick="Grid.AckAll"><Icon Name="check" /> Acknowledge all</button>
+    </Actions>
+</PageHeader>
+
+<div class="chips" role="group" aria-label="Severity">
+    @foreach (var (key, label) in new[] { ("", "All"), ("crit", "Critical"), ("warn", "Warning"), ("info", "Info") })
+    {
+        var k = key;
+        <button class="chip @(severity == k ? "on" : "")" @onclick="() => severity = k">@label <span>@(k.Length == 0 ? Grid.Alarms.Count : Grid.Alarms.Count(a => a.Severity == k))</span></button>
+    }
+</div>
+
+@{ var shown = Grid.Alarms.Where(a => severity.Length == 0 || a.Severity == severity).ToList(); }
+<Card Class="section">
+    @if (shown.Count == 0)
+    {
+        <EmptyState Icon="bell" Title="Quiet on this channel" Text="No alarms of this severity. Trip a unit on the Plants screen to raise one." />
+    }
+    else
+    {
+        <AlarmList Items="shown" Ackable="true" />
+    }
+</Card>
+
+@code {
+    private string severity = "";
+
+    protected override void OnInitialized() => Grid.Ticked += Refresh;
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Grid.Ticked -= Refresh;
+}

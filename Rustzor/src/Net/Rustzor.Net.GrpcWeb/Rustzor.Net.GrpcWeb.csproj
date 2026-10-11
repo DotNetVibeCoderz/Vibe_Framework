@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Net.GrpcWeb</RootNamespace>
+    <Description>Rustzor.Net.GrpcWeb: gRPC-Web calls (unary and server streaming) with a small protobuf reader and writer, for C# on Rustzor (RustNetRuntime in WebAssembly).</Description>
+    <PackageTags>$(PackageTags);grpc;grpc-web;protobuf</PackageTags>
+  </PropertyGroup>
+</Project>

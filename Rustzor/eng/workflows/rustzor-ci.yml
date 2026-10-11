@@ -1,0 +1,109 @@
+# Build and test Rustzor: the browser runtime (Rust to WebAssembly), the .NET
+# libraries and samples, every NuGet package, and an app built from those
+# packages alone, run in headless Chrome.
+#
+# ## Where this file lives
+#
+# Rustzor is a subdirectory of the Vibe_Framework monorepo, and GitHub only
+# runs workflows found in `.github/workflows/` at the repository root. The
+# copy kept in Rustzor/eng/workflows is the source; the root copy must match it.
+# The job finds the Rustzor directory itself, so the file also works in a
+# standalone checkout.
+
+name: Rustzor CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'Rustzor/**'
+      - '.github/workflows/rustzor-*.yml'
+  pull_request:
+    paths:
+      - 'Rustzor/**'
+      - '.github/workflows/rustzor-*.yml'
+  workflow_dispatch:
+  # The publish workflow runs this, at the release version, and pushes the
+  # packages it built: what is published is exactly what was tested.
+  workflow_call:
+    inputs:
+      version:
+        description: 'Package version'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rustzor-ci-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the Rustzor directory
+        id: loc
+        run: |
+          if [ -f Rustzor.slnx ]; then dir=.
+          elif [ -f Rustzor/Rustzor.slnx ]; then dir=Rustzor
+          else echo "::error::cannot find Rustzor.slnx at the root or under Rustzor/"; exit 1; fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the version
+        id: ver
+        run: |
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then version="0.0.0-ci.${{ github.run_number }}"; fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$version' is not a semantic version"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ steps.loc.outputs.dir }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build the browser runtime
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: bash scripts/build-runtime.sh
+
+      - name: Build the solution
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          dotnet build src/Rustzor.Build/Rustzor.Build.csproj -c Release --nologo
+          dotnet build Rustzor.slnx -c Release --nologo
+
+      - name: Pack
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: bash scripts/pack.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Run an app built from the packages
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          (cd tools/e2e && npm ci)
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          bash scripts/package-smoke.sh "${{ steps.ver.outputs.version }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustzor-packages-${{ steps.ver.outputs.version }}
+          path: ${{ steps.loc.outputs.dir }}/artifacts/packages/*.nupkg
+          if-no-files-found: error

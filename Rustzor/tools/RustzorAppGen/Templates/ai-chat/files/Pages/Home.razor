@@ -1,0 +1,151 @@
+@page "/"
+@using Rustzor.AI
+
+<div class="chat">
+    <header class="chat-head">
+        <div>
+            <div class="rz-label">@Assistant.CurrentProvider.Name · @model.Model</div>
+            <select class="persona" aria-label="Persona" @onchange="SetPersona">
+                @foreach (var p in Assistant.Personas) { <option value="@p.Id" selected="@(p.Id == Assistant.Settings.Persona)">@p.Name</option> }
+            </select>
+        </div>
+        <button class="rz-btn ghost small" @onclick="Clear" disabled="@(conversation.Messages.Count(m => m.Role != "system") == 0 || busy)"><Icon Name="trash" Size="15" /> New chat</button>
+    </header>
+
+    <div class="log" @ref="log">
+        @if (!conversation.Messages.Any(m => m.Role != "system"))
+        {
+            <div class="hello">
+                <h2>What can I help with?</h2>
+                <div class="starters">
+                    @foreach (var s in starters)
+                    {
+                        var text = s;
+                        <button @onclick="() => Send(text)">@text</button>
+                    }
+                </div>
+            </div>
+        }
+        @foreach (var m in conversation.Messages.Where(m => m.Role != "system"))
+        {
+            var message = m;
+            <div class="msg @message.Role">
+                <div class="bubble">
+                    @if (message.Role == "assistant") { @((MarkupString)Markdown.ToHtml(message.Content)) }
+                    else { @message.Content }
+                </div>
+                @if (message.Role == "assistant")
+                {
+                    <button class="copy" aria-label="Copy reply" title="Copy" @onclick="() => Copy(message.Content)"><Icon Name="file" Size="13" /></button>
+                }
+            </div>
+        }
+        @if (busy)
+        {
+            <div class="msg assistant streaming"><div class="bubble">@((MarkupString)Markdown.ToHtml(streaming))<span class="caret"></span></div></div>
+        }
+        @if (error is not null)
+        {
+            <div class="error-box"><strong>The model did not answer.</strong> @error <a href="settings">Check settings</a></div>
+        }
+    </div>
+
+    <form class="composer" @onsubmit="SendTyped" @onsubmit:preventDefault="true">
+        <textarea rows="1" placeholder="Message @Assistant.CurrentProvider.Name (Enter to send, Shift+Enter for a new line)" aria-label="Message"
+                  value="@draft" @oninput="e => draft = e.Value?.ToString() ?? string.Empty" @onkeydown="Keys"></textarea>
+        <button class="rz-btn primary" type="submit" disabled="@(busy || draft.Trim().Length == 0)" aria-label="Send"><Icon Name="send" /></button>
+    </form>
+</div>
+
+@code {
+    private IChatModel model = Assistant.CreateModel();
+    private Conversation conversation = null!;
+    private string draft = "";
+    private string streaming = "";
+    private string? error;
+    private bool busy;
+    private ElementReference log;
+
+    private readonly string[] starters =
+    {
+        "Explain WebAssembly to a C# developer in three bullet points",
+        "Write a C# record for an invoice line with a computed total",
+        "Translate: Terima kasih atas bantuannya",
+        "Give me a 20-minute workout I can do at my desk",
+    };
+
+    protected override void OnInitialized()
+    {
+        conversation = new Conversation(model, Assistant.CurrentPersona.Prompt);
+        conversation.Options.Temperature = Assistant.Settings.Temperature;
+        conversation.Messages.AddRange(Assistant.LoadHistory());
+    }
+
+    protected override void OnAfterRender(bool firstRender) => log.ScrollToBottom();
+
+    // Enter sends; Shift+Enter keeps typing on a new line. Awaited, so the
+    // page re-renders when the reply finishes.
+    private async Task Keys(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey) await SendTyped();
+    }
+
+    private Task SendTyped() => Send(draft);
+
+    private async Task Send(string text)
+    {
+        text = text.Trim();
+        if (text.Length == 0 || busy) return;
+        draft = "";
+        error = null;
+        busy = true;
+        streaming = "";
+        StateHasChanged();
+        try
+        {
+            await conversation.SendAsync(text, chunk =>
+            {
+                streaming += chunk;
+                StateHasChanged();
+            });
+            Assistant.SaveHistory(conversation.Messages);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            // Keep the question, so it can be sent again after fixing settings.
+            if (conversation.Messages.LastOrDefault()?.Role == "user") conversation.Messages.RemoveAt(conversation.Messages.Count - 1);
+            draft = text;
+        }
+        finally
+        {
+            busy = false;
+            streaming = "";
+            StateHasChanged();
+        }
+    }
+
+    private void Clear()
+    {
+        conversation.Clear();
+        Assistant.SaveHistory(conversation.Messages);
+        error = null;
+    }
+
+    private void SetPersona(ChangeEventArgs e)
+    {
+        var s = Assistant.Settings;
+        s.Persona = e.Value?.ToString() ?? "assistant";
+        Assistant.Save(s);
+        var history = conversation.Messages.Where(m => m.Role != "system").ToList();
+        conversation = new Conversation(model, Assistant.CurrentPersona.Prompt);
+        conversation.Options.Temperature = s.Temperature;
+        conversation.Messages.AddRange(history);
+    }
+
+    private async Task Copy(string text)
+    {
+        await Clipboard.WriteTextAsync(text);
+        Toasts.Success("Copied");
+    }
+}

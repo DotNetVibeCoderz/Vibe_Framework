@@ -1,0 +1,40 @@
+@page "/bootstrap"
+<BsNavbar Brand="Rustzor" Links="_links" />
+<div class="container py-3">
+    <BsAlert Color="@BsColor.Success" Heading="Hello" Dismissible="true">Bootstrap from C#.</BsAlert>
+    <BsButton OnClick="() => _modal = true">Open modal</BsButton>
+    <BsButton Color="@BsColor.Secondary" Outline="true" OnClick='() => BsToasts.Show("Saved", "Order #42 saved", BsColor.Success)'>Toast</BsButton>
+    <BsDropdown Label="Actions" Items='new[] { "Edit", "-", "Delete" }' OnSelect="s => _picked = s" />
+    <span id="bs-picked">@_picked</span>
+    <BsTabs @bind-Active="_tab">
+        <BsTab Title="One"><p id="tab-one">first tab</p></BsTab>
+        <BsTab Title="Two"><p id="tab-two">second tab</p></BsTab>
+    </BsTabs>
+    <BsAccordion>
+        <BsAccordionItem Title="Section A" InitiallyOpen="true">Alpha</BsAccordionItem>
+        <BsAccordionItem Title="Section B">Beta</BsAccordionItem>
+    </BsAccordion>
+    <BsInput Label="Name" @bind-Value="_name" Help="Your name" />
+    <p id="bs-name">@_name</p>
+    <BsSwitch Label="Notify" @bind-Value="_notify" />
+    <BsProgress Value="65" Striped="true" ShowLabel="true" />
+    <BsTable Items="_rows" Context="r">
+        <Header><th>Id</th><th>Name</th></Header>
+        <Row><td>@r.Item1</td><td>@r.Item2</td></Row>
+    </BsTable>
+    <BsPagination @bind-Page="_page" PageCount="9" />
+    <p id="bs-page">page @_page</p>
+    <BsModal @bind-Open="_modal" Title="Confirm">
+        <ChildContent>Are you sure?</ChildContent>
+        <Footer><BsButton OnClick="() => _modal = false">OK</BsButton></Footer>
+    </BsModal>
+    <BsToastHost />
+</div>
+
+@code {
+    private readonly BsLink[] _links = { new("Home", "/bootstrap"), new("Charts", "/") };
+    private bool _modal, _notify;
+    private string _tab = "", _name = "", _picked = "";
+    private int _page = 1;
+    private readonly List<(int, string)> _rows = new() { (1, "Ada"), (2, "Linus") };
+}

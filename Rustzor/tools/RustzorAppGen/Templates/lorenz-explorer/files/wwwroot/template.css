@@ -1,0 +1,9 @@
+.lorenz { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+.lorenz input[type=range] { width: 100%; accent-color: var(--rz-accent); }
+.lorenz .presets { flex-wrap: wrap; margin: 6px 0 12px; }
+.lorenz .readout { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 16px 0 0; font-family: var(--rz-font-mono); font-size: 12px; }
+.lorenz .readout dt { color: var(--rz-muted); }
+.lorenz .readout dd { margin: 0; font-variant-numeric: tabular-nums; }
+.lorenz .view canvas { width: 100%; height: 560px; display: block; border-radius: 12px; background: #0c0f14; cursor: grab; touch-action: none; }
+.lorenz .hint { font-size: 12px; margin-top: 8px; }
+@media (max-width: 900px) { .lorenz { grid-template-columns: 1fr; } }

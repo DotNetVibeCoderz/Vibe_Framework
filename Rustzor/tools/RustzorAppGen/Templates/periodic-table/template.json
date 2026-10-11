@@ -1,0 +1,10 @@
+{
+  "id": "periodic-table",
+  "name": "Periodic table",
+  "category": "Science",
+  "description": "An interactive periodic table (H to Xe) with categories, search, atomic mass, state and electron configuration.",
+  "icon": "layers",
+  "shell": true,
+  "packages": [],
+  "nav": [ { "title": "Table", "href": "", "icon": "layers" } ]
+}

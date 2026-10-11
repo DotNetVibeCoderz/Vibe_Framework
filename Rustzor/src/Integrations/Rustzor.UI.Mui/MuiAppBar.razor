@@ -1,0 +1,24 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle">@ChildContent</MuiIsland>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    /// <summary>"static", "sticky", "fixed" or "relative".</summary>
+    [Parameter] public string Position { get; set; } = "sticky";
+    [Parameter] public string Color { get; set; } = "primary";
+    /// <summary>Shows a menu button at the start; its clicks reach OnMenu.</summary>
+    [Parameter] public EventCallback OnMenu { get; set; }
+    /// <summary>Content at the end of the bar.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private object Tree()
+    {
+        var parts = new List<object>();
+        if (OnMenu.HasDelegate)
+            parts.Add(Mui.El("IconButton", new MuiProps { ["edge"] = "start", ["color"] = "inherit", ["aria-label"] = "menu", ["onClick"] = Mui.Event("menu"), ["sx"] = new { mr = 1 } }, Mui.Icon("menu")));
+        parts.Add(Mui.El("Typography", new { variant = "h6", component = "div", sx = new { flexGrow = 1, fontWeight = 700 } }, Title));
+        if (ChildContent is not null) parts.Add(Mui.Slot());
+        return Mui.El("AppBar", new { position = Position, color = Color, elevation = 0 }, Mui.El("Toolbar", null, parts));
+    }
+
+    private Task Handle(MuiEvent e) => OnMenu.InvokeAsync();
+}

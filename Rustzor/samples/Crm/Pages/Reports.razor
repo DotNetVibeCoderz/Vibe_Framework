@@ -1,0 +1,116 @@
+@page "/reports"
+@using Rustzor.Data
+
+<PageHeader Title="Reports" Eyebrow="Insight" Text="Computed in SQL against the database in your browser. Edit the query at the bottom to ask your own question.">
+    <Actions>
+        <button class="rz-btn danger" @onclick="Reset"><Icon Name="refresh" /> Reset sample data</button>
+    </Actions>
+</PageHeader>
+
+@if (byOwner is null)
+{
+    <p class="muted">Running queries…</p>
+}
+else
+{
+    <div class="rz-grid rz-grid-2">
+        <Card Title="Win rate by owner" Subtitle="Won ÷ closed deals">
+            <BarChart Labels="@byOwner.Select(r => r.Owner.Split(' ')[0]).ToList()"
+                      Series="@(new List<ChartSeries> { new("Win rate %", byOwner.Select(r => r.Rate).ToList()) { Color = "var(--rz-chart-1)" } })" Height="220" AriaLabel="Win rate by owner" />
+        </Card>
+        <Card Title="Where won revenue comes from" Subtitle="By lead source">
+            <DonutChart Labels="@bySource.Select(r => r.Source).ToList()" Values="@bySource.Select(r => r.Value / 1_000_000).ToList()"
+                        Center="@Catalog.Money(bySource.Sum(r => r.Value))" CenterLabel="won" ValueFormat="N0" AriaLabel="Won revenue by source" />
+        </Card>
+        <Card Title="Average deal by industry" Subtitle="Rp juta">
+            <BarChart Labels="@byIndustry.Select(r => r.Industry).ToList()"
+                      Series="@(new List<ChartSeries> { new("Average", byIndustry.Select(r => r.Average / 1_000_000).ToList()) { Color = "var(--rz-chart-2)" } })" Height="220" AriaLabel="Average deal by industry" />
+        </Card>
+        <Card Title="Days to close" Subtitle="Won deals, created to closed">
+            <div class="rz-grid rz-grid-2">
+                <StatCard Label="Median" Value="@($"{cycle.Median:0} days")" />
+                <StatCard Label="Fastest" Value="@($"{cycle.Min:0} days")" Hint="@($"slowest {cycle.Max:0}")" />
+            </div>
+        </Card>
+    </div>
+
+    <Card Title="Ask the database" Subtitle="Tables: companies, contacts, deals, activities" Class="section">
+        <textarea class="rz-input sql-box" rows="4" @bind="sql" spellcheck="false" aria-label="SQL"></textarea>
+        <div class="rz-row" style="margin:10px 0">
+            <button class="rz-btn primary" @onclick="Run"><Icon Name="zap" /> Run</button>
+            <span class="muted">@status</span>
+        </div>
+        @if (result is not null && result.Columns.Count > 0)
+        {
+            <div class="rz-table-wrap" style="max-height:340px;overflow:auto">
+                <table class="rz-table">
+                    <thead><tr>@foreach (var c in result.Columns) { <th>@c</th> }</tr></thead>
+                    <tbody>
+                        @foreach (var row in result.Rows.Take(200))
+                        {
+                            <tr>@foreach (var cell in row) { <td class="mono">@(cell.IsString ? cell.AsString() : cell.ToString())</td> }</tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Card>
+}
+
+@code {
+    private sealed class OwnerRow { public string Owner { get; set; } = ""; public double Rate { get; set; } }
+    private sealed class SourceRow { public string Source { get; set; } = ""; public double Value { get; set; } }
+    private sealed class IndustryRow { public string Industry { get; set; } = ""; public double Average { get; set; } }
+
+    private List<OwnerRow>? byOwner;
+    private List<SourceRow> bySource = new();
+    private List<IndustryRow> byIndustry = new();
+    private (double Median, double Min, double Max) cycle;
+    private string sql = "select c.city, count(*) deals, round(sum(d.value) / 1000000.0, 1) as value_jt\nfrom deals d join companies c on c.id = d.companyId\nwhere d.stage = 'won'\ngroup by c.city order by value_jt desc";
+    private QueryResult? result;
+    private string status = "";
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        byOwner = (await CrmDb.SqlAsync("""
+            select owner, round(100.0 * sum(stage = 'won') / max(1, sum(stage in ('won','lost'))), 1) rate
+            from deals group by owner order by owner
+            """)).As<OwnerRow>();
+        bySource = (await CrmDb.SqlAsync("select source, sum(value) value from deals where stage = 'won' group by source order by value desc")).As<SourceRow>();
+        byIndustry = (await CrmDb.SqlAsync("""
+            select c.industry, avg(d.value) average from deals d join companies c on c.id = d.companyId
+            group by c.industry order by average desc
+            """)).As<IndustryRow>();
+        var days = (await CrmDb.SqlAsync("select julianday(closeDate) - julianday(created) days from deals where stage = 'won' order by days"))
+            .Rows.Select(r => r[0].AsDouble()).ToList();
+        cycle = days.Count == 0 ? (0, 0, 0) : (days[days.Count / 2], days[0], days[^1]);
+        await Run();
+    }
+
+    private async Task Run()
+    {
+        try
+        {
+            if (!sql.TrimStart().StartsWith("select", StringComparison.OrdinalIgnoreCase) && !sql.TrimStart().StartsWith("with", StringComparison.OrdinalIgnoreCase))
+            {
+                status = "Only select queries run here, so the sample data stays intact.";
+                return;
+            }
+            result = await CrmDb.SqlAsync(sql);
+            status = $"{result.Count} rows";
+        }
+        catch (Exception e)
+        {
+            status = e.Message;
+        }
+    }
+
+    private async Task Reset()
+    {
+        await CrmDb.ResetAsync();
+        await Load();
+        Toasts.Info("Sample data restored");
+    }
+}

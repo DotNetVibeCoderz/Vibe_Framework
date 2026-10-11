@@ -1,0 +1,5 @@
+/* Rustzor.UI.Bootstrap: the few pieces Bootstrap normally adds with its JavaScript. */
+.rz-bs-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 1050; }
+.rz-bs-modal { display: block; z-index: 1055; }
+.rz-bs-dropdown-menu { display: block; }
+.rz-bs-toasts { position: fixed; right: 1rem; bottom: 1rem; z-index: 1090; display: grid; gap: .5rem; }

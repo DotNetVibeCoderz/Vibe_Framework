@@ -1,0 +1,16 @@
+@* The last five minutes of system frequency against the ±0.2 Hz operating band. *@
+@{
+    var pts = Grid.Frequency;
+    const double lo = 49.6, hi = 50.2, w = 220, h = 46;
+    string Y(double hz) => ((hi - Math.Clamp(hz, lo, hi)) / (hi - lo) * h).ToString("0.0", Inv);
+    var path = string.Join(" ", pts.Select((p, i) => $"{(i == 0 ? "M" : "L")}{(i * w / Math.Max(1, pts.Count - 1)).ToString("0.0", Inv)} {Y(p.Hz)}"));
+}
+<svg class="trace" viewBox="0 0 220 46" preserveAspectRatio="none" aria-hidden="true">
+    <rect class="band" x="0" y="@Y(50.2)" width="220" height="@(((0.4) / (hi - lo) * h).ToString("0.0", Inv))" />
+    <line class="nominal" x1="0" x2="220" y1="@Y(50)" y2="@Y(50)" />
+    <path d="@path" />
+</svg>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Inv = System.Globalization.CultureInfo.InvariantCulture;
+}

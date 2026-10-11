@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>RustzorAppGen</AssemblyName>
+    <RootNamespace>RustzorAppGen</RootNamespace>
+    <ApplicationIcon>Assets\appgen.ico</ApplicationIcon>
+    <BuiltInComAvaloniaSupport>true</BuiltInComAvaloniaSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <Version>0.1.0</Version>
+    <Authors>Gravicode Studios</Authors>
+    <Company>Gravicode Studios</Company>
+    <Product>Rustzor App Generator</Product>
+    <Copyright>Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil</Copyright>
+    <NoWarn>$(NoWarn);SKEXP0001;SKEXP0010;MEAI001;OPENAI001;AVLN3001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+    <None Update="App.config" />
+    <!-- Templates are source for generated projects, not part of this app. -->
+    <Compile Remove="Templates\**" />
+    <None Remove="Templates\**" />
+    <None Include="Templates\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.4.1" />
+    <PackageReference Include="AvaloniaEdit.TextMate" Version="11.4.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.SemanticKernel.Core" Version="1.80.1" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.8.3" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
+    <PackageReference Include="Anthropic" Version="12.50.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.12" />
+  </ItemGroup>
+</Project>

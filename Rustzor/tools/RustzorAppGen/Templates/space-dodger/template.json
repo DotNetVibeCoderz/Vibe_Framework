@@ -1,0 +1,9 @@
+{
+  "id": "space-dodger",
+  "name": "Space dodger",
+  "category": "Game",
+  "description": "Pilot a ship through an asteroid field that gets denser every second. Shields, boost and a camera that shakes.",
+  "icon": "zap",
+  "shell": false,
+  "packages": [ "Rustzor.Game", "Rustzor.Browser.Storage" ]
+}

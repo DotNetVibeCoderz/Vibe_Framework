@@ -1,0 +1,10 @@
+{
+  "id": "stats-lab",
+  "name": "Statistics lab",
+  "category": "Science",
+  "description": "Paste a dataset and get descriptive statistics, a histogram, quartiles with outliers, z-scores and a regression line for x,y pairs.",
+  "icon": "chart",
+  "shell": true,
+  "packages": [],
+  "nav": [ { "title": "Describe", "href": "", "icon": "chart" }, { "title": "Regression", "href": "regression", "icon": "trend" } ]
+}

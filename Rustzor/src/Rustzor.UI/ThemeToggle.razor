@@ -1,0 +1,15 @@
+<button class="rz-btn ghost icon" aria-label="Switch between light and dark theme" title="Theme" @onclick="Flip">
+    <Icon Name="@(_dark ? "sun" : "moon")" />
+</button>
+
+@code {
+    private bool _dark;
+
+    protected override void OnInitialized() => _dark = Theme.Current == "dark";
+
+    private void Flip()
+    {
+        Theme.Toggle();
+        _dark = !_dark;
+    }
+}

@@ -1,0 +1,87 @@
+@page "/pipeline"
+
+<PageHeader Title="Pipeline" Eyebrow="Deals" Text="Each column is a stage. Advance a deal when it moves forward; the forecast follows.">
+    <Actions>
+        <button class="rz-btn primary" @onclick="NewDeal"><Icon Name="plus" /> New deal</button>
+    </Actions>
+</PageHeader>
+
+<div class="stages">
+    @foreach (var s in Crm.Stages)
+    {
+        var stage = s;
+        var deals = crm.Deals.Where(d => d.Stage == stage.Id).OrderByDescending(d => d.Value).ToList();
+        <section class="stage stage-@stage.Id">
+            <header>
+                <h2>@stage.Title</h2>
+                <span class="mono">@Home.Money(deals.Sum(d => d.Value))</span>
+            </header>
+            <div class="prob">@((stage.Probability * 100).ToString("0"))% likely</div>
+            @foreach (var d in deals)
+            {
+                var deal = d;
+                var contact = crm.ContactOf(deal);
+                <article class="deal">
+                    <h3>@deal.Title</h3>
+                    <p>@contact?.Company · @contact?.Name</p>
+                    <div class="deal-foot">
+                        <span class="mono value">@Home.Money(deal.Value)</span>
+                        <select class="rz-input stage-pick" value="@deal.Stage" @onchange="e => Move(deal, e.Value?.ToString())" aria-label="Stage of @deal.Title">
+                            @foreach (var option in Crm.Stages) { <option value="@option.Id">@option.Title</option> }
+                        </select>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</div>
+
+<Modal @bind-Open="adding" Title="New deal">
+    <ChildContent>
+        <div class="rz-stack">
+            <Field Label="What are you selling?"><input class="rz-input @(showErrors && draft.Title.Trim().Length == 0 ? "invalid" : "")" @bind="draft.Title" @bind:event="oninput" /></Field>
+            <div class="pair">
+                <Field Label="Contact">
+                    <select class="rz-input" @bind="draft.ContactId">
+                        @foreach (var c in crm.Contacts.OrderBy(c => c.Name)) { <option value="@c.Id">@c.Name · @c.Company</option> }
+                    </select>
+                </Field>
+                <Field Label="Value (USD)"><input class="rz-input" type="number" min="0" step="500" @bind="draft.Value" /></Field>
+            </div>
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Add">Add deal</button>
+    </Footer>
+</Modal>
+
+@code {
+    private readonly Crm crm = Crm.Instance;
+    private bool adding, showErrors;
+    private Deal draft = new();
+
+    private void Move(Deal deal, string? stage)
+    {
+        if (stage is null || stage == deal.Stage) return;
+        deal.Stage = stage;
+        crm.Save(deal);
+        if (stage == "won") Toasts.Success($"Won: {deal.Title}");
+    }
+
+    private void NewDeal()
+    {
+        draft = new Deal { ContactId = crm.Contacts.FirstOrDefault()?.Id ?? 0, Value = 5000 };
+        showErrors = false;
+        adding = true;
+    }
+
+    private void Add()
+    {
+        if (draft.Title.Trim().Length == 0 || draft.ContactId == 0) { showErrors = true; return; }
+        draft.Title = draft.Title.Trim();
+        crm.Save(draft);
+        adding = false;
+        Toasts.Success("Deal added to Lead");
+    }
+}

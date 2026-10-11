@@ -1,0 +1,8 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(PlaygroundLayout)" />
+    </Found>
+    <NotFound>
+        <EmptyState Icon="map" Title="No such screen" Text="Pick a protocol on the left." />
+    </NotFound>
+</Router>

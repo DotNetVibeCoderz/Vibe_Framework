@@ -1,0 +1,7 @@
+@page "/"
+<Card Title="Hello from Rustzor">
+    <p id="count">Clicked @count times</p>
+    <button class="rz-btn primary" @onclick="() => count++">Click</button>
+</Card>
+<Toaster />
+@code { private int count; }

@@ -1,0 +1,18 @@
+<button type="button" role="switch" aria-checked="@(Value ? "true" : "false")" @onclick="Flip" class="inline-flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
+    <span class="@Tw.Css("relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors", Value ? "bg-rust-600 dark:bg-rust-500" : "bg-stone-300 dark:bg-stone-700")">
+        <span class="@Tw.Css("absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform", Value ? "translate-x-5" : "translate-x-0.5")"></span>
+    </span>
+    @Label
+</button>
+
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+
+    private Task Flip()
+    {
+        Value = !Value;
+        return ValueChanged.InvokeAsync(Value);
+    }
+}

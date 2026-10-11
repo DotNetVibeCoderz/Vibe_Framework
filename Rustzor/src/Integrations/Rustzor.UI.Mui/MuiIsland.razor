@@ -1,0 +1,46 @@
+@implements IDisposable
+@* Renders any MUI tree. Tree is built with Mui.El/Slot/Event; ChildContent and Slots supply Razor content for Mui.Slot placeholders. *@
+<div @ref="_host" class="rz-mui" style="display:contents">
+    @if (ChildContent is not null)
+    {
+        <div data-rz-slot="children" style="display:contents">@ChildContent</div>
+    }
+    @if (Slots is not null)
+    {
+        @foreach (var slot in Slots)
+        {
+            <div data-rz-slot="@slot.Key" style="display:contents">@slot.Value</div>
+        }
+    }
+</div>
+
+@code {
+    private ElementReference _host;
+    private int _handle;
+    private int _callback;
+    private string _last = "";
+
+    [Parameter] public object? Tree { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, RenderFragment>? Slots { get; set; }
+    [Parameter] public EventCallback<MuiEvent> OnEvent { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var json = Json.Serialize(Tree);
+        if (!firstRender && json == _last) return;
+        _last = json;
+        if (firstRender)
+        {
+            _callback = Callbacks.Register(v => _ = OnEvent.InvokeAsync(new MuiEvent(v["name"].AsString(), v["value"])));
+            _handle = (await Js.CallAsync("mui.create", Js.Args("el", _host.Id, "spec", new JsonRaw(json), "callback", _callback))).AsInt();
+        }
+        else if (_handle != 0) Js.Send("mui.update", Js.Args("h", _handle, "spec", new JsonRaw(json)));
+    }
+
+    public void Dispose()
+    {
+        if (_handle != 0) Js.Send("mui.dispose", Js.Args("h", _handle));
+        Callbacks.Unregister(_callback);
+    }
+}

@@ -1,0 +1,60 @@
+@page "/alarms"
+@implements IDisposable
+
+<PageHeader Title="Alarms" Eyebrow="Line 3" Text="Newest first. Acknowledge an alarm once someone is on it; a tripped machine stays stopped until it is reset.">
+    <Actions>
+        <button class="rz-btn" disabled="@(!plant.Alarms.Any(a => a.Acknowledged is null))" @onclick="AcknowledgeAll"><Icon Name="check" /> Acknowledge all</button>
+    </Actions>
+</PageHeader>
+
+@if (plant.Alarms.Count == 0)
+{
+    <EmptyState Icon="bell" Title="No alarms" Text="Every machine is inside its limits. Lower a limit on the overview to see one raised." />
+}
+else
+{
+    <Card>
+        <div class="rz-table-wrap">
+            <table class="rz-table alarms">
+                <thead><tr><th>Raised</th><th>Machine</th><th>Message</th><th>Severity</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var a in plant.Alarms)
+                    {
+                        var alarm = a;
+                        <tr class="@(alarm.Acknowledged is null ? "open" : "")">
+                            <td class="mono">@alarm.Raised.ToString("HH:mm:ss")</td>
+                            <td class="mono">@alarm.MachineId</td>
+                            <td>@alarm.Message</td>
+                            <td><Badge Kind="@(alarm.Severity == "critical" ? "bad" : "warn")" Text="@alarm.Severity" /></td>
+                            <td>
+                                @if (alarm.Acknowledged is { } at)
+                                {
+                                    <span class="rz-muted">Acknowledged @at.ToString("HH:mm:ss")</span>
+                                }
+                                else
+                                {
+                                    <button class="rz-btn small" @onclick="() => plant.Acknowledge(alarm)">Acknowledge</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </Card>
+}
+
+@code {
+    private readonly Plant plant = Plant.Instance;
+    private IDisposable? timer;
+
+    // The plant keeps running while this page is open.
+    protected override void OnInitialized() => timer = Scheduler.SetInterval(() => { plant.Tick(1); StateHasChanged(); }, 1000);
+
+    private void AcknowledgeAll()
+    {
+        foreach (var a in plant.Alarms) plant.Acknowledge(a);
+    }
+
+    public void Dispose() => timer?.Dispose();
+}

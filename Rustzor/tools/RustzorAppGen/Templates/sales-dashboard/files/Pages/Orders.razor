@@ -1,0 +1,59 @@
+@page "/orders"
+
+<PageHeader Title="Orders" Eyebrow="@Sales.Source" Text="Every order in the book. Import a CSV with the same columns as the export to analyse your own data.">
+    <Actions>
+        <button class="rz-btn" @onclick="Import"><Icon Name="upload" /> Import CSV</button>
+        <button class="rz-btn" @onclick="Export"><Icon Name="download" /> Export CSV</button>
+        @if (Sales.Source != "Sample data") { <button class="rz-btn ghost" @onclick="Reset">Back to sample data</button> }
+    </Actions>
+</PageHeader>
+
+@if (error is not null) { <p class="import-error">@error</p> }
+
+<Card>
+    <DataGrid TItem="Order" Items="orders" Columns="columns" PageSize="15" SearchPlaceholder="Search order, product, region" />
+</Card>
+
+@code {
+    private List<Order> orders = new();
+    private string? error;
+
+    private readonly List<GridColumn<Order>> columns = new()
+    {
+        new("Order", o => o.Id),
+        new("Date", o => o.Date.ToString("yyyy-MM-dd")),
+        new("Region", o => o.Region),
+        new("Channel", o => o.Channel),
+        new("Product", o => o.Product),
+        new("Qty", o => o.Quantity) { Numeric = true },
+        new("Revenue", o => o.Revenue) { Numeric = true, Format = "N0" },
+    };
+
+    protected override void OnInitialized() => orders = Sales.Orders.OrderByDescending(o => o.Date).ToList();
+
+    private void Export() => Download.Text($"orders-{DateTime.Today:yyyy-MM-dd}.csv", Sales.ToCsv(orders), "text/csv");
+
+    private async Task Import()
+    {
+        error = null;
+        try
+        {
+            var files = await Files.PickAsync(".csv,text/csv");
+            if (files.Count == 0) return;
+            var text = await files[0].ReadTextAsync();
+            var count = Sales.Import(text, files[0].Name);
+            orders = Sales.Orders.OrderByDescending(o => o.Date).ToList();
+            Toasts.Success($"Imported {count:N0} orders from {files[0].Name}");
+        }
+        catch (FormatException ex)
+        {
+            error = $"That file could not be read: {ex.Message}";
+        }
+    }
+
+    private void Reset()
+    {
+        Sales.Reset();
+        orders = Sales.Orders.OrderByDescending(o => o.Date).ToList();
+    }
+}

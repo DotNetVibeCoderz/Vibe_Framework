@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <Description>Rustzor.Charts.D3: D3.js 7 visualisations for Rustzor — bar, line, pie, force-directed graph and treemap components fed from C#, plus D3Script for your own D3 code.</Description>
+    <RootNamespace>Rustzor.Charts.D3</RootNamespace>
+    <PackageTags>$(PackageTags);d3;d3js;charts;visualization</PackageTags>
+  </PropertyGroup>
+</Project>

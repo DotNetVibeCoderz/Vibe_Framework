@@ -1,0 +1,83 @@
+@page "/"
+
+<PageHeader Title="Practice" Eyebrow="Math flashcards" Text="Type the answer and press Enter. Facts you know come back less often; slow or missed ones come back soon." />
+
+<div class="ops rz-row">
+    @foreach (var op in Deck.Ops)
+    {
+        var o = op;
+        <button class="op @(ops.Contains(o) ? "on" : "")" aria-pressed="@ops.Contains(o)" @onclick="() => Toggle(o)">@o @Name(o)</button>
+    }
+</div>
+
+<div class="stage">
+    <div class="flash @(flash)">
+        <div class="prompt mono">@card.Prompt <span>=</span></div>
+        <input @ref="answerBox" class="answer mono" inputmode="numeric" autocomplete="off" aria-label="Your answer"
+               value="@typed" @oninput="e => typed = e.Value?.ToString() ?? string.Empty" @onkeydown="Key" />
+        <div class="hint">
+            @if (last is not null)
+            {
+                <span class="@(last.Value.Right ? "good" : "bad")">@(last.Value.Right ? $"Yes! {last.Value.Card.Prompt} = {last.Value.Card.Answer} in {last.Value.Seconds:0.0} s" : $"{last.Value.Card.Prompt} = {last.Value.Card.Answer}")</span>
+            }
+            else
+            {
+                <span class="rz-muted">Box @card.Box of 4 · seen @card.Seen×</span>
+            }
+        </div>
+    </div>
+    <div class="session">
+        <StatCard Label="This session" Value="@($"{sessionRight} / {sessionTotal}")" Hint="@(sessionTotal == 0 ? "answer to start" : $"{sessionRight * 100 / Math.Max(1, sessionTotal)}% right")" />
+        <StatCard Label="Streak" Value="@streak.ToString()" Hint="@($"best {bestStreak}")" />
+        <StatCard Label="Mastered" Value="@deck.Cards.Count(c => ops.Contains(c.Op) && c.Box >= 3).ToString()" Hint="@($"of {deck.Cards.Count(c => ops.Contains(c.Op))} facts")" />
+    </div>
+</div>
+
+@code {
+    private Deck deck = Deck.Load();
+    private readonly HashSet<string> ops = new() { "×" };
+    private readonly Random rng = new();
+    private Fact card = new();
+    private string typed = "";
+    private DateTime shownAt;
+    private ElementReference answerBox;
+    private (Fact Card, bool Right, double Seconds)? last;
+    private string flash = "";
+    private int sessionRight, sessionTotal, streak, bestStreak;
+
+    protected override void OnInitialized() => Show(null);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await answerBox.FocusAsync();
+    }
+
+    private void Show(Fact? previous)
+    {
+        card = deck.Next(ops, rng, previous);
+        typed = "";
+        shownAt = DateTime.Now;
+    }
+
+    private void Key(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || typed.Trim().Length == 0) return;
+        var seconds = (DateTime.Now - shownAt).TotalSeconds;
+        var right = int.TryParse(typed.Trim(), out var n) && n == card.Answer;
+        deck.Record(card, right, seconds);
+        sessionTotal++;
+        if (right) { sessionRight++; streak++; bestStreak = Math.Max(bestStreak, streak); } else streak = 0;
+        last = (card, right, seconds);
+        flash = right ? "pulse-good" : "pulse-bad";
+        Show(card);
+    }
+
+    private void Toggle(string op)
+    {
+        if (ops.Contains(op) && ops.Count > 1) ops.Remove(op); else ops.Add(op);
+        last = null;
+        Show(null);
+    }
+
+    private static string Name(string op) => op switch { "×" => "times", "÷" => "divide", "+" => "add", _ => "subtract" };
+}

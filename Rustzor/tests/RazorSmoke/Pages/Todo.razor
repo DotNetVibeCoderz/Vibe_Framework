@@ -1,0 +1,20 @@
+@page "/todo"
+<h2>Todo (@items.Count(i => !i.Done) open)</h2>
+<ul>
+@foreach (var item in items)
+{
+    <li @key="item.Id"><input type="checkbox" @bind="item.Done" /> @item.Title</li>
+}
+</ul>
+<EditForm Model="draft" OnValidSubmit="Add">
+    <InputText @bind-Value="draft.Title" />
+    <button type="submit">Add</button>
+</EditForm>
+@code {
+    class Item { public int Id; public string Title = ""; public bool Done; }
+    class Draft { public string? Title { get; set; } }
+    List<Item> items = new() { new Item { Id = 1, Title = "Write runtime" }, new Item { Id = 2, Title = "Ship Rustzor" } };
+    Draft draft = new();
+    int next = 3;
+    void Add() { if (!string.IsNullOrWhiteSpace(draft.Title)) { items.Add(new Item { Id = next++, Title = draft.Title! }); draft = new(); } }
+}

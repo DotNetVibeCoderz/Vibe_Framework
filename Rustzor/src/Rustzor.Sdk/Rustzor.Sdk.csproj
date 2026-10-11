@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Packs the MSBuild SDK: Sdk/ (props and targets), build/Rustzor.targets,
+    runtime/ (rustzor.wasm and rustzor.js) and tools/ (Rustzor.Build, the
+    bundler and AOT compiler). It compiles nothing of its own.
+
+    runtime/ comes from scripts/build-runtime.sh; tools/ and Sdk/Version.props
+    are produced while packing, so the package always carries the build tool
+    and the Rustzor.Components version it was built with.
+  -->
+  <PropertyGroup>
+    <Description>Rustzor SDK: build C# Razor apps that run in the browser on RustNetRuntime (Rust, compiled to WebAssembly). Use as &lt;Project Sdk="Rustzor.Sdk/$(Version)"&gt;. dotnet build produces a static site; -p:RustzorAot=true adds ahead-of-time WebAssembly.</Description>
+    <PackageType>MSBuildSdk</PackageType>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128;NU5100;NU5129</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DevelopmentDependency>false</DevelopmentDependency>
+    <PackageTags>$(PackageTags);msbuild-sdk</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Sdk\**" Pack="true" PackagePath="Sdk\" />
+    <None Include="build\**" Pack="true" PackagePath="build\" />
+    <None Include="runtime\**" Pack="true" PackagePath="runtime\" />
+  </ItemGroup>
+
+  <Target Name="RustzorStagePackage" BeforeTargets="_GetPackageFiles">
+    <Error Condition="!Exists('runtime\rustzor.wasm') or !Exists('runtime\rustzor.js')"
+           Text="Rustzor.Sdk: runtime/rustzor.wasm is missing. Run scripts/build-runtime.sh before packing." />
+
+    <PropertyGroup>
+      <_RustzorToolsDir>$(IntermediateOutputPath)pack-tools\</_RustzorToolsDir>
+      <_RustzorVersionProps>$(IntermediateOutputPath)Version.props</_RustzorVersionProps>
+    </PropertyGroup>
+
+    <!-- The build tool, published framework-dependent. -->
+    <MSBuild Projects="..\Rustzor.Build\Rustzor.Build.csproj" Targets="Restore;Publish"
+             Properties="Configuration=Release;PublishDir=$(MSBuildProjectDirectory)\$(_RustzorToolsDir);Version=$(Version)" />
+
+    <!-- The version the SDK's implicit Rustzor.Components reference resolves to. -->
+    <WriteLinesToFile File="$(_RustzorVersionProps)" Overwrite="true"
+                      Lines="&lt;Project&gt;&lt;PropertyGroup&gt;&lt;RustzorSdkVersion&gt;$(PackageVersion)&lt;/RustzorSdkVersion&gt;&lt;/PropertyGroup&gt;&lt;/Project&gt;" />
+
+    <ItemGroup>
+      <_RustzorTool Include="$(_RustzorToolsDir)**\*" Exclude="$(_RustzorToolsDir)**\*.pdb" />
+      <None Include="@(_RustzorTool)" Pack="true" PackagePath="tools\%(RecursiveDir)" />
+      <None Include="$(_RustzorVersionProps)" Pack="true" PackagePath="Sdk\" />
+    </ItemGroup>
+  </Target>
+
+</Project>

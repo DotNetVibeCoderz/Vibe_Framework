@@ -1,0 +1,10 @@
+{
+  "id": "math-flashcards",
+  "name": "Math flashcards",
+  "category": "Education",
+  "description": "Arithmetic drills that learn what you find hard: Leitner-box spaced repetition over the times tables and number bonds, typed answers, and a mastery map of every fact.",
+  "icon": "sparkles",
+  "shell": true,
+  "packages": [ "Rustzor.Browser.Storage" ],
+  "nav": [ { "title": "Practice", "href": "", "icon": "sparkles" }, { "title": "Mastery", "href": "mastery", "icon": "chart" } ]
+}

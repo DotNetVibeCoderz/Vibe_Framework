@@ -1,0 +1,22 @@
+<div class="accordion-item">
+    <h2 class="accordion-header">
+        <button class="@Bs.Css("accordion-button", Open ? null : "collapsed")" type="button" aria-expanded="@(Open ? "true" : "false")" @onclick="() => Parent?.Toggle(this)">@Title</button>
+    </h2>
+    @if (Open)
+    {
+        <div class="accordion-collapse show">
+            <div class="accordion-body">@ChildContent</div>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public BsAccordion? Parent { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public bool InitiallyOpen { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool Open => Parent?.IsOpen(this) ?? false;
+
+    protected override void OnInitialized() => Parent?.Init(this);
+}

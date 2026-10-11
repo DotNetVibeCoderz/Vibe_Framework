@@ -1,0 +1,75 @@
+@page "/demand"
+@implements IDisposable
+
+<PageHeader Title="Demand" Eyebrow="Load" Text="The week's demand by hour, today against the forecast, and where the peaks fell." />
+
+@{
+    var week = Grid.History.Where(i => i.Time.Minute == 0).ToList();
+    var days = week.Select(i => i.Time.Date).Distinct().OrderBy(d => d).ToList();
+    var today = Grid.History.Where(i => i.Time.Date == DateTime.Today).ToList();
+    var peaks = days.Select(d => Grid.History.Where(i => i.Time.Date == d).OrderByDescending(i => i.Demand).First()).ToList();
+}
+
+<div class="ov-grid">
+    <Card Title="Today against forecast" Subtitle="Actual demand so far; the forecast is the planning curve" Class="span-2">
+        <EChart Option="TodayOption(today)" Height="280" AriaLabel="Today's demand against forecast" />
+    </Card>
+    <Card Title="Daily peaks" Subtitle="Highest 15-minute demand">
+        <ol class="peaks">
+            @foreach (var p in peaks.OrderByDescending(p => p.Time))
+            {
+                var top = p.Demand == peaks.Max(x => x.Demand);
+                <li class="@(top ? "top" : "")">
+                    <span>@p.Time.ToString("ddd d MMM")</span>
+                    <span class="mono">@p.Time.ToString("HH:mm")</span>
+                    <strong class="mono">@((p.Demand / 1000).ToString("0.00")) GW</strong>
+                </li>
+            }
+        </ol>
+    </Card>
+</div>
+
+<Card Title="Week by hour" Subtitle="GW, darker is heavier; the evening peak is the band to watch" Class="section">
+    <EChart Option="HeatOption(week, days)" Height="330" AriaLabel="Demand by hour across the week" />
+</Card>
+
+@code {
+    protected override void OnInitialized() => Grid.Ticked += Refresh;
+
+    private object TodayOption(List<Interval> today)
+    {
+        var slots = Enumerable.Range(0, 96).Select(i => DateTime.Today.AddMinutes(15 * i)).ToList();
+        return new
+        {
+            animation = false,
+            tooltip = new { trigger = "axis" },
+            legend = new { top = 0 },
+            grid = new { left = 52, right = 12, top = 34, bottom = 28 },
+            xAxis = new { type = "category", boundaryGap = false, data = slots.Select(t => t.ToString("HH:mm")).ToArray(), axisLabel = new { interval = 11 } },
+            yAxis = new { type = "value", name = "MW", min = 15000, splitLine = new { lineStyle = new { type = "dashed" } } },
+            series = new object[]
+            {
+                new { type = "line", name = "Forecast", symbol = "none", smooth = true, color = "#8a94a6", lineStyle = new { type = "dashed", width = 1.5 }, data = slots.Select(t => Math.Round(Grid.DemandAt(t))).ToArray() },
+                new { type = "line", name = "Actual", symbol = "none", smooth = true, color = "#e3a008", lineStyle = new { width = 2.5 }, areaStyle = new { opacity = 0.12 }, data = today.Select(i => Math.Round(i.Demand)).ToArray() },
+            },
+        };
+    }
+
+    private object HeatOption(List<Interval> week, List<DateTime> days)
+    {
+        var cells = week.Select(i => new object[] { i.Time.Hour, days.IndexOf(i.Time.Date), Math.Round(i.Demand / 1000, 2) }).ToArray();
+        return new
+        {
+            tooltip = new { position = "top" },
+            grid = new { left = 76, right = 12, top = 8, bottom = 88 },
+            xAxis = new { type = "category", data = Enumerable.Range(0, 24).Select(h => h.ToString("00")).ToArray(), splitArea = new { show = true } },
+            yAxis = new { type = "category", data = days.Select(d => d.ToString("ddd d")).ToArray(), splitArea = new { show = true } },
+            visualMap = new { min = 18, max = 30, calculable = true, orient = "horizontal", left = "center", bottom = 0, inRange = new { color = new[] { "#eef3f8", "#9cc3e0", "#2c7bb6", "#17325c", "#e3a008" } } },
+            series = new[] { new { type = "heatmap", data = cells, emphasis = new { itemStyle = new { borderColor = "#000", borderWidth = 1 } } } },
+        };
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Grid.Ticked -= Refresh;
+}

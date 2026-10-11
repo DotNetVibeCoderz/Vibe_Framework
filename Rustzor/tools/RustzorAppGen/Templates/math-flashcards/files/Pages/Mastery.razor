@@ -1,0 +1,47 @@
+@page "/mastery"
+
+<PageHeader Title="Times tables" Eyebrow="Mastery map" Text="Each square is one fact. Darker means a higher Leitner box: practised, fast and right.">
+    <Actions>
+        <button class="rz-btn danger" @onclick="Reset"><Icon Name="refresh" /> Start over</button>
+    </Actions>
+</PageHeader>
+
+<Card>
+    <div class="map" role="table" aria-label="Multiplication mastery">
+        <div class="cell head"></div>
+        @for (var b = 1; b <= 12; b++) { <div class="cell head">@b</div> }
+        @for (var a = 1; a <= 12; a++)
+        {
+            <div class="cell head">@a</div>
+            @for (var b = 1; b <= 12; b++)
+            {
+                var c = lookup[$"{a}×{b}"];
+                <div class="cell box-@(c.Seen == 0 ? "new" : c.Box.ToString())" title="@($"{a} × {b} = {a * b} · box {c.Box} · {c.Right}/{c.Seen} right{(c.BestSeconds > 0 ? $" · best {c.BestSeconds:0.0} s" : "")}")">@(a * b)</div>
+            }
+        }
+    </div>
+    <div class="legend rz-row">
+        <span><i class="box-new"></i>Not seen</span><span><i class="box-0"></i>Box 0</span><span><i class="box-1"></i>1</span><span><i class="box-2"></i>2</span><span><i class="box-3"></i>3</span><span><i class="box-4"></i>4 · mastered</span>
+    </div>
+</Card>
+
+<div class="rz-grid rz-grid-3 hardest">
+    @foreach (var c in deck.Cards.Where(c => c.Seen > 0).OrderBy(c => (double)c.Right / c.Seen).ThenBy(c => c.Box).Take(3))
+    {
+        <StatCard Label="Needs work" Value="@($"{c.Prompt} = {c.Answer}")" Hint="@($"{c.Right} of {c.Seen} right")" />
+    }
+</div>
+
+@code {
+    private Deck deck = Deck.Load();
+    private Dictionary<string, Fact> lookup = new();
+
+    protected override void OnInitialized() => lookup = deck.Cards.Where(c => c.Op == "×").ToDictionary(c => c.Key);
+
+    private void Reset()
+    {
+        deck.Reset();
+        OnInitialized();
+        Toasts.Show("Progress cleared", "bad");
+    }
+}

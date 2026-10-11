@@ -1,0 +1,22 @@
+.mono { font-family: var(--rz-font-mono); font-variant-numeric: tabular-nums; }
+.stock-card { margin-top: 16px; }
+.stock-tools { justify-content: space-between; margin-bottom: 12px; }
+.stock-tools .rz-search { flex: 1; max-width: 340px; }
+.cat { font-size: 12px; color: var(--rz-muted); }
+.level-cell { width: 140px; }
+.level { position: relative; height: 8px; border-radius: 4px; background: var(--rz-surface-2); }
+.level span { display: block; height: 100%; border-radius: 4px; background: var(--rz-patina); }
+.level i { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--rz-fg); opacity: .5; }
+tr.low .level span { background: var(--rz-bad); }
+tr.low td:first-child { box-shadow: inset 3px 0 0 var(--rz-bad); }
+.row-actions { text-align: right; white-space: nowrap; }
+.row-actions .rz-btn + .rz-btn { margin-left: 6px; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.error { color: var(--rz-bad); background: var(--rz-bad-soft); border-radius: var(--rz-radius-sm); padding: 8px 10px; white-space: pre-wrap; font-size: 13px; margin: 8px 0 0; }
+td.in { color: var(--rz-good); }
+td.out { color: var(--rz-accent); }
+.sql-layout { display: grid; gap: 16px; }
+.sql { font-family: var(--rz-font-mono); font-size: 13px; line-height: 1.5; resize: vertical; }
+.sql-tools { margin-top: 10px; }
+.hint { font-size: 12px; }
+.result { max-height: 420px; overflow: auto; }

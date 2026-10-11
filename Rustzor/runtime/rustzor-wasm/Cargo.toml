@@ -1,0 +1,16 @@
+[package]
+name = "rustzor-wasm"
+description = "RustNetRuntime hosted in the browser: the IL interpreter, RustBCL and the JS bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rustclr-core.workspace = true
+rustclr-bcl.workspace = true
+rustclr-gc.workspace = true
+rustclr-metadata.workspace = true

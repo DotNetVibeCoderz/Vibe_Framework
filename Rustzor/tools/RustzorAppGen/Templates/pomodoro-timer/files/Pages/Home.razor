@@ -1,0 +1,171 @@
+@page "/"
+@implements IDisposable
+@using System.Globalization
+
+<div class="pomodoro phase-@phase.ToString().ToLowerInvariant()">
+    <section class="clock-card">
+        <div class="phases" role="tablist">
+            <button role="tab" aria-selected="@(phase == Phase.Focus)" class="@(phase == Phase.Focus ? "on" : "")" @onclick="() => Switch(Phase.Focus)">Focus</button>
+            <button role="tab" aria-selected="@(phase == Phase.ShortBreak)" class="@(phase == Phase.ShortBreak ? "on" : "")" @onclick="() => Switch(Phase.ShortBreak)">Short break</button>
+            <button role="tab" aria-selected="@(phase == Phase.LongBreak)" class="@(phase == Phase.LongBreak ? "on" : "")" @onclick="() => Switch(Phase.LongBreak)">Long break</button>
+        </div>
+        <div class="ring" role="timer" aria-live="off" aria-label="@Clock remaining">
+            <svg viewBox="0 0 220 220" aria-hidden="true">
+                <circle class="track" cx="110" cy="110" r="96" />
+                <circle class="progress" cx="110" cy="110" r="96" stroke-dasharray="@Circumference" stroke-dashoffset="@Offset" transform="rotate(-90 110 110)" />
+            </svg>
+            <div class="time mono">@Clock</div>
+            <div class="label">@(phase == Phase.Focus ? (Active is { } t ? t.Title : "Focus") : "Break")</div>
+        </div>
+        <div class="controls rz-row">
+            <button class="rz-btn primary big" @onclick="Toggle">@(running ? "Pause" : remaining < Total ? "Resume" : "Start")</button>
+            <button class="rz-btn" @onclick="Reset" disabled="@(remaining == Total && !running)">Reset</button>
+            <button class="rz-btn ghost" @onclick="Finish" title="End this block now">Skip</button>
+        </div>
+        <p class="next rz-muted">Block @(completedFocus % journal.Settings.LongEvery + 1) of @journal.Settings.LongEvery before a long break</p>
+    </section>
+
+    <section class="side">
+        <Card Title="Tasks" Subtitle="Click a task to focus on it">
+            <ul class="tasks">
+                @foreach (var t in journal.Tasks)
+                {
+                    var task = t;
+                    <li class="@(task == Active ? "active" : "") @(task.Finished ? "finished" : "")">
+                        <input type="checkbox" checked="@task.Finished" aria-label="Done: @task.Title" @onchange="_ => { task.Finished = !task.Finished; journal.Save(); }" />
+                        <button class="task-title" @onclick="() => { activeIndex = journal.Tasks.IndexOf(task); }">@task.Title</button>
+                        <span class="pips" title="@task.Done of @task.Estimate pomodoros">
+                            @for (var n = 0; n < Math.Max(task.Estimate, task.Done); n++) { <i class="@(n < task.Done ? "full" : "")"></i> }
+                        </span>
+                        <button class="rz-btn ghost icon small" aria-label="Remove @task.Title" @onclick="() => Remove(task)"><Icon Name="x" Size="14" /></button>
+                    </li>
+                }
+            </ul>
+            <form class="add rz-row" @onsubmit="Add" @onsubmit:preventDefault="true">
+                <input class="rz-input" placeholder="Add a task" @bind="newTitle" aria-label="New task" />
+                <input class="rz-input est" type="number" min="1" max="12" @bind="newEstimate" aria-label="Estimated pomodoros" />
+                <button class="rz-btn" type="submit"><Icon Name="plus" /></button>
+            </form>
+        </Card>
+        <div class="rz-grid rz-grid-2">
+            <StatCard Label="Focus today" Value="@($"{journal.FocusMinutes / 60}h {journal.FocusMinutes % 60}m")" Hint="@($"{journal.FocusBlocks} blocks")" />
+            <StatCard Label="Tasks done" Value="@($"{journal.Tasks.Count(t => t.Finished)} / {journal.Tasks.Count}")" Hint="@($"{journal.Tasks.Where(t => !t.Finished).Sum(t => Math.Max(0, t.Estimate - t.Done))} blocks left")" />
+        </div>
+        <Card Title="Settings">
+            <div class="settings">
+                <Field Label="Focus (min)"><input class="rz-input" type="number" min="1" max="90" value="@journal.Settings.FocusMinutes" @onchange="e => SetMinutes(e, v => journal.Settings.FocusMinutes = v)" /></Field>
+                <Field Label="Short break"><input class="rz-input" type="number" min="1" max="30" value="@journal.Settings.ShortMinutes" @onchange="e => SetMinutes(e, v => journal.Settings.ShortMinutes = v)" /></Field>
+                <Field Label="Long break"><input class="rz-input" type="number" min="1" max="60" value="@journal.Settings.LongMinutes" @onchange="e => SetMinutes(e, v => journal.Settings.LongMinutes = v)" /></Field>
+            </div>
+            <label class="rz-switch"><input type="checkbox" checked="@journal.Settings.Sound" @onchange="_ => { journal.Settings.Sound = !journal.Settings.Sound; journal.Save(); }" /> Chime when a block ends</label>
+        </Card>
+    </section>
+</div>
+
+@code {
+    private Journal journal = Journal.Load();
+    private Phase phase = Phase.Focus;
+    private double remaining;
+    private bool running;
+    private int completedFocus;
+    private int activeIndex;
+    private DateTime lastTick;
+    private IDisposable? timer;
+    private string newTitle = "";
+    private int newEstimate = 1;
+    private const double Circumference = 2 * Math.PI * 96;
+
+    // The chosen task, or the first unfinished one.
+    private TaskItem? Active =>
+        activeIndex >= 0 && activeIndex < journal.Tasks.Count && !journal.Tasks[activeIndex].Finished
+            ? journal.Tasks[activeIndex]
+            : journal.Tasks.FirstOrDefault(t => !t.Finished);
+    private double Total => 60.0 * (phase switch { Phase.Focus => journal.Settings.FocusMinutes, Phase.ShortBreak => journal.Settings.ShortMinutes, _ => journal.Settings.LongMinutes });
+    private string Clock => $"{(int)Math.Ceiling(remaining) / 60:00}:{(int)Math.Ceiling(remaining) % 60:00}";
+    private string Offset => (Circumference * (1 - remaining / Total)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized()
+    {
+        remaining = Total;
+        timer = Scheduler.SetInterval(Tick, 250);
+    }
+
+    private void Tick()
+    {
+        if (!running) return;
+        // Wall-clock based, so a throttled background tab still keeps time.
+        var now = DateTime.Now;
+        remaining -= (now - lastTick).TotalSeconds;
+        lastTick = now;
+        if (remaining <= 0) Finish();
+        Document.Title = running ? $"{Clock} · {(phase == Phase.Focus ? "Focus" : "Break")}" : "Pomodoro";
+        StateHasChanged();
+    }
+
+    private async Task Toggle()
+    {
+        running = !running;
+        lastTick = DateTime.Now;
+        if (running && journal.Settings.Sound) await AudioEngine.ResumeAsync();
+    }
+
+    private void Reset()
+    {
+        running = false;
+        remaining = Total;
+        Document.Title = "Pomodoro";
+    }
+
+    private void Switch(Phase p)
+    {
+        phase = p;
+        Reset();
+    }
+
+    private void Finish()
+    {
+        var wasFocus = phase == Phase.Focus;
+        if (wasFocus)
+        {
+            completedFocus++;
+            journal.FocusBlocks++;
+            journal.FocusMinutes += (int)Math.Round((Total - Math.Max(0, remaining)) / 60);
+            if (Active is { } t) t.Done++;
+            journal.Save();
+        }
+        if (journal.Settings.Sound) AudioEngine.Notes(wasFocus ? new[] { 76, 79, 84 } : new[] { 84, 79, 76 }, 0.18, 0.06, "sine", 0.25);
+        phase = wasFocus ? (completedFocus % journal.Settings.LongEvery == 0 ? Phase.LongBreak : Phase.ShortBreak) : Phase.Focus;
+        remaining = Total;
+        lastTick = DateTime.Now;
+        Toasts.Show(wasFocus ? "Focus block done. Take a break." : "Break over. Back to it.", "good");
+    }
+
+    private void Add()
+    {
+        if (newTitle.Trim().Length == 0) return;
+        journal.Tasks.Add(new TaskItem { Title = newTitle.Trim(), Estimate = Math.Clamp(newEstimate, 1, 12) });
+        newTitle = "";
+        newEstimate = 1;
+        journal.Save();
+    }
+
+    private void Remove(TaskItem t)
+    {
+        journal.Tasks.Remove(t);
+        journal.Save();
+    }
+
+    private void SetMinutes(ChangeEventArgs e, Action<int> set)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var v) || v < 1) return;
+        set(v);
+        journal.Save();
+        if (!running) remaining = Total;
+    }
+
+    public void Dispose()
+    {
+        timer?.Dispose();
+        Document.Title = "Pomodoro";
+    }
+}

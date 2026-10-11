@@ -1,0 +1,75 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RustzorAppGen.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://RustzorAppGen/Icons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <!-- Type: Bricolage Grotesque for display, IBM Plex Sans for the interface, JetBrains Mono for code. -->
+      <FontFamily x:Key="DisplayFont">avares://RustzorAppGen/Assets/Fonts#Bricolage Grotesque</FontFamily>
+      <FontFamily x:Key="UiFont">avares://RustzorAppGen/Assets/Fonts#IBM Plex Sans</FontFamily>
+      <FontFamily x:Key="MonoFont">avares://RustzorAppGen/Assets/Fonts#JetBrains Mono</FontFamily>
+
+      <ResourceDictionary.ThemeDictionaries>
+        <!-- Dark: blued steel, warm parchment text, forge ember. -->
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Bg0" Color="#121519" />
+          <SolidColorBrush x:Key="Bg1" Color="#171B20" />
+          <SolidColorBrush x:Key="Bg2" Color="#14181D" />
+          <SolidColorBrush x:Key="Raised" Color="#1E232A" />
+          <SolidColorBrush x:Key="Hover" Color="#252B33" />
+          <SolidColorBrush x:Key="Selected" Color="#2C2622" />
+          <SolidColorBrush x:Key="Line" Color="#2A3038" />
+          <SolidColorBrush x:Key="Text" Color="#E6E1D8" />
+          <SolidColorBrush x:Key="Muted" Color="#8B9199" />
+          <SolidColorBrush x:Key="Faint" Color="#5F6670" />
+          <SolidColorBrush x:Key="Ember" Color="#E8692A" />
+          <SolidColorBrush x:Key="EmberText" Color="#F3A26F" />
+          <SolidColorBrush x:Key="EmberSoft" Color="#33E8692A" />
+          <SolidColorBrush x:Key="Patina" Color="#3FB8A5" />
+          <SolidColorBrush x:Key="PatinaSoft" Color="#263FB8A5" />
+          <SolidColorBrush x:Key="Brass" Color="#C9A15A" />
+          <SolidColorBrush x:Key="Danger" Color="#E5484D" />
+          <SolidColorBrush x:Key="UserBubble" Color="#232830" />
+          <SolidColorBrush x:Key="CodeBg" Color="#0F1216" />
+          <Color x:Key="SystemAccentColor">#E8692A</Color>
+          <Color x:Key="SystemAccentColorDark1">#D45A1E</Color>
+          <Color x:Key="SystemAccentColorLight1">#F08043</Color>
+        </ResourceDictionary>
+        <!-- Light: bone and graphite, oxide accent. -->
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="Bg0" Color="#EDEAE5" />
+          <SolidColorBrush x:Key="Bg1" Color="#F6F4F0" />
+          <SolidColorBrush x:Key="Bg2" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Raised" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Hover" Color="#E7E3DD" />
+          <SolidColorBrush x:Key="Selected" Color="#F6E3D6" />
+          <SolidColorBrush x:Key="Line" Color="#D9D3CB" />
+          <SolidColorBrush x:Key="Text" Color="#1F1B16" />
+          <SolidColorBrush x:Key="Muted" Color="#6B655E" />
+          <SolidColorBrush x:Key="Faint" Color="#9C958D" />
+          <SolidColorBrush x:Key="Ember" Color="#C2410C" />
+          <SolidColorBrush x:Key="EmberText" Color="#B4400F" />
+          <SolidColorBrush x:Key="EmberSoft" Color="#22C2410C" />
+          <SolidColorBrush x:Key="Patina" Color="#0F766E" />
+          <SolidColorBrush x:Key="PatinaSoft" Color="#1A0F766E" />
+          <SolidColorBrush x:Key="Brass" Color="#A16207" />
+          <SolidColorBrush x:Key="Danger" Color="#C62828" />
+          <SolidColorBrush x:Key="UserBubble" Color="#ECE7E0" />
+          <SolidColorBrush x:Key="CodeBg" Color="#F3F0EB" />
+          <Color x:Key="SystemAccentColor">#C2410C</Color>
+          <Color x:Key="SystemAccentColorDark1">#A3360A</Color>
+          <Color x:Key="SystemAccentColorLight1">#D9561F</Color>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    <StyleInclude Source="avares://RustzorAppGen/Styles.axaml" />
+  </Application.Styles>
+</Application>

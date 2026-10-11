@@ -1,0 +1,115 @@
+# Rustzor
+
+**Aplikasi web C# di browser, berjalan di atas runtime .NET yang ditulis dengan Rust dan dikompilasi ke WebAssembly.**
+
+[English](README.md) · [Dokumentasi](docs/id/README.md) · [Contoh Aplikasi](docs/id/samples.md) · [Roadmap](PLAN.md) · [Progress](Progress.md)
+
+![Arus, dashboard jaringan listrik real-time yang ditulis dengan C# dan berjalan di Rustzor](docs/images/sample-dashboard.png)
+
+Rustzor adalah platform web untuk C#. Anda menulis Razor component dan kode C# biasa; `dotnet build` mengubahnya menjadi situs statis. Di browser, [RustNetRuntime](https://github.com/DotNetVibeCoderz/Vibe_Runtime) memuat assembly Anda lalu menjalankannya. RustNetRuntime adalah runtime ECMA-335 yang ditulis dengan Rust: IL interpreter, garbage collector, dan base class library-nya semuanya Rust, dikompilasi menjadi satu modul WebAssembly berukuran sekitar 1,8 MB. Tidak ada Mono dan tidak ada runtime di sisi server.
+
+Model pemrogramannya sama dengan Blazor: file `.razor`, `@code`, `@bind`, `EventCallback`, routing, layout, dependency injection, dan form. Di sekelilingnya tersedia component kit, library C# untuk setiap API browser, framework untuk data, game, grafis, dan AI, integrasi dengan library UI dan chart JavaScript populer, serta client untuk SignalR dan gRPC-Web.
+
+> **Preview.** Ini adalah versi `0.1.0-preview.1`. Bagian inti sudah berfungsi dan diuji per aplikasi (lima sample app dan dua puluh satu template hasil generate berjalan di Chrome), tetapi API masih bisa berubah sebelum 1.0. Lihat [apa saja yang belum didukung](docs/id/limitations.md).
+
+## Memulai aplikasi
+
+Anda hanya butuh [.NET 10 SDK](https://dotnet.microsoft.com/download). Tidak perlu yang lain: runtime-nya sudah termasuk di dalam package `Rustzor.Sdk`.
+
+```xml
+<!-- HelloRustzor.csproj -->
+<Project Sdk="Rustzor.Sdk/0.1.0-preview.1">
+  <ItemGroup>
+    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.1" />
+  </ItemGroup>
+</Project>
+```
+
+```csharp
+// Program.cs
+using Rustzor.Components;
+
+var builder = RustzorHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<HelloRustzor.App>("#app");
+await builder.Build().RunAsync();
+```
+
+```razor
+@* Pages/Home.razor *@
+@page "/"
+<Card Title="Hello from Rustzor">
+    <p>Clicked @count times</p>
+    <button class="rz-btn primary" @onclick="() => count++">Click</button>
+</Card>
+
+@code { private int count; }
+```
+
+Tambahkan `App.razor` (sebuah `Router`), `_Imports.razor`, dan `wwwroot/index.html`, lalu jalankan `dotnet build`. Situsnya ada di `bin/Debug/net10.0/wwwroot`; sajikan dengan static file server apa saja. [Panduan memulai](docs/id/getting-started.md) memuat semua file tersebut secara lengkap.
+
+## Apa yang bisa Anda bangun
+
+| | |
+| --- | --- |
+| ![CRM](docs/images/sample-crm.png) **Nusantara CRM.** Papan pipeline dengan drag and drop, perusahaan, kontak, aktivitas, dan laporan SQL di atas SQLite di dalam browser. | ![POS](docs/images/sample-pos.png) **Kedai Senja POS.** Mesin kasir kafe: pilihan minuman, kode promo, pajak PB1, tunai, QRIS dan kartu, struk, laporan shift, di atas IndexedDB. |
+| ![Chat](docs/images/sample-chat.png) **Serambi chat.** Channel, thread, reaksi, dan indikator mengetik antar-tab browser tanpa server, ditambah rekan tim simulasi. | ![API Playground](docs/images/sample-api-grpc.png) **API Playground.** REST, WebSocket, SignalR, dan gRPC-Web ke server ASP.NET Core, dengan setiap frame yang lewat di jaringan ditampilkan. |
+
+Semua sample app, beserta screenshot lainnya: [docs/id/samples.md](docs/id/samples.md).
+
+## Cara kerjanya
+
+```mermaid
+flowchart LR
+    A[".razor and .cs"] -->|dotnet build| B["IL assemblies"]
+    B -->|Rustzor.Build bundle| C["static site: wwwroot/"]
+    C --> D["rustzor.js loader"]
+    D --> E["rustzor.wasm<br/>RustNetRuntime: IL interpreter, GC, RustBCL"]
+    E -->|DOM patches, browser calls| F["Browser APIs"]
+    B -.->|"-p:RustzorAot=true"| G["app.aot.wasm<br/>hot numeric methods"]
+    G -.-> E
+```
+
+- **Mode interpreted** (default): RustNetRuntime meng-interpret IL Anda. Reflection penuh, build cepat, dan runtime yang sama dengan yang berjalan di desktop maupun mikrokontroler.
+- **Mode AOT** (`-p:RustzorAot=true`): build juga mengompilasi method static numerik yang sering dipanggil (hot) ke WebAssembly; sisanya tetap di-interpret, sehingga hasilnya tidak pernah berubah, hanya kecepatannya. Lihat [mode build](docs/id/aot.md).
+
+Component di-render ke virtual DOM di C#; runtime hanya mengirimkan patch-nya ke browser. Setiap library membawa JavaScript-nya sendiri (`rustzor.module.js`, di-embed di dalam assembly-nya), sehingga aplikasi hanya mengunduh kode browser dari library yang benar-benar di-reference. [Arsitektur](docs/id/architecture.md).
+
+## Package
+
+| Kelompok | Package |
+| --- | --- |
+| Inti | `Rustzor.Sdk`, `Rustzor.Components` (model component yang kompatibel dengan Blazor), `Rustzor.Core` (bridge JavaScript, JSON, timer), `Rustzor.UI` (component kit) |
+| API Browser | `Rustzor.Browser.*`: DOM, Fetch, WebSocket, Storage, FileSystem, Notifications, Push, BackgroundSync, Workers, Location, Sensors, Media, Audio, Video, Canvas, OffscreenCanvas, WebGL, WebGPU, WebRTC, WebXR, Bluetooth, USB, Serial, HID, NFC, Gamepad, AI |
+| Framework | `Rustzor.Data` (SQLite, IndexedDB, DuckDB), `Rustzor.Game`, `Rustzor.Graphics`, `Rustzor.AI` |
+| Integrasi | `Rustzor.UI.Bootstrap`, `Rustzor.UI.Tailwind`, `Rustzor.UI.Mui`, `Rustzor.Charts.ChartJs`, `Rustzor.Charts.ECharts`, `Rustzor.Charts.D3` |
+| Jaringan | `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb` |
+
+## RustzorAppGen
+
+Editor desktop (Avalonia) untuk membuat aplikasi Rustzor dengan bantuan asisten AI, **Jack - The Code Bender**, dan galeri berisi 21 template: game, sains, bisnis, industri, edukasi, simulator, dan tools. Jack menulis file, melakukan build, menjalankan, dan memperbaiki aplikasinya. [docs/id/appgen.md](docs/id/appgen.md)
+
+![RustzorAppGen dengan Jack](docs/images/appgen-jack.png)
+
+## Dokumentasi
+
+English: [docs/en](docs/en/README.md) · Bahasa Indonesia: [docs/id](docs/id/README.md)
+
+Memulai · Arsitektur · Component, routing, dan form · Interop JavaScript · Rustzor.UI · API Browser · Framework · Integrasi · Jaringan · Mode build · Contoh Aplikasi · RustzorAppGen · Build dari source · Keterbatasan
+
+## Build dari source
+
+```bash
+bash scripts/build-runtime.sh          # RustNetRuntime ke WebAssembly (butuh Rust + wasm32-unknown-unknown)
+dotnet build src/Rustzor.Build -c Release
+dotnet build Rustzor.slnx
+node tools/dev/serve.mjs samples/Crm/bin/Debug/net10.0/wwwroot 5240
+```
+
+Detail, pengujian, dan packaging: [docs/id/building-from-source.md](docs/id/building-from-source.md).
+
+## Kredit
+
+Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+*Built by Gravicode Studios, led by Kang Fadhil.*
+
+Dirilis di bawah lisensi MIT.

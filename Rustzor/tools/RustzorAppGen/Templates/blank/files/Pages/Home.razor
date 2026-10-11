@@ -1,0 +1,34 @@
+@page "/"
+
+<PageHeader Title="{{ProjectName}}" Eyebrow="Rustzor app" Text="C# Razor components running in your browser on RustNetRuntime." />
+
+<div class="rz-grid rz-grid-3">
+    <StatCard Label="Clicks" Value="@clicks.ToString()" Hint="this session" />
+    <StatCard Label="Started" Value="@started.ToString("HH:mm")" Hint="local time" />
+    <StatCard Label="Runtime" Value="WebAssembly" Hint="RustNetRuntime" />
+</div>
+
+<Card Title="Say hello" Subtitle="Edit Pages/Home.razor, or ask Jack to build something.">
+    <div class="rz-row">
+        <input class="rz-input" placeholder="Your name" @bind="name" @bind:event="oninput" />
+        <button class="rz-btn primary" @onclick="Greet">Greet</button>
+    </div>
+    @if (greeting is not null)
+    {
+        <p class="greeting">@greeting</p>
+    }
+</Card>
+
+@code {
+    private int clicks;
+    private string name = "";
+    private string? greeting;
+    private readonly DateTime started = DateTime.Now;
+
+    private void Greet()
+    {
+        clicks++;
+        greeting = string.IsNullOrWhiteSpace(name) ? "Hello from Rustzor!" : $"Hello, {name}! Welcome to Rustzor.";
+        Toasts.Success("Greeting sent");
+    }
+}

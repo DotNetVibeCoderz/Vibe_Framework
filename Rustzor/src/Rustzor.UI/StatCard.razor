@@ -1,0 +1,25 @@
+@* A key figure with its change and an optional sparkline. The sparkline takes
+   the delta's colour, or the accent when there is no delta. *@
+<section class="rz-card rz-stat">
+    <span class="rz-label">@Label</span>
+    <span class="rz-stat-value">@Value</span>
+    <div class="rz-stat-foot">
+        @if (Delta.HasValue)
+        {
+            <span class="rz-delta @(Delta.Value >= 0 ? "up" : "down")">@(Delta.Value >= 0 ? "+" : "")@Delta.Value.ToString("F1")%</span>
+        }
+        @if (Hint is not null) { <span class="rz-muted" style="font-size:.8rem">@Hint</span> }
+        @if (Trend is not null && Trend.Count > 1)
+        {
+            <Sparkline Values="Trend" Color="@(Delta is null ? "var(--rz-accent)" : Delta >= 0 ? "var(--rz-patina)" : "var(--rz-bad)")" />
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public double? Delta { get; set; }
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public IReadOnlyList<double>? Trend { get; set; }
+}

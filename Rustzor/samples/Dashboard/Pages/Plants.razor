@@ -1,0 +1,81 @@
+@page "/plants"
+@implements IDisposable
+
+<PageHeader Title="Plants" Eyebrow="Fleet" Text="Every unit on the Java–Bali system, its output against its rating, and its state. Trip a unit to rehearse a contingency." />
+
+<div class="filters">
+    <div class="chips" role="group" aria-label="Source">
+        <button class="chip @(source is null ? "on" : "")" @onclick="() => source = null">All sources</button>
+        @foreach (var s in Grid.Sources)
+        {
+            var src = s;
+            <button class="chip @(source == src ? "on" : "")" @onclick="() => source = src"><i style="background:@Grid.Color(src)"></i>@Grid.Label(src)</button>
+        }
+    </div>
+    <select class="rz-input region-pick" aria-label="Region" @onchange="e => region = e.Value?.ToString() ?? string.Empty">
+        <option value="">All regions</option>
+        @foreach (var r in Grid.Regions) { <option value="@r.Id">@r.Name</option> }
+    </select>
+</div>
+
+@{
+    var list = Grid.Plants.Where(p => source is null || p.Source == source).Where(p => region.Length == 0 || p.Region == region)
+        .OrderByDescending(p => p.Output).ThenByDescending(p => p.Capacity).ToList();
+}
+<div class="fleet-sum">
+    <div><span>Units</span><strong>@list.Count</strong></div>
+    <div><span>Rated</span><strong>@Grid.Mw(list.Sum(p => p.Capacity))</strong></div>
+    <div><span>Generating</span><strong>@Grid.Mw(list.Sum(p => p.Output))</strong></div>
+    <div><span>Unavailable</span><strong>@list.Count(p => !p.Online)</strong></div>
+</div>
+
+<div class="rz-table-wrap">
+    <table class="rz-table plants">
+        <thead><tr><th>Unit</th><th>Source</th><th>Region</th><th class="num">Rating</th><th>Output</th><th>State</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var p in list)
+            {
+                var plant = p;
+                var pct = plant.Output / plant.Capacity;
+                <tr class="@plant.Status">
+                    <td><strong>@plant.Name</strong>@if (plant.Note.Length > 0) { <div class="note">@plant.Note</div> }</td>
+                    <td><span class="src"><i style="background:@Grid.Color(plant.Source)"></i>@Grid.Label(plant.Source)</span></td>
+                    <td>@Grid.Regions.First(r => r.Id == plant.Region).Name</td>
+                    <td class="num mono">@plant.Capacity.ToString("N0")</td>
+                    <td class="out-cell">
+                        <span class="out-bar"><span style="width:@((pct * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%;background:@Grid.Color(plant.Source)"></span></span>
+                        <span class="mono">@plant.Output.ToString("N0") MW</span>
+                    </td>
+                    <td><span class="rz-badge @(plant.Status switch { "online" => "good", "tripped" => "bad", _ => "warn" })">@(plant.Status switch { "online" => "Online", "tripped" => "Tripped", _ => "Maintenance" })</span></td>
+                    <td class="num">
+                        @if (plant.Online && plant.Output > 0)
+                        {
+                            <button class="rz-btn small" @onclick="() => Trip(plant)">Trip</button>
+                        }
+                        else if (plant.Status == "tripped")
+                        {
+                            <button class="rz-btn small primary" @onclick="() => Grid.Restore(plant)">Resynchronise</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private Source? source;
+    private string region = "";
+
+    protected override void OnInitialized() => Grid.Ticked += Refresh;
+
+    private void Trip(Plant p)
+    {
+        Grid.Trip(p);
+        Toasts.Error($"{p.Name} tripped. The rest of the fleet picks up its load.");
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Grid.Ticked -= Refresh;
+}

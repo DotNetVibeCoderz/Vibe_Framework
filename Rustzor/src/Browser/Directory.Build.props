@@ -1,0 +1,16 @@
+<Project>
+  <Import Project="..\Directory.Build.props" />
+
+  <!--
+    Every Rustzor.Browser.* library is C# over the bridge plus one JavaScript
+    module, rustzor.module.js, embedded in the assembly. The Rustzor bundler
+    extracts it to _rustzor/modules/<Assembly>.js and rustzor.js installs it, so
+    an app ships the browser code of exactly the libraries it references.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" Condition="Exists('rustzor.module.js')" />
+    <EmbeddedResource Include="rustzor.module.css" LogicalName="rustzor.module.css" Condition="Exists('rustzor.module.css')" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Rustzor.Core\Rustzor.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Rustzor.Components\Rustzor.Components.csproj" Condition="'$(RustzorNoComponents)' != 'true'" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,93 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Rustzor.Interop
+@implements IDisposable
+@* One D3 visualisation. Kind: "bar", "line", "pie", "force", "treemap". *@
+<div @ref="_host" class="rz-d3" style="height:@(Height)px;width:100%;position:relative" role="img" aria-label="@AriaLabel"></div>
+
+@code {
+    private ElementReference _host;
+    private int _handle;
+    private int _callback;
+    private string _last = "";
+
+    [Parameter] public string Kind { get; set; } = "bar";
+    [Parameter] public IReadOnlyList<D3Datum>? Data { get; set; }
+    [Parameter] public IReadOnlyList<D3Point>? Series { get; set; }
+    [Parameter] public IReadOnlyList<D3Node>? Nodes { get; set; }
+    [Parameter] public IReadOnlyList<D3Link>? Links { get; set; }
+    [Parameter] public D3Tree? Tree { get; set; }
+    [Parameter] public int Height { get; set; } = 320;
+    [Parameter] public string AriaLabel { get; set; } = "Visualisation";
+    /// <summary>The label (or node id) of a clicked mark.</summary>
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private string Payload()
+    {
+        var w = new JsonWriter();
+        w.BeginObject();
+        w.Prop("kind", Kind);
+        if (Data is not null)
+        {
+            w.Name("data").BeginArray();
+            foreach (var d in Data) w.BeginObject().Prop("label", d.Label).Prop("value", d.Value).EndObject();
+            w.EndArray();
+        }
+        if (Series is not null)
+        {
+            w.Name("series").BeginArray();
+            foreach (var p in Series) w.BeginObject().Prop("t", p.Time.ToString("yyyy-MM-ddTHH:mm:ss")).Prop("value", p.Value).EndObject();
+            w.EndArray();
+        }
+        if (Nodes is not null)
+        {
+            w.Name("nodes").BeginArray();
+            foreach (var n in Nodes) w.BeginObject().Prop("id", n.Id).Prop("label", n.Label).Prop("group", n.Group).Prop("size", n.Size).EndObject();
+            w.EndArray();
+        }
+        if (Links is not null)
+        {
+            w.Name("links").BeginArray();
+            foreach (var l in Links) w.BeginObject().Prop("source", l.Source).Prop("target", l.Target).Prop("weight", l.Weight).EndObject();
+            w.EndArray();
+        }
+        if (Tree is not null)
+        {
+            w.Name("tree");
+            WriteTree(w, Tree);
+        }
+        w.EndObject();
+        return w.ToString();
+    }
+
+    private static void WriteTree(JsonWriter w, D3Tree t)
+    {
+        w.BeginObject().Prop("name", t.Name);
+        if (t.Children.Count == 0) w.Prop("value", t.Value);
+        else
+        {
+            w.Name("children").BeginArray();
+            foreach (var c in t.Children) WriteTree(w, c);
+            w.EndArray();
+        }
+        w.EndObject();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var json = Payload();
+        if (!firstRender && json == _last) return;
+        _last = json;
+        if (firstRender)
+        {
+            if (OnSelect.HasDelegate) _callback = Callbacks.Register(v => _ = OnSelect.InvokeAsync(v.AsString()));
+            _handle = (await Js.CallAsync("d3.create", Js.Args("el", _host.Id, "spec", new JsonRaw(json), "select", _callback))).AsInt();
+        }
+        else if (_handle != 0) Js.Send("d3.update", Js.Args("h", _handle, "spec", new JsonRaw(json)));
+    }
+
+    public void Dispose()
+    {
+        if (_handle != 0) Js.Send("d3.dispose", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

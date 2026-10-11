@@ -1,0 +1,10 @@
+{
+  "id": "physics-sandbox",
+  "name": "Physics sandbox",
+  "category": "Game",
+  "description": "Drop balls and crates, tune gravity and bounciness, and watch them stack. A playground for Rustzor.Game physics.",
+  "icon": "shapes",
+  "shell": true,
+  "packages": [ "Rustzor.Game" ],
+  "nav": [ { "title": "Sandbox", "href": "", "icon": "shapes" } ]
+}

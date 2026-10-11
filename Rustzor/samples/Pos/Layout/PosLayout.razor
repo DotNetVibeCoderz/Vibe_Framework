@@ -1,0 +1,68 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+
+@* The till's frame: one bar across the top, the screen below. No sidebar, so
+   the register keeps the full width of a counter tablet. *@
+<div class="till">
+    <header class="till-bar">
+        <a class="till-brand" href="">
+            <svg class="till-sun" viewBox="0 0 32 32" aria-hidden="true">
+                <circle cx="16" cy="19" r="8" fill="var(--sugar)" />
+                <rect x="2" y="19" width="28" height="11" fill="var(--rz-surface)" />
+                <path d="M4 22h24M8 26h16" stroke="var(--rz-accent)" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span>Kedai Senja</span>
+        </a>
+        <nav class="till-nav" aria-label="Screens">
+            <NavLink href="" Match="NavLinkMatch.All"><Icon Name="cart" Size="17" /> Register</NavLink>
+            <NavLink href="orders"><Icon Name="receipt" Size="17" /> Orders</NavLink>
+            <NavLink href="shift"><Icon Name="wallet" Size="17" /> Shift</NavLink>
+            <NavLink href="menu"><Icon Name="tag" Size="17" /> Menu</NavLink>
+        </nav>
+        <span class="till-spacer"></span>
+        @if (PosStore.CurrentShift is { } shift)
+        {
+            <span class="till-shift" title="Shift opened @shift.Opened.Replace('T', ' ')"><span class="dot"></span>@shift.Cashier · since @shift.Opened.Substring(11, 5)</span>
+        }
+        else if (ready)
+        {
+            <span class="till-shift closed"><span class="dot"></span>Till closed</span>
+        }
+        <span class="till-clock mono" aria-label="Time">@clock</span>
+        <ThemeToggle />
+    </header>
+    <main class="till-main">
+        @if (ready)
+        {
+            @Body
+        }
+        else
+        {
+            <p class="till-loading">Opening the till…</p>
+        }
+    </main>
+    <footer class="till-foot">Kedai Senja POS · a Rustzor sample · Built by Gravicode Studios, led by Kang Fadhil</footer>
+</div>
+<Toaster />
+
+@code {
+    private bool ready;
+    private string clock = DateTime.Now.ToString("HH:mm");
+    private IDisposable? ticker;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PosStore.Changed += Refresh;
+        ticker = Scheduler.SetInterval(() => { clock = DateTime.Now.ToString("HH:mm"); StateHasChanged(); }, 15_000);
+        await PosStore.ReadyAsync();
+        ready = true;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        PosStore.Changed -= Refresh;
+        ticker?.Dispose();
+    }
+}

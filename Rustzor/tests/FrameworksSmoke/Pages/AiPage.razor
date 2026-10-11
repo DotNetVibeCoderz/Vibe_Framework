@@ -1,0 +1,61 @@
+@page "/ai"
+@using Rustzor.Browser.Storage
+@* The test harness puts provider settings in localStorage ("rz-ai-test"); nothing secret is in this file. *@
+<p id="chunks">chunks: @_chunks</p>
+<p id="vec">vec: @_vec</p>
+<p id="stream">stream: @_stream</p>
+<p id="reply">reply: @_reply</p>
+<p id="rag">rag: @_rag</p>
+
+@code {
+    private string _stream = "", _reply = "…", _rag = "…", _vec = "";
+    private int _chunks;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _chunks = TextChunker.Split(string.Join(" ", Enumerable.Repeat("Rustzor runs C# in the browser.", 80)), 200, 40).Count;
+        var store = new VectorStore();
+        store.Add("a", "cats", new float[] { 1, 0, 0 });
+        store.Add("b", "dogs", new float[] { 0.9f, 0.1f, 0 });
+        store.Add("c", "cars", new float[] { 0, 0, 1 });
+        _vec = string.Join(",", store.Search(new float[] { 1, 0.05f, 0 }, 2).Select(h => h.Record.Text)) + " " + (VectorStore.FromJson(store.ToJson()).Count == 3);
+
+        var cfg = WebStorage.Local.GetJson("rz-ai-test");
+        if (cfg.IsNull) { _reply = "no test config"; return; }
+        IChatModel model = cfg["provider"].AsString() switch
+        {
+            "claude" => new ClaudeChat(cfg["key"].AsString(), cfg["model"].AsString()),
+            "azure" => OpenAiChat.Azure(cfg["endpoint"].AsString(), cfg["key"].AsString(), cfg["model"].AsString()),
+            _ => new OpenAiChat(cfg["endpoint"].AsString(), cfg["key"].AsString(), cfg["model"].AsString()),
+        };
+        try
+        {
+            var convo = new Conversation(model, "You answer in one short sentence.");
+            
+            await convo.SendAsync("Name the capital of Indonesia.", piece => { _stream += piece; StateHasChanged(); });
+            var r = await model.CompleteAsync(new[] { ChatMessage.User("Reply with exactly: RUSTZOR OK") }, new ChatOptions { MaxTokens = 200 });
+            _reply = r.Text.Trim();
+        }
+        catch (Exception e) { _reply = "ERR " + e.Message; }
+        StateHasChanged();
+        try
+        {
+            var rag = new RagPipeline(new KeywordEmbedder(), model);
+            await rag.IndexAsync("doc", "Rustzor was built by Gravicode Studios, led by Kang Fadhil. It runs C# on RustNetRuntime compiled to WebAssembly.");
+            var answer = await rag.AskAsync("Who leads the team that built Rustzor?");
+            _rag = answer.Text.Trim() + " sources=" + answer.Sources.Count;
+        }
+        catch (Exception e) { _rag = "ERR " + e.Message; }
+    }
+
+    /// <summary>A deterministic bag-of-letters embedder, so the RAG path is testable without an embeddings endpoint.</summary>
+    private sealed class KeywordEmbedder : IEmbedder
+    {
+        public Task<List<float[]>> EmbedAsync(IReadOnlyList<string> texts) => Task.FromResult(texts.Select(t =>
+        {
+            var v = new float[26];
+            foreach (var c in t.ToLowerInvariant()) if (c is >= 'a' and <= 'z') v[c - 'a']++;
+            return v;
+        }).ToList());
+    }
+}

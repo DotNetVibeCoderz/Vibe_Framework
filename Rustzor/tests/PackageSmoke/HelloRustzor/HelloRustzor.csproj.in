@@ -1,0 +1,6 @@
+<Project Sdk="Rustzor.Sdk/@VERSION@">
+  <!-- Built only from the packed packages, the way a NuGet user builds. -->
+  <ItemGroup>
+    <PackageReference Include="Rustzor.UI" Version="@VERSION@" />
+  </ItemGroup>
+</Project>

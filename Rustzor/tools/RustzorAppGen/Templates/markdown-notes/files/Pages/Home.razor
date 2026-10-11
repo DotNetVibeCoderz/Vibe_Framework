@@ -1,0 +1,136 @@
+@page "/"
+@implements IDisposable
+
+<div class="notes-app" @onkeydown="Keys">
+    <aside class="list">
+        <div class="list-head">
+            <div class="rz-search"><Icon Name="search" Size="16" /><input class="rz-input" placeholder="Search notes" value="@query" @oninput="e => query = e.Value?.ToString() ?? string.Empty" /></div>
+            <button class="rz-btn primary icon" aria-label="New note" title="New note (Ctrl+Alt+N)" @onclick="New"><Icon Name="plus" /></button>
+        </div>
+        <ul>
+            @foreach (var n in Visible())
+            {
+                var note = n;
+                <li class="@(note == current ? "on" : "")" @onclick="() => Open(note)">
+                    <div class="t">@if (note.Pinned) { <Icon Name="pin" Size="13" /> }@note.Title</div>
+                    <div class="d">@Snippet(note) · @Ago(note.Updated)</div>
+                </li>
+            }
+        </ul>
+        @if (!Visible().Any()) { <p class="rz-muted empty">No note contains “@query”.</p> }
+    </aside>
+
+    @if (current is not null)
+    {
+        <section class="editor">
+            <div class="bar">
+                <span class="rz-muted counts">@Markdown.Words(current.Body) words · @Math.Max(1, (int)Math.Ceiling(Markdown.Words(current.Body) / 220.0)) min read</span>
+                <span class="rz-topbar-spacer"></span>
+                <button class="rz-btn ghost small" @onclick="TogglePin"><Icon Name="pin" Size="15" /> @(current.Pinned ? "Unpin" : "Pin")</button>
+                <button class="rz-btn ghost small" @onclick="Export"><Icon Name="download" Size="15" /> .md</button>
+                <button class="rz-btn ghost small danger-text" @onclick="Delete"><Icon Name="trash" Size="15" /> Delete</button>
+            </div>
+            <div class="panes">
+                <textarea class="source" spellcheck="true" aria-label="Markdown" value="@current.Body" @oninput="Edit"></textarea>
+                <article class="preview">@((MarkupString)html)</article>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private List<Note> notes = new();
+    private Note? current;
+    private string query = "";
+    private string html = "";
+    private IDisposable? saver;
+    private bool dirty;
+
+    protected override void OnInitialized()
+    {
+        notes = NoteStore.Load();
+        Open(Sorted().First());
+        // Save at most twice a second while typing.
+        saver = Scheduler.SetInterval(() => { if (dirty) { NoteStore.Save(notes); dirty = false; } }, 500);
+    }
+
+    private IEnumerable<Note> Sorted() => notes.OrderByDescending(n => n.Pinned).ThenByDescending(n => n.Updated);
+
+    private IEnumerable<Note> Visible() =>
+        query.Trim().Length == 0 ? Sorted() : Sorted().Where(n => n.Body.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private void Open(Note note)
+    {
+        current = note;
+        html = Markdown.ToHtml(note.Body);
+    }
+
+    private void Edit(ChangeEventArgs e)
+    {
+        if (current is null) return;
+        current.Body = e.Value?.ToString() ?? "";
+        current.Updated = NoteStore.Now();
+        html = Markdown.ToHtml(current.Body);
+        dirty = true;
+    }
+
+    private void New()
+    {
+        var note = new Note { Id = Guid.NewGuid().ToString("N"), Body = "# New note\n\n", Updated = NoteStore.Now() };
+        notes.Add(note);
+        query = "";
+        Open(note);
+        dirty = true;
+    }
+
+    private void TogglePin()
+    {
+        if (current is null) return;
+        current.Pinned = !current.Pinned;
+        dirty = true;
+    }
+
+    private void Delete()
+    {
+        if (current is null) return;
+        notes.Remove(current);
+        if (notes.Count == 0) notes.Add(new Note { Id = Guid.NewGuid().ToString("N"), Body = "# Untitled\n", Updated = NoteStore.Now() });
+        Open(Sorted().First());
+        NoteStore.Save(notes);
+        Toasts.Show("Note deleted", "bad");
+    }
+
+    private void Export()
+    {
+        if (current is null) return;
+        var name = new string(current.Title.Select(c => char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : '-').ToArray()).Trim('-');
+        Download.Text((name.Length == 0 ? "note" : name) + ".md", current.Body, "text/markdown");
+    }
+
+    private void Keys(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey && e.AltKey && e.Key.ToLowerInvariant() == "n") New();
+        else if (e.CtrlKey && e.Key.ToLowerInvariant() == "s") Export();
+    }
+
+    private static string Snippet(Note n)
+    {
+        var line = n.Body.Split('\n').Skip(1)
+            .Select(l => l.Trim().TrimStart('#', '-', '*', '>', ' '))
+            .Select(l => l.StartsWith("[ ] ") || l.StartsWith("[x] ") ? l[4..] : l)
+            .FirstOrDefault(l => l.Length > 0) ?? "";
+        return line.Length > 40 ? line[..40] + "…" : line.Length == 0 ? "Empty" : line;
+    }
+
+    private static string Ago(long ms)
+    {
+        var span = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds(ms);
+        return span.TotalMinutes < 1 ? "now" : span.TotalHours < 1 ? $"{(int)span.TotalMinutes}m" : span.TotalDays < 1 ? $"{(int)span.TotalHours}h" : $"{(int)span.TotalDays}d";
+    }
+
+    public void Dispose()
+    {
+        saver?.Dispose();
+        if (dirty) NoteStore.Save(notes);
+    }
+}

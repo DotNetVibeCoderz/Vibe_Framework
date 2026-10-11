@@ -1,0 +1,95 @@
+# Samples
+
+Complete apps in `samples/`, each with its own visual identity. They are the best way to see how the pieces fit together, and each was driven end to end in Chrome while it was built.
+
+To run one from a checkout (after [building from source](building-from-source.md)):
+
+```bash
+dotnet build samples/Crm/Crm.csproj
+node tools/dev/serve.mjs samples/Crm/bin/Debug/net10.0/wwwroot 5240
+# open http://localhost:5240
+```
+
+Every sample keeps its data in the browser, so a reload keeps your changes; each has a reset action to start over.
+
+## Nusantara CRM
+
+`samples/Crm` · `Rustzor.UI`, `Rustzor.Data` (SQLite)
+
+A B2B CRM for a coffee-equipment supplier. An overview with pipeline funnel, weighted forecast and the activities that need attention today; a deal board with drag and drop between stages; companies with detail pages (deals, people, activity timeline); contacts; activities grouped by due date; and reports computed in SQL, with an "ask the database" box that runs your own `select`.
+
+| | |
+| --- | --- |
+| ![Overview](../images/sample-crm.png) | ![Deal board](../images/sample-crm-deals.png) |
+| ![Reports](../images/sample-crm-reports.png) | ![Dark theme](../images/sample-crm-dark.png) |
+
+Shows: `AppShell`, `DataGrid`, charts, drag and drop events, route parameters (`/companies/{Id:long}`), SQLite with persistence, `decimal` money.
+
+## Kedai Senja POS
+
+`samples/Pos` · `Rustzor.UI`, `Rustzor.Data` (IndexedDB), `Rustzor.Browser.DOM`
+
+A café till built for a counter tablet. A product grid by category; drink options (size, hot or iced, sugar, extras); the open order drawn as a strip of thermal paper; promo codes, PB1 10% restaurant tax and rounding to Rp 100; payment by cash with tender buttons and change, QRIS or card; a printable 58 mm receipt; order history with void and reprint; a shift report with sales by hour and method, best sellers and the cash-drawer count; and a menu editor with a sold-out switch. F2 searches, F9 charges.
+
+| | |
+| --- | --- |
+| ![Register](../images/sample-pos.png) | ![Receipt](../images/sample-pos-receipt.png) |
+| ![Shift report](../images/sample-pos-shift.png) | ![Orders](../images/sample-pos-orders.png) |
+
+Shows: a custom layout without a sidebar, keyboard shortcuts (`Window.OnKeyDown`), modals, print CSS, IndexedDB stores, a phone layout with a bottom order bar.
+
+## Arus grid dashboard
+
+`samples/Dashboard` · `Rustzor.UI`, `Rustzor.Charts.ECharts`
+
+A control-room view of a simulated Java–Bali power system that ticks every two seconds: demand, frequency, spinning reserve, renewables share and carbon intensity; 24-hour generation stacked by source; a one-line diagram of the 500 kV backbone where dashes run with the flow and colour shows loading; plants, demand forecasts and a week-by-hour heatmap; an alarm log; and a drill that trips a plant so you can watch the frequency dip and recover. Plant names are real places; every number is simulated.
+
+| | |
+| --- | --- |
+| ![Overview](../images/sample-dashboard.png) | ![The 500 kV backbone during a trip](../images/sample-dashboard-grid.png) |
+| ![Demand](../images/sample-dashboard-demand.png) | ![Dark theme](../images/sample-dashboard-dark.png) |
+
+Shows: live updates with `Scheduler.SetInterval`, ECharts options built from C# objects, an SVG diagram generated in Razor with CSS animation.
+
+## Serambi chat
+
+`samples/Chat` · `Rustzor.UI`, `Rustzor.Data`, `Rustzor.Browser.WebSocket` (`BroadcastChannel`), `Rustzor.Browser.Storage`, `Rustzor.Browser.FileSystem`
+
+A team chat for a small studio. Each browser tab signs in as a person; open a second tab as someone else and the two talk live, with no server: messages are kept in IndexedDB and announced to other tabs over `BroadcastChannel`. Channels and direct messages with unread counts, threads, reactions, pins, editing, image attachments, search, typing indicators, Markdown-lite with escaped HTML, @mentions, and three simulated teammates who answer when you mention them.
+
+| | |
+| --- | --- |
+| ![A thread](../images/sample-chat.png) | ![Who's on this tab?](../images/sample-chat-signin.png) |
+| ![Dark theme](../images/sample-chat-dark.png) | ![Phone](../images/sample-chat-mobile.png) |
+
+Shows: real-time between tabs, `MarkupString` with escaping, per-tab identity in `sessionStorage`, components that subscribe to a store.
+
+## API Playground
+
+`samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
+
+A small ASP.NET Core .NET 10 server (`Server/`) and a Rustzor client (`Client/`) that tries the four ways a browser talks to a backend, with a "wire" log of every request, response and frame.
+
+- **REST**: a request builder with presets for a book catalogue (`/api/books`): list, search, get, create, replace, delete, validation errors, 404, a slow call, any status. Pretty-printed responses with timings and headers, and the equivalent C#.
+- **WebSocket**: `/ws` echoes what you send and pushes a server tick every two seconds.
+- **SignalR**: `/hubs/chat` with rooms and presence, `InvokeAsync<int>("Add")`, a streamed countdown and a method that always fails.
+- **gRPC-Web**: `playground.Inventory`: a unary call, NOT_FOUND, a streamed list and live prices with cancellation, with each frame in hex.
+
+| | |
+| --- | --- |
+| ![REST](../images/sample-api-rest.png) | ![WebSocket](../images/sample-api-ws.png) |
+| ![SignalR](../images/sample-api-signalr.png) | ![gRPC-Web](../images/sample-api-grpc.png) |
+
+Run it (the server also serves the built client):
+
+```bash
+dotnet build samples/ApiPlayground/Client
+dotnet run --project samples/ApiPlayground/Server --urls http://localhost:5250
+# open http://localhost:5250
+```
+
+To serve the client elsewhere, put the server's address in the top bar; the server allows cross-origin calls.
+
+## More apps
+
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Nine more samples from the [roadmap](../../PLAN.md) are on the way: ERP, video conference, a Figma-like design tool, a Photoshop-like editor, GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.

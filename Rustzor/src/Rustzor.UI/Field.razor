@@ -1,0 +1,12 @@
+@* A labelled form field: put any input inside. *@
+<div class="rz-field">
+    <label>@Label</label>
+    @ChildContent
+    @if (Help is not null) { <span class="rz-muted" style="font-size:.8rem">@Help</span> }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string? Help { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

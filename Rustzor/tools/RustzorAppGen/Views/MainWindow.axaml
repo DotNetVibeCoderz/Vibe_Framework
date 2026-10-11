@@ -1,0 +1,482 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="https://github.com/avaloniaui/avaloniaedit"
+        xmlns:vm="using:RustzorAppGen.Views"
+        xmlns:m="using:RustzorAppGen.Models"
+        xmlns:s="using:RustzorAppGen.Services"
+        x:Class="RustzorAppGen.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding WindowTitle}"
+        Icon="avares://RustzorAppGen/Assets/appgen.ico"
+        Width="1440" Height="900" MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
+
+
+  <Grid x:Name="Root" RowDefinitions="40,42,*,Auto,Auto,26">
+
+    <!-- Title bar: mark, menu, project. The system caption buttons sit at the right. -->
+    <Border Grid.Row="0" Background="{DynamicResource Bg0}" IsHitTestVisible="True">
+      <Grid ColumnDefinitions="Auto,Auto,*,150" Margin="12,0,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsHitTestVisible="False">
+          <Image Source="avares://RustzorAppGen/Assets/appgen.png" Width="20" Height="20" />
+          <TextBlock Text="Rustzor" Classes="display" FontSize="14" VerticalAlignment="Center" />
+          <TextBlock Text="App Generator" FontSize="13" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" />
+        </StackPanel>
+        <Menu Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+          <MenuItem Header="_File">
+            <MenuItem Header="New Project…" InputGesture="Ctrl+Shift+N" Click="OnNewProject" />
+            <MenuItem Header="Open Project Folder…" InputGesture="Ctrl+Shift+O" Click="OnOpenProject" />
+            <MenuItem Header="Open File…" InputGesture="Ctrl+O" Click="OnOpenFile" />
+            <MenuItem x:Name="RecentMenu" Header="Open Recent" />
+            <Separator />
+            <MenuItem Header="Save" InputGesture="Ctrl+S" Click="OnSave" />
+            <MenuItem Header="Save All" InputGesture="Ctrl+Shift+S" Click="OnSaveAll" />
+            <MenuItem Header="Close Tab" InputGesture="Ctrl+W" Click="OnCloseTab" />
+            <MenuItem Header="Close Project" Click="OnCloseProject" />
+            <Separator />
+            <MenuItem Header="Settings…" InputGesture="Ctrl+OemComma" Click="OnSettings" />
+            <Separator />
+            <MenuItem Header="Exit" InputGesture="Alt+F4" Click="OnExit" />
+          </MenuItem>
+          <MenuItem Header="_Edit">
+            <MenuItem Header="Undo" InputGesture="Ctrl+Z" Click="OnUndo" />
+            <MenuItem Header="Redo" InputGesture="Ctrl+Y" Click="OnRedo" />
+            <Separator />
+            <MenuItem Header="Go to Line…" InputGesture="Ctrl+G" Click="OnGoToLine" />
+            <MenuItem Header="Format Document" InputGesture="Shift+Alt+F" Click="OnFormat" />
+          </MenuItem>
+          <MenuItem Header="_View">
+            <MenuItem Header="Explorer" InputGesture="Ctrl+B" Click="OnToggleExplorer" />
+            <MenuItem Header="Chat with Jack" InputGesture="Ctrl+Shift+L" Click="OnToggleChat" />
+            <MenuItem Header="Output and Problems" InputGesture="Ctrl+J" Click="OnToggleLogs" />
+            <Separator />
+            <MenuItem x:Name="LineNumbersMenu" Header="Line Numbers" Click="OnToggleLineNumbers">
+              <MenuItem.Icon><CheckBox IsChecked="{Binding ShowLineNumbers}" IsHitTestVisible="False" /></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Word Wrap" Click="OnToggleWordWrap">
+              <MenuItem.Icon><CheckBox IsChecked="{Binding WordWrap}" IsHitTestVisible="False" /></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Switch Light/Dark Theme" Click="OnToggleTheme" />
+          </MenuItem>
+          <MenuItem Header="_Build">
+            <MenuItem Header="Build" InputGesture="Ctrl+Shift+B" Click="OnBuild" />
+            <MenuItem Header="Run" InputGesture="F5" Click="OnRun" />
+            <MenuItem Header="Stop" InputGesture="Shift+F5" Click="OnStop" />
+            <Separator />
+            <MenuItem Header="Deploy (publish and package)" Click="OnDeploy" />
+          </MenuItem>
+          <MenuItem Header="_Help">
+            <MenuItem Header="Rustzor on GitHub" Click="OnOpenRepo" />
+            <MenuItem Header="About Rustzor App Generator" Click="OnAbout" />
+          </MenuItem>
+        </Menu>
+        <TextBlock Grid.Column="2" Text="{Binding ProjectName}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="{DynamicResource Muted}" FontSize="12" IsHitTestVisible="False" />
+      </Grid>
+    </Border>
+
+    <!-- Toolbar. -->
+    <Border Grid.Row="1" Background="{DynamicResource Bg1}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1">
+      <Grid ColumnDefinitions="*,Auto" Margin="8,0">
+        <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+          <Button Classes="tool" ToolTip.Tip="New project (Ctrl+Shift+N)" Click="OnNewProject">
+            <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconNewProject}" /><TextBlock Text="New" /></StackPanel>
+          </Button>
+          <Button Classes="tool" ToolTip.Tip="Open project folder (Ctrl+Shift+O)" Click="OnOpenProject">
+            <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconOpenFolder}" /><TextBlock Text="Open" /></StackPanel>
+          </Button>
+          <Button Classes="tool" ToolTip.Tip="Open file (Ctrl+O)" Click="OnOpenFile"><PathIcon Data="{StaticResource IconOpenFile}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Close project" Click="OnCloseProject" IsEnabled="{Binding HasProject}"><PathIcon Data="{StaticResource IconCloseProject}" /></Button>
+          <Border Width="1" Height="20" Background="{DynamicResource Line}" Margin="6,0" />
+          <Button Classes="tool" ToolTip.Tip="Save (Ctrl+S)" Click="OnSave" IsEnabled="{Binding HasDocument}"><PathIcon Data="{StaticResource IconSave}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Go to line (Ctrl+G)" Click="OnGoToLine" IsEnabled="{Binding HasDocument}"><PathIcon Data="{StaticResource IconGoToLine}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Format document (Shift+Alt+F)" Click="OnFormat" IsEnabled="{Binding HasDocument}"><PathIcon Data="{StaticResource IconFormat}" /></Button>
+          <Border Width="1" Height="20" Background="{DynamicResource Line}" Margin="6,0" />
+          <Button Classes="tool build" ToolTip.Tip="Build (Ctrl+Shift+B)" Click="OnBuild" IsEnabled="{Binding HasProject}">
+            <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconBuild}" /><TextBlock Text="Build" /></StackPanel>
+          </Button>
+          <Button Classes="tool run" ToolTip.Tip="Run in the browser (F5)" Click="OnRun" IsEnabled="{Binding HasProject}">
+            <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconRun}" /><TextBlock Text="Run" /></StackPanel>
+          </Button>
+          <Button Classes="tool" ToolTip.Tip="Stop the local server (Shift+F5)" Click="OnStop" IsVisible="{Binding ServingUrl, Converter={x:Static ObjectConverters.IsNotNull}}"><PathIcon Data="{StaticResource IconStop}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Deploy: publish a Release build and package the site" Click="OnDeploy" IsEnabled="{Binding HasProject}">
+            <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconDeploy}" /><TextBlock Text="Deploy" /></StackPanel>
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" IsVisible="{Binding IsBusy}" VerticalAlignment="Center">
+            <ProgressBar IsIndeterminate="True" Width="80" Height="3" MinHeight="3" />
+            <TextBlock Text="{Binding BusyText}" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+          <Button Classes="tool" ToolTip.Tip="Explorer (Ctrl+B)" Click="OnToggleExplorer"><PathIcon Data="{StaticResource IconPanelLeft}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Output and problems (Ctrl+J)" Click="OnToggleLogs"><PathIcon Data="{StaticResource IconPanelBottom}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Chat with Jack (Ctrl+Shift+L)" Click="OnToggleChat"><PathIcon Data="{StaticResource IconPanelRight}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Switch light/dark" Click="OnToggleTheme"><PathIcon Data="{StaticResource IconTheme}" /></Button>
+          <Button Classes="tool" ToolTip.Tip="Settings (Ctrl+,)" Click="OnSettings"><PathIcon Data="{StaticResource IconSettings}" /></Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Workspace: explorer | editor | chat. -->
+    <Grid Grid.Row="2" x:Name="Workspace" ColumnDefinitions="260,1,*,1,420">
+
+      <!-- Explorer -->
+      <Border Grid.Column="0" x:Name="ExplorerPanel" Background="{DynamicResource Bg1}">
+        <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="*,Auto" Margin="14,10,6,6">
+            <TextBlock Text="EXPLORER" Classes="label" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding HasProject}">
+              <Button Classes="tool" ToolTip.Tip="New file" Click="OnNewFile"><PathIcon Data="{StaticResource IconNewFile}" /></Button>
+              <Button Classes="tool" ToolTip.Tip="New folder" Click="OnNewFolder"><PathIcon Data="{StaticResource IconNewFolder}" /></Button>
+              <Button Classes="tool" ToolTip.Tip="Refresh" Click="OnRefreshTree"><PathIcon Data="{StaticResource IconRefresh}" /></Button>
+            </StackPanel>
+          </Grid>
+
+          <TreeView Grid.Row="1" x:Name="ProjectTree" ItemsSource="{Binding Tree}" IsVisible="{Binding HasProject}"
+                    Background="Transparent" Padding="4,0" DoubleTapped="OnTreeDoubleTapped" SelectionChanged="OnTreeSelection">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="m:FileNode">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Open" Click="OnTreeOpen" />
+                <MenuItem Header="New File…" Click="OnNewFile" />
+                <MenuItem Header="New Folder…" Click="OnNewFolder" />
+                <MenuItem Header="Rename…" Click="OnTreeRename" />
+                <MenuItem Header="Delete" Click="OnTreeDelete" />
+                <Separator />
+                <MenuItem Header="Reveal in File Explorer" Click="OnTreeReveal" />
+              </ContextMenu>
+            </TreeView.ContextMenu>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate ItemsSource="{Binding Children}" DataType="m:FileNode">
+                <StackPanel Orientation="Horizontal" Spacing="7" Height="24">
+                  <PathIcon Data="{StaticResource IconFolder}" Width="13" Height="13" Foreground="{DynamicResource Brass}" IsVisible="{Binding IsDirectory}" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Tag}" Foreground="{Binding TagBrush}" Classes="mono" FontSize="9" FontWeight="Bold" Width="22"
+                             IsVisible="{Binding !IsDirectory}" VerticalAlignment="Center" TextAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+
+          <!-- No project yet. -->
+          <ScrollViewer Grid.Row="1" IsVisible="{Binding NoProject}">
+            <StackPanel Margin="16,8,16,16" Spacing="12">
+              <TextBlock Text="No project open" Classes="display" FontSize="17" />
+              <TextBlock Text="Start a new Rustzor app from a template, or open a folder you already have." TextWrapping="Wrap" Classes="muted" />
+              <Button Classes="primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnNewProject" Content="New project…" />
+              <Button Classes="secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnOpenProject" Content="Open folder…" />
+              <TextBlock Text="RECENT" Classes="label" Margin="0,10,0,0" IsVisible="{Binding RecentProjects.Count, Converter={x:Static vm:PathConverters.NonZero}}" />
+              <ItemsControl ItemsSource="{Binding RecentProjects}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <Button Classes="tool" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="OnOpenRecent" Tag="{Binding}" ToolTip.Tip="{Binding}">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Converter={x:Static vm:PathConverters.FileName}}" FontWeight="Medium" />
+                        <TextBlock Text="{Binding Converter={x:Static vm:PathConverters.Parent}}" FontSize="11" Classes="muted" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+      <GridSplitter Grid.Column="1" x:Name="ExplorerSplitter" ResizeDirection="Columns" DragCompleted="OnSplitterDragged" />
+
+      <!-- Editor -->
+      <Grid Grid.Column="2" RowDefinitions="34,*" Background="{DynamicResource Bg2}">
+        <Border Background="{DynamicResource Bg1}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Documents}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="m:OpenDocument">
+                  <Border Classes="tab" Classes.active="{Binding IsActive}" PointerPressed="OnTabPressed" Tag="{Binding}" ToolTip.Tip="{Binding FullPath}">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto">
+                      <Border Classes="tabmark" Height="2" VerticalAlignment="Top" Grid.ColumnSpan="3" Margin="-12,0,-6,0" />
+                      <TextBlock Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <Ellipse Grid.Column="1" Width="7" Height="7" Fill="{DynamicResource Ember}" IsVisible="{Binding IsDirty}" Margin="0,0,4,0" VerticalAlignment="Center" />
+                      <Button Grid.Column="2" Classes="tool" Padding="3" Click="OnTabClose" Tag="{Binding}" VerticalAlignment="Center" ToolTip.Tip="Close (Ctrl+W)">
+                        <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" />
+                      </Button>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
+
+        <ae:TextEditor Grid.Row="1" x:Name="Editor" IsVisible="{Binding HasDocument}"
+                       FontFamily="{StaticResource MonoFont}" FontSize="14" Padding="6,4"
+                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
+
+        <!-- Welcome: nothing open. -->
+        <Grid Grid.Row="1" IsVisible="{Binding NoDocument}">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Spacing="18">
+            <TextBlock Text="Bend some code." Classes="display" FontSize="44" Foreground="{DynamicResource Text}" />
+            <TextBlock TextWrapping="Wrap" FontSize="15" Classes="muted" LineHeight="23"
+                       Text="Describe an app to Jack on the right and he writes the Razor components, builds them and fixes what breaks. Or open a file from the explorer and work by hand." />
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+              <Grid.Styles>
+                <Style Selector="TextBlock.key">
+                  <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+                  <Setter Property="Foreground" Value="{DynamicResource EmberText}" />
+                  <Setter Property="Margin" Value="0,4,24,4" />
+                  <Setter Property="FontSize" Value="12" />
+                </Style>
+                <Style Selector="TextBlock.what">
+                  <Setter Property="Margin" Value="0,4" />
+                  <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+                </Style>
+              </Grid.Styles>
+              <TextBlock Classes="key" Text="Ctrl+Shift+N" /><TextBlock Grid.Column="1" Classes="what" Text="New project from a template" />
+              <TextBlock Grid.Row="1" Classes="key" Text="Ctrl+L" /><TextBlock Grid.Row="1" Grid.Column="1" Classes="what" Text="Ask Jack" />
+              <TextBlock Grid.Row="2" Classes="key" Text="Ctrl+Enter" /><TextBlock Grid.Row="2" Grid.Column="1" Classes="what" Text="Send the message" />
+              <TextBlock Grid.Row="3" Classes="key" Text="Ctrl+Shift+B" /><TextBlock Grid.Row="3" Grid.Column="1" Classes="what" Text="Build" />
+              <TextBlock Grid.Row="4" Classes="key" Text="F5" /><TextBlock Grid.Row="4" Grid.Column="1" Classes="what" Text="Run in the browser" />
+              <TextBlock Grid.Row="5" Classes="key" Text="Ctrl+G" /><TextBlock Grid.Row="5" Grid.Column="1" Classes="what" Text="Go to line" />
+            </Grid>
+          </StackPanel>
+          <TextBlock Text="Built by Gravicode Studios, led by Kang Fadhil" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,14" FontSize="11" Foreground="{DynamicResource Faint}" />
+        </Grid>
+      </Grid>
+
+      <GridSplitter Grid.Column="3" x:Name="ChatSplitter" ResizeDirection="Columns" DragCompleted="OnSplitterDragged" />
+
+      <!-- Jack -->
+      <Border Grid.Column="4" x:Name="ChatPanel" Background="{DynamicResource Bg1}">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <StackPanel Margin="14,12,10,10" Spacing="10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Border Width="34" Height="34" CornerRadius="17" Background="{DynamicResource EmberSoft}">
+                <PathIcon Data="{StaticResource IconSpark}" Width="16" Height="16" Foreground="{DynamicResource Ember}" />
+              </Border>
+              <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="Jack" Classes="display" FontSize="16" />
+                <TextBlock Text="The Code Bender" FontSize="11" Classes="muted" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Classes="tool" ToolTip.Tip="Clear the chat" Click="OnClearChat"><PathIcon Data="{StaticResource IconClear}" /></Button>
+                <Button Classes="tool" ToolTip.Tip="Hide (Ctrl+Shift+L)" Click="OnToggleChat"><PathIcon Data="{StaticResource IconHide}" /></Button>
+              </StackPanel>
+            </Grid>
+            <ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}" HorizontalAlignment="Stretch" ToolTip.Tip="Model Jack uses">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="m:ModelChoice">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding Display}" FontWeight="Medium" />
+                    <TextBlock Text="{Binding ProviderLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <Border Grid.Row="1" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,1">
+            <Grid>
+              <ScrollViewer x:Name="ChatScroll" Padding="14,10,14,10">
+                <ItemsControl ItemsSource="{Binding Chat}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="m:ChatItem">
+                      <Panel Margin="0,6,0,10">
+                        <!-- You -->
+                        <StackPanel IsVisible="{Binding IsUser}" HorizontalAlignment="Right" MaxWidth="340" Spacing="4">
+                          <ItemsControl ItemsSource="{Binding Images}" IsVisible="{Binding HasImages}" HorizontalAlignment="Right">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate><Border CornerRadius="6" ClipToBounds="True" Margin="2"><Image Source="{Binding}" MaxHeight="120" MaxWidth="160" /></Border></DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <Border Background="{DynamicResource UserBubble}" CornerRadius="12,12,3,12" Padding="12,8">
+                            <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" LineHeight="20" />
+                          </Border>
+                        </StackPanel>
+                        <!-- Jack -->
+                        <Grid IsVisible="{Binding IsJack}" ColumnDefinitions="3,*">
+                          <Border Classes="heat" Classes.hot="{Binding IsStreaming}" />
+                          <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                              <TextBlock Text="Jack" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource EmberText}" />
+                              <TextBlock Text="{Binding Stamp}" FontSize="11" Classes="muted" />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding Strikes}" IsVisible="{Binding HasStrikes}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="m:ToolStrike">
+                                  <Border Classes="strike" HorizontalAlignment="Left" ToolTip.Tip="{Binding Result}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                      <PathIcon Data="{StaticResource IconBuild}" Width="10" Height="10" Foreground="{DynamicResource Patina}" />
+                                      <TextBlock Text="{Binding Display}" Classes="mono" FontSize="11" Foreground="{DynamicResource Patina}" TextTrimming="CharacterEllipsis" MaxWidth="300" />
+                                      <TextBlock Text="✓" FontSize="11" Foreground="{DynamicResource Patina}" IsVisible="{Binding Done}" />
+                                    </StackPanel>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Segments}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="m:ChatSegment">
+                                  <Panel>
+                                    <SelectableTextBlock IsVisible="{Binding IsText}" Text="{Binding Text}" TextWrapping="Wrap" LineHeight="21" Margin="0,2" />
+                                    <Border IsVisible="{Binding IsCode}" Classes="codeblock">
+                                      <Grid RowDefinitions="Auto,Auto">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="10,4,4,0">
+                                          <TextBlock Text="{Binding Language}" Classes="mono muted" FontSize="10" VerticalAlignment="Center" />
+                                          <Button Grid.Column="1" Classes="tool" Padding="5,2" ToolTip.Tip="Copy" Click="OnCopyCode" Tag="{Binding Text}"><PathIcon Data="{StaticResource IconCopy}" Width="11" Height="11" /></Button>
+                                          <Button Grid.Column="2" Classes="tool" Padding="5,2" ToolTip.Tip="Insert at the cursor" Click="OnInsertCode" Tag="{Binding Text}"><PathIcon Data="{StaticResource IconInsert}" Width="11" Height="11" /></Button>
+                                        </Grid>
+                                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                          <SelectableTextBlock Text="{Binding Text}" Classes="mono" FontSize="12" Margin="10,2,10,10" />
+                                        </ScrollViewer>
+                                      </Grid>
+                                    </Border>
+                                  </Panel>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Grid>
+                        <!-- Problem -->
+                        <Border IsVisible="{Binding IsError}" BorderBrush="{DynamicResource Danger}" BorderThickness="3,0,0,0" Padding="12,6" Background="{DynamicResource Raised}" CornerRadius="0,6,6,0">
+                          <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="{DynamicResource Text}" />
+                        </Border>
+                      </Panel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+
+              <!-- Empty chat: what Jack does, and three ways to start. -->
+              <StackPanel x:Name="ChatIntro" VerticalAlignment="Center" Margin="22" Spacing="12">
+                <TextBlock Text="What shall we forge?" Classes="display" FontSize="22" TextWrapping="Wrap" />
+                <TextBlock TextWrapping="Wrap" Classes="muted" LineHeight="20"
+                           Text="Describe an app. Jack picks a template, writes the components, builds the project and fixes errors until it compiles. Attach a screenshot or sketch to show what you mean." />
+                <Button Classes="secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="OnExamplePrompt"
+                        Tag="Build a point-of-sale app for a coffee shop: product grid with categories, a cart with quantities and tax, and a sales dashboard. Store sales in IndexedDB.">
+                  <TextBlock TextWrapping="Wrap" Text="A coffee shop point of sale with a sales dashboard" />
+                </Button>
+                <Button Classes="secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="OnExamplePrompt"
+                        Tag="Make a breakout-style arcade game with paddle, ball physics, bricks with power-ups, particles, sound effects and a high score saved in local storage.">
+                  <TextBlock TextWrapping="Wrap" Text="A breakout arcade game with power-ups and high scores" />
+                </Button>
+                <Button Classes="secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Click="OnExamplePrompt"
+                        Tag="Create a factory machine monitoring dashboard: live simulated sensor readings (temperature, vibration, OEE) per machine, alerts when thresholds are crossed, and trend charts.">
+                  <TextBlock TextWrapping="Wrap" Text="A live factory machine monitor with alerts" />
+                </Button>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- Composer -->
+          <Border Grid.Row="2" Margin="12" Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12"
+                  DragDrop.AllowDrop="True" x:Name="Composer">
+            <StackPanel>
+              <ItemsControl ItemsSource="{Binding Attachments}" Margin="8,8,8,0" IsVisible="{Binding Attachments.Count, Converter={x:Static vm:PathConverters.NonZero}}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:Attachment">
+                    <Grid Margin="0,0,6,6" ToolTip.Tip="{Binding Name}">
+                      <Border CornerRadius="6" ClipToBounds="True" Width="52" Height="52">
+                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                      </Border>
+                      <Button Classes="tool" Padding="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0"
+                              Background="{DynamicResource Bg1}" CornerRadius="9" Click="OnRemoveAttachment" Tag="{Binding}">
+                        <PathIcon Data="{StaticResource IconClose}" Width="9" Height="9" />
+                      </Button>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBox x:Name="ChatBox" Text="{Binding ChatInput}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" MaxHeight="180"
+                       Watermark="Describe what to build or change…" BorderThickness="0" Background="Transparent" Padding="12,10" />
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="6,0,6,6">
+                <Button Classes="tool" ToolTip.Tip="Attach images" Click="OnAttach"><PathIcon Data="{StaticResource IconAttach}" /></Button>
+                <TextBlock Grid.Column="1" Text="Ctrl+Enter to send" FontSize="11" Foreground="{DynamicResource Faint}" VerticalAlignment="Center" Margin="4,0" />
+                <Panel Grid.Column="2">
+                  <Button Classes="primary" Click="OnSend" IsEnabled="{Binding CanSend}" IsVisible="{Binding !IsJackWorking}" Padding="12,6">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconSend}" Width="13" Height="13" Foreground="White" /><TextBlock Text="Send" /></StackPanel>
+                  </Button>
+                  <Button Classes="secondary" Click="OnStopJack" IsVisible="{Binding IsJackWorking}" Padding="12,6">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource IconStop}" Width="11" Height="11" /><TextBlock Text="Stop" /></StackPanel>
+                  </Button>
+                </Panel>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Logs -->
+    <GridSplitter Grid.Row="3" x:Name="LogsSplitter" Height="1" ResizeDirection="Rows" />
+    <Border Grid.Row="4" x:Name="LogsPanel" Height="190" Background="{DynamicResource Bg1}">
+      <Grid RowDefinitions="32,*">
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="10,0,6,0">
+          <ToggleButton x:Name="OutputTab" Classes="tool" Content="OUTPUT" FontSize="11" FontWeight="SemiBold" IsChecked="True" Click="OnLogsTab" Tag="0" Background="Transparent" BorderThickness="0" />
+          <ToggleButton Grid.Column="1" x:Name="ProblemsTab" Classes="tool" FontSize="11" FontWeight="SemiBold" Click="OnLogsTab" Tag="1" Background="Transparent" BorderThickness="0">
+            <TextBlock Text="{Binding ProblemsHeader}" />
+          </ToggleButton>
+          <StackPanel Grid.Column="3" Orientation="Horizontal">
+            <Button Classes="tool" ToolTip.Tip="Clear" Click="OnClearLogs"><PathIcon Data="{StaticResource IconClear}" /></Button>
+            <Button Classes="tool" ToolTip.Tip="Hide (Ctrl+J)" Click="OnToggleLogs"><PathIcon Data="{StaticResource IconHide}" /></Button>
+          </StackPanel>
+        </Grid>
+        <ListBox Grid.Row="1" x:Name="LogList" ItemsSource="{Binding Logs}" Background="Transparent" IsVisible="{Binding LogsTab, Converter={x:Static vm:PathConverters.IsZero}}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="m:LogLine">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Stamp}" Classes="mono" FontSize="11" Foreground="{DynamicResource Faint}" />
+                <SelectableTextBlock Text="{Binding Text}" Classes="mono" FontSize="12" Foreground="{Binding Brush}" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Panel Grid.Row="1" IsVisible="{Binding LogsTab, Converter={x:Static vm:PathConverters.NonZero}}">
+          <ListBox ItemsSource="{Binding Problems}" Background="Transparent" DoubleTapped="OnProblemOpen">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="s:BuildProblem">
+                <Grid ColumnDefinitions="Auto,*,Auto" ToolTip.Tip="Double-click to open">
+                  <TextBlock Text="{Binding Severity}" Width="62" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Ember}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding Message}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Classes="mono muted" FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
+                             Text="{Binding Converter={x:Static vm:PathConverters.ProblemLocation}}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Panel>
+      </Grid>
+    </Border>
+
+    <!-- Status bar -->
+    <Border Grid.Row="5" Background="{DynamicResource Bg0}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,0">
+        <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+          <Ellipse Classes="ember-dot" Classes.hot="{Binding IsJackWorking}" Width="7" Height="7" Fill="{DynamicResource Ember}" />
+          <TextBlock Text="{Binding JackStatus}" FontSize="11" Foreground="{DynamicResource Muted}" />
+          <TextBlock Text="·" FontSize="11" Foreground="{DynamicResource Faint}" />
+          <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+          <Button Classes="tool" Padding="0" Click="OnOpenServing" IsVisible="{Binding ServingUrl, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding ServingUrl}" FontSize="11" Foreground="{DynamicResource Patina}" />
+          </Button>
+          <TextBlock Text="{Binding CaretText}" FontSize="11" Foreground="{DynamicResource Muted}" />
+          <TextBlock Text="{Binding LanguageText}" FontSize="11" Foreground="{DynamicResource Muted}" />
+          <TextBlock Text="UTF-8" FontSize="11" Foreground="{DynamicResource Muted}" IsVisible="{Binding HasDocument}" />
+          <TextBlock Text="{Binding SelectedModel.Display, FallbackValue=''}" FontSize="11" Foreground="{DynamicResource EmberText}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

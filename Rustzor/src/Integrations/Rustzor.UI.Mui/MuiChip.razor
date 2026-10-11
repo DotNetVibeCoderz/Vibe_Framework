@@ -1,0 +1,29 @@
+<MuiIsland Tree="Tree()" OnEvent="Handle" />
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Color { get; set; } = "default";
+    /// <summary>"filled" or "outlined".</summary>
+    [Parameter] public string Variant { get; set; } = "filled";
+    [Parameter] public string Size { get; set; } = "medium";
+    /// <summary>A Material Icons name.</summary>
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    private object Tree()
+    {
+        var p = new MuiProps
+        {
+            ["label"] = Label,
+            ["color"] = Color,
+            ["variant"] = Variant,
+            ["size"] = Size,
+        }.Set("icon", Icon is null ? null : Mui.Icon(Icon));
+        if (OnClick.HasDelegate) p["onClick"] = Mui.Event("click");
+        if (OnDelete.HasDelegate) p["onDelete"] = Mui.Event("delete");
+        return Mui.El("Chip", p);
+    }
+
+    private Task Handle(MuiEvent e) => e.Name == "delete" ? OnDelete.InvokeAsync() : OnClick.InvokeAsync();
+}

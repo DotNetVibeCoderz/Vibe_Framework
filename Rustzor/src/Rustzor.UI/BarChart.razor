@@ -1,0 +1,53 @@
+@* Grouped vertical bars on one scale, with value grid and category labels. *@
+@using System.Globalization
+<div class="rz-stack" style="gap:10px">
+    @if (Series.Count > 1)
+    {
+        <div class="rz-legend">
+            @for (var s = 0; s < Series.Count; s++)
+            {
+                <span><i style="background:@ColorOf(s)"></i>@Series[s].Name</span>
+            }
+        </div>
+    }
+    <svg class="rz-chart" viewBox="0 0 @W @Height" role="img" aria-label="@AriaLabel">
+        @for (var t = 0; t <= 4; t++)
+        {
+            var v = Max * t / 4;
+            <line class="grid" x1="@F(PadL)" x2="@F(W - 8)" y1="@F(Y(v))" y2="@F(Y(v))" />
+            @Svg.Text(PadL - 8, Y(v) + 4, "end", Tick(v))
+        }
+        @for (var i = 0; i < Labels.Count; i++)
+        {
+            var groupX = PadL + i * GroupW;
+            for (var s = 0; s < Series.Count; s++)
+            {
+                var value = i < Series[s].Values.Count ? Series[s].Values[i] : 0;
+                var barW = GroupW * 0.7 / Series.Count;
+                var x = groupX + GroupW * 0.15 + s * barW;
+                <rect x="@F(x)" y="@F(Y(value))" width="@F(Math.Max(1, barW - 2))" height="@F(Math.Max(0, Y(0) - Y(value)))" rx="3" fill="@ColorOf(s)"><title>@Labels[i]: @value.ToString("N0")</title></rect>
+            }
+            @Svg.Text(groupX + GroupW / 2, Height - 6, "middle", Labels[i])
+        }
+    </svg>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<string> Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public List<ChartSeries> Series { get; set; } = new();
+    [Parameter] public int Height { get; set; } = 240;
+    [Parameter] public string AriaLabel { get; set; } = "Bar chart";
+
+    private const int W = 640, PadL = 52, PadT = 10, PadB = 26;
+
+    private double Max => LineChart.NiceMax(Series.SelectMany(s => s.Values).DefaultIfEmpty(1).Max());
+    private double GroupW => (W - PadL - 8) / (double)Math.Max(1, Labels.Count);
+
+    private static string F(double v) => v.ToString("F1", CultureInfo.InvariantCulture);
+
+    private string ColorOf(int s) => Series[s].Color ?? Palette.Chart(s);
+
+    private double Y(double v) => PadT + (Max - v) * (Height - PadT - PadB) / Max;
+
+    private static string Tick(double v) => v >= 1000 ? (v / 1000).ToString("0.#", CultureInfo.InvariantCulture) + "k" : v.ToString("N0");
+}

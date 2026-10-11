@@ -1,0 +1,5 @@
+.sandbox { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+.sandbox .controls input[type=range] { width: 100%; accent-color: var(--rz-accent); }
+.sandbox .stats { display: grid; gap: 12px; margin-top: 8px; }
+.sandbox .stage { border-radius: 12px; overflow: hidden; border: 1px solid var(--rz-line); }
+@media (max-width: 900px) { .sandbox { grid-template-columns: 1fr; } }

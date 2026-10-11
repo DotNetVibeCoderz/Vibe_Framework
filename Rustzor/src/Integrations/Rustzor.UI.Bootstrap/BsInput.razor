@@ -1,0 +1,45 @@
+<div class="@Bs.Css("mb-3", Class)">
+    @if (Label is not null)
+    {
+        <label class="form-label" for="@_id">@Label</label>
+    }
+    @if (Rows > 0)
+    {
+        <textarea id="@_id" class="@Bs.Css("form-control", Invalid ? "is-invalid" : null)" rows="@Rows" placeholder="@Placeholder" value="@Value" @oninput="Changed"></textarea>
+    }
+    else
+    {
+        <input id="@_id" type="@Type" class="@Bs.Css("form-control", Invalid ? "is-invalid" : null)" placeholder="@Placeholder" value="@Value" @oninput="Changed" />
+    }
+    @if (Invalid && Error is not null)
+    {
+        <div class="invalid-feedback">@Error</div>
+    }
+    else if (Help is not null)
+    {
+        <div class="form-text">@Help</div>
+    }
+</div>
+
+@code {
+    private static int _ids;
+    private readonly string _id = "bs-input-" + ++_ids;
+
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? Help { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Invalid { get; set; }
+    /// <summary>When above zero, a textarea with this many rows.</summary>
+    [Parameter] public int Rows { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private Task Changed(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? "";
+        return ValueChanged.InvokeAsync(Value);
+    }
+}

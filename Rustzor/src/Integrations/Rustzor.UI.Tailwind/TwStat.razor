@@ -1,0 +1,16 @@
+<div class="rounded-xl border border-stone-200 bg-white p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <p class="text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">@Label</p>
+    <p class="mt-2 font-display text-3xl font-semibold tabular-nums text-stone-900 dark:text-stone-50">@Value</p>
+    @if (Delta is not null)
+    {
+        <p class="@Tw.Css("mt-1 text-sm font-medium tabular-nums", Positive ? "text-patina-700 dark:text-patina-400" : "text-red-600 dark:text-red-400")">@(Positive ? "▲" : "▼") @Delta <span class="font-normal text-stone-500 dark:text-stone-400">@Caption</span></p>
+    }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string? Delta { get; set; }
+    [Parameter] public bool Positive { get; set; } = true;
+    [Parameter] public string? Caption { get; set; }
+}

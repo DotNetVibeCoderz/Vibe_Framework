@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Data</RootNamespace>
+    <Description>Rustzor.Data: data in the browser for Rustzor. Typed IndexedDB object stores, SQLite (sql.js) with persistence, and DuckDB WASM for analytics over CSV, Parquet and JSON — all from C#.</Description>
+    <PackageTags>$(PackageTags);indexeddb;sqlite;duckdb;database;offline;analytics</PackageTags>
+  </PropertyGroup>
+</Project>

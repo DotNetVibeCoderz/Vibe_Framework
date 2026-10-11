@@ -1,0 +1,284 @@
+@page "/"
+@implements IDisposable
+
+@if (PosStore.CurrentShift is null)
+{
+    <OpenShift />
+}
+else
+{
+    <div class="register">
+        <section class="catalog" aria-label="Menu">
+            <div class="catalog-bar">
+                <label class="search">
+                    <Icon Name="search" Size="17" />
+                    <input @ref="searchBox" type="search" placeholder="Find an item" aria-label="Find an item" value="@query"
+                           @oninput="e => query = e.Value?.ToString() ?? string.Empty" @onkeydown="SearchKey" />
+                    <kbd>F2</kbd>
+                </label>
+                <div class="cats" role="tablist" aria-label="Category">
+                    @foreach (var c in new[] { "All" }.Concat(Menu.Categories))
+                    {
+                        var cat = c;
+                        <button role="tab" aria-selected="@(category == cat ? "true" : "false")" class="cat tone-@(cat == "All" ? "all" : Menu.Tone(cat)) @(category == cat ? "on" : "")" @onclick="() => category = cat">
+                            @cat <span>@(cat == "All" ? PosStore.Products.Count : PosStore.Products.Count(p => p.Category == cat))</span>
+                        </button>
+                    }
+                </div>
+            </div>
+            @{ var shown = Shown(); }
+            @if (shown.Count == 0)
+            {
+                <EmptyState Icon="search" Title="No item matches" Text="Check the spelling, or clear the search to see the whole menu." />
+            }
+            <div class="tiles">
+                @foreach (var p in shown)
+                {
+                    var item = p;
+                    <button class="tile tone-@Menu.Tone(item.Category)" disabled="@item.SoldOut" @onclick="() => Pick(item)" aria-label="@($"{item.Name}, {Menu.Rp(item.Price)}{(item.SoldOut ? ", sold out" : "")}")">
+                        <span class="tile-mark">@Menu.Initials(item.Name)</span>
+                        <span class="tile-name">@item.Name</span>
+                        <span class="tile-price">@Menu.Short(item.Price)</span>
+                        @if (item.SoldOut) { <span class="tile-out">Sold out</span> }
+                        @{ var inCart = Cart.Lines.Where(l => l.ProductId == item.Id).Sum(l => l.Qty); }
+                        @if (inCart > 0) { <span class="tile-count">@inCart</span> }
+                    </button>
+                }
+            </div>
+        </section>
+
+        <aside class="ticket-wrap" aria-label="Current order" @ref="ticketBox">
+            <div class="ticket">
+                <div class="ticket-head">
+                    <div>
+                        <div class="ticket-no">Order #@PosStore.NextNumber().ToString("000")</div>
+                        <div class="ticket-sub">@DateTime.Now.ToString("ddd d MMM") · @PosStore.CurrentShift.Cashier</div>
+                    </div>
+                    <div class="seg" role="group" aria-label="Service">
+                        <button class="@(Cart.Service == "dine-in" ? "on" : "")" @onclick="@(() => Cart.Service = "dine-in")">Dine in</button>
+                        <button class="@(Cart.Service == "takeaway" ? "on" : "")" @onclick="@(() => Cart.Service = "takeaway")">Takeaway</button>
+                    </div>
+                </div>
+                @if (Cart.Service == "dine-in")
+                {
+                    <label class="ticket-table">Table <input inputmode="numeric" maxlength="3" value="@Cart.Table" placeholder="–" aria-label="Table number" @onchange="e => Cart.Table = e.Value?.ToString() ?? string.Empty" /></label>
+                }
+                <div class="ticket-rule"></div>
+                @if (Cart.Lines.Count == 0)
+                {
+                    <p class="ticket-empty">Tap an item to start the order. Drinks ask for size, ice and sugar; the rest go straight on.</p>
+                }
+                <ul class="ticket-lines">
+                    @foreach (var l in Cart.Lines)
+                    {
+                        var line = l;
+                        <li>
+                            <div class="tl-main">
+                                <span class="tl-name">@line.Name</span>
+                                @if (line.Options.Length > 0) { <span class="tl-opt">@line.Options</span> }
+                            </div>
+                            <div class="tl-qty">
+                                <button aria-label="One less @line.Name" @onclick="() => Cart.Step(line, -1)"><Icon Name="@(line.Qty == 1 ? "trash" : "minus")" Size="14" /></button>
+                                <span>@line.Qty</span>
+                                <button aria-label="One more @line.Name" @onclick="() => Cart.Step(line, 1)"><Icon Name="plus" Size="14" /></button>
+                            </div>
+                            <span class="tl-total">@Menu.Num(line.Total)</span>
+                        </li>
+                    }
+                </ul>
+                <div class="ticket-rule"></div>
+                <div class="promo">
+                    @if (Cart.Promo.Length > 0)
+                    {
+                        <span class="promo-on"><Icon Name="tag" Size="14" /> @Menu.Promos[Cart.Promo].Label</span>
+                        <button class="link" @onclick="() => Cart.ApplyPromo(string.Empty)">Remove</button>
+                    }
+                    else
+                    {
+                        <input placeholder="Promo code" aria-label="Promo code" value="@promoText" @oninput="e => promoText = e.Value?.ToString() ?? string.Empty" @onkeydown="PromoKey" />
+                        <button class="link" @onclick="ApplyPromo">Apply</button>
+                    }
+                </div>
+                <dl class="sums">
+                    <div><dt>Subtotal · @Cart.Items item@(Cart.Items == 1 ? "" : "s")</dt><dd>@Menu.Num(Cart.Subtotal)</dd></div>
+                    @if (Cart.Discount > 0) { <div class="minus"><dt>Promo @Cart.Promo</dt><dd>−@Menu.Num(Cart.Discount)</dd></div> }
+                    <div><dt>PB1 10%</dt><dd>@Menu.Num(Cart.Tax)</dd></div>
+                    @if (Cart.Rounding != 0) { <div class="minus"><dt>Rounding</dt><dd>−@Menu.Num(-Cart.Rounding)</dd></div> }
+                </dl>
+                <div class="ticket-total"><span>Total</span><strong>@Menu.Rp(Cart.Total)</strong></div>
+                <div class="ticket-actions">
+                    <button class="rz-btn" disabled="@(Cart.Lines.Count == 0)" @onclick="Cart.Clear">Clear</button>
+                    <button class="rz-btn primary charge" disabled="@(Cart.Lines.Count == 0)" @onclick="StartPay">Charge @Menu.Rp(Cart.Total) <kbd>F9</kbd></button>
+                </div>
+            </div>
+            <div class="ticket-tear" aria-hidden="true"></div>
+        </aside>
+    </div>
+    @if (Cart.Lines.Count > 0)
+    {
+        @* Phones stack the ticket under the menu; this bar keeps the total in reach. *@
+        <button class="ticket-peek" @onclick="ShowTicket">
+            <span>@Cart.Items item@(Cart.Items == 1 ? "" : "s") · view order</span><strong>@Menu.Rp(Cart.Total)</strong>
+        </button>
+    }
+}
+
+<Modal Open="@(picking is not null)" OpenChanged="v => { if (!v) picking = null; }" Title="@(picking?.Name ?? "")">
+    <ChildContent>
+        @if (picking is not null)
+        {
+            @for (var g = 0; g < groups.Length; g++)
+            {
+                var gi = g;
+                <fieldset class="opt-group">
+                    <legend>@groups[gi].Name</legend>
+                    <div class="opt-choices">
+                        @for (var c = 0; c < groups[gi].Choices.Length; c++)
+                        {
+                            var ci = c;
+                            var choice = groups[gi].Choices[ci];
+                            <button class="opt @(chosen[gi] == ci ? "on" : "")" aria-pressed="@(chosen[gi] == ci ? "true" : "false")" @onclick="() => chosen[gi] = ci">
+                                @choice.Label @if (choice.Extra > 0) { <small>+@Menu.Short(choice.Extra)</small> }
+                            </button>
+                        }
+                    </div>
+                </fieldset>
+            }
+        }
+    </ChildContent>
+    <Footer>
+        <span class="opt-price mono">@(picking is null ? "" : Menu.Rp(picking.Price + Picks().Sum(p => p.Extra)))</span>
+        <button class="rz-btn" @onclick="() => picking = null">Cancel</button>
+        <button class="rz-btn primary" @onclick="AddPicked">Add to order</button>
+    </Footer>
+</Modal>
+
+<PayDialog @bind-Open="paying" OnPaid="Paid" />
+
+<Modal Open="@(lastOrder is not null)" OpenChanged="v => { if (!v) lastOrder = null; }" Title="Paid">
+    <ChildContent>
+        @if (lastOrder is not null)
+        {
+            @if (lastOrder.Change > 0)
+            {
+                <div class="change-due"><span>Change due</span><strong>@Menu.Rp(lastOrder.Change)</strong></div>
+            }
+            <div class="receipt-stage"><Receipt Order="lastOrder" /></div>
+        }
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="Window.Print"><Icon Name="receipt" /> Print receipt</button>
+        <button class="rz-btn primary" @onclick="() => lastOrder = null">Next order</button>
+    </Footer>
+</Modal>
+
+@code {
+    private string query = "";
+    private string category = "All";
+    private string promoText = "";
+    private ElementReference searchBox;
+    private ElementReference ticketBox;
+    private Product? picking;
+    private OptionGroup[] groups = Array.Empty<OptionGroup>();
+    private int[] chosen = Array.Empty<int>();
+    private bool paying;
+    private Order? lastOrder;
+    private IDisposable? keys;
+
+    protected override void OnInitialized()
+    {
+        Cart.Changed += Refresh;
+        PosStore.Changed += Refresh;
+        keys = Window.OnKeyDown(Shortcut);
+    }
+
+    private List<Product> Shown()
+    {
+        var q = query.Trim();
+        return PosStore.Products
+            .Where(p => category == "All" || p.Category == category)
+            .Where(p => q.Length == 0 || p.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void Pick(Product p)
+    {
+        if (p.SoldOut) return;
+        groups = Menu.OptionsFor(p.Category);
+        chosen = new int[groups.Length];
+        picking = p;
+    }
+
+    private List<(string Label, long Extra)> Picks() => groups.Select((g, i) => g.Choices[chosen[i]]).ToList();
+
+    private void AddPicked()
+    {
+        if (picking is null) return;
+        var picks = Picks();
+        Cart.Add(picking, Menu.Describe(groups, picks), picks.Sum(p => p.Extra));
+        picking = null;
+    }
+
+    private void SearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && Shown().FirstOrDefault(p => !p.SoldOut) is { } first)
+        {
+            Pick(first);
+            query = "";
+        }
+        else if (e.Key == "Escape") query = "";
+    }
+
+    private void PromoKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") ApplyPromo();
+    }
+
+    private void ApplyPromo()
+    {
+        if (promoText.Trim().Length == 0) return;
+        if (Cart.ApplyPromo(promoText)) promoText = "";
+        else Toasts.Warning($"{promoText.Trim().ToUpperInvariant()} is not a promo code. Try SENJA10 or PAGI20.");
+    }
+
+    private void ShowTicket() => ticketBox.ScrollIntoView(block: "start");
+
+    private void StartPay()
+    {
+        if (Cart.Lines.Count == 0) return;
+        if (Cart.Service == "dine-in" && Cart.Table.Trim().Length == 0)
+        {
+            Toasts.Warning("Add a table number, or switch the order to takeaway.");
+            return;
+        }
+        paying = true;
+    }
+
+    private void Paid(Order order)
+    {
+        paying = false;
+        lastOrder = order;
+    }
+
+    private async void Shortcut(KeyPress k)
+    {
+        if (k.Key == "F2" && picking is null && !paying)
+        {
+            await searchBox.FocusAsync();
+        }
+        else if (k.Key == "F9" && picking is null && !paying && lastOrder is null)
+        {
+            StartPay();
+            StateHasChanged();
+        }
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Cart.Changed -= Refresh;
+        PosStore.Changed -= Refresh;
+        keys?.Dispose();
+    }
+}

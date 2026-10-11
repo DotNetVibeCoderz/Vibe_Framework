@@ -1,0 +1,29 @@
+<div role="alert" class="@Tw.Css("flex gap-3 rounded-lg border-l-4 p-4 text-sm", Tw.Variant(Tone, Tones))">
+    <div class="min-w-0 flex-1">
+        @if (Title is not null)
+        {
+            <p class="font-semibold">@Title</p>
+        }
+        <div class="@Tw.Css(Title is null ? null : "mt-1 opacity-90")">@ChildContent</div>
+    </div>
+    @if (OnDismiss.HasDelegate)
+    {
+        <button type="button" aria-label="Dismiss" class="-m-1 h-6 w-6 rounded opacity-60 hover:opacity-100" @onclick="OnDismiss">&times;</button>
+    }
+</div>
+
+@code {
+    private static readonly Dictionary<string, string> Tones = new()
+    {
+        ["info"] = "border-patina-500 bg-patina-50 text-patina-900 dark:bg-patina-500/10 dark:text-patina-200",
+        ["success"] = "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200",
+        ["warning"] = "border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200",
+        ["danger"] = "border-red-500 bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-200",
+    };
+
+    /// <summary>"info", "success", "warning" or "danger".</summary>
+    [Parameter] public string Tone { get; set; } = "info";
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public EventCallback OnDismiss { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,118 @@
+@* One message: author, time, formatted text, image, reactions, thread link,
+   and a hover toolbar for reacting, replying, pinning, editing and deleting. *@
+@{ var who = ChatStore.PersonOf(Message.Author); var mine = Message.Author == ChatStore.Me?.Id; }
+<article class="msg @(Compact ? "compact" : "") @(Message.Pinned ? "pinned" : "") @(Message.Deleted ? "deleted" : "")" id="m-@Message.Id">
+    <div class="msg-side">
+        @if (Compact)
+        {
+            <span class="msg-hover-time">@Message.At.ToString("HH:mm")</span>
+        }
+        else
+        {
+            <span class="avatar" style="--who:@who.Color">@Initials(who.Name)</span>
+        }
+    </div>
+    <div class="msg-main">
+        @if (!Compact)
+        {
+            <div class="msg-head">
+                <strong style="color:@who.Color">@who.Name</strong>
+                @if (who.Bot) { <span class="tag">teammate</span> }
+                <time>@Message.At.ToString("HH:mm")</time>
+                @if (Message.Pinned) { <span class="pin-flag"><Icon Name="pin" Size="12" /> pinned</span> }
+            </div>
+        }
+        @if (Message.Deleted)
+        {
+            <p class="msg-text gone">This message was deleted.</p>
+        }
+        else if (editing)
+        {
+            <div class="edit-box">
+                <textarea class="rz-input" rows="2" aria-label="Edit message" value="@draft" @oninput="e => draft = e.Value?.ToString() ?? string.Empty"></textarea>
+                <div class="rz-row"><button class="rz-btn small" @onclick="() => editing = false">Cancel</button><button class="rz-btn small primary" @onclick="SaveEdit">Save</button></div>
+            </div>
+        }
+        else
+        {
+            @if (Message.Text.Length > 0)
+            {
+                <div class="msg-text">@((MarkupString)Markup.ToHtml(Message.Text))@if (Message.Edited) { <span class="edited">(edited)</span> }</div>
+            }
+            @if (Message.Image.Length > 0)
+            {
+                <img class="msg-img" src="@Message.Image" alt="Image shared by @who.First" loading="lazy" />
+            }
+        }
+        @if (Message.Reactions.Count > 0 && !Message.Deleted)
+        {
+            <div class="reactions">
+                @foreach (var (emoji, people) in Message.Reactions)
+                {
+                    var e = emoji;
+                    var names = string.Join(", ", people.Select(p => ChatStore.PersonOf(p).First));
+                    <button class="reaction @(people.Contains(ChatStore.Me?.Id ?? "") ? "mine" : "")" title="@names" @onclick="() => ChatStore.ReactAsync(Message, e)">@e <span>@people.Count</span></button>
+                }
+            </div>
+        }
+        @if (ShowThread)
+        {
+            var replies = ChatStore.Replies(Message.Id);
+            if (replies.Count > 0)
+            {
+                <button class="thread-link" @onclick="() => OpenThread.InvokeAsync(Message)">
+                    <span class="faces">@foreach (var id in replies.Select(r => r.Author).Distinct().Take(3)) { var p = ChatStore.PersonOf(id); <span class="avatar xs" style="--who:@p.Color">@Initials(p.Name)</span> }</span>
+                    @replies.Count @(replies.Count == 1 ? "reply" : "replies") <span class="muted">last @replies[^1].At.ToString("HH:mm")</span>
+                </button>
+            }
+        }
+    </div>
+    @if (!Message.Deleted && !editing)
+    {
+        <div class="msg-tools" role="toolbar" aria-label="Message actions">
+            @foreach (var emoji in ChatStore.QuickReactions.Take(4))
+            {
+                var e = emoji;
+                <button title="React @e" @onclick="() => ChatStore.ReactAsync(Message, e)">@e</button>
+            }
+            @if (ShowThread)
+            {
+                <button title="Reply in thread" aria-label="Reply in thread" @onclick="() => OpenThread.InvokeAsync(Message)"><Icon Name="chat" Size="15" /></button>
+            }
+            <button title="@(Message.Pinned ? "Unpin" : "Pin to the room")" aria-label="Pin" @onclick="() => ChatStore.TogglePinAsync(Message)"><Icon Name="pin" Size="15" /></button>
+            @if (mine)
+            {
+                <button title="Edit" aria-label="Edit" @onclick="StartEdit"><Icon Name="edit" Size="15" /></button>
+                <button title="Delete" aria-label="Delete" @onclick="() => ChatStore.DeleteAsync(Message)"><Icon Name="trash" Size="15" /></button>
+            }
+        </div>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Message Message { get; set; } = default!;
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public bool ShowThread { get; set; } = true;
+    [Parameter] public EventCallback<Message> OpenThread { get; set; }
+
+    private bool editing;
+    private string draft = "";
+
+    public static string Initials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? $"{parts[0][0]}{parts[1][0]}" : name.Substring(0, Math.Min(2, name.Length));
+    }
+
+    private void StartEdit()
+    {
+        draft = Message.Text;
+        editing = true;
+    }
+
+    private async Task SaveEdit()
+    {
+        if (draft.Trim().Length > 0) await ChatStore.EditAsync(Message, draft);
+        editing = false;
+    }
+}

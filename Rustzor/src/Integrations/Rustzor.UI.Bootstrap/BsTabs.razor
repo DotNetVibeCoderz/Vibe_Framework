@@ -1,0 +1,40 @@
+@* Tabs: put BsTab children inside; the active title is two-way bindable. *@
+<CascadingValue Value="this" IsFixed="true">
+    <ul class="@Bs.Css("nav", Pills ? "nav-pills" : "nav-tabs", "mb-3")" role="tablist">
+        @foreach (var tab in _tabs)
+        {
+            <li class="nav-item" role="presentation">
+                <button class="@Bs.Css("nav-link", tab.Title == Active ? "active" : null)" role="tab" disabled="@tab.Disabled" aria-selected="@(tab.Title == Active ? "true" : "false")" @onclick="() => Select(tab.Title)">@tab.Title</button>
+            </li>
+        }
+    </ul>
+    <div class="tab-content">@ChildContent</div>
+</CascadingValue>
+
+@code {
+    private readonly List<BsTab> _tabs = new();
+
+    [Parameter] public string Active { get; set; } = "";
+    [Parameter] public EventCallback<string> ActiveChanged { get; set; }
+    [Parameter] public bool Pills { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    internal void Add(BsTab tab)
+    {
+        _tabs.Add(tab);
+        if (Active == "") Active = tab.Title;
+        StateHasChanged();
+    }
+
+    internal void Remove(BsTab tab)
+    {
+        _tabs.Remove(tab);
+        StateHasChanged();
+    }
+
+    private Task Select(string title)
+    {
+        Active = title;
+        return ActiveChanged.InvokeAsync(title);
+    }
+}

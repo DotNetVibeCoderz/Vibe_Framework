@@ -1,0 +1,228 @@
+@page "/"
+@using Rustzor.Browser.Storage
+
+<div class="arcade">
+    <header class="hud">
+        <h1>{{ProjectName}}</h1>
+        <span>Score <b>@score</b></span>
+        <span>Lives <b>@lives</b></span>
+        <span>Level <b>@level</b></span>
+        <span>Best <b>@best</b></span>
+        <button class="rz-btn small" @onclick="ToggleSound">@(Sfx.Muted ? "Sound off" : "Sound on")</button>
+    </header>
+    <GameView Height="560" Background="#0b0f14" UsePhysics="false" OnStart="Start" OnUpdate="Update" OnDraw="Draw" />
+    <p class="help">Move with ← → or A D, or the mouse. Space or click to launch. Catch falling power-ups: <span class="wide">wide paddle</span>, <span class="multi">multi-ball</span>, <span class="slow">slow ball</span>.</p>
+</div>
+
+@code {
+    private sealed class Ball { public Vec2 Pos; public Vec2 Vel; public bool Stuck = true; }
+    private sealed class Brick { public Rect2 Box; public int Hits; public string Color = ""; }
+    private sealed class PowerUp { public Vec2 Pos; public string Kind = ""; }
+
+    private readonly List<Ball> balls = new();
+    private readonly List<Brick> bricks = new();
+    private readonly List<PowerUp> powerUps = new();
+    private double paddleX, paddleWidth = 110, wideTimer, slowTimer;
+    private int score, lives = 3, level = 1, best;
+    private bool gameOver;
+    private const double PaddleY = 530, BallRadius = 7;
+    private static readonly string[] RowColors = { "#f97316", "#fb923c", "#facc15", "#4ade80", "#2dd4bf", "#60a5fa" };
+
+    private void Start(GameContext g)
+    {
+        best = int.TryParse(WebStorage.Local.Get("breakout-best"), out var b) ? b : 0;
+        paddleX = g.Width / 2;
+        BuildLevel(g);
+        ResetBall();
+    }
+
+    private void BuildLevel(GameContext g)
+    {
+        bricks.Clear();
+        var cols = 12;
+        var rows = Math.Min(4 + level, 8);
+        var gap = 6.0;
+        var w = (g.Width - 40 - gap * (cols - 1)) / cols;
+        for (var r = 0; r < rows; r++)
+        for (var c = 0; c < cols; c++)
+            bricks.Add(new Brick { Box = new Rect2(20 + c * (w + gap), 60 + r * 26, w, 18), Hits = r < level - 1 ? 2 : 1, Color = RowColors[r % RowColors.Length] });
+    }
+
+    private void ResetBall()
+    {
+        balls.Clear();
+        balls.Add(new Ball { Pos = new Vec2(paddleX, PaddleY - 14), Vel = new Vec2(0, 0) });
+    }
+
+    private void Update(GameContext g, double dt)
+    {
+        if (gameOver)
+        {
+            if (g.Input.Action) Restart(g);
+            return;
+        }
+        // Paddle: keyboard or pointer.
+        var axis = g.Input.Axis();
+        if (Math.Abs(axis.X) > 0.01) paddleX += axis.X * 620 * dt;
+        else if (g.Input.PointerInside) paddleX = MathX.Damp(paddleX, g.Input.Pointer.X, 18, dt);
+        var width = wideTimer > 0 ? paddleWidth * 1.6 : paddleWidth;
+        paddleX = MathX.Clamp(paddleX, width / 2, g.Width - width / 2);
+        wideTimer = Math.Max(0, wideTimer - dt);
+        slowTimer = Math.Max(0, slowTimer - dt);
+        var speedScale = slowTimer > 0 ? 0.6 : 1;
+
+        foreach (var ball in balls.ToList())
+        {
+            if (ball.Stuck)
+            {
+                ball.Pos = new Vec2(paddleX, PaddleY - 14);
+                if (g.Input.Action)
+                {
+                    ball.Stuck = false;
+                    ball.Vel = Vec2.FromAngle(-Math.PI / 2 + g.Random.Range(-0.4, 0.4), 380 + level * 25);
+                    Sfx.Click();
+                }
+                continue;
+            }
+            ball.Pos += ball.Vel * dt * speedScale;
+            if (ball.Pos.X < BallRadius || ball.Pos.X > g.Width - BallRadius) ball.Vel = new Vec2(-ball.Vel.X, ball.Vel.Y);
+            if (ball.Pos.Y < BallRadius) ball.Vel = new Vec2(ball.Vel.X, Math.Abs(ball.Vel.Y));
+            ball.Pos = new Vec2(MathX.Clamp(ball.Pos.X, BallRadius, g.Width - BallRadius), Math.Max(ball.Pos.Y, BallRadius));
+
+            // Paddle: the further from centre, the steeper the bounce.
+            if (ball.Vel.Y > 0 && ball.Pos.Y >= PaddleY - BallRadius && ball.Pos.Y <= PaddleY + 12 && Math.Abs(ball.Pos.X - paddleX) <= width / 2 + BallRadius)
+            {
+                var offset = (ball.Pos.X - paddleX) / (width / 2);
+                ball.Vel = Vec2.FromAngle(-Math.PI / 2 + offset * 1.05, ball.Vel.Length * 1.01);
+                Sfx.Click();
+            }
+
+            foreach (var brick in bricks)
+            {
+                if (!brick.Box.Contains(ball.Pos) && !Near(brick.Box, ball.Pos)) continue;
+                var c = brick.Box.Center;
+                var dx = (ball.Pos.X - c.X) / brick.Box.Width;
+                var dy = (ball.Pos.Y - c.Y) / brick.Box.Height;
+                ball.Vel = Math.Abs(dx) > Math.Abs(dy) ? new Vec2(-ball.Vel.X, ball.Vel.Y) : new Vec2(ball.Vel.X, -ball.Vel.Y);
+                if (--brick.Hits <= 0)
+                {
+                    score += 10 * level;
+                    g.Particles.Burst(c, 14, brick.Color, 180, 0.6, 3);
+                    if (g.Random.Chance(0.12)) powerUps.Add(new PowerUp { Pos = c, Kind = g.Random.Pick(new[] { "wide", "multi", "slow" }) });
+                    Sfx.Hit();
+                }
+                else Sfx.Click();
+                break;
+            }
+            bricks.RemoveAll(b => b.Hits <= 0);
+
+            if (ball.Pos.Y > g.Height + 20) balls.Remove(ball);
+        }
+
+        foreach (var p in powerUps.ToList())
+        {
+            p.Pos += new Vec2(0, 160 * dt);
+            if (p.Pos.Y >= PaddleY - 8 && p.Pos.Y <= PaddleY + 14 && Math.Abs(p.Pos.X - paddleX) <= width / 2)
+            {
+                Apply(p.Kind);
+                powerUps.Remove(p);
+                Sfx.PowerUp();
+            }
+            else if (p.Pos.Y > g.Height) powerUps.Remove(p);
+        }
+
+        if (balls.Count == 0)
+        {
+            lives--;
+            g.Camera.Shake(10);
+            Sfx.Explosion();
+            if (lives <= 0) EndGame();
+            else ResetBall();
+        }
+        if (bricks.Count == 0)
+        {
+            level++;
+            Sfx.PowerUp();
+            BuildLevel(g);
+            ResetBall();
+        }
+        if (g.Loop.Frame % 15 == 0) InvokeAsync(StateHasChanged);
+    }
+
+    private static bool Near(Rect2 r, Vec2 p) =>
+        p.X >= r.Left - BallRadius && p.X <= r.Right + BallRadius && p.Y >= r.Top - BallRadius && p.Y <= r.Bottom + BallRadius;
+
+    private void Apply(string kind)
+    {
+        switch (kind)
+        {
+            case "wide": wideTimer = 12; break;
+            case "slow": slowTimer = 8; break;
+            case "multi":
+                foreach (var b in balls.Where(b => !b.Stuck).ToList())
+                {
+                    balls.Add(new Ball { Pos = b.Pos, Vel = b.Vel.Rotated(0.35), Stuck = false });
+                    balls.Add(new Ball { Pos = b.Pos, Vel = b.Vel.Rotated(-0.35), Stuck = false });
+                }
+                break;
+        }
+    }
+
+    private void EndGame()
+    {
+        gameOver = true;
+        if (score > best)
+        {
+            best = score;
+            WebStorage.Local.Set("breakout-best", best.ToString());
+        }
+        Sfx.GameOver();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Restart(GameContext g)
+    {
+        score = 0;
+        lives = 3;
+        level = 1;
+        gameOver = false;
+        powerUps.Clear();
+        BuildLevel(g);
+        ResetBall();
+    }
+
+    private void ToggleSound() => Sfx.Muted = !Sfx.Muted;
+
+    private void Draw(GameContext g)
+    {
+        var c = g.Canvas;
+        c.FillLinearGradient(0, 0, 0, g.Height, (0, "#111827"), (1, "#0b0f14")).FillRect(0, 0, g.Width, g.Height);
+        g.Camera.Begin(c);
+        foreach (var b in bricks)
+        {
+            c.Fill(b.Color).Alpha(b.Hits > 1 ? 1 : 0.85).BeginPath().RoundRect(b.Box.X, b.Box.Y, b.Box.Width, b.Box.Height, 4).FillPath();
+            if (b.Hits > 1) c.Alpha(1).Stroke("#ffffff").LineWidth(2).StrokeRect(b.Box.X + 2, b.Box.Y + 2, b.Box.Width - 4, b.Box.Height - 4);
+        }
+        c.Alpha(1);
+        var width = wideTimer > 0 ? paddleWidth * 1.6 : paddleWidth;
+        c.Shadow("#f97316", 18).Fill("#f97316").BeginPath().RoundRect(paddleX - width / 2, PaddleY, width, 12, 6).FillPath().NoShadow();
+        foreach (var ball in balls) c.Shadow("#fde68a", 14).Fill("#fffbeb").FillCircle(ball.Pos.X, ball.Pos.Y, BallRadius).NoShadow();
+        foreach (var p in powerUps)
+        {
+            var color = p.Kind switch { "wide" => "#2dd4bf", "multi" => "#a78bfa", _ => "#60a5fa" };
+            c.Fill(color).BeginPath().RoundRect(p.Pos.X - 16, p.Pos.Y - 8, 32, 16, 8).FillPath();
+            c.Fill("#0b0f14").Font("bold 10px sans-serif").TextAlign("center").TextBaseline("middle").FillText(p.Kind[..1].ToUpperInvariant(), p.Pos.X, p.Pos.Y);
+        }
+        g.Particles.Draw(c);
+        g.Camera.End(c);
+        if (balls.Any(b => b.Stuck) && !gameOver)
+            c.Fill("#9ca3af").Font("14px sans-serif").TextAlign("center").TextBaseline("alphabetic").FillText("Press Space or click to launch", g.Width / 2, PaddleY - 40);
+        if (gameOver)
+        {
+            c.Alpha(0.75).Fill("#000000").FillRect(0, 0, g.Width, g.Height).Alpha(1);
+            c.Fill("#ffffff").Font("bold 44px sans-serif").TextAlign("center").TextBaseline("middle").FillText("Game over", g.Width / 2, g.Height / 2 - 30);
+            c.Fill("#fdba74").Font("18px sans-serif").FillText($"Score {score} · Best {best}", g.Width / 2, g.Height / 2 + 14);
+            c.Fill("#9ca3af").Font("14px sans-serif").FillText("Press Space or click to play again", g.Width / 2, g.Height / 2 + 48);
+        }
+    }
+}

@@ -1,0 +1,37 @@
+@* A small trend line with an area fill and an emphasised last point. *@
+<svg width="@Width" height="@Height" viewBox="0 0 @Width @Height" class="rz-spark" aria-hidden="true">
+    @if (Values.Count > 1)
+    {
+        <path d="@Area()" fill="@Color" fill-opacity="0.12" />
+        <path d="@Line()" fill="none" stroke="@Color" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="@X(Values.Count - 1)" cy="@Y(Values[Values.Count - 1])" r="2.6" fill="@Color" />
+    }
+</svg>
+
+@code {
+    [Parameter] public IReadOnlyList<double> Values { get; set; } = Array.Empty<double>();
+    [Parameter] public string Color { get; set; } = "var(--rz-accent)";
+    [Parameter] public int Width { get; set; } = 96;
+    [Parameter] public int Height { get; set; } = 30;
+
+    private double Min => Values.Min();
+    private double Max => Values.Max();
+
+    private string X(int i) => (3 + i * (Width - 6.0) / (Values.Count - 1)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string Y(double v)
+    {
+        var span = Max - Min;
+        var y = span == 0 ? Height / 2.0 : 3 + (Max - v) * (Height - 6.0) / span;
+        return y.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private string Line()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < Values.Count; i++) sb.Append(i == 0 ? "M" : "L").Append(X(i)).Append(' ').Append(Y(Values[i])).Append(' ');
+        return sb.ToString();
+    }
+
+    private string Area() => Line() + "L" + X(Values.Count - 1) + " " + Height + " L" + X(0) + " " + Height + " Z";
+}

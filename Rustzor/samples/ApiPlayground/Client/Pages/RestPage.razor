@@ -1,0 +1,178 @@
+@page "/"
+@using Rustzor.Browser.Fetch
+
+<section class="ws-head rest">
+    <span class="proto-tag">REST</span>
+    <h1>Requests and responses</h1>
+    <p>Build an HTTP request, send it with <code>FetchClient</code>, and read what came back. Pick a preset to start.</p>
+</section>
+
+<div class="presets" role="group" aria-label="Presets">
+    @foreach (var p in Presets)
+    {
+        var preset = p;
+        <button class="preset" @onclick="() => Use(preset)"><span class="m @preset.Method.ToLowerInvariant()">@preset.Method</span>@preset.Label</button>
+    }
+</div>
+
+<div class="request">
+    <div class="req-line">
+        <select class="method @method.ToLowerInvariant()" aria-label="Method" value="@method" @onchange="e => method = e.Value?.ToString() ?? method">
+            @foreach (var m in new[] { "GET", "POST", "PUT", "PATCH", "DELETE" }) { <option value="@m">@m</option> }
+        </select>
+        <input class="url mono" aria-label="Path" value="@path" spellcheck="false" @onchange="e => path = e.Value?.ToString() ?? path" @onkeydown="Key" />
+        <button class="rz-btn primary send" disabled="@busy" @onclick="Send">@(busy ? "Sending…" : "Send") <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
+    </div>
+    <div class="req-parts">
+        <label class="part">
+            <span>Headers <small>one per line, Name: value</small></span>
+            <textarea class="mono" rows="3" spellcheck="false" aria-label="Headers" value="@headers" @onchange="e => headers = e.Value?.ToString() ?? string.Empty"></textarea>
+        </label>
+        <label class="part">
+            <span>Body <small>@(method is "GET" or "DELETE" ? "not sent with " + method : "JSON")</small></span>
+            <textarea class="mono" rows="6" spellcheck="false" aria-label="Body" disabled="@(method is "GET" or "DELETE")" value="@body" @onchange="e => body = e.Value?.ToString() ?? string.Empty" @onkeydown="Key"></textarea>
+        </label>
+    </div>
+</div>
+
+@if (response is not null)
+{
+    <div class="response">
+        <div class="resp-line">
+            <span class="status s@(response.Status / 100)">@response.Status @response.StatusText</span>
+            <span class="fig"><strong>@elapsed</strong> ms round trip</span>
+            <span class="fig"><strong>@(response.Headers.TryGetValue("x-elapsed-ms", out var se) ? se : "–")</strong> ms on the server</span>
+            <span class="fig"><strong>@Wire.Size(System.Text.Encoding.UTF8.GetByteCount(response.Text))</strong></span>
+            <span class="pg-spacer"></span>
+            <div class="seg" role="tablist">
+                <button class="@(tab == "body" ? "on" : "")" @onclick="@(() => tab = "body")">Body</button>
+                <button class="@(tab == "headers" ? "on" : "")" @onclick="@(() => tab = "headers")">Headers <small>@response.Headers.Count</small></button>
+                <button class="@(tab == "code" ? "on" : "")" @onclick="@(() => tab = "code")">C#</button>
+            </div>
+        </div>
+        @if (tab == "body")
+        {
+            <pre class="json">@((MarkupString)JsonView.ToHtml(response.Text))</pre>
+        }
+        else if (tab == "headers")
+        {
+            <table class="hdrs">
+                @foreach (var h in response.Headers.OrderBy(h => h.Key)) { <tr><th>@h.Key</th><td class="mono">@h.Value</td></tr> }
+            </table>
+        }
+        else
+        {
+            <pre class="json code">@Code()</pre>
+        }
+    </div>
+}
+else if (error is not null)
+{
+    <div class="response failed"><strong>The request did not reach the server.</strong> @error. Check that the server is running (<code>dotnet run --project samples/ApiPlayground/Server</code>) and the address in the top bar.</div>
+}
+
+@if (history.Count > 0)
+{
+    <h2 class="sub">History</h2>
+    <ul class="history">
+        @foreach (var h in history)
+        {
+            var item = h;
+            <li><button @onclick="() => Use(item.Preset)"><span class="m @item.Preset.Method.ToLowerInvariant()">@item.Preset.Method</span><span class="mono">@item.Preset.Path</span><span class="status s@(item.Status / 100)">@item.Status</span><span class="t">@item.Ms ms</span></button></li>
+        }
+    </ul>
+}
+
+@code {
+    private sealed record Preset(string Label, string Method, string Path, string Body = "");
+    private sealed record Sent(Preset Preset, int Status, int Ms);
+
+    private static readonly Preset[] Presets =
+    {
+        new("List books", "GET", "/api/books?sort=rating"),
+        new("Search", "GET", "/api/books?q=dee"),
+        new("One book", "GET", "/api/books/1"),
+        new("Add a book", "POST", "/api/books", "{\n  \"title\": \"Orang-Orang Biasa\",\n  \"author\": \"Andrea Hirata\",\n  \"year\": 2019,\n  \"genre\": \"Comedy\",\n  \"rating\": 4.1\n}"),
+        new("Replace", "PUT", "/api/books/2", "{\n  \"title\": \"Laskar Pelangi\",\n  \"author\": \"Andrea Hirata\",\n  \"year\": 2005,\n  \"genre\": \"Coming of age\",\n  \"rating\": 4.9\n}"),
+        new("Delete", "DELETE", "/api/books/12"),
+        new("Invalid body", "POST", "/api/books", "{ \"title\": \"\" }"),
+        new("Not found", "GET", "/api/books/999"),
+        new("Echo", "POST", "/api/echo?from=rustzor", "{ \"hello\": \"server\" }"),
+        new("Slow", "GET", "/api/slow?ms=1500"),
+        new("HTTP 503", "GET", "/api/status/503"),
+    };
+
+    private string method = "GET";
+    private string path = "/api/books?sort=rating";
+    private string headers = "Accept: application/json";
+    private string body = "";
+    private string tab = "body";
+    private bool busy;
+    private int elapsed;
+    private FetchResponse? response;
+    private string? error;
+    private readonly List<Sent> history = new();
+
+    private void Use(Preset p)
+    {
+        method = p.Method;
+        path = p.Path;
+        body = p.Body;
+    }
+
+    private async Task Key(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey) await Send();
+    }
+
+    private async Task Send()
+    {
+        if (busy) return;
+        busy = true;
+        error = null;
+        var request = new FetchRequest(Server.Url(path), method) { TimeoutMs = 15_000 };
+        foreach (var line in headers.Split('\n'))
+        {
+            var at = line.IndexOf(':');
+            if (at > 0) request.WithHeader(line.Substring(0, at).Trim(), line.Substring(at + 1).Trim());
+        }
+        if (method is not ("GET" or "DELETE") && body.Trim().Length > 0)
+        {
+            request.Body = body;
+            if (!request.Headers.ContainsKey("Content-Type")) request.WithHeader("Content-Type", "application/json");
+        }
+        Wire.Log(Protocol.Rest, "out", $"{method} {path}", $"{method} {path}\n{string.Join("\n", request.Headers.Select(h => h.Key + ": " + h.Value))}\n\n{request.Body}", System.Text.Encoding.UTF8.GetByteCount(request.Body ?? ""));
+        var started = DateTime.Now;
+        try
+        {
+            response = await new FetchClient().SendAsync(request);
+            elapsed = (int)(DateTime.Now - started).TotalMilliseconds;
+            Wire.Log(Protocol.Rest, "in", $"{response.Status} {response.StatusText} · {elapsed} ms", JsonView.Indent(response.Text));
+            history.Insert(0, new Sent(new Preset("", method, path, body), response.Status, elapsed));
+            if (history.Count > 8) history.RemoveAt(history.Count - 1);
+        }
+        catch (Exception e)
+        {
+            response = null;
+            error = e.Message;
+            Wire.Log(Protocol.Rest, "note", $"{method} {path} failed", e.Message);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private string Code()
+    {
+        var hasBody = method is not ("GET" or "DELETE") && body.Trim().Length > 0;
+        var call = method switch
+        {
+            "GET" => $"await http.GetAsync(\"{path}\");",
+            "DELETE" => $"await http.DeleteAsync(\"{path}\");",
+            _ when hasBody => $"await http.SendAsync(new FetchRequest(\"{path}\", \"{method}\") {{ Body = json }}\n    .WithHeader(\"Content-Type\", \"application/json\"));",
+            _ => $"await http.SendAsync(new FetchRequest(\"{path}\", \"{method}\"));",
+        };
+        return $"// Rustzor.Browser.Fetch\nvar http = new FetchClient(\"{(Server.Address.Length > 0 ? Server.Address : "")}\");\nvar response = {call}\nresponse.EnsureSuccess();\nvar json = response.Json();   // or response.As<Book>(), response.AsList<Book>()";
+    }
+}

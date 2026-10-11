@@ -1,0 +1,24 @@
+@implements IDisposable
+@* Shows the toasts queued with BsToasts.Show. Put one in the layout. *@
+<div class="rz-bs-toasts" aria-live="polite">
+    @foreach (var t in BsToasts.Items)
+    {
+        var id = t.Id;
+        <div class="toast show" role="status">
+            <div class="toast-header">
+                <span class="@Bs.Css("rounded", "me-2", "bg-" + t.Color)" style="width:12px;height:12px;display:inline-block"></span>
+                <strong class="me-auto">@t.Title</strong>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="() => BsToasts.Dismiss(id)"></button>
+            </div>
+            <div class="toast-body">@t.Body</div>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => BsToasts.Changed += Refresh;
+
+    private void Refresh() => StateHasChanged();
+
+    public void Dispose() => BsToasts.Changed -= Refresh;
+}

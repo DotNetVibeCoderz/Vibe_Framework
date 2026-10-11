@@ -1,0 +1,228 @@
+@page "/"
+@page "/r/{RoomId}"
+@implements IDisposable
+@inject NavigationManager Nav
+
+@if (!ready)
+{
+    <div class="loading">Opening Serambi…</div>
+}
+else if (ChatStore.Me is null)
+{
+    <SignIn />
+}
+else
+{
+    var room = ChatStore.RoomOf(RoomId ?? "umum") ?? ChatStore.Channels[0];
+    <div class="app @(drawer ? "drawer-open" : "") @(thread is not null ? "with-thread" : "")">
+        <aside class="side" aria-label="Rooms">
+            <div class="ws">
+                <span class="ws-mark">S</span>
+                <div><strong>Studio Lontar</strong><span>Serambi chat</span></div>
+            </div>
+            <label class="side-search">
+                <Icon Name="search" Size="15" />
+                <input type="search" placeholder="Search messages" aria-label="Search messages" value="@query" @oninput="e => query = e.Value?.ToString() ?? string.Empty" />
+            </label>
+            <nav>
+                <div class="side-label">Channels</div>
+                @foreach (var c in ChatStore.Channels)
+                {
+                    var unread = c.Id == room.Id ? 0 : ChatStore.Unread(c.Id);
+                    <a href="r/@c.Id" class="room @(c.Id == room.Id ? "on" : "") @(unread > 0 ? "unread" : "")" @onclick="CloseDrawer"><span class="hash">#</span>@c.Name@if (unread > 0) { <span class="count">@unread</span> }</a>
+                }
+                <div class="side-label">Direct messages</div>
+                @foreach (var d in ChatStore.DirectRooms())
+                {
+                    var p = ChatStore.PersonOf(d.With);
+                    var unread = d.Id == room.Id ? 0 : ChatStore.Unread(d.Id);
+                    <a href="r/@d.Id" class="room dm @(d.Id == room.Id ? "on" : "") @(unread > 0 ? "unread" : "")" @onclick="CloseDrawer">
+                        <span class="avatar xs" style="--who:@p.Color">@MessageItem.Initials(p.Name)<i class="presence @(p.Bot ? "on" : "")"></i></span>@p.Name
+                        @if (unread > 0) { <span class="count">@unread</span> }
+                    </a>
+                }
+            </nav>
+            <div class="me">
+                <span class="avatar" style="--who:@ChatStore.Me.Color">@MessageItem.Initials(ChatStore.Me.Name)<i class="presence on"></i></span>
+                <div><strong>@ChatStore.Me.Name</strong><span>@ChatStore.Me.Title</span></div>
+                <button class="rz-btn ghost icon" title="Switch person on this tab" aria-label="Switch person" @onclick="ChatStore.SignOut"><Icon Name="logout" Size="16" /></button>
+                <ThemeToggle />
+            </div>
+            <p class="credit">Built with Rustzor · Gravicode Studios, led by Kang Fadhil</p>
+        </aside>
+
+        <main class="main" aria-label="@(room.Kind == "dm" ? room.Name : "#" + room.Name)">
+            <header class="room-head">
+                <button class="rz-btn ghost icon menu" aria-label="Rooms" @onclick="() => drawer = !drawer"><Icon Name="menu" /></button>
+                <div class="room-title">
+                    <h1>@(room.Kind == "dm" ? room.Name : "#" + room.Name)</h1>
+                    <p>@room.Topic</p>
+                </div>
+                @{ var pins = ChatStore.In(room.Id).Where(m => m.Pinned && !m.Deleted).ToList(); }
+                <button class="rz-btn small @(showPins ? "primary" : "")" disabled="@(pins.Count == 0)" @onclick="() => showPins = !showPins"><Icon Name="pin" Size="14" /> @pins.Count pinned</button>
+            </header>
+
+            @if (query.Trim().Length >= 2)
+            {
+                var hits = ChatStore.Search(query);
+                <section class="results" aria-label="Search results">
+                    <div class="results-head"><strong>@hits.Count result@(hits.Count == 1 ? "" : "s")</strong> for “@query.Trim()” <button class="link" @onclick="() => query = string.Empty">Clear</button></div>
+                    @foreach (var m in hits)
+                    {
+                        var r = ChatStore.RoomOf(m.Room);
+                        var target = m.Parent.Length > 0 ? ChatStore.Messages.FirstOrDefault(x => x.Id == m.Parent) : null;
+                        <button class="hit" @onclick="() => Jump(m)">
+                            <span class="hit-room">@(r?.Kind == "dm" ? r.Name : "#" + (r?.Name ?? m.Room)) · @m.At.ToString("ddd HH:mm")@(target is null ? "" : " · in a thread")</span>
+                            <span class="hit-text"><strong>@ChatStore.PersonOf(m.Author).First</strong> @m.Text</span>
+                        </button>
+                    }
+                </section>
+            }
+            else if (showPins)
+            {
+                <section class="results" aria-label="Pinned messages">
+                    <div class="results-head"><strong>Pinned in @(room.Kind == "dm" ? room.Name : "#" + room.Name)</strong> <button class="link" @onclick="() => showPins = false">Close</button></div>
+                    @foreach (var m in pins) { <MessageItem Message="m" OpenThread="Open" /> }
+                </section>
+            }
+            else
+            {
+                <div class="stream" @ref="stream">
+                    @{
+                        var list = ChatStore.In(room.Id).ToList();
+                        var readUpTo = lastRead;
+                        DateTime? day = null;
+                        Message? prev = null;
+                        var drewNew = false;
+                    }
+                    @if (list.Count == 0)
+                    {
+                        <EmptyState Icon="chat" Title="@(room.Kind == "dm" ? $"Start a conversation with {room.Name}" : "Nothing here yet")" Text="Say hello. Messages appear in every tab of this browser at once." />
+                    }
+                    @foreach (var m in list)
+                    {
+                        if (day != m.At.Date)
+                        {
+                            day = m.At.Date;
+                            prev = null;
+                            <div class="day"><span>@DayLabel(m.At)</span></div>
+                        }
+                        if (!drewNew && readUpTo.Length > 0 && string.CompareOrdinal(m.Time, readUpTo) > 0 && m.Author != ChatStore.Me.Id)
+                        {
+                            drewNew = true;
+                            <div class="new-line"><span>New</span></div>
+                        }
+                        var compact = prev is not null && prev.Author == m.Author && (m.At - prev.At).TotalMinutes < 5 && ChatStore.Replies(prev.Id).Count == 0;
+                        <MessageItem @key="m.Id" Message="m" Compact="compact" OpenThread="Open" />
+                        prev = m;
+                    }
+                </div>
+                <TypingLine Room="@room.Id" />
+                <div class="compose-wrap">
+                    <Composer @ref="composer" Room="@room.Id" Placeholder="@(room.Kind == "dm" ? $"Message {room.Name}" : $"Message #{room.Name}")" />
+                </div>
+            }
+        </main>
+
+        @if (thread is not null)
+        {
+            var parent = ChatStore.Messages.FirstOrDefault(m => m.Id == thread.Id) ?? thread;
+            <aside class="thread" aria-label="Thread">
+                <header class="thread-head">
+                    <div><h2>Thread</h2><p>@(room.Kind == "dm" ? room.Name : "#" + room.Name)</p></div>
+                    <button class="rz-btn ghost icon" aria-label="Close thread" @onclick="() => thread = null"><Icon Name="x" /></button>
+                </header>
+                <div class="thread-body" @ref="threadBody">
+                    <MessageItem Message="parent" ShowThread="false" />
+                    @{ var replies = ChatStore.Replies(parent.Id); }
+                    <div class="thread-count">@replies.Count @(replies.Count == 1 ? "reply" : "replies")</div>
+                    @foreach (var r in replies) { <MessageItem @key="r.Id" Message="r" ShowThread="false" /> }
+                </div>
+                <TypingLine Room="@room.Id" />
+                <div class="compose-wrap"><Composer Room="@room.Id" Parent="@parent.Id" Placeholder="Reply in thread" /></div>
+            </aside>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string? RoomId { get; set; }
+
+    private bool ready;
+    private bool drawer;
+    private bool showPins;
+    private string query = "";
+    private Message? thread;
+    private Message? pendingThread;
+    private ElementReference stream;
+    private ElementReference threadBody;
+    private int threadCount = -1;
+    private Composer? composer;
+    private string shownRoom = "";
+    private string lastRead = "";
+    private int shownCount = -1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ChatStore.Changed += Refresh;
+        await ChatStore.ReadyAsync();
+        ready = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        var room = RoomId ?? "umum";
+        if (room == shownRoom) return;
+        shownRoom = room;
+        thread = pendingThread;
+        pendingThread = null;
+        showPins = false;
+        lastRead = ChatStore.ReadUpTo(room);
+        shownCount = -1;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!ready || ChatStore.Me is null) return;
+        var count = ChatStore.Messages.Count(m => m.Room == shownRoom);
+        if (count != shownCount)
+        {
+            shownCount = count;
+            stream.ScrollToBottom();
+            ChatStore.MarkRead(shownRoom);
+        }
+        var replies = thread is null ? -1 : ChatStore.Replies(thread.Id).Count;
+        if (replies != threadCount)
+        {
+            threadCount = replies;
+            if (replies >= 0) threadBody.ScrollToBottom();
+        }
+    }
+
+    private static string DayLabel(DateTime d) =>
+        d.Date == DateTime.Today ? "Today" : d.Date == DateTime.Today.AddDays(-1) ? "Yesterday" : d.ToString("dddd, d MMMM");
+
+    private void Open(Message m)
+    {
+        thread = m;
+        showPins = false;
+    }
+
+    private void Jump(Message m)
+    {
+        query = "";
+        var parent = m.Parent.Length > 0 ? ChatStore.Messages.FirstOrDefault(x => x.Id == m.Parent) : null;
+        if (m.Room == shownRoom) thread = parent;
+        else
+        {
+            pendingThread = parent;
+            Nav.NavigateTo("r/" + m.Room);
+        }
+    }
+
+    private void CloseDrawer() => drawer = false;
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ChatStore.Changed -= Refresh;
+}

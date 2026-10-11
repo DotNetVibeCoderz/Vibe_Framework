@@ -1,0 +1,22 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Rustzor.Interop
+@* Your own D3 code: Script is the body of a function (d3, svg, data, width, height). It reruns when Data changes. *@
+<div @ref="_host" class="rz-d3" style="height:@(Height)px;width:100%"></div>
+
+@code {
+    private ElementReference _host;
+    private string _last = "";
+
+    [Parameter] public string Script { get; set; } = "";
+    /// <summary>Any value, serialised to JSON and passed as <c>data</c>.</summary>
+    [Parameter] public object? Data { get; set; }
+    [Parameter] public int Height { get; set; } = 320;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var json = Json.Serialize(Data);
+        if (!firstRender && json == _last) return;
+        _last = json;
+        await Js.CallAsync("d3.script", Js.Args("el", _host.Id, "code", Script, "data", new JsonRaw(json)));
+    }
+}

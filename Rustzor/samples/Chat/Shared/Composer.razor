@@ -1,0 +1,83 @@
+@using Rustzor.Browser.FileSystem
+@* Writing a message: Enter sends, Shift+Enter breaks the line, and an image
+   can ride along. Typing tells the other tabs. *@
+<div class="composer @(focused ? "focus" : "")">
+    @if (image.Length > 0)
+    {
+        <div class="attach-preview">
+            <img src="@image" alt="Image to send" />
+            <button class="rz-btn small ghost" aria-label="Remove image" @onclick="() => image = string.Empty"><Icon Name="x" Size="14" /></button>
+        </div>
+    }
+    <textarea @ref="box" rows="1" placeholder="@Placeholder" aria-label="@Placeholder" value="@draft"
+              @oninput="Input" @onkeydown="Key" @onfocus="() => focused = true" @onblur="() => focused = false"></textarea>
+    <div class="composer-bar">
+        <button class="tool" title="Attach an image" aria-label="Attach an image" @onclick="Attach"><Icon Name="image" Size="17" /></button>
+        <div class="emoji-row">
+            @foreach (var e in new[] { "😊", "👍", "🙏", "🎉", "☕" })
+            {
+                var emoji = e;
+                <button class="tool" title="Insert @emoji" @onclick="() => Insert(emoji)">@emoji</button>
+            }
+        </div>
+        <span class="hint"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</span>
+        <button class="send" disabled="@(draft.Trim().Length == 0 && image.Length == 0)" aria-label="Send" @onclick="Send"><Icon Name="send" Size="17" /></button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Room { get; set; } = "";
+    [Parameter] public string Parent { get; set; } = "";
+    [Parameter] public string Placeholder { get; set; } = "Write a message";
+
+    private ElementReference box;
+    private string draft = "";
+    private string image = "";
+    private bool focused;
+
+    public ValueTask FocusAsync() => box.FocusAsync();
+
+    private void Input(ChangeEventArgs e)
+    {
+        draft = e.Value?.ToString() ?? string.Empty;
+        if (draft.Length > 0) ChatStore.SendTyping(Room);
+    }
+
+    private async Task Key(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || e.ShiftKey) return;
+        await Send();
+        // The browser still inserts the newline after this handler; clear it once it has.
+        Scheduler.SetTimeout(() => box.SetValue(string.Empty), 0);
+    }
+
+    private void Insert(string emoji)
+    {
+        draft += emoji;
+        box.SetValue(draft);
+    }
+
+    private async Task Attach()
+    {
+        var files = await Files.PickAsync("image/*");
+        if (files.Count == 0) return;
+        if (files[0].Size > 2_000_000)
+        {
+            Toasts.Warning("That image is over 2 MB. Pick a smaller one or a screenshot.");
+            return;
+        }
+        image = await files[0].ReadDataUrlAsync();
+        StateHasChanged();
+    }
+
+    private async Task Send()
+    {
+        var text = draft.Trim();
+        if (text.Length == 0 && image.Length == 0) return;
+        var attached = image;
+        draft = "";
+        image = "";
+        box.SetValue(string.Empty);
+        await ChatStore.SendAsync(Room, text, Parent, attached);
+    }
+}

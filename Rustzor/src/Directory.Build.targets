@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    Each package gets its own icon, assets/icons/<PackageId>.png (made by
+    tools/e2e/make-icons.mjs), and the shared package README. Here rather
+    than in Directory.Build.props because PackageId is only final after the
+    project file has been read.
+  -->
+  <PropertyGroup>
+    <_RustzorIcon>$(MSBuildThisFileDirectory)..\assets\icons\$(PackageId).png</_RustzorIcon>
+    <_RustzorIcon Condition="!Exists('$(_RustzorIcon)')">$(MSBuildThisFileDirectory)..\assets\icon.png</_RustzorIcon>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(_RustzorIcon)" Pack="true" PackagePath="\icon.png" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\assets\nuget-readme.md" Pack="true" PackagePath="\README.md" Visible="false" />
+  </ItemGroup>
+</Project>

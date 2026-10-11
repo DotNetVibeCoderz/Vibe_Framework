@@ -1,0 +1,26 @@
+@if (Open)
+{
+    <div class="rz-modal-backdrop" @onclick="Dismiss">
+        <div class="rz-modal" role="dialog" aria-modal="true" aria-label="@Title" @onclick:stopPropagation="true">
+            <div class="rz-modal-head">
+                <h3>@Title</h3>
+                <button class="rz-btn ghost icon" aria-label="Close" @onclick="Dismiss"><Icon Name="x" /></button>
+            </div>
+            <div class="rz-modal-body">@ChildContent</div>
+            @if (Footer is not null)
+            {
+                <div class="rz-modal-foot">@Footer</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private Task Dismiss() => OpenChanged.InvokeAsync(false);
+}

@@ -1,0 +1,60 @@
+@* The application frame: a sidebar of navigation, a top bar, and the page. *@
+<div class="rz-shell @(_open ? "open" : "")">
+    <aside class="rz-sidebar" @onclick="Close">
+        <div class="rz-brand">
+            <span class="rz-brand-mark"><Icon Name="@BrandIcon" Size="18" /></span>
+            <span>@Brand</span>
+        </div>
+        <nav class="rz-nav">
+            @foreach (var item in Items)
+            {
+                @if (item.Section is not null)
+                {
+                    <div class="rz-nav-section">@item.Section</div>
+                }
+                else
+                {
+                    <NavLink href="@item.Href" Match="@(item.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                        <Icon Name="@item.Icon" />
+                        <span>@item.Title</span>
+                    </NavLink>
+                }
+            }
+        </nav>
+        <div class="rz-sidebar-foot">
+            @if (SidebarFooter is not null)
+            {
+                @SidebarFooter
+            }
+            Powered by Rustzor<br />Built by Gravicode Studios, led by Kang Fadhil
+        </div>
+    </aside>
+    <div class="rz-main">
+        <header class="rz-topbar">
+            <button class="rz-btn ghost icon rz-menu-btn" aria-label="Open menu" @onclick="Toggle"><Icon Name="menu" /></button>
+            <span class="rz-topbar-title">@Title</span>
+            <span class="rz-topbar-spacer"></span>
+            @TopBar
+            <ThemeToggle />
+        </header>
+        <main class="rz-content">
+            @ChildContent
+        </main>
+    </div>
+</div>
+<Toaster />
+
+@code {
+    private bool _open;
+
+    [Parameter] public string Brand { get; set; } = "Rustzor";
+    [Parameter] public string BrandIcon { get; set; } = "rust";
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public List<NavItem> Items { get; set; } = new();
+    [Parameter] public RenderFragment? TopBar { get; set; }
+    [Parameter] public RenderFragment? SidebarFooter { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private void Toggle() => _open = !_open;
+    private void Close() => _open = false;
+}

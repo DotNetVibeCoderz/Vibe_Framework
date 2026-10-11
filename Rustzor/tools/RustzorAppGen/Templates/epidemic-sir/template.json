@@ -1,0 +1,10 @@
+{
+  "id": "epidemic-sir",
+  "name": "Epidemic simulator",
+  "category": "Simulator",
+  "description": "An SEIR outbreak model solved with Runge-Kutta: tune R₀, incubation, infectious period and vaccination, add a lockdown, and watch the curve against hospital capacity. Compare two scenarios side by side.",
+  "icon": "trend",
+  "shell": true,
+  "packages": [],
+  "nav": [ { "title": "Outbreak", "href": "", "icon": "trend" } ]
+}

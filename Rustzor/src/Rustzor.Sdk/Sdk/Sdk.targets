@@ -1,0 +1,10 @@
+<Project>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.Razor" />
+
+  <!-- The component model comes with the SDK unless the project brings its own. -->
+  <ItemGroup Condition="'$(RustzorImplicitComponents)' != 'false'">
+    <PackageReference Include="Rustzor.Components" Version="$(RustzorSdkVersion)" />
+  </ItemGroup>
+
+  <Import Project="..\build\Rustzor.targets" />
+</Project>

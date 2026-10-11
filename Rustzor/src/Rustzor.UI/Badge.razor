@@ -1,0 +1,8 @@
+<span class="rz-badge @Kind">@ChildContent@Text</span>
+
+@code {
+    /// <summary>good, warn, bad, accent, patina, plain — or empty for neutral.</summary>
+    [Parameter] public string Kind { get; set; } = "";
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

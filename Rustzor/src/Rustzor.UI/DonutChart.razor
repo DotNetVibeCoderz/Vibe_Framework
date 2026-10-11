@@ -1,0 +1,48 @@
+@* Shares of a whole as a ring, with the total in the centre and a legend of values. *@
+@using System.Globalization
+<div class="rz-row" style="gap:20px;align-items:center;flex-wrap:wrap">
+    <svg viewBox="0 0 120 120" width="@Size" height="@Size" role="img" aria-label="@AriaLabel">
+        @{
+            double start = -Math.PI / 2;
+            var total = Values.Sum();
+        }
+        @for (var i = 0; i < Values.Count; i++)
+        {
+            var share = total == 0 ? 0 : Values[i] / total;
+            var end = start + share * Math.PI * 2;
+            <path d="@Arc(start, end)" fill="none" stroke="@Palette.Chart(i)" stroke-width="16"><title>@Labels[i]: @((share * 100).ToString("F1"))%</title></path>
+            start = end;
+        }
+        <text x="60" y="58" text-anchor="middle" style="font:700 15px var(--rz-font-display);fill:var(--rz-fg)">@Center</text>
+        <text x="60" y="74" text-anchor="middle" style="font:500 9px var(--rz-font-mono);fill:var(--rz-muted)">@CenterLabel</text>
+    </svg>
+    <div class="rz-stack" style="gap:6px;min-width:0">
+        @for (var i = 0; i < Labels.Count; i++)
+        {
+            <div class="rz-row" style="gap:8px;font-size:.85rem">
+                <i style="width:10px;height:10px;border-radius:3px;background:@Palette.Chart(i);display:inline-block"></i>
+                <span>@Labels[i]</span>
+                <span class="rz-num rz-muted">@Values[i].ToString(ValueFormat)</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<string> Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public IReadOnlyList<double> Values { get; set; } = Array.Empty<double>();
+    [Parameter] public string? Center { get; set; }
+    [Parameter] public string? CenterLabel { get; set; }
+    [Parameter] public string ValueFormat { get; set; } = "N0";
+    [Parameter] public int Size { get; set; } = 150;
+    [Parameter] public string AriaLabel { get; set; } = "Donut chart";
+
+    private static string Arc(double a0, double a1)
+    {
+        const double r = 50, c = 60;
+        if (a1 - a0 >= Math.PI * 2 - 1e-6) a1 = a0 + Math.PI * 2 - 1e-4;
+        string P(double a) => (c + r * Math.Cos(a)).ToString("F2", CultureInfo.InvariantCulture) + " " + (c + r * Math.Sin(a)).ToString("F2", CultureInfo.InvariantCulture);
+        var large = a1 - a0 > Math.PI ? 1 : 0;
+        return $"M{P(a0)} A{r} {r} 0 {large} 1 {P(a1)}";
+    }
+}

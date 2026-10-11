@@ -1,0 +1,77 @@
+@page "/invoices"
+@inject NavigationManager Nav
+
+<PageHeader Title="Invoices" Eyebrow="History" Text="Everything you have saved in this browser. Mark invoices paid as the money arrives.">
+    <Actions>
+        <a class="rz-btn primary" href=""><Icon Name="plus" /> New invoice</a>
+    </Actions>
+</PageHeader>
+
+@if (all.Count == 0)
+{
+    <EmptyState Icon="receipt" Title="No invoices yet" Text="Write your first invoice in the editor and save it. It will show up here." />
+}
+else
+{
+    <div class="rz-grid rz-grid-3 summary">
+        <StatCard Label="Outstanding" Value="@Sum(i => i.Status != "paid")" Hint="@($"{all.Count(i => i.Status != "paid")} unpaid")" />
+        <StatCard Label="Overdue" Value="@Sum(Overdue)" Hint="@($"{all.Count(Overdue)} past due date")" />
+        <StatCard Label="Paid" Value="@Sum(i => i.Status == "paid")" Hint="@($"{all.Count(i => i.Status == "paid")} settled")" />
+    </div>
+    <Card>
+        <div class="rz-table-wrap">
+            <table class="rz-table">
+                <thead><tr><th>Number</th><th>Client</th><th>Issued</th><th>Due</th><th>Status</th><th class="num">Total</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var i in all)
+                    {
+                        var inv = i;
+                        <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"edit/{inv.Number}"))">
+                            <td class="mono">@inv.Number</td>
+                            <td>@inv.ToName</td>
+                            <td>@inv.Issued</td>
+                            <td>@inv.Due</td>
+                            <td><Badge Kind="@(inv.Status == "paid" ? "good" : Overdue(inv) ? "bad" : "warn")" Text="@(inv.Status == "paid" ? "Paid" : Overdue(inv) ? "Overdue" : "Unpaid")" /></td>
+                            <td class="num">@InvoiceBook.Money(inv.Total, inv.Currency)</td>
+                            <td class="row-actions" @onclick:stopPropagation="true">
+                                <button class="rz-btn small" @onclick="() => TogglePaid(inv)">@(inv.Status == "paid" ? "Mark unpaid" : "Mark paid")</button>
+                                <button class="rz-btn ghost icon" aria-label="Delete @inv.Number" @onclick="() => Delete(inv)"><Icon Name="trash" Size="16" /></button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </Card>
+}
+
+@code {
+    private List<Invoice> all = new();
+
+    protected override void OnInitialized() => all = InvoiceBook.All();
+
+    private static bool Overdue(Invoice i) =>
+        i.Status != "paid" && DateTime.TryParse(i.Due, out var due) && due < DateTime.Today;
+
+    // Totals in mixed currencies are shown in the most common one.
+    private string Sum(Func<Invoice, bool> filter)
+    {
+        var currency = all.GroupBy(i => i.Currency).OrderByDescending(g => g.Count()).First().Key;
+        var total = all.Where(i => i.Currency == currency).Where(filter).Sum(i => i.Total);
+        return InvoiceBook.Money(total, currency);
+    }
+
+    private void TogglePaid(Invoice invoice)
+    {
+        invoice.Status = invoice.Status == "paid" ? "sent" : "paid";
+        InvoiceBook.Save(invoice);
+        all = InvoiceBook.All();
+    }
+
+    private void Delete(Invoice invoice)
+    {
+        InvoiceBook.Delete(invoice.Number);
+        all = InvoiceBook.All();
+        Toasts.Show($"Deleted {invoice.Number}", "bad");
+    }
+}

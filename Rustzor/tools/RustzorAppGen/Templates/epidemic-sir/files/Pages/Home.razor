@@ -1,0 +1,101 @@
+@page "/"
+@using System.Globalization
+
+<PageHeader Title="Flatten the curve" Eyebrow="SEIR outbreak model" Text="A city of a million people, ten cases on day zero. Change the disease and the response; the model reruns as you drag.">
+    <Actions>
+        <button class="rz-btn" @onclick="Pin"><Icon Name="pin" /> @(pinned is null ? "Pin as baseline" : "Update baseline")</button>
+        @if (pinned is not null) { <button class="rz-btn ghost" @onclick="() => pinned = null">Clear baseline</button> }
+    </Actions>
+</PageHeader>
+
+<div class="sim">
+    <aside class="controls">
+        <Card Title="Disease">
+            @Slider("R₀ · people each case infects", s.R0, 0.8, 6, 0.1, "0.0", v => s = s with { R0 = v })
+            @Slider("Incubation · days", s.IncubationDays, 1, 14, 0.1, "0.0", v => s = s with { IncubationDays = v })
+            @Slider("Infectious · days", s.InfectiousDays, 2, 14, 0.5, "0.0", v => s = s with { InfectiousDays = v })
+            @Slider("Needs hospital · %", s.HospitalRate * 100, 0.5, 15, 0.5, "0.0", v => s = s with { HospitalRate = v / 100 })
+        </Card>
+        <Card Title="Response">
+            @Slider("Vaccinated before day 0 · %", s.VaccinatedShare * 100, 0, 90, 1, "0", v => s = s with { VaccinatedShare = v / 100 })
+            @Slider("Lockdown starts · day", s.LockdownStart, 0, 150, 1, "0", v => s = s with { LockdownStart = (int)v })
+            @Slider("Lockdown lasts · days", s.LockdownDays, 0, 120, 1, "0", v => s = s with { LockdownDays = (int)v })
+            @Slider("Lockdown cuts transmission · %", s.LockdownEffect * 100, 0, 90, 5, "0", v => s = s with { LockdownEffect = v / 100 })
+            @Slider("Hospital beds", s.HospitalBeds, 500, 20000, 500, "N0", v => s = s with { HospitalBeds = v })
+        </Card>
+    </aside>
+
+    <div class="results">
+        <div class="kpis">
+            <StatCard Label="Peak infectious" Value="@Big(o.PeakInfected)" Hint="@($"on day {o.PeakDay}")" Delta="@Change(p => p.PeakInfected, o.PeakInfected)" />
+            <StatCard Label="Ever infected" Value="@((o.TotalInfected / s.Population).ToString("0%"))" Hint="@($"{Big(o.TotalInfected)} people")" Delta="@Change(p => p.TotalInfected, o.TotalInfected)" />
+            <StatCard Label="Over capacity" Value="@($"{o.DaysOverCapacity} days")" Hint="@($"peak need {Big(o.PeakInfected * s.HospitalRate)} beds")" />
+            <StatCard Label="Herd immunity" Value="@o.HerdThreshold.ToString("0%")" Hint="1 − 1/R₀ must be immune" />
+        </div>
+        <Card Title="Infectious people" Subtitle="@(Lockdown + (pinned is null ? "" : " · grey: pinned baseline"))">
+            <LineChart Labels="labels" Series="infectiousSeries" Height="260" ValueFormat="N0" AriaLabel="Infectious people per day" />
+        </Card>
+        <Card Title="Hospital demand against beds">
+            <LineChart Labels="labels" Series="hospitalSeries" Height="200" ValueFormat="N0" AriaLabel="Hospital demand per day" />
+        </Card>
+        <Card Title="Where everyone is" Subtitle="Susceptible, exposed, infectious and removed, as shares of the population">
+            <div class="stack">
+                @foreach (var d in o.Days.Where(d => d.T % 4 == 0))
+                {
+                    <div class="col" title="@($"Day {d.T}: S {d.S / s.Population:0%} · E {d.E / s.Population:0%} · I {d.I / s.Population:0%} · R {d.R / s.Population:0%}")">
+                        <span class="r" style="height:@P(d.R)"></span><span class="i" style="height:@P(d.I)"></span><span class="e" style="height:@P(d.E)"></span><span class="s" style="height:@P(d.S)"></span>
+                    </div>
+                }
+            </div>
+            <div class="legend rz-row"><span><i class="s"></i>Susceptible</span><span><i class="e"></i>Exposed</span><span><i class="i"></i>Infectious</span><span><i class="r"></i>Removed</span></div>
+        </Card>
+    </div>
+</div>
+
+@code {
+    private Scenario s = new();
+    private Outcome? pinned;
+    private Outcome o = Seir.Run(new Scenario());
+    private List<string> labels = new();
+    private List<ChartSeries> infectiousSeries = new();
+    private List<ChartSeries> hospitalSeries = new();
+
+    protected override void OnInitialized() => Recompute();
+
+    private void Recompute()
+    {
+        o = Seir.Run(s);
+        labels = o.Days.Select(d => d.T % 30 == 0 ? $"day {d.T}" : "").ToList();
+        infectiousSeries = new() { new("Infectious", o.Days.Select(d => d.I).ToList()) };
+        if (pinned is not null) infectiousSeries.Add(new("Baseline", pinned.Days.Select(d => d.I).ToList()) { Color = "var(--rz-muted)" });
+        hospitalSeries = new()
+        {
+            new("Needs a bed", o.Days.Select(d => d.Hospital).ToList()) { Color = "var(--rz-accent)" },
+            new("Beds", o.Days.Select(_ => s.HospitalBeds).ToList()) { Color = "var(--rz-bad)" },
+        };
+    }
+
+    private void Pin()
+    {
+        pinned = o;
+        Recompute();
+    }
+
+    private RenderFragment Slider(string label, double value, double min, double max, double step, string format, Action<double> set) => __builder =>
+    {
+        <Field Label="@($"{label}: {value.ToString(format, CultureInfo.InvariantCulture)}")">
+            <input type="range" min="@min.ToString(CultureInfo.InvariantCulture)" max="@max.ToString(CultureInfo.InvariantCulture)" step="@step.ToString(CultureInfo.InvariantCulture)"
+                   value="@value.ToString(CultureInfo.InvariantCulture)" aria-label="@label"
+                   @oninput="e => { set(double.Parse(e.Value!.ToString()!, CultureInfo.InvariantCulture)); Recompute(); }" />
+        </Field>
+    };
+
+    private double? Change(Func<Outcome, double> pick, double now) =>
+        pinned is null || pick(pinned) == 0 ? null : Math.Round((now - pick(pinned)) / pick(pinned) * 100, 1);
+
+    private string Lockdown => s.LockdownDays == 0 ? "No lockdown" : $"Lockdown days {s.LockdownStart}–{s.LockdownStart + s.LockdownDays}";
+
+    private string P(double people) => (people / s.Population * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+
+    private static string Big(double v) => v >= 1_000_000 ? $"{v / 1_000_000:0.0}M" : v >= 10_000 ? $"{v / 1000:0}k" : v.ToString("N0");
+}

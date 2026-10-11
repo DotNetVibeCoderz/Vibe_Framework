@@ -1,0 +1,39 @@
+[workspace]
+resolver = "3"
+members = [
+    "runtime/rustzor-wasm",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Gravicode Studios <studio@gravicode.com>"]
+repository = "https://github.com/DotNetVibeCoderz/Vibe_Framework"
+rust-version = "1.85"
+
+# The runtime itself is RustNetRuntime from the Vibe_Runtime repository,
+# pinned to a commit. Runtime bugs found while building Rustzor are fixed
+# there, not worked around here. Rustzor adds the browser seam on top of it
+# and nothing underneath, so the IL interpreter, the collector and RustBCL are
+# the same source that runs on a desktop and on a microcontroller.
+#
+# To work on both at once, point Cargo at a local checkout without editing
+# this file: copy .cargo/config.local.toml.example to .cargo/config.toml.
+[workspace.dependencies]
+rustclr-core = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "25cd43baa5c345c643552a216086e80d02129dda", default-features = false }
+rustclr-bcl = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "25cd43baa5c345c643552a216086e80d02129dda", default-features = false, features = ["libm-math"] }
+rustclr-gc = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "25cd43baa5c345c643552a216086e80d02129dda", default-features = false }
+rustclr-metadata = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "25cd43baa5c345c643552a216086e80d02129dda", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# What `rustzor publish --aot` ships: smaller download, slightly slower code.
+[profile.wasm-size]
+inherits = "release"
+opt-level = "s"

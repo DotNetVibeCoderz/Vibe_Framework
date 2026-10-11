@@ -1,0 +1,75 @@
+@page "/settings"
+@inject NavigationManager Nav
+
+<PageHeader Title="Model settings" Eyebrow="AI chat" Text="Choose who answers. Settings stay in this browser." />
+
+<div class="settings-grid">
+    <Card Title="Provider">
+        <div class="providers">
+            @foreach (var p in Assistant.Providers)
+            {
+                var provider = p;
+                <button class="provider @(draft.Provider == provider.Id ? "on" : "")" @onclick="() => Pick(provider)">
+                    <strong>@provider.Name</strong>
+                    <span>@provider.Help</span>
+                </button>
+            }
+        </div>
+    </Card>
+    <Card Title="Connection">
+        <div class="rz-stack">
+            <Field Label="Model" Help="@($"Leave empty for {Current.DefaultModel}.")"><input class="rz-input" @bind="draft.Model" placeholder="@Current.DefaultModel" /></Field>
+            @if (Current.NeedsEndpoint)
+            {
+                <Field Label="Endpoint"><input class="rz-input" @bind="draft.Endpoint" placeholder="@(Current.Id == "ollama" ? "http://localhost:11434/v1" : "https://your-resource.openai.azure.com")" /></Field>
+            }
+            @if (Current.NeedsKey)
+            {
+                <Field Label="API key"><input class="rz-input" type="password" autocomplete="off" @bind="draft.ApiKey" /></Field>
+                <p class="warn"><Icon Name="alert" Size="15" /> A key saved here is readable by anything running on this page. Fine on your own machine; for a public app, call the model through your own server so the key never reaches the browser.</p>
+            }
+            <Field Label="@($"Temperature · {draft.Temperature:0.0}")" Help="Lower is more predictable, higher more varied. Some models accept only their default.">
+                <input type="range" min="0" max="1.5" step="0.1" value="@draft.Temperature.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                       @oninput="e => draft.Temperature = double.Parse(e.Value!.ToString()!, System.Globalization.CultureInfo.InvariantCulture)" />
+            </Field>
+            <div class="rz-row">
+                <button class="rz-btn primary" @onclick="Save"><Icon Name="check" /> Save and chat</button>
+                @if (Current.Id == "builtin")
+                {
+                    <button class="rz-btn" @onclick="CheckBuiltIn">Check availability</button>
+                    @if (builtIn is not null) { <Badge Kind="@(builtIn == true ? "good" : "bad")" Text="@(builtIn == true ? "Available" : "Not available in this browser")" /> }
+                }
+            </div>
+        </div>
+    </Card>
+</div>
+
+@code {
+    private AiSettings draft = new();
+    private bool? builtIn;
+
+    private Provider Current => Assistant.Providers.FirstOrDefault(p => p.Id == draft.Provider) ?? Assistant.Providers[0];
+
+    protected override void OnInitialized()
+    {
+        var s = Assistant.Settings;
+        draft = new AiSettings { Provider = s.Provider, Model = s.Model, Endpoint = s.Endpoint, ApiKey = s.ApiKey, Temperature = s.Temperature, Persona = s.Persona };
+    }
+
+    private void Pick(Provider p)
+    {
+        if (draft.Provider != p.Id) draft.Model = "";
+        draft.Provider = p.Id;
+    }
+
+    private void Save()
+    {
+        if (Current.NeedsKey && draft.ApiKey.Trim().Length == 0) { Toasts.Error($"{Current.Name} needs an API key."); return; }
+        if (Current.Id == "azure" && draft.Endpoint.Trim().Length == 0) { Toasts.Error("Azure OpenAI needs the resource endpoint."); return; }
+        Assistant.Save(draft);
+        Toasts.Success($"Using {Current.Name}");
+        Nav.NavigateTo("");
+    }
+
+    private async Task CheckBuiltIn() => builtIn = await LocalAi.BuiltInAvailableAsync();
+}

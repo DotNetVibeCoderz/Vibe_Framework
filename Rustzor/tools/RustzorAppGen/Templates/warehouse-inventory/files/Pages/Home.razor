@@ -1,0 +1,183 @@
+@page "/"
+
+<PageHeader Title="Stock on hand" Eyebrow="Warehouse" Text="Every change goes through a movement, so the history always adds up to what is on the shelf.">
+    <Actions>
+        <button class="rz-btn" @onclick="() => adding = true"><Icon Name="plus" /> New SKU</button>
+    </Actions>
+</PageHeader>
+
+@if (items is null)
+{
+    <p class="rz-muted">Opening the database…</p>
+}
+else
+{
+    <div class="rz-grid rz-grid-4">
+        <StatCard Label="SKUs" Value="@all.Count.ToString()" Hint="@($"{all.Select(i => i.Category).Distinct().Count()} categories")" />
+        <StatCard Label="Units on hand" Value="@all.Sum(i => i.OnHand).ToString("N0")" />
+        <StatCard Label="Stock value" Value="@all.Sum(i => i.OnHand * i.UnitCost).ToString("$#,##0")" Hint="at unit cost" />
+        <StatCard Label="Below reorder point" Value="@all.Count(i => i.Low).ToString()" Hint="@(all.Any(i => i.Low) ? "order soon" : "all stocked")" />
+    </div>
+
+    <Card Class="stock-card">
+        <div class="rz-row stock-tools">
+            <div class="rz-search"><Icon Name="search" Size="16" /><input class="rz-input" placeholder="SKU, name or bin" value="@search" @oninput="Search" /></div>
+            <label class="rz-switch"><input type="checkbox" checked="@lowOnly" @onchange="ToggleLow" /> Low stock only</label>
+        </div>
+        <div class="rz-table-wrap">
+            <table class="rz-table">
+                <thead><tr><th>Bin</th><th>SKU</th><th>Item</th><th class="num">On hand</th><th>Level</th><th class="num">Value</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var i in items)
+                    {
+                        var item = i;
+                        <tr class="@(item.Low ? "low" : "")">
+                            <td class="mono">@item.Bin</td>
+                            <td class="mono">@item.Sku</td>
+                            <td>@item.Name<div class="cat">@item.Category</div></td>
+                            <td class="num">@item.OnHand.ToString("N0")</td>
+                            <td class="level-cell">
+                                <div class="level" title="Reorder at @item.ReorderPoint">
+                                    <span style="width:@Level(item)%"></span><i></i>
+                                </div>
+                            </td>
+                            <td class="num">@((item.OnHand * item.UnitCost).ToString("$#,##0.00"))</td>
+                            <td class="row-actions">
+                                <button class="rz-btn small" @onclick="@(() => Open(item, "receive"))">Receive</button>
+                                <button class="rz-btn small" @onclick="@(() => Open(item, "pick"))">Pick</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (items.Count == 0)
+            {
+                <EmptyState Icon="search" Title="No matching stock" Text="Try another SKU, name or bin." />
+            }
+        </div>
+    </Card>
+}
+
+<Modal @bind-Open="moving" Title="@($"{(kind == "pick" ? "Pick" : "Receive")} {target?.Sku}")">
+    <ChildContent>
+        @if (target is not null)
+        {
+            <p class="rz-muted">@target.Name · bin @target.Bin · @target.OnHand on hand</p>
+            <div class="pair">
+                <Field Label="Quantity"><input class="rz-input" type="number" min="1" @bind="quantity" /></Field>
+                <Field Label="@(kind == "pick" ? "Order or work order" : "Purchase order")"><input class="rz-input" @bind="reference" placeholder="@(kind == "pick" ? "WO-1042" : "PO-5531")" /></Field>
+            </div>
+            @if (error is not null) { <p class="error">@error</p> }
+        }
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => moving = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Move">@(kind == "pick" ? "Pick stock" : "Receive stock")</button>
+    </Footer>
+</Modal>
+
+<Modal @bind-Open="adding" Title="New SKU">
+    <ChildContent>
+        <div class="rz-stack">
+            <div class="pair">
+                <Field Label="SKU"><input class="rz-input mono" @bind="draft.Sku" placeholder="BRG-6206" /></Field>
+                <Field Label="Bin"><input class="rz-input mono" @bind="draft.Bin" placeholder="A-01-3" /></Field>
+            </div>
+            <Field Label="Name"><input class="rz-input" @bind="draft.Name" /></Field>
+            <div class="pair">
+                <Field Label="Category"><input class="rz-input" @bind="draft.Category" /></Field>
+                <Field Label="Unit cost"><input class="rz-input" type="number" step="0.01" @bind="draft.UnitCost" /></Field>
+            </div>
+            <div class="pair">
+                <Field Label="Opening stock"><input class="rz-input" type="number" min="0" @bind="draft.OnHand" /></Field>
+                <Field Label="Reorder point"><input class="rz-input" type="number" min="0" @bind="draft.ReorderPoint" /></Field>
+            </div>
+            @if (error is not null) { <p class="error">@error</p> }
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Add">Add SKU</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<Item>? items;
+    private List<Item> all = new();
+    private string search = "";
+    private bool lowOnly;
+    private bool moving, adding;
+    private Item? target;
+    private string kind = "receive";
+    private int quantity = 1;
+    private string reference = "";
+    private string? error;
+    private Item draft = new();
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload()
+    {
+        all = await Warehouse.ItemsAsync();
+        items = await Warehouse.ItemsAsync(search, lowOnly);
+    }
+
+    private async Task Search(ChangeEventArgs e)
+    {
+        search = e.Value?.ToString() ?? "";
+        items = await Warehouse.ItemsAsync(search, lowOnly);
+    }
+
+    private async Task ToggleLow(ChangeEventArgs e)
+    {
+        lowOnly = e.Value is true || e.Value?.ToString() == "True" || e.Value?.ToString() == "true";
+        items = await Warehouse.ItemsAsync(search, lowOnly);
+    }
+
+    private void Open(Item item, string how)
+    {
+        target = item;
+        kind = how;
+        quantity = how == "receive" ? Math.Max(1, item.ReorderPoint) : 1;
+        reference = "";
+        error = null;
+        moving = true;
+    }
+
+    private async Task Move()
+    {
+        if (target is null) return;
+        if (quantity <= 0) { error = "Enter a quantity above zero."; return; }
+        try
+        {
+            await Warehouse.MoveAsync(target.Sku, kind, quantity, reference.Trim());
+            moving = false;
+            Toasts.Success($"{(kind == "pick" ? "Picked" : "Received")} {quantity} × {target.Sku}");
+            await Reload();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private async Task Add()
+    {
+        if (draft.Sku.Trim().Length == 0 || draft.Name.Trim().Length == 0 || draft.Bin.Trim().Length == 0)
+        {
+            error = "SKU, name and bin are required.";
+            return;
+        }
+        draft.Sku = draft.Sku.Trim().ToUpperInvariant();
+        if (all.Any(i => i.Sku == draft.Sku)) { error = $"{draft.Sku} already exists."; return; }
+        await Warehouse.AddItemAsync(draft);
+        Toasts.Success($"Added {draft.Sku}");
+        draft = new Item();
+        error = null;
+        adding = false;
+        await Reload();
+    }
+
+    // The bar fills to twice the reorder point; the tick marks the reorder point.
+    private static string Level(Item i) => Math.Min(100, i.OnHand * 50.0 / Math.Max(1, i.ReorderPoint)).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+}

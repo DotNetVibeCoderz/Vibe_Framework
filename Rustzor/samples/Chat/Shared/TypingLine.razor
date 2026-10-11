@@ -1,0 +1,26 @@
+@implements IDisposable
+@* "Dewi is typing…" for a room, with dots in the typist's colour. It listens
+   for changes itself: its only parameter rarely changes, so a parent's
+   re-render would skip it. *@
+@{
+    var typists = ChatStore.Typing.TryGetValue(Room, out var t)
+        ? t.Where(kv => kv.Value > DateTime.Now && kv.Key != ChatStore.Me?.Id).Select(kv => ChatStore.PersonOf(kv.Key)).ToList()
+        : new List<Person>();
+}
+<div class="typing" aria-live="polite">
+    @if (typists.Count > 0)
+    {
+        <span class="dots" style="--who:@typists[0].Color"><i></i><i></i><i></i></span>
+        <span>@string.Join(" and ", typists.Select(p => p.First)) @(typists.Count == 1 ? "is" : "are") typing…</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Room { get; set; } = "";
+
+    protected override void OnInitialized() => ChatStore.Changed += Refresh;
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ChatStore.Changed -= Refresh;
+}

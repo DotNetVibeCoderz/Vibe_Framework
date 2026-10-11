@@ -1,0 +1,151 @@
+@page "/grpc"
+@implements IDisposable
+@using Rustzor.Net.GrpcWeb
+
+<section class="ws-head grpc">
+    <span class="proto-tag">gRPC-Web</span>
+    <h1>Protobuf over fetch</h1>
+    <p><code>Rustzor.Net.GrpcWeb</code> frames protobuf messages for the <code>playground.Inventory</code> service. The wire shows every frame in hex: a flag byte, a four-byte length, then the message.</p>
+</section>
+
+<div class="split">
+    <div class="pane">
+        <h2 class="sub">Unary · GetItem</h2>
+        <div class="calc">
+            <label class="inline">id <input class="rz-input mono" type="number" min="1" aria-label="Item id" value="@itemId" @onchange="e => itemId = int.TryParse(e.Value?.ToString(), out var v) ? v : 1" /></label>
+            <button class="rz-btn primary" @onclick="Get">Call</button>
+            <button class="rz-btn ghost" @onclick="Missing">Ask for id 99</button>
+        </div>
+        @if (item is not null)
+        {
+            <div class="item-card">
+                <div><strong>@item.Name</strong><span class="cat">@item.Category</span></div>
+                <div class="mono price">Rp @item.Price.ToString("N0")</div>
+                <div class="tags">@foreach (var t in item.Tags) { <span>@t</span> }</div>
+                <div class="stock @(item.Stock == 0 ? "out" : "")">@(item.Stock == 0 ? "Out of stock" : $"{item.Stock} in stock")</div>
+            </div>
+        }
+        @if (status is not null) { <p class="rpc-error"><strong>@status.Value</strong> @detail</p> }
+
+        <h2 class="sub">Server streaming · ListItems</h2>
+        <div class="calc">
+            <select class="rz-input" aria-label="Category" value="@category" @onchange="e => category = e.Value?.ToString() ?? string.Empty">
+                <option value="">All categories</option><option>Coffee</option><option>Gear</option><option>Tea</option>
+            </select>
+            <button class="rz-btn" disabled="@listing" @onclick="List">@(listing ? "Streaming…" : "List")</button>
+        </div>
+        <ul class="stream-list">
+            @foreach (var i in listed) { <li><span>@i.Name</span><span class="mono">Rp @i.Price.ToString("N0")</span></li> }
+        </ul>
+    </div>
+    <div class="pane">
+        <h2 class="sub">Server streaming · WatchPrices</h2>
+        <div class="calc">
+            <label class="inline">ticks <input class="rz-input mono" type="number" min="1" max="500" aria-label="Tick count" value="@count" @onchange="e => count = int.TryParse(e.Value?.ToString(), out var v) ? v : 60" /></label>
+            @if (watching)
+            {
+                <button class="rz-btn" @onclick="Stop">Cancel</button>
+            }
+            else
+            {
+                <button class="rz-btn primary" @onclick="Watch">Watch</button>
+            }
+            <span class="hint">@ticks.Count received</span>
+        </div>
+        <PriceChart Ticks="ticks" />
+        <div class="quotes">
+            @foreach (var g in ticks.GroupBy(t => t.Symbol).OrderBy(g => g.Key))
+            {
+                var last = g.Last();
+                <div class="quote"><span>@g.Key</span><strong class="mono">@last.Price.ToString("N0")</strong><small class="@(last.Change >= 0 ? "up" : "down")">@(last.Change >= 0 ? "▲" : "▼") @Math.Abs(last.Change).ToString("N0")</small></div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private int itemId = 1;
+    private Item? item;
+    private StatusCode? status;
+    private string detail = "";
+    private string category = "";
+    private bool listing;
+    private readonly List<Item> listed = new();
+    private int count = 60;
+    private bool watching;
+    private readonly List<PriceTick> ticks = new();
+    private CancellationTokenSource? watch;
+
+    protected override void OnInitialized() => Wire.Changed += Refresh;
+
+    private async Task Get()
+    {
+        status = null;
+        item = null;
+        Wire.Log(Protocol.Grpc, "note", $"GetItem(id: {itemId})", "/playground.Inventory/GetItem");
+        try
+        {
+            item = await Links.Grpc.UnaryAsync<GetItemRequest, Item>("/playground.Inventory/GetItem", new GetItemRequest { Id = itemId });
+        }
+        catch (RpcException e)
+        {
+            status = e.Status;
+            detail = e.Detail;
+        }
+    }
+
+    private async Task Missing()
+    {
+        itemId = 99;
+        await Get();
+    }
+
+    private async Task List()
+    {
+        listed.Clear();
+        listing = true;
+        Wire.Log(Protocol.Grpc, "note", $"ListItems(category: \"{category}\")", "/playground.Inventory/ListItems");
+        try
+        {
+            await Links.Grpc.ServerStreamingAsync<ListItemsRequest, Item>("/playground.Inventory/ListItems", new ListItemsRequest { Category = category }, i => { listed.Add(i); StateHasChanged(); });
+        }
+        catch (RpcException e)
+        {
+            Toasts.Error(e.Message);
+        }
+        listing = false;
+    }
+
+    private async Task Watch()
+    {
+        ticks.Clear();
+        watching = true;
+        watch = new CancellationTokenSource();
+        var request = new WatchRequest { Count = count };
+        request.Symbols.AddRange(new[] { "GAYO", "TORAJA", "KINTAMANI" });
+        Wire.Log(Protocol.Grpc, "note", $"WatchPrices({count} ticks)", "/playground.Inventory/WatchPrices");
+        try
+        {
+            await Links.Grpc.ServerStreamingAsync<WatchRequest, PriceTick>("/playground.Inventory/WatchPrices", request, t => { ticks.Add(t); StateHasChanged(); }, cancel: watch.Token);
+        }
+        catch (RpcException e) when (e.Status == StatusCode.Cancelled)
+        {
+            Toasts.Info($"Cancelled after {ticks.Count} ticks");
+        }
+        catch (RpcException e)
+        {
+            Toasts.Error(e.Message);
+        }
+        watching = false;
+    }
+
+    private void Stop() => watch?.Cancel();
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Wire.Changed -= Refresh;
+        watch?.Cancel();
+    }
+}

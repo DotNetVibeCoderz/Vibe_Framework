@@ -1,0 +1,10 @@
+{
+  "id": "machine-monitor",
+  "name": "Machine monitor",
+  "category": "Industry",
+  "description": "A production line's live telemetry: temperature, vibration and spindle speed per machine, OEE, threshold alarms you acknowledge, and trend charts. Runs on a built-in simulator you can swap for real data.",
+  "icon": "factory",
+  "shell": true,
+  "packages": [],
+  "nav": [ { "title": "Line overview", "href": "", "icon": "factory" }, { "title": "Alarms", "href": "alarms", "icon": "bell" } ]
+}

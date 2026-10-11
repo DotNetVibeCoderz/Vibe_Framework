@@ -1,0 +1,18 @@
+@page "/"
+@inject Counter Shared
+<PageTitle>Home</PageTitle>
+<h1 class="title">Hello, @name!</h1>
+<input @bind="name" @bind:event="oninput" />
+<button class="btn" @onclick="Increment">Clicked @count times</button>
+<p>Shared total: @Shared.Total</p>
+<Child Label="child" Value="count" OnPing="Pinged" />
+@if (count > 2)
+{
+    <p class="many">Many clicks</p>
+}
+@code {
+    string name = "Rustzor";
+    int count;
+    void Increment() { count++; Shared.Total++; }
+    void Pinged(int v) => count += v;
+}

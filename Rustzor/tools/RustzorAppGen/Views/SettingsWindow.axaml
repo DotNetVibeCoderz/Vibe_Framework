@@ -1,0 +1,144 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RustzorAppGen.Views.SettingsWindow"
+        Title="Settings"
+        Width="820" Height="640" MinWidth="680" MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <Window.Styles>
+    <Style Selector="TextBlock.field">
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Margin" Value="0,12,0,5" />
+    </Style>
+    <Style Selector="TextBlock.help">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="26,20,26,8" Spacing="2">
+      <TextBlock Text="Settings" Classes="display" FontSize="24" />
+      <TextBlock x:Name="ConfigPath" Classes="muted" FontSize="11" />
+    </StackPanel>
+
+    <TabControl Grid.Row="1" Margin="18,0" TabStripPlacement="Left">
+      <TabItem Header="AI providers">
+        <ScrollViewer>
+          <StackPanel Margin="18,4,18,18">
+            <TextBlock Text="Jack talks to one model at a time; pick it at the top of the chat. Add a key for each provider you want to use." Classes="help" Margin="0,0,0,8" />
+            <TextBlock Text="Provider" Classes="field" />
+            <ComboBox x:Name="ProviderBox" HorizontalAlignment="Stretch" SelectionChanged="OnProviderChanged" />
+            <TextBlock Text="Models" Classes="field" />
+            <TextBox x:Name="ModelsBox" Watermark="gpt-4.1, gpt-4.1-mini" />
+            <TextBlock Text="Comma-separated. For Azure OpenAI these are deployment names." Classes="help" />
+            <TextBlock Text="API key" Classes="field" />
+            <TextBox x:Name="KeyBox" PasswordChar="•" RevealPassword="False" />
+            <CheckBox Content="Show key" Margin="0,4,0,0" IsCheckedChanged="OnShowKey" />
+            <TextBlock Text="Endpoint" Classes="field" />
+            <TextBox x:Name="EndpointBox" />
+            <TextBlock x:Name="EndpointHelp" Classes="help" />
+            <StackPanel x:Name="WorkspacePanel">
+              <TextBlock Text="Workspace ID" Classes="field" />
+              <TextBox x:Name="WorkspaceBox" Watermark="Only for keys not scoped to a workspace" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,16,0,0">
+              <Button Classes="secondary" Content="Test connection" Click="OnTest" x:Name="TestButton" />
+              <TextBlock x:Name="TestResult" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Assistant">
+        <ScrollViewer>
+          <StackPanel Margin="18,4,18,18">
+            <TextBlock Text="Temperature" Classes="field" />
+            <TextBox x:Name="TemperatureBox" Watermark="Model default" Width="160" HorizontalAlignment="Left" />
+            <TextBlock Text="0 is precise, 1 is varied. Leave empty for the model's default; some reasoning models accept nothing else." Classes="help" />
+            <TextBlock Text="Max output tokens" Classes="field" />
+            <NumericUpDown x:Name="MaxTokensBox" Minimum="256" Maximum="128000" Increment="1000" Width="200" HorizontalAlignment="Left" FormatString="0" />
+            <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,5">
+              <TextBlock Text="System prompt" FontWeight="Medium" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="tool" Content="Reset to Jack's default" Click="OnResetPrompt" />
+            </Grid>
+            <TextBox x:Name="PromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="260" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+            <TextBlock Text="Empty uses Jack's built-in prompt." Classes="help" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Tools">
+        <StackPanel Margin="18,4,18,18">
+          <TextBlock Text="Tavily API key (internet search)" Classes="field" />
+          <TextBox x:Name="TavilyBox" PasswordChar="•" />
+          <TextBlock Text="Lets Jack search the web. Get a key at tavily.com. Page reading, math, and date and time work without a key." Classes="help" />
+          <TextBlock Text="Jack's tools" Classes="field" />
+          <ItemsControl x:Name="ToolList">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <Border Classes="strike" Margin="0,0,6,6"><TextBlock Text="{Binding}" Classes="mono" FontSize="11" Foreground="{DynamicResource Patina}" /></Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </TabItem>
+
+      <TabItem Header="Rustzor">
+        <ScrollViewer>
+          <StackPanel Margin="18,4,18,18">
+            <TextBlock Text="New projects reference Rustzor from" Classes="field" />
+            <StackPanel Orientation="Horizontal" Spacing="16">
+              <RadioButton x:Name="SourceRef" GroupName="ref" Content="A local source checkout" />
+              <RadioButton x:Name="NuGetRef" GroupName="ref" Content="NuGet packages" />
+            </StackPanel>
+            <TextBlock Text="Rustzor source folder" Classes="field" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox x:Name="RootBox" />
+              <Button Grid.Column="1" Classes="secondary" Content="Browse…" Margin="6,0,0,0" Click="OnBrowseRoot" />
+            </Grid>
+            <TextBlock Text="The folder with Rustzor.slnx. Its runtime must be built once (scripts/build-runtime.sh)." Classes="help" />
+            <TextBlock Text="Package version" Classes="field" />
+            <TextBox x:Name="VersionBox" Width="160" HorizontalAlignment="Left" />
+            <TextBlock Text="Projects folder" Classes="field" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox x:Name="ProjectsBox" />
+              <Button Grid.Column="1" Classes="secondary" Content="Browse…" Margin="6,0,0,0" Click="OnBrowseProjects" />
+            </Grid>
+            <TextBlock Text="Deploy folder" Classes="field" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox x:Name="DeployBox" Watermark="Optional: a web root to copy the published site into" />
+              <Button Grid.Column="1" Classes="secondary" Content="Browse…" Margin="6,0,0,0" Click="OnBrowseDeploy" />
+            </Grid>
+            <TextBlock Text="Without one, Deploy leaves a zip of the site in the project folder." Classes="help" />
+            <TextBlock Text="Local server port" Classes="field" />
+            <NumericUpDown x:Name="PortBox" Minimum="1024" Maximum="65000" Width="160" HorizontalAlignment="Left" FormatString="0" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Editor">
+        <StackPanel Margin="18,4,18,18">
+          <TextBlock Text="Theme" Classes="field" />
+          <StackPanel Orientation="Horizontal" Spacing="16">
+            <RadioButton x:Name="DarkTheme" GroupName="theme" Content="Dark" />
+            <RadioButton x:Name="LightTheme" GroupName="theme" Content="Light" />
+          </StackPanel>
+          <TextBlock Text="Font size" Classes="field" />
+          <NumericUpDown x:Name="FontSizeBox" Minimum="9" Maximum="32" Increment="1" Width="140" HorizontalAlignment="Left" FormatString="0" />
+          <CheckBox x:Name="LineNumbersBox" Content="Show line numbers" Margin="0,14,0,0" />
+          <CheckBox x:Name="WrapBox" Content="Wrap long lines" Margin="0,6,0,0" />
+        </StackPanel>
+      </TabItem>
+    </TabControl>
+
+    <Border Grid.Row="2" Background="{DynamicResource Bg1}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="26,14">
+        <Button Classes="secondary" Content="Cancel" Click="OnCancel" IsCancel="True" />
+        <Button Classes="primary" Content="Save" Click="OnSave" IsDefault="True" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

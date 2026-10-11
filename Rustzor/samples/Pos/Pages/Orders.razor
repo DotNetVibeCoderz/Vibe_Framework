@@ -1,0 +1,118 @@
+@page "/orders"
+@implements IDisposable
+
+<div class="screen">
+    <PageHeader Title="Orders" Eyebrow="@DayLabel" Text="Every order rung today, newest first. Open one to reprint its receipt or void it.">
+        <Actions>
+            <div class="seg" role="group" aria-label="Day">
+                <button class="@(day == Menu.Today() ? "on" : "")" @onclick="() => Show(Menu.Today())">Today</button>
+                <button class="@(day == Yesterday ? "on" : "")" @onclick="() => Show(Yesterday)">Yesterday</button>
+            </div>
+        </Actions>
+    </PageHeader>
+
+    @{ var list = PosStore.Orders.Where(o => o.Day == day).OrderByDescending(o => o.Time).ToList(); }
+    @if (list.Count == 0)
+    {
+        <Card><EmptyState Icon="receipt" Title="No orders on this day" Text="Orders appear here as soon as they are paid on the register." /></Card>
+    }
+    else
+    {
+        var paid = list.Where(o => o.Status == "paid").ToList();
+        <div class="order-strip">
+            <div><span>Orders</span><strong>@paid.Count</strong></div>
+            <div><span>Sales</span><strong>@Menu.Rp(paid.Sum(o => o.Total))</strong></div>
+            <div><span>Average ticket</span><strong>@Menu.Rp(paid.Count == 0 ? 0 : paid.Sum(o => o.Total) / paid.Count)</strong></div>
+            <div><span>Voided</span><strong>@(list.Count - paid.Count)</strong></div>
+        </div>
+        <div class="orders">
+            <div class="order-list" role="listbox" aria-label="Orders">
+                @foreach (var o in list)
+                {
+                    var order = o;
+                    <button role="option" aria-selected="@(selected == order ? "true" : "false")" class="order-row @(selected == order ? "on" : "") @(order.Status == "void" ? "void" : "")" @onclick="() => selected = order">
+                        <span class="or-no mono">#@order.Number.ToString("000")</span>
+                        <span class="or-time mono">@order.Clock</span>
+                        <span class="or-what">@string.Join(", ", order.Lines.Select(l => l.Qty > 1 ? $"{l.Qty}× {l.Name}" : l.Name))</span>
+                        <span class="or-method">@(order.Status == "void" ? "Void" : Menu.MethodName(order.Method))</span>
+                        <span class="or-total mono">@Menu.Num(order.Total)</span>
+                    </button>
+                }
+            </div>
+            <div class="order-detail">
+                @if (selected is not null)
+                {
+                    <div class="receipt-stage"><Receipt Order="selected" /></div>
+                    <div class="rz-row" style="justify-content:center;margin-top:14px">
+                        <button class="rz-btn" @onclick="Window.Print"><Icon Name="receipt" /> Reprint</button>
+                        @if (selected.Status == "paid")
+                        {
+                            <button class="rz-btn danger" @onclick="() => voiding = true"><Icon Name="x" /> Void order</button>
+                        }
+                    </div>
+                    @if (selected.Status == "void")
+                    {
+                        <p class="void-note">Voided: @selected.VoidReason</p>
+                    }
+                }
+                else
+                {
+                    <EmptyState Icon="receipt" Title="Pick an order" Text="Its receipt shows here." />
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<Modal @bind-Open="voiding" Title="@($"Void order #{selected?.Number:000}?")">
+    <ChildContent>
+        <p class="muted">The order stays in the history, struck through, and leaves the shift's takings. Give the reason the supervisor will read.</p>
+        <div class="opt-choices">
+            @foreach (var r in Reasons)
+            {
+                var reason = r;
+                <button class="opt @(voidReason == reason ? "on" : "")" @onclick="() => voidReason = reason">@reason</button>
+            }
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => voiding = false">Keep order</button>
+        <button class="rz-btn primary danger-fill" disabled="@(voidReason.Length == 0)" @onclick="Void">Void order</button>
+    </Footer>
+</Modal>
+
+@code {
+    private static readonly string[] Reasons = { "Rung by mistake", "Customer changed their mind", "Item not available", "Refunded to customer" };
+    private string day = Menu.Today();
+    private Order? selected;
+    private bool voiding;
+    private string voidReason = "";
+
+    private static string Yesterday => DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
+    private string DayLabel => DateTime.Parse(day).ToString("dddd, d MMMM");
+
+    protected override void OnInitialized()
+    {
+        PosStore.Changed += Refresh;
+        selected = PosStore.Orders.Where(o => o.Day == day).OrderByDescending(o => o.Time).FirstOrDefault();
+    }
+
+    private void Show(string d)
+    {
+        day = d;
+        selected = PosStore.Orders.Where(o => o.Day == day).OrderByDescending(o => o.Time).FirstOrDefault();
+    }
+
+    private async Task Void()
+    {
+        if (selected is null || voidReason.Length == 0) return;
+        await PosStore.VoidAsync(selected, voidReason);
+        Toasts.Info($"Voided #{selected.Number:000}");
+        voiding = false;
+        voidReason = "";
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => PosStore.Changed -= Refresh;
+}

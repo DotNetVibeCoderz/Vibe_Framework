@@ -1,0 +1,12 @@
+<div class="progress" role="progressbar" aria-valuenow="@Value" aria-valuemin="0" aria-valuemax="100" style="height:@(Height)px">
+    <div class="@Bs.Css("progress-bar", "bg-" + Color, Striped || Animated ? "progress-bar-striped" : null, Animated ? "progress-bar-animated" : null)" style="width:@(Math.Clamp(Value, 0, 100).ToString("0.##"))%">@(ShowLabel ? $"{Value:0}%" : "")</div>
+</div>
+
+@code {
+    [Parameter] public double Value { get; set; }
+    [Parameter] public string Color { get; set; } = BsColor.Primary;
+    [Parameter] public bool Striped { get; set; }
+    [Parameter] public bool Animated { get; set; }
+    [Parameter] public bool ShowLabel { get; set; }
+    [Parameter] public int Height { get; set; } = 16;
+}

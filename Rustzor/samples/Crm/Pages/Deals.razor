@@ -1,0 +1,143 @@
+@page "/deals"
+@implements IDisposable
+
+<PageHeader Title="Deals" Eyebrow="Pipeline" Text="Drag a deal to its new stage. Deals past their close date are flagged in red.">
+    <Actions>
+        <select class="rz-input owner-pick" aria-label="Owner" @onchange="e => owner = e.Value?.ToString() ?? string.Empty">
+            <option value="">Everyone</option>
+            @foreach (var o in Catalog.Owners) { <option value="@o">@o</option> }
+        </select>
+        <button class="rz-btn primary" @onclick="() => adding = true"><Icon Name="plus" /> New deal</button>
+    </Actions>
+</PageHeader>
+
+@if (deals is null)
+{
+    <p class="muted">Opening the database…</p>
+}
+else
+{
+    <div class="board">
+        @foreach (var s in Catalog.Stages)
+        {
+            var stage = s;
+            var items = Visible.Where(d => d.Stage == stage.Id).OrderByDescending(d => d.Value).ToList();
+            <section class="lane tone-@stage.Tone @(over == stage.Id ? "over" : "")"
+                     @ondragover="() => over = stage.Id" @ondragover:preventDefault="true"
+                     @ondragleave="() => { if (over == stage.Id) over = null; }"
+                     @ondrop="() => Drop(stage.Id)" @ondrop:preventDefault="true">
+                <div class="lane-head"><h2>@stage.Name</h2><span class="mono">@Catalog.Money(items.Sum(d => d.Value))</span></div>
+                @foreach (var d in items)
+                {
+                    var deal = d;
+                    var late = deal.Stage is not ("won" or "lost") && string.CompareOrdinal(deal.CloseDate, Today) < 0;
+                    <article class="deal @(late ? "late" : "")" draggable="true" @ondragstart="() => dragging = deal" @ondragend="() => { dragging = null; over = null; }">
+                        <h3>@deal.Title</h3>
+                        <div class="co">@deal.Company</div>
+                        <div class="deal-foot">
+                            <span class="value">@Catalog.Money(deal.Value)</span>
+                            <span class="due" title="Expected close">@deal.CloseDate</span>
+                        </div>
+                        <div class="deal-foot">
+                            <span class="muted">@deal.Owner.Split(' ')[0] · @deal.Source</span>
+                            <select class="rz-input stage-pick" aria-label="Stage of @deal.Title" value="@deal.Stage" @onchange="e => Move(deal, e.Value?.ToString())">
+                                @foreach (var o in Catalog.Stages) { <option value="@o.Id">@o.Name</option> }
+                            </select>
+                        </div>
+                    </article>
+                }
+            </section>
+        }
+    </div>
+}
+
+<Modal @bind-Open="adding" Title="New deal">
+    <ChildContent>
+        <div class="rz-stack">
+            <Field Label="What is being sold"><input class="rz-input" @bind="draft.Title" placeholder="Espresso machines" /></Field>
+            <div class="pair">
+                <Field Label="Company">
+                    <select class="rz-input" @bind="draft.CompanyId">
+                        <option value="0">Choose…</option>
+                        @foreach (var c in companies) { <option value="@c.Id">@c.Name</option> }
+                    </select>
+                </Field>
+                <Field Label="Value (Rp)"><input class="rz-input" type="number" min="0" step="500000" @bind="draft.Value" /></Field>
+            </div>
+            <div class="pair">
+                <Field Label="Owner">
+                    <select class="rz-input" @bind="draft.Owner">@foreach (var o in Catalog.Owners) { <option value="@o">@o</option> }</select>
+                </Field>
+                <Field Label="Source">
+                    <select class="rz-input" @bind="draft.Source">@foreach (var o in Catalog.Sources) { <option value="@o">@o</option> }</select>
+                </Field>
+            </div>
+            <Field Label="Expected close"><input class="rz-input" type="date" value="@draft.CloseDate" @onchange="e => draft.CloseDate = e.Value?.ToString() ?? string.Empty" /></Field>
+            @if (error is not null) { <p class="muted" style="color:var(--rz-bad)">@error</p> }
+        </div>
+    </ChildContent>
+    <Footer>
+        <button class="rz-btn" @onclick="() => adding = false">Cancel</button>
+        <button class="rz-btn primary" @onclick="Add">Add deal</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<Deal>? deals;
+    private List<Company> companies = new();
+    private Deal? dragging;
+    private string? over;
+    private string owner = "";
+    private bool adding;
+    private string? error;
+    private Deal draft = NewDraft();
+    private static string Today => DateTime.Today.ToString("yyyy-MM-dd");
+
+    private IEnumerable<Deal> Visible => owner.Length == 0 ? deals! : deals!.Where(d => d.Owner == owner);
+
+    private static Deal NewDraft() => new() { Owner = Catalog.Owners[0], Source = Catalog.Sources[0], Value = 25_000_000m, CloseDate = DateTime.Today.AddDays(30).ToString("yyyy-MM-dd") };
+
+    protected override async Task OnInitializedAsync()
+    {
+        CrmDb.Changed += OnChanged;
+        companies = await CrmDb.CompaniesAsync();
+        deals = await CrmDb.DealsAsync();
+    }
+
+    private async Task Drop(string stage)
+    {
+        if (dragging is { } d && d.Stage != stage) await Move(d, stage);
+        dragging = null;
+        over = null;
+    }
+
+    private async Task Move(Deal d, string? stage)
+    {
+        if (stage is null || stage == d.Stage) return;
+        d.Stage = stage;
+        await CrmDb.MoveDealAsync(d.Id, stage);
+        if (stage == "won") Toasts.Success($"Won {d.Title} for {d.Company}: {Catalog.Money(d.Value)}");
+    }
+
+    private async Task Add()
+    {
+        if (draft.Title.Trim().Length == 0 || draft.CompanyId == 0 || draft.Value <= 0)
+        {
+            error = "A deal needs a title, a company and a value above zero.";
+            return;
+        }
+        await CrmDb.AddDealAsync(draft);
+        Toasts.Success($"Added {draft.Title}");
+        draft = NewDraft();
+        error = null;
+        adding = false;
+    }
+
+    private async void OnChanged()
+    {
+        deals = await CrmDb.DealsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CrmDb.Changed -= OnChanged;
+}

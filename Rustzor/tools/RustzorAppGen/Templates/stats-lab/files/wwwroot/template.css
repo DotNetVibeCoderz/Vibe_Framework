@@ -1,0 +1,20 @@
+.lab { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 20px; align-items: start; }
+.lab .data { width: 100%; font-family: var(--rz-font-mono); font-size: 13px; resize: vertical; }
+.lab input[type=range] { width: 100%; accent-color: var(--rz-accent); }
+.lab .sample-buttons { flex-wrap: wrap; margin: 10px 0 14px; }
+.lab .results { display: grid; gap: 18px; }
+.lab .note { font-size: 13px; margin: 10px 0 0; }
+.box { position: relative; height: 44px; margin: 10px 8px 4px; }
+.box .whisker { position: absolute; top: 21px; height: 2px; background: var(--rz-muted); }
+.box .iqr { position: absolute; top: 8px; height: 28px; background: color-mix(in srgb, var(--rz-accent) 22%, transparent); border: 2px solid var(--rz-accent); border-radius: 4px; box-sizing: border-box; }
+.box .median { position: absolute; top: 4px; width: 3px; height: 36px; background: var(--rz-fg); margin-left: -1px; }
+.box .outlier { position: absolute; top: 17px; width: 9px; height: 9px; margin-left: -4px; border-radius: 50%; border: 2px solid var(--rz-chart-5, #9f1239); }
+.five { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 14px 0 0; }
+.five dt { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--rz-muted); }
+.five dd { margin: 2px 0 0; font-family: var(--rz-font-mono); font-variant-numeric: tabular-nums; }
+.scatter { width: 100%; height: auto; }
+.scatter .axis { stroke: var(--rz-line); stroke-width: 1; }
+.scatter .fit { stroke: var(--rz-accent); stroke-width: 2.5; }
+.scatter .dot { fill: var(--rz-chart-2, #0f766e); opacity: .85; }
+.scatter text { fill: var(--rz-muted); font-size: 11px; font-family: var(--rz-font-mono); }
+@media (max-width: 900px) { .lab { grid-template-columns: 1fr; } .five { grid-template-columns: repeat(3, 1fr); } }

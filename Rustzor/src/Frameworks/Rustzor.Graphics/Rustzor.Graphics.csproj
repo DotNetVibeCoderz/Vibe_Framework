@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Rustzor.Graphics</RootNamespace>
+    <Description>Rustzor.Graphics: graphics for Rustzor. A retained 2D scene graph with pan/zoom, hit testing, selection, SVG and JSON export on Canvas; RGBA pixel operations for image editing; and a WebGL 3D renderer with primitives, OBJ loading, orbit camera and picking.</Description>
+    <PackageTags>$(PackageTags);graphics;canvas;webgl;webgpu;3d;scene-graph;image-processing</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.Canvas\Rustzor.Browser.Canvas.csproj" />
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.WebGL\Rustzor.Browser.WebGL.csproj" />
+    <ProjectReference Include="..\..\Browser\Rustzor.Browser.WebGPU\Rustzor.Browser.WebGPU.csproj" />
+  </ItemGroup>
+</Project>

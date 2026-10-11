@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Rustzor components: a Blazor-compatible component model (ComponentBase, RenderTreeBuilder, EventCallback, @bind, routing, layouts, forms, DI) rendered by a virtual-DOM diff on RustNetRuntime in the browser. Write .razor files; no ASP.NET Core assemblies are needed.</Description>
+    <RootNamespace>Microsoft.AspNetCore.Components</RootNamespace>
+    <!-- The Razor compiler only looks for components in an assembly with this
+         name or one that references it. The NuGet package is Rustzor.Components. -->
+    <AssemblyName>Microsoft.AspNetCore.Components</AssemblyName>
+    <PackageId>Rustzor.Components</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rustzor.Core\Rustzor.Core.csproj" />
+  </ItemGroup>
+
+</Project>

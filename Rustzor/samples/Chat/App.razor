@@ -1,0 +1,8 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <EmptyState Icon="chat" Title="No such room" Text="This conversation does not exist. Pick one from the list." />
+    </NotFound>
+</Router>

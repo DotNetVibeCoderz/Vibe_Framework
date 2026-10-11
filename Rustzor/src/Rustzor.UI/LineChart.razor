@@ -1,0 +1,91 @@
+@* A line chart drawn in SVG to one scale: grid, axis labels, area under the first series, endpoints. *@
+@using System.Globalization
+<div class="rz-stack" style="gap:10px">
+    @if (Series.Count > 1)
+    {
+        <div class="rz-legend">
+            @for (var s = 0; s < Series.Count; s++)
+            {
+                <span><i style="background:@ColorOf(s)"></i>@Series[s].Name</span>
+            }
+        </div>
+    }
+    <svg class="rz-chart" viewBox="0 0 @W @H" role="img" aria-label="@AriaLabel">
+        @foreach (var t in Ticks())
+        {
+            <line class="grid" x1="@F(PadL)" x2="@F(W - PadR)" y1="@F(Y(t))" y2="@F(Y(t))" />
+            @Svg.Text(PadL - 8, Y(t) + 4, "end", FormatTick(t))
+        }
+        @for (var i = 0; i < Labels.Count; i++)
+        {
+            if (Labels.Count <= 12 || i % (int)Math.Ceiling(Labels.Count / 12.0) == 0)
+            {
+                @Svg.Text(X(i), H - 6, "middle", Labels[i])
+            }
+        }
+        @for (var s = 0; s < Series.Count; s++)
+        {
+            var series = Series[s];
+            if (s == 0 && series.Values.Count > 1)
+            {
+                <path d="@AreaPath(series.Values)" fill="@ColorOf(0)" fill-opacity="0.10" />
+            }
+            <path d="@LinePath(series.Values)" fill="none" stroke="@ColorOf(s)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" />
+            @if (series.Values.Count > 0)
+            {
+                var last = series.Values.Count - 1;
+                <circle cx="@F(X(last))" cy="@F(Y(series.Values[last]))" r="3.5" fill="@ColorOf(s)" />
+            }
+        }
+    </svg>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<string> Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public List<ChartSeries> Series { get; set; } = new();
+    [Parameter] public int Height { get; set; } = 240;
+    [Parameter] public string? ValueFormat { get; set; } = "N0";
+    [Parameter] public string AriaLabel { get; set; } = "Line chart";
+
+    private const int W = 640;
+    private int H => Height;
+    private const int PadL = 52, PadR = 12, PadT = 10, PadB = 26;
+
+    private double Max => NiceMax(Series.SelectMany(s => s.Values).DefaultIfEmpty(1).Max());
+    private double Min => Math.Min(0, Series.SelectMany(s => s.Values).DefaultIfEmpty(0).Min());
+
+    private static string F(double v) => v.ToString("F1", CultureInfo.InvariantCulture);
+
+    private string ColorOf(int s) => Series[s].Color ?? Palette.Chart(s);
+
+    private double X(int i) => Labels.Count <= 1 ? PadL : PadL + i * (W - PadL - PadR) / (double)(Labels.Count - 1);
+
+    private double Y(double v) => PadT + (Max - v) * (H - PadT - PadB) / (Max - Min == 0 ? 1 : Max - Min);
+
+    private IEnumerable<double> Ticks()
+    {
+        var step = (Max - Min) / 4;
+        for (var i = 0; i <= 4; i++) yield return Min + step * i;
+    }
+
+    private string FormatTick(double v) => Math.Abs(v) >= 1000 ? (v / 1000).ToString("0.#", CultureInfo.InvariantCulture) + "k" : v.ToString(ValueFormat ?? "N0");
+
+    internal static double NiceMax(double max)
+    {
+        if (max <= 0) return 1;
+        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(max)));
+        foreach (var m in new[] { 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10 })
+            if (m * magnitude >= max) return m * magnitude;
+        return 10 * magnitude;
+    }
+
+    private string LinePath(IReadOnlyList<double> values)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < values.Count; i++) sb.Append(i == 0 ? "M" : " L").Append(F(X(i))).Append(' ').Append(F(Y(values[i])));
+        return sb.ToString();
+    }
+
+    private string AreaPath(IReadOnlyList<double> values) =>
+        LinePath(values) + " L" + F(X(values.Count - 1)) + " " + F(Y(Math.Max(Min, 0))) + " L" + F(X(0)) + " " + F(Y(Math.Max(Min, 0))) + " Z";
+}

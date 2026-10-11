@@ -1,0 +1,18 @@
+@inherits LayoutComponentBase
+@* AppShell's sidebar credits Gravicode Studios, led by Kang Fadhil. *@
+<AppShell Brand="Nusantara CRM" BrandIcon="building" Items="nav">
+    @Body
+</AppShell>
+
+@code {
+    private readonly List<NavItem> nav = new()
+    {
+        NavItem.Link("Overview", "", "chart"),
+        NavItem.Link("Deals", "deals", "wallet"),
+        NavItem.Link("Companies", "companies", "building"),
+        NavItem.Link("Contacts", "contacts", "users"),
+        NavItem.Link("Activities", "activities", "calendar"),
+        NavItem.Heading("Insight"),
+        NavItem.Link("Reports", "reports", "trend"),
+    };
+}

@@ -1,0 +1,19 @@
+<Project>
+  <Import Project="..\Directory.Build.props" />
+
+  <!--
+    Higher-level frameworks built on the Rustzor.Browser.* libraries. Like
+    those, each may embed a rustzor.module.js that the bundler extracts and
+    rustzor.js installs.
+  -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" Condition="Exists('rustzor.module.js')" />
+    <EmbeddedResource Include="rustzor.module.css" LogicalName="rustzor.module.css" Condition="Exists('rustzor.module.css')" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Rustzor.Core\Rustzor.Core.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\Rustzor.Components\Rustzor.Components.csproj" />
+  </ItemGroup>
+</Project>

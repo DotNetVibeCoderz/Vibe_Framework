@@ -1,0 +1,55 @@
+@page "/data"
+<p id="idb">idb: @_idb</p>
+<p id="sql">sql: @_sql</p>
+<p id="duck">duck: @_duck</p>
+<p id="csv">csv: @_csv</p>
+
+@code {
+    private string _idb = "…", _sql = "…", _duck = "…", _csv = "";
+
+    public sealed class Customer
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string City { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _csv = string.Join("|", Csv.Parse("a,\"b,c\"\n1,2").Select(r => string.Join(";", r)));
+        try
+        {
+            await IndexedDb.DeleteAsync("smoke");
+            using var db = await IndexedDb.OpenAsync("smoke", 1, new StoreSchema("customers", "id", Indexes: new IndexSchema("byCity", "city")));
+            var store = db.Store<Customer>("customers");
+            await store.PutManyAsync(new[] { new Customer { Id = 1, Name = "Ada", City = "Bandung" }, new Customer { Id = 2, Name = "Linus", City = "Jakarta" }, new Customer { Id = 3, Name = "Grace", City = "Bandung" } });
+            var one = await store.GetAsync(2);
+            var bandung = await store.WhereAsync("byCity", "Bandung");
+            _idb = $"{await store.CountAsync()} {one?.Name} {string.Join(",", bandung.Select(c => c.Name))}";
+        }
+        catch (Exception e) { _idb = "ERR " + e.Message; }
+        StateHasChanged();
+        try
+        {
+            using var sql = await SqliteDb.OpenAsync("smoke");
+            await sql.RunAsync("create table if not exists items(id integer primary key, name text, price real)");
+            await sql.RunAsync("delete from items");
+            var (_, lastId) = await sql.RunAsync("insert into items(name, price) values (?, ?)", "Coffee", 3.5);
+            await sql.RunAsync("insert into items(name, price) values (?, ?)", "Tea", 2.25);
+            var rows = await sql.QueryAsync("select name, price from items where price < ? order by price", 10);
+            var total = (await sql.QueryAsync("select sum(price) from items")).Scalar.AsDouble();
+            await sql.SaveAsync();
+            _sql = $"{rows.Count} {rows[0, "name"].AsString()} total={total} last={lastId}";
+        }
+        catch (Exception e) { _sql = "ERR " + e.Message; }
+        StateHasChanged();
+        try
+        {
+            using var duck = await DuckDb.OpenAsync();
+            await DuckDb.RegisterTextAsync("sales.csv", "region,amount\nNorth,10\nSouth,25\nNorth,7\n");
+            var r = await duck.QueryAsync("select region, sum(amount)::DOUBLE as total from 'sales.csv' group by 1 order by 2 desc");
+            _duck = string.Join(",", r.Rows.Select(x => $"{x[0].AsString()}={x[1].AsDouble()}"));
+        }
+        catch (Exception e) { _duck = "ERR " + e.Message; }
+    }
+}

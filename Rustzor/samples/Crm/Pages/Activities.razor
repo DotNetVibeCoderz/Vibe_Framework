@@ -1,0 +1,81 @@
+@page "/activities"
+@implements IDisposable
+
+<PageHeader Title="Activities" Eyebrow="This week" Text="Calls, meetings, emails and tasks, by when they are due. Tick one off when it is done.">
+    <Actions>
+        <div class="rz-row">
+            @foreach (var k in new[] { "all" }.Concat(Catalog.ActivityKinds))
+            {
+                var kind = k;
+                <button class="rz-btn small @(filter == kind ? "primary" : "")" @onclick="() => filter = kind">@kind</button>
+            }
+        </div>
+    </Actions>
+</PageHeader>
+
+@if (activities is null)
+{
+    <p class="muted">Opening the database…</p>
+}
+else
+{
+    var shown = activities.Where(a => filter == "all" || a.Kind == filter).ToList();
+    var groups = new (string Title, Func<Activity, bool> Test)[]
+    {
+        ("Overdue", a => a.Done == 0 && string.CompareOrdinal(a.Due, Today) < 0),
+        ("Today", a => a.Done == 0 && a.Due == Today),
+        ("Next 7 days", a => a.Done == 0 && string.CompareOrdinal(a.Due, Today) > 0 && string.CompareOrdinal(a.Due, WeekEnd) <= 0),
+        ("Later", a => a.Done == 0 && string.CompareOrdinal(a.Due, WeekEnd) > 0),
+        ("Done", a => a.Done == 1),
+    };
+    <Card>
+        @foreach (var g in groups)
+        {
+            var items = shown.Where(g.Test).ToList();
+            if (items.Count == 0) continue;
+            <div class="group-title">@g.Title · @items.Count</div>
+            <ul class="timeline">
+                @foreach (var a in items)
+                {
+                    var item = a;
+                    <li class="@(item.Done == 1 ? "done" : g.Title == "Overdue" ? "late" : "")">
+                        <span class="ico"><Icon Name="@Catalog.KindIcon(item.Kind)" Size="15" /></span>
+                        <div><div class="what">@item.Subject</div><div class="meta"><a href="companies/@item.CompanyId">@item.Company</a> · @item.Owner · <span class="when">@item.Due</span></div></div>
+                        <button class="rz-btn small" @onclick="() => Toggle(item)">@(item.Done == 1 ? "Reopen" : "Done")</button>
+                    </li>
+                }
+            </ul>
+        }
+        @if (shown.Count == 0)
+        {
+            <EmptyState Icon="calendar" Title="Nothing of this kind" Text="Plan one from a company's page." />
+        }
+    </Card>
+}
+
+@code {
+    private List<Activity>? activities;
+    private string filter = "all";
+    private static string Today => DateTime.Today.ToString("yyyy-MM-dd");
+    private static string WeekEnd => DateTime.Today.AddDays(7).ToString("yyyy-MM-dd");
+
+    protected override async Task OnInitializedAsync()
+    {
+        CrmDb.Changed += OnChanged;
+        activities = await CrmDb.ActivitiesAsync();
+    }
+
+    private async Task Toggle(Activity a)
+    {
+        await CrmDb.CompleteActivityAsync(a.Id, a.Done == 0);
+        if (a.Done == 0) Toasts.Success($"Done: {a.Subject}");
+    }
+
+    private async void OnChanged()
+    {
+        activities = await CrmDb.ActivitiesAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CrmDb.Changed -= OnChanged;
+}

@@ -1,0 +1,34 @@
+<label class="@Tw.Css("block", Class)">
+    @if (Label is not null)
+    {
+        <span class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">@Label</span>
+    }
+    <input type="@Type" value="@Value" placeholder="@Placeholder" @oninput="Changed" aria-invalid="@(Error is null ? "false" : "true")"
+           class="@Tw.Css("block h-10 w-full rounded-lg border bg-white px-3 text-sm text-stone-900 shadow-sm outline-none transition placeholder:text-stone-400 focus:ring-2 dark:bg-stone-950 dark:text-stone-100",
+                          Error is null ? "border-stone-300 focus:border-rust-500 focus:ring-rust-500/20 dark:border-stone-700" : "border-red-500 focus:ring-red-500/20")" />
+    @if (Error is not null)
+    {
+        <span class="mt-1 block text-xs text-red-600 dark:text-red-400">@Error</span>
+    }
+    else if (Hint is not null)
+    {
+        <span class="mt-1 block text-xs text-stone-500 dark:text-stone-400">@Hint</span>
+    }
+</label>
+
+@code {
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Type { get; set; } = "text";
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private Task Changed(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? "";
+        return ValueChanged.InvokeAsync(Value);
+    }
+}

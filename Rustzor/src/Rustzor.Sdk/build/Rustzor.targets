@@ -1,0 +1,66 @@
+<Project>
+
+  <!--
+    Rustzor build integration.
+
+    After `dotnet build` (and `dotnet publish`), the app's output folder holds a
+    static site that runs in any browser:
+
+      wwwroot/                     the app's own wwwroot (index.html, css, images)
+      wwwroot/_rustzor/rustzor.wasm   RustNetRuntime compiled to WebAssembly
+      wwwroot/_rustzor/rustzor.js     the loader and the browser bridge
+      wwwroot/_rustzor/*.dll          the app and its libraries, in load order
+      wwwroot/_rustzor/modules/*.js   browser operations the libraries ship
+      wwwroot/_rustzor/boot.json      what to load, in which order, by content hash
+
+    Serve that folder with any static file server (`rustzor serve` does it with
+    live reload). There is no server-side runtime.
+
+    Dibuat oleh Gravicode Studios, dipimpin oleh Kang Fadhil.
+  -->
+
+  <PropertyGroup>
+    <RustzorRuntimeDir Condition="'$(RustzorRuntimeDir)' == ''">$(MSBuildThisFileDirectory)..\runtime\</RustzorRuntimeDir>
+    <RustzorWebRoot Condition="'$(RustzorWebRoot)' == ''">$(OutDir)wwwroot\</RustzorWebRoot>
+    <RustzorAppWebRoot Condition="'$(RustzorAppWebRoot)' == ''">$(MSBuildProjectDirectory)\wwwroot\</RustzorAppWebRoot>
+    <!-- true: compile what the AOT compiler can to app.aot.wasm (the AOT mode). -->
+    <RustzorAot Condition="'$(RustzorAot)' == ''">false</RustzorAot>
+    <!-- The build tool: bundling, and the IL-to-WebAssembly AOT compiler. -->
+    <RustzorBuildTool Condition="'$(RustzorBuildTool)' == ''">$(MSBuildThisFileDirectory)..\tools\Rustzor.Build.dll</RustzorBuildTool>
+    <!-- Razor projects otherwise produce a static web assets manifest for ASP.NET Core. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
+
+
+  <!-- The app's own wwwroot is copied as is. -->
+  <Target Name="RustzorCopyWebRoot" AfterTargets="Build" Condition="Exists('$(RustzorAppWebRoot)')">
+    <ItemGroup>
+      <_RustzorWebFile Include="$(RustzorAppWebRoot)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RustzorWebFile)" DestinationFiles="@(_RustzorWebFile->'$(RustzorWebRoot)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- AOT: Rustzor.Build translates what it can of the app to WebAssembly. -->
+  <Target Name="RustzorAotCompile" AfterTargets="Build" DependsOnTargets="RustzorCopyWebRoot" Condition="'$(RustzorAot)' == 'true'">
+    <Exec Command="dotnet &quot;$(RustzorBuildTool)&quot; aot &quot;$(OutDir) &quot; &quot;$(AssemblyName)&quot; &quot;$(IntermediateOutputPath)rustzor-aot &quot;" />
+  </Target>
+
+  <Target Name="RustzorBundle" AfterTargets="Build" DependsOnTargets="RustzorCopyWebRoot;RustzorAotCompile">
+    <Error Condition="!Exists('$(RustzorBuildTool)')" Text="Rustzor: the build tool was not found at $(RustzorBuildTool)." />
+    <PropertyGroup>
+      <_RustzorAotArgs Condition="'$(RustzorAot)' == 'true'">--aot &quot;$(IntermediateOutputPath)rustzor-aot &quot;</_RustzorAotArgs>
+    </PropertyGroup>
+    <Exec Command="dotnet &quot;$(RustzorBuildTool)&quot; bundle &quot;$(OutDir) &quot; &quot;$(AssemblyName)&quot; &quot;$(RustzorRuntimeDir) &quot; &quot;$(RustzorWebRoot) &quot; $(_RustzorAotArgs)" />
+  </Target>
+
+  <!-- `dotnet publish` puts the static site at publish/wwwroot. -->
+  <Target Name="RustzorPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_RustzorSiteFile Include="$(RustzorWebRoot)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RustzorSiteFile)" DestinationFiles="@(_RustzorSiteFile->'$(PublishDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Message Importance="high" Text="Rustzor: static site published to $(PublishDir)wwwroot" />
+  </Target>
+
+</Project>

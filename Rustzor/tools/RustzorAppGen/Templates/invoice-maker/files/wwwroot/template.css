@@ -1,0 +1,45 @@
+.mono { font-family: var(--rz-font-mono); }
+.invoice-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.fields-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fields-3 + .fields-3 { margin-top: 12px; }
+.fields-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 560px) { .fields-3, .fields-2 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1200px) { .invoice-layout { grid-template-columns: minmax(0, 1fr); } }
+.lines { display: flex; flex-direction: column; gap: 6px; }
+.line { display: grid; grid-template-columns: minmax(0, 1fr) 60px 92px 96px 32px; gap: 6px; align-items: center; }
+.line .rz-input { padding-inline: 8px; }
+.line.head { font-size: 12px; color: var(--rz-muted); text-transform: uppercase; letter-spacing: .05em; }
+.line .num { text-align: right; }
+.line .amount { text-align: right; font-family: var(--rz-font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.add-line { margin-top: 10px; }
+
+/* The preview is paper in both themes: a client never sees dark mode. */
+.paper { --ink: #1d1b19; --ink-muted: #6b665f; --rule: #e4dfd8; position: sticky; top: 16px; background: #fffdf9; color: var(--ink); border-radius: 4px; padding: 40px 40px 32px; box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 18px 40px rgb(0 0 0 / .12); border-top: 6px solid var(--rz-accent); font-size: 13px; }
+.paper-head { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+.paper-from { font-family: var(--rz-font-display); font-size: 18px; font-weight: 700; }
+.paper-address { white-space: pre-line; color: var(--ink-muted); line-height: 1.5; margin-top: 2px; }
+.paper-title { text-align: right; }
+.paper-title span { display: block; font-family: var(--rz-font-display); font-size: 28px; font-weight: 700; letter-spacing: -.01em; color: var(--rz-accent); text-transform: uppercase; }
+.paper-title b { font-family: var(--rz-font-mono); font-weight: 500; color: var(--ink-muted); }
+.paper-meta { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin-bottom: 18px; }
+.paper-meta span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); margin-bottom: 3px; }
+.paper-lines { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.paper-lines th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-muted); font-weight: 500; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.paper-lines td { padding: 9px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.paper-lines .r { text-align: right; padding-left: 12px; white-space: nowrap; }
+.paper-totals { display: grid; grid-template-columns: 1fr auto; gap: 6px 24px; margin: 16px 0 0 auto; width: 60%; font-variant-numeric: tabular-nums; }
+.paper-totals dt { color: var(--ink-muted); }
+.paper-totals dd { margin: 0; text-align: right; font-family: var(--rz-font-mono); }
+.paper-totals .grand { border-top: 2px solid var(--ink); padding-top: 8px; margin-top: 4px; font-size: 16px; font-weight: 700; color: var(--ink); }
+.paper-notes { margin: 24px 0 0; padding-top: 14px; border-top: 1px dashed var(--rule); color: var(--ink-muted); line-height: 1.5; }
+
+.summary { margin-bottom: 16px; }
+tr.clickable { cursor: pointer; }
+.row-actions { text-align: right; white-space: nowrap; }
+.row-actions .rz-btn + .rz-btn { margin-left: 6px; }
+
+@media print {
+  .rz-sidebar, .rz-topbar, .rz-page-head, .editor, .rz-toasts { display: none !important; }
+  .rz-shell, .rz-main, .rz-content, .invoice-layout { display: block; padding: 0; margin: 0; }
+  .paper { position: static; box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
+}
