@@ -105,4 +105,4 @@ jobs:
 
       - name: Say what was skipped
         if: needs.version.outputs.push != 'true'
-        run: echo "Dry run: the packages were built, tested and checked, not pushed."
+        run: 'echo "Dry run - the packages were built, tested and checked, not pushed."'
