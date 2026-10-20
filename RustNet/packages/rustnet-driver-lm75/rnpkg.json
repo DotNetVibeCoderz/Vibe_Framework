@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-lm75",
+  "version": "0.1.0",
+  "description": "LM75 / LM75A / LM75B digital temperature sensor and thermal watchdog over I2C (9- or 11-bit), with overtemperature and hysteresis set-points",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

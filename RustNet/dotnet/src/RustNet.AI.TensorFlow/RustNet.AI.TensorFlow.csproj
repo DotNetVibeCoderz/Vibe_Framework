@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet TensorFlow Lite for Microcontrollers: load a .tflite model (embed it with RustNet.Resources) and run float32 or int8 inference on the device.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+  </ItemGroup>
+</Project>

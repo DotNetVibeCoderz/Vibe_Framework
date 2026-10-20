@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-sht3x",
+  "version": "0.1.0",
+  "description": "Sensirion SHT30/SHT31/SHT35 (SHT3x-DIS) temperature and humidity over I2C, with CRC-checked single-shot measurements, heater and status",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

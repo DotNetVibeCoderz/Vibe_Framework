@@ -97,7 +97,7 @@ diletakkan **sesudah** subcommand, bukan sebelumnya.
 ## 4. Buat dan build aplikasinya
 
 ```powershell
-$env:RUSTNET_SDK = "C:\Users\mifma\Documents\CodeSandbox\RustNet"
+$env:RUSTNET_SDK = "C:\path\to\RustNet"   # the repo root
 & $rustnet new graphics-primitives GfxTest
 dotnet build GfxTest\GfxTest.csproj -c Debug
 ```

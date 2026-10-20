@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-segments",
+  "version": "0.1.0",
+  "description": "Character to segment-mask encoders for 7-segment (gfedcba + dp), 14-segment (Adafruit alphanumeric layout) and 16-segment LED displays, ASCII 0x20..0x7F",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": {}
+}

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-adxl",
+  "version": "0.1.0",
+  "description": "Analog Devices accelerometers: ADXL335/ADXL377 (analog, ratiometric), ADXL345 (I2C) and ADXL362 (SPI, with temperature)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

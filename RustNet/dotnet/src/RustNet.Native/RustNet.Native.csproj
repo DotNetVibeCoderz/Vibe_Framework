@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet NPC (Native Procedure Caller): call native Rust procedures that were signed and loaded onto the device at run time, without rebuilding the firmware.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+  </ItemGroup>
+</Project>

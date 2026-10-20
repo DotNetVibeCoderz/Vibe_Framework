@@ -53,7 +53,15 @@ pub(crate) mod fmath {
     shim!(exp, exp, exp, 1);
     shim!(floor, floor, floor, 1);
     shim!(ceil, ceil, ceil, 1);
-    shim!(round, round, round, 1);
+    shim!(round, round_ties_even, rint, 1);
+    shim!(trunc, trunc, trunc, 1);
+    shim!(asin, asin, asin, 1);
+    shim!(acos, acos, acos, 1);
+    shim!(sinh, sinh, sinh, 1);
+    shim!(cosh, cosh, cosh, 1);
+    shim!(tanh, tanh, tanh, 1);
+    shim!(log2, log2, log2, 1);
+    shim!(cbrt, cbrt, cbrt, 1);
     shim!(atan, atan, atan, 1);
     shim!(atan2, atan2, atan2, 2);
     shim!(pow, powf, pow, 2);
@@ -122,6 +130,28 @@ mod tests {
         let (exit, host) = run_module(&module);
         assert_eq!(exit, RunExit::Completed);
         assert_eq!(host.console, "55\n");
+    }
+
+    #[test]
+    fn unsigned_conversions_zero_extend() {
+        // C# lowers `0xFFFFFFFFL` to `ldc.i4.m1; conv.u8`, and `(double)uintValue`
+        // to `conv.r.un`: both must treat the int32 as unsigned.
+        let mut b = Builder::new();
+        let wl8 = b.add_method("System.Console::WriteLine(i8)", None, SI, 1, 0, vec![]);
+        let wlr = b.add_method("System.Console::WriteLine(r8)", None, SI, 1, 0, vec![]);
+        let mut main_code = vec![0x15, op::CONV_U8];
+        main_code.extend(call(wl8));
+        main_code.extend([0x15, op::CONV_R_UN]);
+        main_code.extend(call(wlr));
+        main_code.push(op::RET);
+        let main = b.add_method("Demo::Main()", None, S, 0, 0, main_code);
+        b.set_entry(main);
+        let module = b.build();
+        let (exit, host) = run_module(&module);
+        assert_eq!(exit, RunExit::Completed);
+        assert_eq!(host.console, "4294967295
+4294967295
+");
     }
 
     #[test]
@@ -216,6 +246,31 @@ mod tests {
         let (exit, host) = run_module(&b.build());
         assert_eq!(exit, RunExit::Completed);
         assert_eq!(host.console, "6\n");
+    }
+
+    #[test]
+    fn unassigned_reference_field_compares_equal_to_null() {
+        // `obj.F == null` and `obj.F != null` on a field nothing ever stored:
+        // the zero fill must read as null, not fail as "expected int32".
+        let mut b = Builder::new();
+        let wl = b.add_method("System.Console::WriteLine(i4)", None, SI, 1, 0, vec![]);
+        let holder = b.add_type("Demo.Holder", 1);
+        let ctor = b.add_method("Demo.Holder::.ctor()", Some(holder), MFLAG_CTOR, 0, 0, vec![op::RET]);
+        let mut code = vec![op::NEWOBJ];
+        code.extend_from_slice(&ctor.to_le_bytes());
+        code.push(0x0A); // stloc.0
+        for cmp in [op::P_CEQ, op::P_CGT_UN] {
+            code.extend([0x06, op::LDFLD]); // ldloc.0; ldfld F
+            code.extend_from_slice(&0u32.to_le_bytes());
+            code.extend([op::LDNULL, op::PREFIX, cmp]);
+            code.extend(call(wl));
+        }
+        code.push(op::RET);
+        let main = b.add_method("Demo::Main()", None, S, 0, 1, code);
+        b.set_entry(main);
+        let (exit, host) = run_module(&b.build());
+        assert_eq!(exit, RunExit::Completed);
+        assert_eq!(host.console, "1\n0\n");
     }
 
     #[test]

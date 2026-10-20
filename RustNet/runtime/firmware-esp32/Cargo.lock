@@ -1427,6 +1427,7 @@ dependencies = [
  "rustnet-rndp",
  "rustnet-sched",
  "rustnet-secureboot",
+ "rustnet-tflite",
  "rustnet-usb",
 ]
 
@@ -1502,6 +1503,13 @@ name = "rustnet-secureboot"
 version = "0.1.0"
 dependencies = [
  "rustnet-crypto",
+]
+
+[[package]]
+name = "rustnet-tflite"
+version = "0.1.0"
+dependencies = [
+ "libm",
 ]
 
 [[package]]

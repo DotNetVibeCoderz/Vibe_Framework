@@ -68,18 +68,40 @@ internal sealed class SignatureProvider : ISignatureTypeProvider<string, object?
     };
 
     public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
+        => DefinitionName(reader, reader.GetTypeDefinition(handle));
+
+    public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
+        => ReferenceName(reader, handle);
+
+    /// <summary>
+    /// Full name of a type definition. A nested type is named through its
+    /// enclosing type, as .NET does (<c>Ns.Outer+Inner</c>): the compiler gives
+    /// every class with a lambda its own <c>&lt;&gt;c</c> or
+    /// <c>&lt;&gt;c__DisplayClass0_0</c>, and naming those by their simple name
+    /// alone made two such classes in one app collide.
+    /// </summary>
+    public static string DefinitionName(MetadataReader reader, TypeDefinition def)
     {
-        var def = reader.GetTypeDefinition(handle);
-        string ns = reader.GetString(def.Namespace);
         string name = reader.GetString(def.Name);
+        var outer = def.GetDeclaringType();
+        if (!outer.IsNil)
+        {
+            return DefinitionName(reader, reader.GetTypeDefinition(outer)) + "+" + name;
+        }
+        string ns = reader.GetString(def.Namespace);
         return ns.Length == 0 ? name : ns + "." + name;
     }
 
-    public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
+    /// <summary>Full name of a type reference, nested ones through their enclosing type.</summary>
+    public static string ReferenceName(MetadataReader reader, TypeReferenceHandle handle)
     {
         var tref = reader.GetTypeReference(handle);
-        string ns = reader.GetString(tref.Namespace);
         string name = reader.GetString(tref.Name);
+        if (tref.ResolutionScope.Kind == HandleKind.TypeReference)
+        {
+            return ReferenceName(reader, (TypeReferenceHandle)tref.ResolutionScope) + "+" + name;
+        }
+        string ns = reader.GetString(tref.Namespace);
         return ns.Length == 0 ? name : ns + "." + name;
     }
 

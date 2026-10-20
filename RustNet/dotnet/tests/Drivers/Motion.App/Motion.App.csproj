@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs every motion/distance/power/input/GNSS/camera driver against bus
+       simulators on the RustNet interpreter (virtual device). Proves the
+       drivers compile to RNX and execute in the device dialect. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>DriversMotionApp</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\RustNet.Hal\RustNet.Hal.csproj" />
+    <ProjectReference Include="..\..\..\src\RustNet.Sensors.Gnss\RustNet.Sensors.Gnss.csproj" />
+  </ItemGroup>
+  <Import Project="Packages.props" />
+</Project>

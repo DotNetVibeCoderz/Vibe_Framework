@@ -56,7 +56,7 @@ internal static class OpcodeTable
         0x7A => OperandKind.None,      // throw
         >= 0x7B and <= 0x80 => OperandKind.TokenField,
         0x81 => OperandKind.TokenType, // stobj
-        >= 0x82 and <= 0x8A => OperandKind.None, // conv.ovf.*.un
+        >= 0x82 and <= 0x8B => OperandKind.None, // conv.ovf.*.un
         0x8C => OperandKind.TokenType, // box
         0x8D => OperandKind.TokenType, // newarr
         0x8E => OperandKind.None,      // ldlen

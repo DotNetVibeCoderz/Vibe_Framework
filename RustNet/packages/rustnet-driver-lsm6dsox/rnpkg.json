@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-lsm6dsox",
+  "version": "0.1.0",
+  "description": "ST LSM6DSOX 6-axis IMU (accelerometer + gyroscope + temperature) over I2C",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

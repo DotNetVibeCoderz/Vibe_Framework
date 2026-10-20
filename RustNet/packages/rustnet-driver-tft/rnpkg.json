@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-tft",
+  "version": "0.1.0",
+  "description": "SPI colour TFT/OLED controllers: ILI9341, ILI9163, ILI9225, ILI9481, ILI9486, ILI9488 (18-bit), ST7735 (tab variants), ST7789, ST7796S, GC9A01, HX8357B/D, SSD1331, SSD1351 - init, rotation, windowing, fills, RGB565 blits and canvas flush",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0", "rustnet-driver-display-core": "0.1.0" }
+}

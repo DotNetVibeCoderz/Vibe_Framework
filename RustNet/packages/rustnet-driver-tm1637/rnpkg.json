@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-tm1637",
+  "version": "0.1.0",
+  "description": "TM1637 4/6-digit 7-segment LED driver, bit-banged over two open-drain GPIOs (start/ack/stop, brightness, numbers, text, clock colon)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0", "rustnet-driver-segments": "0.1.0" }
+}

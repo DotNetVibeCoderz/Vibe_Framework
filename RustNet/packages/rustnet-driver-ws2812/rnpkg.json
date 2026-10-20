@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ws2812",
+  "version": "0.1.0",
+  "description": "WS2812/WS2812B (NeoPixel) addressable LEDs driven from an SPI peripheral at 2.4 MHz (3 SPI bits per data bit, GRB order, reset latch)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

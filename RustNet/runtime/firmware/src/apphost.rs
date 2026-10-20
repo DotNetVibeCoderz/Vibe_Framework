@@ -234,11 +234,22 @@ pub struct FirmwareHost {
     pub state: SharedState,
     pub stop: Arc<AtomicBool>,
     mqtt: Option<MqttClient>,
+    npc: crate::npc::NpcTable,
+    /// TensorFlow Lite interpreters created by the app, by handle.
+    #[cfg(feature = "tflite")]
+    models: Vec<Option<rustnet_tflite::Interpreter>>,
 }
 
 impl FirmwareHost {
     pub fn new(state: SharedState, stop: Arc<AtomicBool>) -> Self {
-        Self { state, stop, mqtt: None }
+        Self {
+            state,
+            stop,
+            mqtt: None,
+            npc: crate::npc::NpcTable::default(),
+            #[cfg(feature = "tflite")]
+            models: Vec::new(),
+        }
     }
 
     fn arg_i32(args: &[HostValue], i: usize) -> Result<i32, String> {
@@ -293,6 +304,66 @@ impl FirmwareHost {
             .ok_or_else(|| format!("no modbus slave answered unit {unit}"))?;
         let (_, resp_pdu) = mb::rtu_decode(&resp_adu)?;
         mb::parse_response(pdu[0], resp_pdu).map(|p| p.to_vec())
+    }
+}
+
+impl FirmwareHost {
+    /// `RustNet.AI.TensorFlow.Native::*` — models are handles into `self.models`.
+    #[cfg(feature = "tflite")]
+    fn tflite(&mut self, name: &str, a: &[HostValue]) -> Result<HostValue, String> {
+        let op = name.trim_start_matches("RustNet.AI.TensorFlow.Native::");
+        let bytes = |i: usize| -> Result<Vec<u8>, String> {
+            match a.get(i) {
+                Some(HostValue::Bytes(b)) => Ok(b.clone()),
+                other => Err(format!("expected byte[], got {other:?}")),
+            }
+        };
+        if op == "Create(u1[])" {
+            let interp = rustnet_tflite::Interpreter::new(bytes(0)?)?;
+            self.models.push(Some(interp));
+            return Ok(HostValue::I32(self.models.len() as i32 - 1));
+        }
+        let h = Self::arg_i32(a, 0)?;
+        let slot = usize::try_from(h).ok().and_then(|i| self.models.get_mut(i)).ok_or("invalid model handle")?;
+        if op == "Dispose(i4)" {
+            *slot = None;
+            return Ok(HostValue::Void);
+        }
+        let m = slot.as_mut().ok_or("model handle was disposed")?;
+        let shape_bytes = |s: &[usize]| s.iter().flat_map(|d| (*d as i32).to_le_bytes()).collect::<Vec<u8>>();
+        Ok(match op {
+            "InputCount(i4)" => HostValue::I32(m.input_count() as i32),
+            "OutputCount(i4)" => HostValue::I32(m.output_count() as i32),
+            "OperatorCount(i4)" => HostValue::I32(m.operator_count() as i32),
+            "InputShape(i4,i4)" => HostValue::Bytes(shape_bytes(&m.input(Self::arg_i32(a, 1)? as usize)?.shape)),
+            "OutputShape(i4,i4)" => HostValue::Bytes(shape_bytes(&m.output(Self::arg_i32(a, 1)? as usize)?.shape)),
+            "InputType(i4,i4)" => HostValue::I32(m.input(Self::arg_i32(a, 1)? as usize)?.dtype.code()),
+            "OutputType(i4,i4)" => HostValue::I32(m.output(Self::arg_i32(a, 1)? as usize)?.dtype.code()),
+            "SetInput(i4,i4,u1[])" => {
+                m.set_input_raw(Self::arg_i32(a, 1)? as usize, &bytes(2)?)?;
+                HostValue::Void
+            }
+            "SetInputFloat(i4,i4,u1[])" => {
+                let raw = bytes(2)?;
+                let vals: Vec<f32> = raw.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+                m.set_input_f32(Self::arg_i32(a, 1)? as usize, &vals)?;
+                HostValue::Void
+            }
+            "Invoke(i4)" => {
+                m.invoke()?;
+                HostValue::Void
+            }
+            "GetOutput(i4,i4)" => HostValue::Bytes(m.output_raw(Self::arg_i32(a, 1)? as usize)?),
+            "GetOutputFloat(i4,i4)" => HostValue::Bytes(
+                m.output_f32(Self::arg_i32(a, 1)? as usize)?.iter().flat_map(|v| v.to_le_bytes()).collect(),
+            ),
+            other => return Err(format!("unknown TensorFlow intrinsic {other}")),
+        })
+    }
+
+    #[cfg(not(feature = "tflite"))]
+    fn tflite(&mut self, _name: &str, _a: &[HostValue]) -> Result<HostValue, String> {
+        Err("NotSupported: TensorFlow Lite is not built into this firmware".into())
     }
 }
 
@@ -397,6 +468,83 @@ impl RuntimeHost for FirmwareHost {
                 let mut board = self.state.board.lock().unwrap();
                 board.i2c(bus).and_then(|b| b.read(addr, &mut buf)).map_err(|e| e.to_string())?;
                 Ok(HostValue::Bytes(buf))
+            }
+            // ---- TensorFlow Lite Micro ----
+            n if n.starts_with("RustNet.AI.TensorFlow.Native::") => self.tflite(n, a),
+            // ---- NPC: native procedures loaded at run time ----
+            "RustNet.Native.Npc::IsSupported()" => {
+                Ok(HostValue::Bool(crate::npc::NpcTable::is_supported()))
+            }
+            "RustNet.Native.Npc::Load(string,string)" => {
+                let module = Self::arg_str(a, 0)?;
+                let symbol = Self::arg_str(a, 1)?;
+                if module.is_empty() || module.contains('/') || module.contains('\\') || module.contains("..") {
+                    return Err(format!("invalid native module name '{module}'"));
+                }
+                let container = self
+                    .state
+                    .fs
+                    .lock()
+                    .unwrap()
+                    .read(&format!("/data/native/{module}.rnsb"))
+                    .map_err(|_| format!("native module '{module}' not found (rustnet native push)"))?;
+                let key = self
+                    .state
+                    .fs
+                    .lock()
+                    .unwrap()
+                    .read("/device.pub")
+                    .map_err(|_| "device not provisioned".to_string())?;
+                let handle = self.npc.load(&module, &container, &key, crate::chip::chip_family(), &symbol)?;
+                Ok(HostValue::I32(handle))
+            }
+            "RustNet.Native.Npc::Invoke(i4,u1[],i4)" => {
+                let handle = Self::arg_i32(a, 0)?;
+                let args = match a.get(1) {
+                    Some(HostValue::Bytes(b)) => b.clone(),
+                    Some(HostValue::Null) | None => Vec::new(),
+                    other => return Err(format!("expected byte[], got {other:?}")),
+                };
+                let cap = Self::arg_i32(a, 2)?.max(0) as usize;
+                Ok(HostValue::Bytes(self.npc.invoke(handle, &args, cap)?))
+            }
+            // ---- SPI ----
+            "RustNet.Hal.Spi::Configure(i4,i4,i4)" => {
+                let bus = Self::arg_i32(a, 0)? as u8;
+                let hz = Self::arg_i32(a, 1)?.max(1) as u32;
+                let mode = match Self::arg_i32(a, 2)? {
+                    0 => rustnet_hal::spi::SpiMode::Mode0,
+                    1 => rustnet_hal::spi::SpiMode::Mode1,
+                    2 => rustnet_hal::spi::SpiMode::Mode2,
+                    3 => rustnet_hal::spi::SpiMode::Mode3,
+                    m => return Err(format!("SPI mode must be 0..3, got {m}")),
+                };
+                let mut board = self.state.board.lock().unwrap();
+                board.spi(bus).and_then(|b| b.configure(hz, mode)).map_err(|e| e.to_string())?;
+                Ok(HostValue::Void)
+            }
+            "RustNet.Hal.Spi::Transfer(i4,u1[])" | "RustNet.Hal.Spi::Write(i4,u1[])" => {
+                let bus = Self::arg_i32(a, 0)? as u8;
+                let data = match a.get(1) {
+                    Some(HostValue::Bytes(b)) => b.clone(),
+                    other => return Err(format!("expected byte[], got {other:?}")),
+                };
+                let mut rx = vec![0u8; data.len()];
+                let mut board = self.state.board.lock().unwrap();
+                board.spi(bus).and_then(|b| b.transfer(&data, &mut rx)).map_err(|e| e.to_string())?;
+                if name.ends_with("Transfer(i4,u1[])") {
+                    Ok(HostValue::Bytes(rx))
+                } else {
+                    Ok(HostValue::Void)
+                }
+            }
+            "RustNet.Hal.Spi::Read(i4,i4)" => {
+                let bus = Self::arg_i32(a, 0)? as u8;
+                let len = Self::arg_i32(a, 1)?.max(0) as usize;
+                let mut rx = vec![0u8; len];
+                let mut board = self.state.board.lock().unwrap();
+                board.spi(bus).and_then(|b| b.read(&mut rx)).map_err(|e| e.to_string())?;
+                Ok(HostValue::Bytes(rx))
             }
             // ---- FileSystem ----
             "RustNet.IO.FileSystem::WriteAllText(string,string)" => {

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-relay",
+  "version": "0.1.0",
+  "description": "Relays (active-high or active-low coil drive) with on/off/toggle/pulse",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

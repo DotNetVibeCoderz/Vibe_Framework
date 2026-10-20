@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mcp4725",
+  "version": "0.1.0",
+  "description": "Microchip MCP4725 12-bit I2C DAC: fast-mode, DAC-register and DAC+EEPROM writes, power-down modes, status read-back",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

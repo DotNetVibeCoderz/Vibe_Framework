@@ -534,6 +534,29 @@ pub fn call_internal<H: RuntimeHost>(
         return Ok(());
     }
 
+    // -- Spans in string concatenation --------------------------------
+    // Roslyn lowers `"x" + c + "y"` (a char among strings) to
+    // string.Concat(ReadOnlySpan<char>, ...), each part made by
+    // string.op_Implicit or `new ReadOnlySpan<char>(ref c)`. A span of chars
+    // is modelled as the string it views, so the object-typed Concat
+    // overloads that already exist do the rest.
+    if name == "System.String::op_Implicit(string)" {
+        let v = interp.deref(args[0])?;
+        push(interp, v);
+        return Ok(());
+    }
+    if name == "System.ReadOnlySpan`1::.ctor(object)" || name == "System.Span`1::.ctor(object)" {
+        let v = interp.deref(args[0])?;
+        let out = match v {
+            // A single element by reference: for the char case, a one-char string.
+            Value::I32(c) => Value::Ref(interp.heap.alloc_str(char::from_u32(c as u32).unwrap_or('\0').to_string())),
+            // A whole array: the span is the array.
+            other => other,
+        };
+        push(interp, out);
+        return Ok(());
+    }
+
     // -- String / StringBuilder ----------------------------------------
     if let Some(rest) = name.strip_prefix("System.String::") {
         return textenc::string_intrinsic(interp, rest, &args);
@@ -560,6 +583,57 @@ pub fn call_internal<H: RuntimeHost>(
         } else {
             push(interp, Value::I64(v));
         }
+        return Ok(());
+    }
+    // Culture-invariant overloads. The device has exactly one culture — the
+    // invariant one — so the provider is accepted and ignored. They exist so
+    // library code can say `CultureInfo.InvariantCulture` and format numbers
+    // the same on a desktop whose locale writes "0,5".
+    if name == "System.Globalization.CultureInfo::get_InvariantCulture()"
+        || name == "System.Globalization.NumberFormatInfo::get_InvariantInfo()"
+    {
+        push(interp, Value::Null);
+        return Ok(());
+    }
+    // Class-typed parameters fold to `object` in canonical names, so
+    // ToString(IFormatProvider) arrives as ToString(object).
+    if name.ends_with("::ToString(object)")
+        && (name.starts_with("System.Double::")
+            || name.starts_with("System.Single::")
+            || name.starts_with("System.Int32::")
+            || name.starts_with("System.Int64::")
+            || name.starts_with("System.Decimal::"))
+    {
+        let this = interp.deref(args[0])?;
+        let s = interp.display_value(this)?;
+        let r = interp.heap.alloc_str(s);
+        push(interp, Value::Ref(r));
+        return Ok(());
+    }
+    if name == "System.Double::Parse(string,object)"
+        || name == "System.Single::Parse(string,object)"
+    {
+        let s = str_arg(interp, args[0])?;
+        let v: f64 = s.trim().parse().map_err(|_| format!("FormatException: '{s}'"))?;
+        push(interp, Value::F64(v));
+        return Ok(());
+    }
+    if let Some(rest) = name
+        .strip_prefix("System.Double::")
+        .or_else(|| name.strip_prefix("System.Single::"))
+        .filter(|r| r.starts_with("Is"))
+    {
+        let v = interp.deref(args[0])?.as_f64()?;
+        let out = match rest.split('(').next().unwrap_or(rest) {
+            "IsNaN" => v.is_nan(),
+            "IsInfinity" => v.is_infinite(),
+            "IsPositiveInfinity" => v == f64::INFINITY,
+            "IsNegativeInfinity" => v == f64::NEG_INFINITY,
+            "IsFinite" => v.is_finite(),
+            "IsNegative" => v.is_sign_negative(),
+            other => return Err(format!("unsupported Double intrinsic: {other}")),
+        };
+        push(interp, Value::I32(out as i32));
         return Ok(());
     }
     if name == "System.Double::Parse(string)" || name == "System.Single::Parse(string)" {
@@ -1198,6 +1272,30 @@ fn math_intrinsic<H: RuntimeHost>(
     let op = rest.split('(').next().unwrap_or(rest);
     let int_args = rest.contains("(i4") || rest.contains("(i8");
     match op {
+        "Sign" => {
+            // Math.Sign returns int for every overload.
+            let v = interp.deref(args[0])?;
+            let sign = match v {
+                Value::F64(f) if f.is_nan() => return Err("Math.Sign of NaN".into()),
+                Value::F64(f) => (f > 0.0) as i32 - (f < 0.0) as i32,
+                other => {
+                    let i = other.as_i64()?;
+                    (i > 0) as i32 - (i < 0) as i32
+                }
+            };
+            push(interp, Value::I32(sign));
+        }
+        "Clamp" if int_args => {
+            let a = interp.deref(args[0])?.as_i64()?;
+            let lo = interp.deref(args[1])?.as_i64()?;
+            let hi = interp.deref(args[2])?.as_i64()?;
+            let out = a.max(lo).min(hi);
+            if rest.contains("(i8") {
+                push(interp, Value::I64(out));
+            } else {
+                push(interp, Value::I32(out as i32));
+            }
+        }
         "Abs" | "Max" | "Min" if int_args => {
             let a = interp.deref(args[0])?.as_i64()?;
             let out = match op {
@@ -1222,12 +1320,36 @@ fn math_intrinsic<H: RuntimeHost>(
                 "Cos" => crate::fmath::cos(a),
                 "Tan" => crate::fmath::tan(a),
                 "Atan" => crate::fmath::atan(a),
-                "Log" => crate::fmath::ln(a),
+                "Log" if args.len() == 1 => crate::fmath::ln(a),
                 "Log10" => crate::fmath::log10(a),
                 "Exp" => crate::fmath::exp(a),
                 "Floor" => crate::fmath::floor(a),
                 "Ceiling" => crate::fmath::ceil(a),
+                // .NET rounds half to even, unlike Rust's `round`.
+                "Round" if args.len() == 2 => {
+                    let digits = interp.deref(args[1])?.as_i64()?.clamp(0, 15) as i32;
+                    let scale = crate::fmath::pow(10.0, digits as f64);
+                    crate::fmath::round(a * scale) / scale
+                }
                 "Round" => crate::fmath::round(a),
+                "Truncate" => crate::fmath::trunc(a),
+                "Asin" => crate::fmath::asin(a),
+                "Acos" => crate::fmath::acos(a),
+                "Sinh" => crate::fmath::sinh(a),
+                "Cosh" => crate::fmath::cosh(a),
+                "Tanh" => crate::fmath::tanh(a),
+                "Log2" => crate::fmath::log2(a),
+                "Cbrt" => crate::fmath::cbrt(a),
+                // Math.Log(a, newBase)
+                "Log" if args.len() == 2 => {
+                    let b = interp.deref(args[1])?.as_f64()?;
+                    crate::fmath::ln(a) / crate::fmath::ln(b)
+                }
+                "Clamp" => {
+                    let lo = interp.deref(args[1])?.as_f64()?;
+                    let hi = interp.deref(args[2])?.as_f64()?;
+                    a.max(lo).min(hi)
+                }
                 "Atan2" | "Pow" | "Max" | "Min" => {
                     let b = interp.deref(args[1])?.as_f64()?;
                     match op {

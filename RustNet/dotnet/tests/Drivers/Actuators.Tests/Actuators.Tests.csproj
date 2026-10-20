@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Host tests for the actuator, LED, converter, IO-expander, RTC and
+       digital-potentiometer driver packages. The packages are source packages
+       (rustnet pkg), so they are compiled in here directly, together with the
+       shared bus package and its simulators. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>RustNet.Drivers.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\RustNet.Hal\RustNet.Hal.csproj" />
+    <ProjectReference Include="..\..\..\src\RustNet.Buses\RustNet.Buses.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The smoke scenarios themselves (not the app's entry point). -->
+    <Compile Include="..\Actuators.App\*.cs" Exclude="..\Actuators.App\Program.cs" Link="smoke\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <Import Project="..\Actuators.App\Packages.props" />
+</Project>

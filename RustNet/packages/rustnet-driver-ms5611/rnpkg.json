@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ms5611",
+  "version": "0.1.0",
+  "description": "TE MS5611-01BA barometric pressure sensor over I2C, with PROM CRC-4 check and first/second order compensation",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

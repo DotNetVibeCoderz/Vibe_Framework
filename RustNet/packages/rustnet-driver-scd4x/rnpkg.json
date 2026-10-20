@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-scd4x",
+  "version": "0.1.0",
+  "description": "Sensirion SCD40 / SCD41 photoacoustic CO2, temperature and humidity sensor over I2C, periodic and single-shot measurement, calibration and compensation",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mpr121",
+  "version": "0.1.0",
+  "description": "NXP MPR121 12-electrode capacitive touch controller over I2C, with keypad mapping",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

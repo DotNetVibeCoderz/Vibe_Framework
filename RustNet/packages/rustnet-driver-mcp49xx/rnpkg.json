@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mcp49xx",
+  "version": "0.1.0",
+  "description": "Microchip MCP4921 (single) and MCP4922 (dual) 12-bit SPI DACs: A/B select, BUF, GA and SHDN bits, optional LDAC",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

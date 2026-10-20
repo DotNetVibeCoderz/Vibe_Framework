@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-tsl2591",
+  "version": "0.1.0",
+  "description": "ams TSL2591 high dynamic range light sensor over I2C: full-spectrum and IR channels, gain/integration control and lux",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

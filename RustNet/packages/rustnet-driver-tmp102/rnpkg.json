@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-tmp102",
+  "version": "0.1.0",
+  "description": "TI TMP102 digital temperature sensor over I2C: 12/13-bit readings, shutdown/one-shot, conversion rate and alert limits",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -159,7 +159,7 @@ public class JsonValue
             }
             else
             {
-                sb.Append(Number.ToString());
+                sb.Append(Number.ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
         }
         else if (Kind == StringKind)
@@ -438,6 +438,6 @@ public class Json
             }
         }
         string text = _s.Substring(start, _pos - start);
-        return JsonValue.FromNumber(double.Parse(text));
+        return JsonValue.FromNumber(double.Parse(text, System.Globalization.CultureInfo.InvariantCulture));
     }
 }

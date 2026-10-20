@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-htu31d",
+  "version": "0.1.0",
+  "description": "TE HTU31D temperature and humidity over I2C, with CRC checks, oversampling, heater and serial number",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

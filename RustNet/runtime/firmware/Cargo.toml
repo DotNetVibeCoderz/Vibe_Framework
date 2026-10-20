@@ -21,14 +21,18 @@ default = ["chip-host"]
 # Host builds pull in the heavyweight `image` codecs; constrained targets
 # (e.g. ESP32/Xtensa, whose LLVM backend can't compile the JPEG transform)
 # leave them out and the PNG/JPEG intrinsics report NotSupported.
-chip-host = ["image-codecs"]
-chip-esp32 = []
+chip-host = ["image-codecs", "npc", "tflite"]
+chip-esp32 = ["tflite"]
 chip-stm32 = []
 chip-ti = []
 chip-nxp = []
 chip-esp32c3 = []
 chip-k210 = []
 image-codecs = ["dep:image"]
+# NPC: load signed native modules as dynamic libraries (std hosts only).
+npc = ["dep:libloading"]
+# TensorFlow Lite Micro interpreter (pure Rust, no_std-capable).
+tflite = ["dep:rustnet-tflite"]
 
 [dependencies]
 rustnet-hal = { workspace = true, features = ["std"] }
@@ -46,6 +50,8 @@ rustnet-db.workspace = true
 rustnet-gfx.workspace = true
 rustnet-usb.workspace = true
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"], optional = true }
+libloading = { version = "0.8", optional = true }
+rustnet-tflite = { workspace = true, optional = true }
 
 [dev-dependencies]
 rsa.workspace = true

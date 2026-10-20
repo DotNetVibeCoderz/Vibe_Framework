@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-input",
+  "version": "0.1.0",
+  "description": "GPIO human input: scanned matrix keypads and analog two-axis joysticks with button and deadzone",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

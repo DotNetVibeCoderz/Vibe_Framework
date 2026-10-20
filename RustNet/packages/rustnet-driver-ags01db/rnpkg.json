@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ags01db",
+  "version": "0.1.0",
+  "description": "Aosong AGS01DB MEMS VOC gas sensor over I2C, with CRC-checked readings in ppm",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

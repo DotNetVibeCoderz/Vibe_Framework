@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-sgp40",
+  "version": "0.1.0",
+  "description": "Sensirion SGP40 VOC sensor over I2C: CRC-checked raw SRAW_VOC signal with humidity/temperature compensation, self test and serial number",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

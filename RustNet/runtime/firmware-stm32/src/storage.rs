@@ -1,244 +1,60 @@
-//! Persistence in a reserved sector of the MCU's own flash.
+//! Persistence in a reserved sector of the MCU's own flash, as a filesystem.
 //!
-//! Enough to survive a reset — a provisioned key, an uploaded application,
-//! its name — and no more. This is not a filesystem: there are no paths, no
-//! directories, and a handful of fixed record kinds.
+//! The sector is handed to `rustnet-flashfs`: named blobs in an append-only
+//! log, newest wins — the same store the K210, RP2040 and Meadow F7 ports use.
+//! What the firmware itself keeps there (the provisioned key, the uploaded
+//! application and its name) are ordinary files under [`sys`], and the
+//! application's own `RustNet.IO.FileSystem` calls get everything else.
 //!
-//! The layout is a log. Records are appended, and the newest of each kind
-//! wins; updating means writing a new one rather than rewriting the old.
-//! That suits NOR flash, where bits only go 1 → 0 and the only way back is
-//! erasing a whole 128 KB sector. Compaction — read the live set, erase,
-//! write it back — happens only when the sector fills, so a development
-//! cycle of repeated `rustnet flash` costs one erase per several uploads
-//! rather than one per upload.
+//! flashfs already carries the NOR discipline this needs: the whole span a
+//! record will occupy is checked blank before it is written, every record is
+//! read back after, and a compaction erases only the used span rounded to
+//! sectors. Here that rounding always lands on the one 128 KB sector the
+//! window is.
 //!
-//! ```text
-//! magic u32 | kind u32 | len u32 | data[len] | padding to a 4-byte boundary
-//! ```
+//! ## The one thing this chip makes hard: RAM
 //!
-//! Erased flash reads as `0xFFFFFFFF`, so a header whose magic does not
-//! match is the end of the log.
+//! A compaction has to hold every live file in RAM between reading it and
+//! erasing, and the whole store is a single sector, so there is nowhere else
+//! to put them. On the F401RE that is a 64 KB heap the running application is
+//! already using. So every write here is planned first ([`rustnet_flashfs::plan_write`])
+//! and refused with a message naming the numbers if the heap cannot cover it,
+//! and the application's own files are held to a budget ([`crate::board::FILES_BUDGET`])
+//! small enough that replacing the application — the write that matters most —
+//! can always compact. flashfs is the backstop: it claims compaction RAM
+//! fallibly and before erasing, so running short there is an error, not a
+//! halted board or an erased sector.
+//!
+//! ## The old record log
+//!
+//! Firmware before this kept three fixed records in a different log ("RNS1").
+//! [`migrate_legacy`] carries those across once at boot, so a provisioned
+//! board stays provisioned through the upgrade.
 
 use alloc::format;
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 
-use rustnet_hal::Board as _;
+use rustnet_flashfs as flashfs;
+use rustnet_hal::extmem::ExtMemory;
 
-/// "RNS1" little-endian. Any other value ends the scan.
-const MAGIC: u32 = 0x3153_4E52;
-const HEADER: u32 = 12;
-
-pub const KIND_PUB_KEY: u32 = 1;
-pub const KIND_APP: u32 = 2;
-pub const KIND_APP_NAME: u32 = 3;
-
-/// Kinds a compaction preserves, newest value of each.
-const KINDS: [u32; 3] = [KIND_PUB_KEY, KIND_APP, KIND_APP_NAME];
-
-fn align4(n: u32) -> u32 {
-    (n + 3) & !3
+/// Names the firmware keeps for itself — the same spellings as the RP2040 and
+/// Meadow ports. Under `/.sys/` so an application's files cannot collide with
+/// them, and an application is refused access to that directory outright: a
+/// writable `signing.pub` would make signature checking decorative.
+pub mod sys {
+    pub const DIR: &str = "/.sys";
+    /// The RNX of the flashed application, already signature-checked.
+    pub const APP: &str = "/.sys/app.rnx";
+    /// What `rustnet flash --name` called it.
+    pub const APP_NAME: &str = "/.sys/app.name";
+    /// The provisioning key, as DER.
+    pub const PUB_KEY: &str = "/.sys/signing.pub";
 }
 
-/// Where the next record would go, if the log is intact.
-struct Scan {
-    /// Offset just past the last valid record.
-    end: u32,
-    /// Newest (offset, len) per kind, in `KINDS` order.
-    latest: [Option<(u32, u32)>; KINDS.len()],
-}
-
-fn scan(board: &mut dyn rustnet_hal::Board) -> Result<Scan, String> {
-    let region = board.extmem(0).map_err(|e| format!("{e}"))?;
-    let capacity = region.size();
-
-    let mut found: [Option<(u32, u32)>; KINDS.len()] = [None; KINDS.len()];
-    let mut at = 0u32;
-
-    while at + HEADER <= capacity {
-        let mut header = [0u8; HEADER as usize];
-        region.read(at, &mut header).map_err(|e| format!("{e}"))?;
-
-        let magic = u32::from_le_bytes([header[0], header[1], header[2], header[3]]);
-        if magic != MAGIC {
-            break;
-        }
-        let kind = u32::from_le_bytes([header[4], header[5], header[6], header[7]]);
-        let len = u32::from_le_bytes([header[8], header[9], header[10], header[11]]);
-
-        let next = at + HEADER + align4(len);
-        if len > capacity || next > capacity {
-            // A truncated tail — a reset mid-write — ends the log here rather
-            // than being trusted.
-            break;
-        }
-        if let Some(slot) = KINDS.iter().position(|k| *k == kind) {
-            found[slot] = Some((at + HEADER, len));
-        }
-        at = next;
-    }
-
-    Ok(Scan { end: at, latest: found })
-}
-
-/// The newest value stored under `kind`, if any.
-pub fn load(board: &mut dyn rustnet_hal::Board, kind: u32) -> Option<Vec<u8>> {
-    let slot = KINDS.iter().position(|k| *k == kind)?;
-    let found = scan(board).ok()?.latest[slot]?;
-    let (offset, len) = found;
-
-    let region = board.extmem(0).ok()?;
-    let mut data = vec![0u8; len as usize];
-    region.read(offset, &mut data).ok()?;
-    Some(data)
-}
-
-/// Is the whole site the next record will occupy actually erased?
-///
-/// Appending only works into erased flash. NOR programming clears bits but
-/// cannot set them, and the F4 raises no error for writing over used
-/// space — it simply ANDs, so the record lands unreadable and the failure
-/// is silent. A region inherited from whatever ran on the board before us
-/// looks exactly like this.
-///
-/// The whole span has to be checked, not just its first bytes: a region that is
-/// erased at the front and written further in passes a short probe and then
-/// corrupts the middle of the record. That is not hypothetical — it is what a
-/// stock Maix Go did to the K210 port, which carries this same log format, and
-/// it surfaced only after a power cycle.
-fn tail_is_blank(board: &mut dyn rustnet_hal::Board, at: u32, len: u32) -> Result<bool, String> {
-    let region = board.extmem(0).map_err(|e| format!("{e}"))?;
-    if at.saturating_add(len) > region.size() {
-        return Ok(false);
-    }
-    let mut probe = [0u8; 256];
-    let mut done = 0u32;
-    while done < len {
-        let step = (len - done).min(probe.len() as u32) as usize;
-        region.read(at + done, &mut probe[..step]).map_err(|e| format!("{e}"))?;
-        if probe[..step].iter().any(|b| *b != 0xFF) {
-            return Ok(false);
-        }
-        done += step as u32;
-    }
-    Ok(true)
-}
-
-/// Append a record, compacting first if it will not fit.
-pub fn store(board: &mut dyn rustnet_hal::Board, kind: u32, data: &[u8]) -> Result<(), String> {
-    let needed = HEADER + align4(data.len() as u32);
-
-    let mut scanned = scan(board)?;
-    let capacity = board.extmem(0).map_err(|e| format!("{e}"))?.size();
-
-    if scanned.end + needed > capacity || !tail_is_blank(board, scanned.end, needed)? {
-        compact(board, kind, needed)?;
-        scanned = scan(board)?;
-        if scanned.end + needed > capacity {
-            return Err(String::from("storage full even after compaction"));
-        }
-    }
-
-    write_record(board, scanned.end, kind, data)
-}
-
-fn write_record(
-    board: &mut dyn rustnet_hal::Board,
-    at: u32,
-    kind: u32,
-    data: &[u8],
-) -> Result<(), String> {
-    // One buffer so the whole record goes down as a single aligned write;
-    // the padding must be written too, or the next scan reads flash that was
-    // never programmed.
-    let mut record = Vec::with_capacity((HEADER + align4(data.len() as u32)) as usize);
-    record.extend_from_slice(&MAGIC.to_le_bytes());
-    record.extend_from_slice(&kind.to_le_bytes());
-    record.extend_from_slice(&(data.len() as u32).to_le_bytes());
-    record.extend_from_slice(data);
-    while record.len() % 4 != 0 {
-        record.push(0xFF);
-    }
-
-    let region = board.extmem(0).map_err(|e| format!("{e}"))?;
-    region.write(at, &record).map_err(|e| format!("{e}"))?;
-
-    // Read the record back before believing it. Flash reports nothing when a
-    // program lands badly — the part only clears bits, so a second program over
-    // live data silently ANDs into it — and the damage then surfaces much later
-    // as an application that parsed fine when uploaded and is nonsense after a
-    // power cycle. Naming the offset here turns that into a message pointing at
-    // the byte.
-    let mut check = vec![0u8; record.len()];
-    region.read(at, &mut check).map_err(|e| format!("{e}"))?;
-    if let Some(bad) = record.iter().zip(check.iter()).position(|(a, b)| a != b) {
-        return Err(format!(
-            "flash verify failed at record offset {bad} (region {}): wrote {:#04x}, read {:#04x}",
-            at + bad as u32,
-            record[bad],
-            check[bad]
-        ));
-    }
-    Ok(())
-}
-
-/// Erase the sector and write back the newest of each kind, with `replacing`
-/// dropped because the caller is about to supersede it.
-fn compact(
-    board: &mut dyn rustnet_hal::Board,
-    replacing: u32,
-    incoming: u32,
-) -> Result<(), String> {
-    let used_before = scan(board)?.end;
-    let mut live: Vec<(u32, Vec<u8>)> = Vec::new();
-    for kind in KINDS {
-        if kind == replacing {
-            continue;
-        }
-        if let Some(value) = load(board, kind) {
-            live.push((kind, value));
-        }
-    }
-
-    {
-        // Only the used span, rounded out to whole sectors, plus room for the
-        // record that triggered this. Here that works out to the same single
-        // erase as before, because this window *is* one F4 sector — but the
-        // K210 port shares this log format over a region thousands of sectors
-        // wide, where erasing the whole thing stalled a `rustnet flash` past
-        // the tools' timeout. Keeping both ports on the same arithmetic means
-        // the next region that grows does not have to rediscover that.
-        //
-        // Roughly a second, during which the core and every interrupt handler
-        // are stalled: the flash controller blocks all access to flash, and
-        // that is where the code lives.
-        let region = board.extmem(0).map_err(|e| format!("{e}"))?;
-        let sector = region.sector_size().max(1);
-        let wanted = used_before.saturating_add(incoming);
-        let span = wanted.div_ceil(sector).saturating_mul(sector).min(region.size());
-        region.erase(0, span).map_err(|e| format!("{e}"))?;
-    }
-
-    let mut at = 0u32;
-    for (kind, value) in live {
-        write_record(board, at, kind, &value)?;
-        at += HEADER + align4(value.len() as u32);
-    }
-    Ok(())
-}
-
-/// Throw everything away — used by `rustnet apps erase`.
-pub fn wipe(board: &mut dyn rustnet_hal::Board) -> Result<(), String> {
-    let region = board.extmem(0).map_err(|e| format!("{e}"))?;
-    let size = region.size();
-    region.erase(0, size).map_err(|e| format!("{e}"))
-}
-
-/// How much of the region is in use, for reporting.
-pub fn used(board: &mut dyn rustnet_hal::Board) -> u32 {
-    scan(board).map(|s| s.end).unwrap_or(0)
-}
+/// Heap left untouched by any write, for the bookkeeping around it (the scan's
+/// name list, format strings, the allocator's own fragmentation).
+const HEAP_MARGIN: usize = 2 * 1024;
 
 /// The region this board sets aside, as the HAL wants it described.
 pub fn region() -> rustnet_hal_stm32::InternalFlash {
@@ -248,4 +64,231 @@ pub fn region() -> rustnet_hal_stm32::InternalFlash {
         crate::STORAGE_SECTOR,
         crate::STORAGE_LEN,
     )
+}
+
+fn fs(board: &mut dyn rustnet_hal::Board) -> Result<&mut dyn ExtMemory, String> {
+    board.extmem(0).map_err(|e| format!("no storage: {e}"))
+}
+
+/// The file at `path`, if there is one and it can be read.
+pub fn load(board: &mut dyn rustnet_hal::Board, path: &str) -> Option<Vec<u8>> {
+    flashfs::read(fs(board).ok()?, path).ok()
+}
+
+/// Write a whole file, after checking the heap can carry it.
+pub fn store(board: &mut dyn rustnet_hal::Board, path: &str, data: &[u8]) -> Result<(), String> {
+    let region = fs(board)?;
+    let plan = flashfs::plan_write(region, path, data.len())?;
+    check_ram(&plan)?;
+    flashfs::write(region, path, data)
+}
+
+/// Bytes of the window in use, for `info`.
+pub fn used(board: &mut dyn rustnet_hal::Board) -> u32 {
+    fs(board).map(|r| flashfs::used(r)).unwrap_or(0)
+}
+
+fn check_ram(plan: &flashfs::WritePlan) -> Result<(), String> {
+    let needed = plan.ram_needed() as usize + HEAP_MARGIN;
+    let free = crate::heap_free();
+    if needed <= free {
+        return Ok(());
+    }
+    Err(if plan.compacts {
+        format!(
+            "not enough RAM to write: storage is full and must be compacted, which holds \
+             the other {} live bytes in RAM while its single 128 KB flash sector is erased, \
+             plus {} for the new record; {free} bytes of heap are free. Nothing was changed; \
+             delete files to make room",
+            plan.carried, plan.record
+        )
+    } else {
+        format!(
+            "not enough RAM to write {} bytes to storage; {free} bytes of heap are free",
+            plan.record
+        )
+    })
+}
+
+// ---------------------------------------------------------------------------
+// The application's files
+// ---------------------------------------------------------------------------
+
+/// Normalise an application's path and keep it out of the firmware's own.
+pub fn app_path(path: &str) -> Result<String, String> {
+    let path = flashfs::normalise(path)?;
+    if path == sys::DIR || path.starts_with("/.sys/") {
+        return Err(format!("{path}: reserved for the firmware"));
+    }
+    Ok(path)
+}
+
+/// Write (or with `append`, extend) one of the application's files.
+///
+/// Held to [`crate::board::FILES_BUDGET`]: what matters is not the sector's
+/// 128 KB but what replacing the application has to carry through RAM, which
+/// is every live file except the application itself.
+pub fn app_write(
+    board: &mut dyn rustnet_hal::Board,
+    path: &str,
+    data: &[u8],
+    append: bool,
+) -> Result<(), String> {
+    let path = app_path(path)?;
+
+    let joined;
+    let data = if append {
+        let mut existing = flashfs::read(fs(board)?, &path).unwrap_or_default();
+        existing
+            .try_reserve_exact(data.len())
+            .map_err(|_| format!("out of memory appending {} bytes to {path}", data.len()))?;
+        existing.extend_from_slice(data);
+        joined = existing;
+        &joined[..]
+    } else {
+        data
+    };
+
+    let region = fs(board)?;
+    let plan = flashfs::plan_write(region, &path, data.len())?;
+    let app = flashfs::plan_write(region, sys::APP, 0)?.replaced;
+    let besides_app = (plan.carried + plan.record).saturating_sub(app);
+    let budget = crate::board::FILES_BUDGET;
+    if besides_app > budget {
+        return Err(format!(
+            "storage budget exceeded: files would total {besides_app} bytes and {} allows \
+             {budget}. Replacing the application compacts the single 128 KB flash sector, \
+             holding every other file in RAM meanwhile, so this cap is what keeps \
+             `rustnet flash` working",
+            crate::board::NAME
+        ));
+    }
+    check_ram(&plan)?;
+    flashfs::write(region, &path, data)
+}
+
+pub fn app_read(board: &mut dyn rustnet_hal::Board, path: &str) -> Result<Vec<u8>, String> {
+    flashfs::read(fs(board)?, &app_path(path)?)
+}
+
+pub fn app_exists(board: &mut dyn rustnet_hal::Board, path: &str) -> Result<bool, String> {
+    flashfs::exists(fs(board)?, &app_path(path)?)
+}
+
+/// Deleting writes a tombstone, so it can need a compaction like any write.
+pub fn app_delete(board: &mut dyn rustnet_hal::Board, path: &str) -> Result<(), String> {
+    let path = app_path(path)?;
+    let region = fs(board)?;
+    if !flashfs::exists(region, &path)? {
+        return Ok(());
+    }
+    check_ram(&flashfs::plan_write(region, &path, 0)?)?;
+    flashfs::delete(region, &path)
+}
+
+pub fn app_create_directory(board: &mut dyn rustnet_hal::Board, path: &str) -> Result<(), String> {
+    let path = app_path(path)?;
+    let region = fs(board)?;
+    check_ram(&flashfs::plan_write(region, &path, 0)?)?;
+    flashfs::create_directory(region, &path)
+}
+
+/// Immediate children of `path`, without the firmware's own directory.
+pub fn app_list(board: &mut dyn rustnet_hal::Board, path: &str) -> Result<Vec<String>, String> {
+    let path = app_path(path)?;
+    let mut names = flashfs::list(fs(board)?, &path)?;
+    if path == "/" {
+        names.retain(|n| n != ".sys");
+    }
+    Ok(names)
+}
+
+// ---------------------------------------------------------------------------
+// One-time migration from the old record log
+// ---------------------------------------------------------------------------
+
+/// "RNS1" little-endian: the magic of the fixed-record log earlier firmware
+/// kept in this sector. Its records were `magic | kind | len | data pad4`.
+const LEGACY_MAGIC: u32 = 0x3153_4E52;
+const LEGACY_HEADER: u32 = 12;
+
+/// What became of the old log, for the boot banner.
+pub enum Migration {
+    /// No old log: nothing to do, the usual case.
+    None,
+    /// Carried across: how many records.
+    Done(usize),
+    /// The old log could not be carried; the message says why. Failing before
+    /// the erase leaves it in place (and the first write will erase it);
+    /// failing after it loses whatever had not been written yet.
+    Failed(String),
+}
+
+/// Carry the newest key, application and name out of an old-format log into
+/// flashfs files.
+///
+/// Safe in the way that matters: everything is read into RAM and checked
+/// before the sector is touched, so a reset before the erase leaves the old
+/// log to be migrated on the next boot. A reset between the erase and the
+/// last write loses what was not yet written — the key goes first, as the
+/// thing costliest to lose. Runs at boot, before the application allocates
+/// anything, which is when the heap is emptiest.
+pub fn migrate_legacy(board: &mut dyn rustnet_hal::Board) -> Migration {
+    match try_migrate(board) {
+        Ok(None) => Migration::None,
+        Ok(Some(n)) => Migration::Done(n),
+        Err(e) => Migration::Failed(e),
+    }
+}
+
+fn try_migrate(board: &mut dyn rustnet_hal::Board) -> Result<Option<usize>, String> {
+    let region = fs(board)?;
+    let mut word = [0u8; 4];
+    region.read(0, &mut word).map_err(|e| format!("{e}"))?;
+    if u32::from_le_bytes(word) != LEGACY_MAGIC {
+        return Ok(None);
+    }
+
+    // Old kinds 1, 2, 3 = key, app, name; written in that order below.
+    let targets = [(1u32, sys::PUB_KEY), (2, sys::APP), (3, sys::APP_NAME)];
+    let mut newest: [Option<(u32, u32)>; 3] = [None; 3];
+    let capacity = region.size();
+    let mut at = 0u32;
+    while at + LEGACY_HEADER <= capacity {
+        let mut header = [0u8; LEGACY_HEADER as usize];
+        region.read(at, &mut header).map_err(|e| format!("{e}"))?;
+        let w = |i: usize| u32::from_le_bytes([header[i], header[i + 1], header[i + 2], header[i + 3]]);
+        if w(0) != LEGACY_MAGIC {
+            break;
+        }
+        let (kind, len) = (w(4), w(8));
+        let next = at + LEGACY_HEADER + ((len + 3) & !3);
+        if len > capacity || next > capacity {
+            break;
+        }
+        if let Some(slot) = targets.iter().position(|(k, _)| *k == kind) {
+            newest[slot] = Some((at + LEGACY_HEADER, len));
+        }
+        at = next;
+    }
+
+    let mut carried: Vec<(&str, Vec<u8>)> = Vec::new();
+    for ((_, path), found) in targets.iter().zip(newest) {
+        let Some((offset, len)) = found else { continue };
+        let mut data = Vec::new();
+        data.try_reserve_exact(len as usize)
+            .map_err(|_| format!("old storage holds {len} bytes for {path}, more than free RAM"))?;
+        data.resize(len as usize, 0);
+        region.read(offset, &mut data).map_err(|e| format!("{e}"))?;
+        carried.push((path, data));
+    }
+
+    // An erased sector is what flashfs starts from; it would erase this
+    // itself on the first write, but only after the data was gone from view.
+    let size = region.size();
+    region.erase(0, size).map_err(|e| format!("{e}"))?;
+    for (path, data) in &carried {
+        flashfs::write(region, path, data)?;
+    }
+    Ok(Some(carried.len()))
 }

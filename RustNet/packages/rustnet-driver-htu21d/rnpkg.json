@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-htu21d",
+  "version": "0.1.0",
+  "description": "TE HTU21D(F) and Silicon Labs Si7006/Si7013/Si7020/Si7021 (Si70xx) temperature and humidity over I2C, with CRC checks, resolution, heater and electronic ID",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

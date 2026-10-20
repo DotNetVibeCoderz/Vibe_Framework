@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-display-core",
+  "version": "0.1.0",
+  "description": "Shared display plumbing for RustNet display drivers: command/data buses (SPI+DC, SSD1306-style I2C), reset and busy pins, 1bpp page/row canvases, an RGB565 canvas, drawing primitives and a 5x7 ASCII font",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

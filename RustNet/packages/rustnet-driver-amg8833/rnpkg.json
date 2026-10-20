@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-amg8833",
+  "version": "0.1.0",
+  "description": "Panasonic AMG8833 (Grid-EYE) 8x8 thermopile array over I2C: pixel temperatures and thermistor",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

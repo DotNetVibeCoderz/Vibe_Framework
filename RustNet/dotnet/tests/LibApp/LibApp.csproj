@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Real TensorFlow-converted models and inputs (runtime/rustnet-tflite/tools/make_fixtures.py). -->
+    <EmbeddedResource Include="../../../runtime/rustnet-tflite/tests/models/cnn_int8.tflite" LogicalName="cnn_int8.tflite" />
+    <EmbeddedResource Include="../../../runtime/rustnet-tflite/tests/models/cnn_int8.in" LogicalName="cnn_int8.in" />
+    <EmbeddedResource Include="../../../runtime/rustnet-tflite/tests/models/mlp_float.tflite" LogicalName="mlp_float.tflite" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Hal\RustNet.Hal.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Serialization\RustNet.Serialization.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.ML\RustNet.ML.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.AI.TensorFlow\RustNet.AI.TensorFlow.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Resources\RustNet.Resources.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Native\RustNet.Native.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Sensors.Gnss\RustNet.Sensors.Gnss.csproj" />
+  </ItemGroup>
+</Project>

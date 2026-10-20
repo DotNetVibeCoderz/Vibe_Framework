@@ -88,6 +88,10 @@ jobs:
         working-directory: ${{ steps.loc.outputs.dir }}
         run: |
           cargo build -p rustnet-firmware --locked
+          # The NPC sample module the LibApp E2E test signs, pushes and calls
+          # from C#. Without it that test still passes, but checks that the
+          # module is reported absent rather than exercising native calls.
+          cargo build -p rustnet-npc-sample --locked
           fw="$PWD/target/debug/rustnet-firmware"
           # Named outright, and checked. The end-to-end tests find this binary
           # by walking up from their own output directory and *skip* when they
@@ -110,7 +114,13 @@ jobs:
       # the configuration. See "no Release-config async" in docs/dotnet-support.md.
       - name: dotnet test
         working-directory: ${{ steps.loc.outputs.dir }}
-        run: dotnet test dotnet/tests/RustNet.Tests/RustNet.Tests.csproj --nologo
+        run: |
+          dotnet test dotnet/tests/RustNet.Tests/RustNet.Tests.csproj --nologo
+          # The community driver packages, on the desktop CLR. (The same
+          # scenarios run on the virtual device inside RustNet.Tests.)
+          for t in Environment Motion Displays Actuators; do
+            dotnet test "dotnet/tests/Drivers/$t.Tests/$t.Tests.csproj" --nologo
+          done
 
       # The two Avalonia GUIs are not in the test graph but are cross-platform,
       # so they are built explicitly — otherwise the only front-ends CI could
@@ -126,7 +136,7 @@ jobs:
 
       # Packing on every push, not only at release, so a package that cannot
       # be built is found by the commit that broke it. The MSBuild that
-      # gathers sixteen assemblies into one package is exactly the kind of
+      # gathers every src/ assembly into one package is exactly the kind of
       # thing that breaks silently and is noticed at the worst moment.
       - name: Pack the RustNet package
         working-directory: ${{ steps.loc.outputs.dir }}
@@ -142,8 +152,8 @@ jobs:
           # A packaging mistake earlier in this project's life produced a 5 KB
           # package that restored cleanly and contained nothing. It is the
           # failure mode worth a guard, because nothing else reports it.
-          if [ "$count" -lt 16 ]; then
-            echo "::error::expected at least 16 assemblies, found $count"
+          if [ "$count" -lt 20 ]; then
+            echo "::error::expected at least 20 assemblies, found $count"
             unzip -Z1 "$pkg"
             exit 1
           fi

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-flowmeter",
+  "version": "0.1.0",
+  "description": "Hall-effect liquid flow sensors (YF-S201, YF-S401, YF-B1/B5/B6/B7 and any K-factor sensor): pulse counting to L/min and total litres",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

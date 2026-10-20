@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mcp23xxx",
+  "version": "0.1.0",
+  "description": "Microchip MCP23008/MCP23017 (I2C) and MCP23S08/MCP23S17 (SPI) GPIO expanders: direction, pull-ups, polarity, GPIO/OLAT (IOCON.BANK=0 map)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

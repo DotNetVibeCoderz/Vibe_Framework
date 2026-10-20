@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mono-display",
+  "version": "0.1.0",
+  "description": "Monochrome page-addressed OLED/LCD controllers: SSD1306 (I2C/SPI), SSD1309, SH1106, SH1107, CH1115, UC1609C and ST7565, drawing through a 1bpp page canvas",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0", "rustnet-driver-display-core": "0.1.0" }
+}

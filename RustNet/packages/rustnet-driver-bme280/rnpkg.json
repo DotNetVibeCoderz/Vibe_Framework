@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bme280",
+  "version": "0.1.0",
+  "description": "Bosch BME280 (temperature/humidity/pressure) and BMP280 (temperature/pressure) over I2C, with the datasheet's integer compensation",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

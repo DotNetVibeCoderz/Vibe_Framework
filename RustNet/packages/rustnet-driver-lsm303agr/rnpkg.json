@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-lsm303agr",
+  "version": "0.1.0",
+  "description": "ST LSM303AGR eCompass: 3-axis accelerometer and 3-axis magnetometer over I2C, with tilt-compensated heading",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

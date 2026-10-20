@@ -8,6 +8,8 @@ public enum ImageKind : byte
     App = 1,
     Data = 2,
     BootImage = 3,
+    /// <summary>Native-code module for the NPC (Native Procedure Caller).</summary>
+    Native = 4,
 }
 
 public enum ChipFamily : byte

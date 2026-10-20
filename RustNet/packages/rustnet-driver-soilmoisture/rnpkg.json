@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-soilmoisture",
+  "version": "0.1.0",
+  "description": "Capacitive (v1.2/v2.0) and resistive FC-28/YL-69 soil moisture sensors through an ADC, with dry/wet calibration to percent and the FC-28 comparator output",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

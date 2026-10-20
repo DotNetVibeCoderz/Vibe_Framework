@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bno055",
+  "version": "0.1.0",
+  "description": "Bosch BNO055 absolute orientation sensor: Euler angles, quaternion, linear acceleration, gravity, calibration status and offsets over I2C",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

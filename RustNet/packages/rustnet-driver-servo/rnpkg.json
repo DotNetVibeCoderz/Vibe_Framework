@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-servo",
+  "version": "0.1.0",
+  "description": "Hobby servos (angle to 50 Hz pulse width) and brushless/drone ESCs (1000-2000 us throttle, arming and calibration sequences) on a PWM channel",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

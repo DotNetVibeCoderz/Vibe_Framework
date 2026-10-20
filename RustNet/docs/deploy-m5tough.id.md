@@ -67,7 +67,7 @@ Identik dengan alur WROOM — lihat
 ```powershell
 dotnet build dotnet\RustNet.slnx
 $rustnet = "$PWD\dotnet\tools\RustNet.Cli\bin\Debug\net10.0\rustnet.exe"
-$env:RUSTNET_SDK = "C:\Users\mifma\Documents\CodeSandbox\RustNet"
+$env:RUSTNET_SDK = "C:\path\to\RustNet"   # the repo root
 
 & $rustnet keys generate --out keys
 & $rustnet provision --key keys\rustnet-signing.pub --device serial:COM4

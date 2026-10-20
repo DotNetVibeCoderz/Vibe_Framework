@@ -1,8 +1,12 @@
 {
   "name": "rustnet-driver-neopixel",
   "version": "0.1.0",
-  "description": "WS2812/NeoPixel addressable LED strip driver for RustNet",
-  "authors": ["RustNet community"],
-  "files": ["*.cs"],
+  "description": "DEPRECATED - use rustnet-driver-ws2812. The original WS2812 driver, from before RustNet.Hal had an SPI API; it pushes the encoded bits through the I2C call and does not drive a real strip.",
+  "authors": [
+    "RustNet community"
+  ],
+  "files": [
+    "*.cs"
+  ],
   "dependencies": {}
 }

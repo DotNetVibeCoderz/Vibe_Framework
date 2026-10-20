@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-arducam",
+  "version": "0.1.0",
+  "description": "ArduCAM Mini (OV2640/OV5642) over SPI + I2C: ArduChip test register, capture start/done, FIFO length, burst FIFO read, sensor ID and register tables",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

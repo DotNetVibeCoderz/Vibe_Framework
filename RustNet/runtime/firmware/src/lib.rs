@@ -10,6 +10,7 @@
 
 pub mod apphost;
 pub mod dirfs;
+pub mod npc;
 pub mod chip;
 pub mod proto;
 pub mod service;

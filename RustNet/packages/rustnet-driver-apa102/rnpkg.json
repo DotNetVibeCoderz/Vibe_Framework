@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-apa102",
+  "version": "0.1.0",
+  "description": "APA102/APA102C (DotStar) addressable LEDs over SPI: start frame, LED frames with 5-bit global brightness, end frame",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

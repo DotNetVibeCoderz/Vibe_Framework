@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mpu6050",
+  "version": "0.1.0",
+  "description": "InvenSense MPU-6050 6-axis accelerometer/gyroscope with die temperature, over I2C, with selectable full-scale ranges",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ads7128",
+  "version": "0.1.0",
+  "description": "TI ADS7128 8-channel 12-bit I2C ADC/GPIO: register opcodes, manual-mode conversions to millivolts, GPIO outputs/inputs",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

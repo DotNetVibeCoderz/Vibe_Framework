@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-cerusxdrive",
+  "version": "0.1.0",
+  "description": "Franklin Electric Cerus X-Drive variable frequency drive over Modbus RTU: run/stop/direction, frequency set-point, fault reset and status/telemetry registers",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

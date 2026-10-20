@@ -32,11 +32,12 @@ retired from `main`).
 | USART (config, tx, rx) | **live** — USART1/2/6 and UART7/8, pin muxing included |
 | Delay / monotonic clock | **live** — DWT cycle counter |
 | Everything else in the HAL | `NotSupported`, integration point named in the source |
-| Persistent storage | **live** — reserved flash sector; key and app restored at boot, so an uploaded app runs again after a power cycle |
+| Persistent storage | **compile-verified, not yet run on hardware** — `rustnet-flashfs` in the reserved flash sector; key and app restored at boot, so an uploaded app runs again after a power cycle |
+| `RustNet.IO.FileSystem` | **compile-verified, not yet run on hardware** — all ten calls, over the same sector; budget 16 KB (F401RE) / 32 KB (F427) |
 | USB CDC transport | **live** on the Netduino — RNDP over the board's own USB, no adapter |
 | SPI | **live** — SPI1/2/3, register level |
 | microSD block device | **driver written, unproven** — see below |
-| Filesystem, OTA, on-device debugger | **not here** |
+| OTA, on-device debugger | **not here** |
 
 ## Talking to it
 
@@ -86,24 +87,89 @@ replace a working application. The main loop then rebuilds the interpreter
 around it, which is what swapping requires: the interpreter borrows its
 module for its lifetime.
 
-## What is still missing
+## Storage and files
 
-A **filesystem**. What exists is a reserved 128 KB flash sector holding
-three fixed records — the provisioned key, the uploaded application and
-its name — restored at boot. There are no paths and no directories, so the
-C# `RustNet.IO.FileSystem` APIs are still unimplemented here, and OTA,
-secure config and the on-device debugger remain in the `std`-bound
-`runtime/firmware`.
+> **Compile-verified only.** This storage layer builds for both boards
+> but has not yet been run on either one.
+
+The reserved 128 KB flash sector holds a **`rustnet-flashfs`** filesystem,
+the same named-blob log the K210, RP2040 and Meadow F7 ports use. The
+firmware keeps its own state there as ordinary files under `/.sys/`, with
+the same names as those ports:
+
+| Path | Holds |
+|---|---|
+| `/.sys/signing.pub` | the key from `rustnet provision` |
+| `/.sys/app.rnx` | the last application `rustnet flash` delivered, already verified |
+| `/.sys/app.name` | its `--name` |
+
+Everything else belongs to the application, through all ten
+`RustNet.IO.FileSystem` calls (`WriteAllText`, `AppendText`,
+`ReadAllText`, `WriteAllBytes`, `AppendBytes`, `ReadAllBytes`, `Exists`,
+`Delete`, `CreateDirectory`, `List`). Applications cannot reach `/.sys`:
+a call that names it fails, and `List("/")` does not show it. A writable
+`signing.pub` would let an app swap the key and make signature checking
+pointless.
+
+flashfs handles the NOR rules (see the root `CLAUDE.md`). Before it writes
+a record it checks that the whole span the record will take is still
+erased, and after writing it reads the record back. Writes append to the
+log. When the log fills, a compaction keeps only the live files, so an
+erase happens once per sector-full of writes, not on every write.
+
+**RAM is the real limit, not the 128 KB.** The whole store is one sector,
+so a compaction has to keep every live file in RAM while the sector is
+erased, because there is nowhere else to put them. On the F401RE that RAM
+comes from a 64 KB heap the running app is already using. So:
+
+- **Every write is planned first.** If the heap cannot cover the write,
+  plus a compaction when one is needed, the write is refused and nothing
+  is changed. The error message gives the live bytes, the record size and
+  how much heap is free. flashfs has a second safeguard: it claims all
+  compaction RAM before the erase, and can fail at that point, so a
+  shortage gives an error. It never halts the board or loses data.
+- **The app's files have a budget:** 16 KB on the F401RE, 32 KB on the
+  F427, headers included. The budget leaves room to replace the app
+  later. That write has to hold the running app (~21 KB for blink), the
+  incoming frame and the new app's record (up to 12 KB each on the
+  F401RE), plus every other live file while the sector compacts. Going
+  over the budget gives `storage budget exceeded: ...`.
+- If saving the key or the app fails (always for lack of RAM), the
+  command still succeeds in RAM, and `[storage] could not persist ...`
+  goes to the log, as before. The app name is only saved if the app was
+  saved too.
+
+A compaction erases the sector, which stalls the core for one to two
+seconds (see below). The RNDP receive ring covers ~355 ms, so a tool
+command sent during one may need to be retried.
+
+### Upgrading from the old record log
+
+Firmware before this kept three fixed records in that sector, in a format
+of its own (magic `RNS1`). **The first boot of the new firmware migrates
+them once**: it reads the newest key, app and name into RAM, erases the
+sector, then writes them back as `/.sys/*` files, key first. The boot log
+says `[storage] migrated N records from the old log`.
+
+Migration is safe up to the erase: if power is lost before it, the next
+boot tries again. If power is lost after the erase and before the last
+write, whatever was not yet written is gone. If that happens, or the log
+reports `old log not migrated`, **provision the board again** and flash
+the app again (`rustnet provision`, then `rustnet flash`). A board that was
+never provisioned needs nothing.
+
+OTA, secure config and the on-device debugger still live only in the
+`std`-bound `runtime/firmware`.
 
 `memory.x` deliberately stops the FLASH region short of that sector. The
 firmware erases it at runtime, so a linker free to place code there would
 be arranging for the firmware to erase itself; keeping the sector out of
 `MEMORY` turns that into a link error rather than a corruption.
 
-An erase stalls the core and every interrupt handler for roughly a second
-— the flash controller blocks all access to flash, and that is where the
-code lives. Storage is a log so this happens only on compaction, not on
-every upload.
+An erase stalls the core and every interrupt handler for one to two
+seconds. The flash controller blocks all access to flash, and the code
+runs from flash. Because storage is a log, this only happens on
+compaction, not on every write.
 
 ## microSD: where it stands
 

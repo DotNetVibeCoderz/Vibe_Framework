@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-si1145",
+  "version": "0.1.0",
+  "description": "Silicon Labs SI1145 UV index, visible and IR light sensor over I2C, with the UV coefficient set-up and forced/autonomous measurement",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

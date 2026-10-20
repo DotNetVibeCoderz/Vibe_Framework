@@ -140,11 +140,14 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         unreadable at every clock rate with the card reporting no error: a
         healthy controller in front of dead storage. Written but unproven;
         needs a second card
-  - [ ] a real filesystem — the reserved sector holds fixed records, not paths,
-        so `RustNet.IO.FileSystem` is still unimplemented here. `rustnet-fs`
-        already has a `FatVolume` that implements `Vfs`, and `fatfs` has an
-        `alloc` feature, so this is mostly the same `no_std` port the crypto
-        crates took
+  - [~] **a real filesystem** — the reserved sector now holds a
+        `rustnet-flashfs` store (the same named-blob log as the K210, RP2040
+        and Meadow ports), so `RustNet.IO.FileSystem` works and the key/app live
+        as `/.sys/*` files; the old record log is migrated once at boot. File
+        budget 16 KB on the F401RE / 32 KB on the F427, because compaction must
+        hold the other live files in RAM. Compaction now reserves all its RAM
+        *before* erasing (a flashfs fix that also protects the other ports).
+        **Compile-verified for both boards; not yet run on hardware**
   - [ ] **WiFi** — the Netduino's radio is a TI CC3100 on SPI1, which speaks
         SimpleLink's proprietary binary protocol rather than AT commands.
         There is no Rust driver for it, and nanoFramework's own port of this
@@ -203,15 +206,23 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         half-megabyte `rustnet flash` containers, and none of the F401RE's
         kilobyte negotiation. A 320×240 RGB565 framebuffer — the thing that
         forces PSRAM on an ESP32 — is a rounding error here
-  - [ ] the **ST7789V LCD on SPI0**, which would be the first
-        `Board::present_frame` on a bare-metal target and needs no PSRAM
-        bounce buffer
-  - [ ] **WiFi** via the on-board ESP8285 as an ESP-AT companion on UART1 —
-        the same shape the Netduino needs, so one `NetInterface` serves both
+  - [x] the **ST7789V LCD on SPI0** — the first `Board::present_frame` on a
+        bare-metal target; the Showcase demo animates at ~20 fps
+  - [x] **WiFi** via the on-board ESP8285 as an ESP-AT companion on UART1 —
+        joins an access point over AT 1.6.2; `RustNet.Net.Wifi` reports the
+        DHCP address. The shared `rustnet-espat` crate also drives the Meadow
+        F7's ESP32 coprocessor
   - [ ] microSD on SPI1 (`firmware-stm32/src/sdcard.rs` ports directly), the
         camera and microphone array, and eventually the KPU
 
 ---
+
+## Meadow F7 Micro ✅ (STM32F777, verified on hardware 2026-08-11)
+
+RNDP over the board's own USB-CDC, 32 MB QSPI storage through `rustnet-flashfs`,
+provisioning, signed app flashing, autostart, and WiFi through ESP-AT built for
+its ESP32 coprocessor. DFU entry needs no buttons (`rustnet firmware flash
+--board meadow-f7`). Walkthrough: `docs/deploy-meadow-f7.md`.
 
 ## v0.6 — Cloud connectivity ✅
 
@@ -352,7 +363,11 @@ returns `NotSupported` elsewhere.
         1024, so retain-heavy heaps aren't fully scanned every 1024 allocations;
         GC frequency tracks garbage, not live-set size. Verified: heap unit tests
   - [ ] generational/incremental GC (write barriers), or interpreter
-        superinstructions / baseline JIT where RAM is writable+executable
+        superinstructions / baseline JIT where RAM is writable+executable.
+        Measured 2026-10-20 with `run_rnx` (which now reports M instr/s):
+        ~6 M IL instructions/s on a desktop, where the main loop reads the
+        host clock and probes the breakpoint set on every instruction — the
+        first, cheapest win before any of the above
 - [x] database:
   - [x] secondary indexes — `CREATE/DROP INDEX`; equality `WHERE` (incl. `?`
         params and one `AND` conjunct) served from the index then re-checked;
@@ -406,23 +421,27 @@ with enough compute/RAM; the lightweight ML and NMEA paths run anywhere.
       (`partitions.csv` — a FAT "storage" partition; the default table has none,
       so the device was silently falling back to in-RAM MemFs). Flash with
       `espflash flash <elf> --partition-table runtime/firmware-esp32/partitions.csv`.
-      TODO: make the build's partition-table path portable (esp-idf-sys needs an
-      absolute `CONFIG_PARTITION_TABLE_CUSTOM_FILENAME`); teach `rustnet firmware
-      flash` to pass `--partition-table` automatically.
-- [ ] **TensorFlow Lite for Microcontrollers** — `RustNet.AI.TensorFlow`:
-      load a `.tflite` model (embed via `RustNet.Resources`), run inference
-      on int8/float tensors; backed by a Rust host bridge to TFLite-Micro on
-      capable silicon, `NotSupported` on tiny targets
-      (ref: developer.wildernesslabs.co → TensorFlowLite)
-- [ ] **Lightweight ML** — `RustNet.ML`: pure-managed, allocation-frugal
-      estimators trainable/inferable on-device —
-      classification (binary + multiclass), regression, clustering (k-means),
-      recommendation, and a small feed-forward neural network. No external
-      runtime; models serialize through `RustNet.Serialization`
-- [ ] **GPS / GNSS NMEA parser** — `RustNet.Sensors.Gnss`: streaming NMEA-0183
-      decoder (GGA/RMC/GSV/GSA/VTG…) over UART, surfacing fix/position/
-      velocity/satellites-in-view events; driver-agnostic (MT3339, NEO-M8,
-      BG95 GNSS) (ref: developer.wildernesslabs.co → Gps_Gnss_Nmea_Processor)
+      Both follow-ups done: the build names the table as
+      `$ENV{RUSTNET_ESP32_DIR}/partitions.csv` (set by the crate's
+      `.cargo/config.toml`, verified by a release build whose
+      `partition-table.bin` carries the `storage` partition), and `rustnet
+      firmware flash` passes `--partition-table` itself.
+- [x] **TensorFlow Lite for Microcontrollers** — `RustNet.AI.TensorFlow` over
+      `runtime/rustnet-tflite`, a dependency-free `no_std` `.tflite` reader and
+      interpreter (31 operators, float32 + int8 per-tensor/per-channel).
+      Verified against TensorFlow itself: three models converted by
+      TensorFlow's converter reproduce TensorFlow's interpreter outputs (float
+      to 1e-4, int8 within one quantisation step), in Rust and through the C#
+      API on the virtual device. Built into the host and ESP32 firmware.
+      `docs/ml.md`
+- [x] **Lightweight ML** — `RustNet.ML`: linear/logistic/softmax regression,
+      k-NN, Gaussian naive Bayes, k-means++, a matrix-factorisation
+      recommender and a feed-forward neural network, trainable on the device;
+      JSON persistence; a seedable RNG so a model trains the same on the CLR
+      and the device. Verified on the CLR and on the interpreter (LibApp E2E)
+- [x] **GPS / GNSS NMEA parser** — `RustNet.Sensors.Gnss`: streaming decoder
+      (GGA/RMC/GSA/GSV/VTG/GLL, any talker, checksums) and a UART receiver;
+      MT3339/NEO-M8/BG95 configuration lives in driver packages. `docs/gnss.md`
 
 ## v1.2 — Alternative UI frontends
 
@@ -433,8 +452,10 @@ device surface). Each is an optional package.
 - [ ] **WinForms** frontend (Windows tooling)
 - [ ] **GTK** frontend (Linux/cross-platform)
 - [ ] **Silk.NET + SkiaSharp** frontend (GPU-accelerated, cross-platform)
-- [ ] **AsciiConsole** frontend (headless/terminal — renders the UI tree as
-      text, useful for CI and SSH sessions)
+- [x] **AsciiConsole** frontend (`dotnet/frontends/RustNet.UI.AsciiConsole`):
+      renders the arranged UI tree as text, one cell per device glyph, every
+      control kind; keyboard input routed through `Ui.Tap`;
+      `rustnet ui preview layout.xml [--interactive]`. `docs/ui-frontends.md`
 
 ## v1.3+ — Community peripheral library (packages)
 
@@ -442,57 +463,66 @@ A driver ecosystem shipped through `rustnet pkg` — each driver is a managed
 `RustNet.*` package over the existing HAL buses (I2C/SPI/UART/GPIO/PWM/ADC),
 contributed and versioned independently of the core. Grouped by category:
 
+**Status (2026-10-20): 89 source packages under `packages/`, covering every
+chip listed below** except where a vendor blob or table is needed (BMI270
+config file and ArduCAM sensor tables are supplied by the user; Gredia flow
+sensors have no reliable K-factor presets). All are built on
+`rustnet-driver-bus` and each is checked against register-level simulators
+holding datasheet values — 1,467 checks — on the CLR and on the virtual
+device's interpreter. A managed `RustNet.Hal.Spi` API was added for them.
+**None is verified on real hardware yet.** Catalog: `docs/drivers.md`.
+
 ### Sensors
-- [ ] **Atmospheric** (temp/humidity/pressure): BME280, BME680/688,
+- [x] **Atmospheric** (temp/humidity/pressure): BME280, BME680/688,
       BMP180/280, SHT31D, SHT4x, HTU21D/31D, AHT10/20, DHT10/12, Si70xx,
       MS5611, MPL3115A2, CCS811, SGP40
-- [ ] **Motion** (accel/gyro/mag): ADXL335–377, MPU6050, LSM6DSOX,
+- [x] **Motion** (accel/gyro/mag): ADXL335–377, MPU6050, LSM6DSOX,
       LSM303AGR, BNO055, BMI270, HMC5883, LIS3MDL, MAG3110
-- [ ] **Light**: BH1750, BH1745, TSL2591, VEML7700, MAX44009, SI1145, TEMT6000
-- [ ] **Distance**: VL53L0X (ToF), HC-SR04, MaxBotix, A02YYUW, ME007YS
-- [ ] **Environmental** (gas/VOC/CO₂/AQI): SCD30, SCD40/41, ENS160, PMSA003I,
+- [x] **Light**: BH1750, BH1745, TSL2591, VEML7700, MAX44009, SI1145, TEMT6000
+- [x] **Distance**: VL53L0X (ToF), HC-SR04, MaxBotix, A02YYUW, ME007YS
+- [x] **Environmental** (gas/VOC/CO₂/AQI): SCD30, SCD40/41, ENS160, PMSA003I,
       CCS811, AGS01DB
-- [ ] **Color**: TCS3472x
-- [ ] **Camera / thermal imaging**: Arducam, VC0706, AMG8833, MLX90640
-- [ ] **Temperature**: LM75, MCP9808, TMP102, MAX6675 (thermocouple),
+- [x] **Color**: TCS3472x
+- [x] **Camera / thermal imaging**: Arducam, VC0706, AMG8833, MLX90640
+- [x] **Temperature**: LM75, MCP9808, TMP102, MAX6675 (thermocouple),
       MCP960x, thermistor
-- [ ] **HID / touch**: XPT2046 (resistive touch), TSC2004, MPR121 (capacitive
+- [x] **HID / touch**: XPT2046 (resistive touch), TSC2004, MPR121 (capacitive
       keypad), keyboard, joystick
-- [ ] **GNSS/GPS modules**: MT3339, NEO-M8, BG95 (GNSS+cellular) — driver
+- [x] **GNSS/GPS modules**: MT3339, NEO-M8, BG95 (GNSS+cellular) — driver
       layer over the v1.1 NMEA parser
-- [ ] **Load cell / weight**: HX711, NAU7802
-- [ ] **Soil moisture**: capacitive soil sensor, FC-28
-- [ ] **Power / current**: INA219/228/260, current transducer
-- [ ] **Battery fuel gauge**: MAX17043/17044
-- [ ] **Flow** (liquid): Hall-effect Gr105/201/216, YF-B series
-- [ ] **Sound**: KY-038
+- [x] **Load cell / weight**: HX711, NAU7802
+- [x] **Soil moisture**: capacitive soil sensor, FC-28
+- [x] **Power / current**: INA219/228/260, current transducer
+- [x] **Battery fuel gauge**: MAX17043/17044
+- [x] **Flow** (liquid): Hall-effect Gr105/201/216, YF-B series
+- [x] **Sound**: KY-038
 
 ### Displays
-- [ ] **Character/segment**: HD44780 (I2C/digital LCD), TM1637,
+- [x] **Character/segment**: HD44780 (I2C/digital LCD), TM1637,
       seven/fourteen/sixteen-segment LED
-- [ ] **Monochrome OLED**: SSD1306, SSD1309, SH1106, SH1107, CH1115, UC1609C,
+- [x] **Monochrome OLED**: SSD1306, SSD1309, SH1106, SH1107, CH1115, UC1609C,
       ST7565
-- [ ] **Color TFT (SPI)**: ILI9341, ILI9163/9225/9481/9486/9488, ST7735,
+- [x] **Color TFT (SPI)**: ILI9341, ILI9163/9225/9481/9486/9488, ST7735,
       ST7789, ST7796S, SSD1331, SSD1351, GC9A01, HX8357B/D
-- [ ] **E-paper**: IL0373/0376F/0398/3897/91874, SSD1608/1680/1681, UC8151C,
+- [x] **E-paper**: IL0373/0376F/0398/3897/91874, SSD1608/1680/1681, UC8151C,
       Waveshare EPD (1.54"/2.13"/2.7"/2.9"/4.2"/5.65"/7.5")
 
 ### Actuators / motors
-- [ ] **DC motor**: `HBridgeMotor`, `BidirectionalDcMotor`
-- [ ] **Stepper**: A4988, ULN2003, `GpioStepper`
-- [ ] **ESC** for brushless/drone motors
-- [ ] **Industrial**: CerusXDrive (Franklin Electric VFD), Tb67h420ftg,
+- [x] **DC motor**: `HBridgeMotor`, `BidirectionalDcMotor`
+- [x] **Stepper**: A4988, ULN2003, `GpioStepper`
+- [x] **ESC** for brushless/drone motors
+- [x] **Industrial**: CerusXDrive (Franklin Electric VFD), Tb67h420ftg,
       StepperOnline series (BLD510B, …)
-- [ ] **LED actuators**: `Led`, `PwmLed`, `RgbLed`, `RgbPwmLed`,
+- [x] **LED actuators**: `Led`, `PwmLed`, `RgbLed`, `RgbPwmLed`,
       `LedBarGraph`, WS2812, APA102, PCA9633
-- [ ] **Relay**: `Relay`
-- [ ] **Buzzer**: `PiezoSpeaker`
+- [x] **Relay**: `Relay`
+- [x] **Buzzer**: `PiezoSpeaker`
 
 ### Support ICs (not sensors, but commonly paired)
-- [ ] **ADC/DAC**: ADS1015/1115, ADS7128, MCP3xxx, MCP492x
-- [ ] **IO expanders**: MCP23xxx, PCF/PCA857x, TCA9535/9555, HT16K33
-- [ ] **RTC**: DS1307, DS3231/3232, PCF8523
-- [ ] **Digital potentiometer**: MCP4xxx
+- [x] **ADC/DAC**: ADS1015/1115, ADS7128, MCP3xxx, MCP492x
+- [x] **IO expanders**: MCP23xxx, PCF/PCA857x, TCA9535/9555, HT16K33
+- [x] **RTC**: DS1307, DS3231/3232, PCF8523
+- [x] **Digital potentiometer**: MCP4xxx
 
 ## v1.4 — NPC: Native Procedure Caller (RLP-style)
 
@@ -517,16 +547,18 @@ out: *mut u8, out_cap: u32) -> i32` returning the bytes written (or a negative
 error). Simple, bounds-checked, matches the byte-array channel.
 
 **The hard part is executing loaded code, so it is chip-gated** (like RLP):
-- [ ] **Host / virtual device (std)** — load a native module as a dynamic
-      library (`libloading`) and call it. Fully feasible now; the reference
-      implementation + the E2E test path (build a Rust `cdylib`, sign it,
-      "flash" it, invoke from C#, check the result).
+- [x] **Host / virtual device (std)** — a native module is an RNSB container
+      of the new kind **Native (4)**, verified against the provisioned key when
+      an app loads it, then loaded with `libloading`. E2E: a sample `cdylib`
+      (`runtime/npc-sample`) is signed, pushed and called from C# (sum,
+      CRC-32, reverse, error propagation); a module signed by another key is
+      refused. `docs/npc.md`
 - [ ] **RAM-executable silicon** (ESP32 IRAM, Cortex-M SRAM) — a
       position-independent blob + a small relocating loader into executable
       RAM (MPU/`W^X` aware). Feasible; per-chip bring-up.
-- [ ] **XIP/flash-only or pure-Harvard chips** — return `NotSupported` (can't
-      write+execute at runtime), exactly as RLP is unavailable there.
-- [ ] **Toolchain** — `rustnet native build` compiles a Rust crate to the
+- [x] **XIP/flash-only or pure-Harvard chips** — `Npc.IsSupported()` is false
+      and `Load` throws `NotSupported` on every build without the loader.
+- [x] **Toolchain** — `rustnet native build` compiles a Rust crate to the
       target's loadable form, `rustnet native push` signs (RNSB) + flashes it
       and returns a handle; `Npc.Load(name)` resolves the handle, `Npc.Invoke`
       calls it. Safety caveat documented: native code runs unsandboxed and can
@@ -543,22 +575,23 @@ bring-up (v0.5) followed — the `no_std + alloc` interpreter core and the HAL
 traits already exist, so this is a board crate + a firmware target, not new
 infrastructure.
 
-- [ ] **Toolchain / core profile** — build `rustnet-core` + `rustnet-hal`
+- [x] **Toolchain / core profile** — build `rustnet-core` + `rustnet-hal`
       for `thumbv6m-none-eabi`. Cortex-M0+ has no native atomic CAS and no
       hardware divide: add `portable-atomic` (critical-section impl) and lean
       on libm/soft-division, mirroring the existing RISC-V `no_std` profile
-- [ ] **Board crate** (`rustnet-hal-rp2040`) over `rp-hal`/Embassy — GPIO,
+- [x] **Board crate** (`rustnet-hal-rp2040`) over `rp-hal`/Embassy — GPIO,
       PWM, ADC, I2C, SPI, UART behind the existing HAL traits, so every
       `RustNet.*` API lights up unchanged
 - [ ] **PIO** — map the RP2040's programmable-IO state machines onto the
       `Signal`/RMT-style surface (precise pulse generate/capture) and to
       WS2812/APA102 LED drivers; a differentiator no current target has
-- [ ] **Deploy over native USB-CDC** — the RP2040's built-in USB device
+- [x] **Deploy over native USB-CDC** (verified on a Pico; `reboot 01` re-enters BOOTSEL by itself) — the RP2040's built-in USB device
       presents CDC-ACM; RNDP rides the existing byte-pipe transport
       (`serve_pipe` / `--stdio`), so `rustnet flash/logs/…` work over the USB
       cable with no extra hardware. Reuses the v0.8 `RustNet.Usb` device stack
-- [ ] **Persistent flash** — app + provisioning storage in an XIP QSPI flash
-      region (survives reboot/reflash), then **OTA A/B** across two app slots
+- [~] **Persistent flash** — app + provisioning + files in 1 MB of QSPI above
+      the image (`rustnet-flashfs`), surviving reboot and reflash ✅; **OTA A/B**
+      across two app slots still open
 - [ ] **Pico W WiFi** (CYW43) — optional: WiFi STA + RNDP TCP :7878 for fully
       wireless deploy, exactly like the ESP32 phase-2 path; plain Pico stays
       USB-only

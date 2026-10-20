@@ -81,6 +81,37 @@ pub fn list_intrinsic<H: RuntimeHost>(
                 d.insert(i, v);
             })?;
         }
+        "RemoveRange" => {
+            let start = interp.deref(args[1])?.as_i32()?;
+            let count = interp.deref(args[2])?.as_i32()?;
+            let ok = with_list(interp, args[0], |d| {
+                if start < 0 || count < 0 || (start as usize + count as usize) > d.len() {
+                    false
+                } else {
+                    d.drain(start as usize..start as usize + count as usize);
+                    true
+                }
+            })?;
+            if !ok {
+                return Err("ArgumentOutOfRangeException".into());
+            }
+        }
+        "GetRange" => {
+            let start = interp.deref(args[1])?.as_i32()?;
+            let count = interp.deref(args[2])?.as_i32()?;
+            let slice = with_list(interp, args[0], |d| {
+                if start < 0 || count < 0 || (start as usize + count as usize) > d.len() {
+                    None
+                } else {
+                    Some(d[start as usize..start as usize + count as usize].to_vec())
+                }
+            })?;
+            let Some(slice) = slice else {
+                return Err("ArgumentOutOfRangeException".into());
+            };
+            let r = interp.heap.alloc(HeapObject::ListObj(slice));
+            push(interp, Value::Ref(r));
+        }
         "RemoveAt" => {
             let i = interp.deref(args[1])?.as_i32()? as usize;
             let ok = with_list(interp, args[0], |d| {

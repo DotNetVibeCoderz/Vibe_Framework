@@ -53,6 +53,29 @@ public static class I2c
     public static byte[] Read(int bus, int address, int length) => throw new RuntimeOnlyException();
 }
 
+/// <summary>
+/// SPI master buses. Chip select is not part of the bus: drive it with
+/// <see cref="Gpio"/> around each transaction, which is what every display
+/// and sensor driver needs anyway (many hold CS low across a command and its
+/// data). Mode is the usual CPOL/CPHA number, 0..3.
+/// </summary>
+public static class Spi
+{
+    [InternalCall]
+    public static void Configure(int bus, int frequencyHz, int mode) => throw new RuntimeOnlyException();
+
+    /// <summary>Full-duplex: shifts <paramref name="data"/> out and returns the bytes shifted in.</summary>
+    [InternalCall]
+    public static byte[] Transfer(int bus, byte[] data) => throw new RuntimeOnlyException();
+
+    [InternalCall]
+    public static void Write(int bus, byte[] data) => throw new RuntimeOnlyException();
+
+    /// <summary>Clock in <paramref name="length"/> bytes while sending zeros.</summary>
+    [InternalCall]
+    public static byte[] Read(int bus, int length) => throw new RuntimeOnlyException();
+}
+
 /// <summary>Serial ports beyond the console (ESP32: 1 = TX4/RX5, 2 = TX17/RX16).</summary>
 public static class Uart
 {

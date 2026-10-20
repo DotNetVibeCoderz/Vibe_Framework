@@ -50,6 +50,18 @@ dotnet run --project dotnet/tools/RustNet.Designer            # WPF, Windows onl
 # against any OpenAI-compatible service without touching config:
 #   --ask "..." --provider OpenAI --endpoint https://api.deepseek.com #         --model deepseek-v4-flash --api-key-env DEEPSEEK_API_KEY
 
+# Community driver packages (packages/rustnet-driver-*): xunit on the CLR per category;
+# the same scenarios run on the virtual device in RustNet.Tests (DriverPackagesRunOnTheDevice)
+dotnet test dotnet/tests/Drivers/Environment.Tests/Environment.Tests.csproj   # also Motion, Displays, Actuators
+python packages/make_catalog.py             # regenerate docs/drivers.md after adding a package
+
+# NPC sample module (the LibApp E2E test signs, pushes and calls it) and TFLite fixtures
+cargo build -p rustnet-npc-sample
+python runtime/rustnet-tflite/tools/make_fixtures.py   # needs TensorFlow; regenerates tests/models
+
+# A RustNet.UI layout as text (AsciiConsole frontend)
+rustnet ui preview layout.xml [--interactive]
+
 # VSCode extension — from vscode-extension/
 npm install && npm run compile
 
@@ -72,7 +84,7 @@ Three byte-level contracts are each implemented twice (Rust device side, C# tool
 
 1. **RNX module format** (v6: per-type custom attributes; v5: reflection field descriptors; v4: embedded resources) — `runtime/rustnet-core/src/rnx.rs` (reader/builder) ↔ `dotnet/tools/RustNet.MetadataProcessor/RnxCompiler.cs` (writer). All IL inline tokens are 4 bytes and are rewritten **in place** to 4-byte indices, so branch offsets never change.
 2. **RNDP protocol frames + commands** — `runtime/firmware/src/proto.rs` ↔ `dotnet/tools/RustNet.Deploy/Rndp.cs` (CRC-16/CCITT-FALSE; spec in `docs/protocol.md`).
-3. **RNSB signed containers** — `runtime/rustnet-secureboot/src/lib.rs` (verify) ↔ `dotnet/tools/RustNet.Deploy/Signing.cs` (seal). RSA PKCS#1 v1.5 + SHA-256 over header-with-zeroed-siglen + payload.
+3. **RNSB signed containers** — `runtime/rustnet-secureboot/src/lib.rs` (verify) ↔ `dotnet/tools/RustNet.Deploy/Signing.cs` (seal). RSA PKCS#1 v1.5 + SHA-256 over header-with-zeroed-siglen + payload. Image kinds: Firmware 0, App 1, Data 2, BootImage 3, **Native 4** (an NPC module, verified when an app loads it from `/data/native/<name>.rnsb`).
 
 A fourth string-level contract: **canonical method names** `Ns.Type::Name(i4,string,...)`. The MetadataProcessor emits them (`SignatureProvider.cs`); the interpreter's intrinsic dispatch (`runtime/rustnet-core/src/intrinsics.rs` for corlib: Console/String/Math/Random) and the firmware host (`runtime/firmware/src/apphost.rs` for `RustNet.*`: HAL/FS/Display/WiFi/MQTT) match on them. Adding a C# API in `dotnet/src/RustNet.*` requires a matching arm in `apphost.rs` with the exact canonical name.
 
@@ -89,6 +101,9 @@ Other structure worth knowing:
 - Runtime v0.4 (RNX v3) supports the full language core: try/catch/finally + `catch when` filters, inheritance + interfaces + virtual dispatch (override tables; `ToString` overrides work), user generics (erasure), async/await (Debug-config class state machines; task continuations run as green threads), delegates/lambdas, BCL collections + foreach, LINQ subset, `StringBuilder`, `Regex`, string interpolation, plus the v0.3 device surface (CAN/Modbus/1-Wire, Ethernet/PPP/Cellular, SQL db, power/RTC/watchdog/extmem, signal control, JSON/XML/binary serializers, streams, XML-loadable UI). Full support matrix: `docs/dotnet-support.md`. Remaining limits (MetadataProcessor errors clearly): reflection is partial — `object.GetType()` + `Type.Name/FullName/Namespace/BaseType/ToString`, method enumeration (`GetMethods`/`GetMethod`/`MethodInfo.Name`), `typeof(T)` (`ldtoken`+`GetTypeFromHandle`, identity = `GetType()`) `MethodInfo.Invoke` (boxed `object[]` args, void returns null) and field enumeration (`GetFields`/`GetField`, `FieldInfo.Name/GetValue/SetValue`, public fields, RNX v5 descriptors) property enumeration (`GetProperties`/`GetProperty`, `PropertyInfo.Name/GetValue/SetValue`, via `get_`/`set_` accessors) and **type-level custom attributes** (`Type.GetCustomAttributes`, RNX v6 stores ctor + positional/named const args; instantiated on read) work (v0.9), but attributes on methods/fields and `ldtoken` of a method/field (array initializers) do not; catch clauses are untyped (discriminate with `when` on `ex.Message`), no Release-config async, entry must be `static void Main()`. **`string.Concat` with 5+ arguments** now works (the inline-array `ReadOnlySpan` lowering is modelled — `initobj <>y__InlineArrayN<T>` allocates a heap array, `InlineArray*` helpers are interpreter intrinsics). Byref (`ref`) is same-frame only: never pass `ref` locals into another managed method.
 - Adding a `RustNet.*` API: C# `[InternalCall]` stub in `dotnet/src/RustNet.X` + matching arm in `runtime/firmware/src/apphost.rs` (exact canonical name), backed by a `rustnet-hal` trait + `rustnet-hal-host` simulator so the virtual device and tests exercise it. Byte-array marshalling is the only array channel across the host boundary — pack wider types (u16/u32) little-endian and decode in the C# wrapper (see `Signal`/`Modbus`).
 - **The Designer has two front-ends over one core.** `RustNet.Designer.Core` (plain `net10.0`) holds everything that is not a view — the assistant + Semantic Kernel wiring, the deployment pipeline, the Roslyn formatter, `DesignModel` (control palette and per-kind defaults), `DragTool`, `SampleLayout`. `RustNet.Designer` is WPF (`net10.0-windows`, so unbuildable off Windows); `RustNet.Designer.Avalonia` is the cross-platform port. Behaviour changes belong in the Core, or they land in one front-end only. Two Avalonia traps: writing your own `InitializeComponent() => AvaloniaXamlLoader.Load(this)` compiles but leaves **every `x:Name` field null** (the generated overload is what assigns them), and Markdown.Avalonia's `Standard` style set is built for a white page — use `FluentTheme` on a dark one.
+- **Post-1.0 libraries.** `RustNet.ML` and `RustNet.Sensors.Gnss` are pure managed code (tested on the CLR in RustNet.Tests and on the interpreter by LibApp). `RustNet.AI.TensorFlow` is a façade over `runtime/rustnet-tflite` (a dependency-free `no_std` `.tflite` interpreter; fixtures in `tests/models` are real TensorFlow conversions with TensorFlow's own reference outputs). `RustNet.Native` is NPC (`runtime/firmware/src/npc.rs`, feature `npc` = host only, `libloading`; docs/npc.md). `dotnet/frontends/RustNet.UI.AsciiConsole` renders RustNet.UI trees as text on a desktop.
+- **Community drivers** are source packages under `packages/`, all built on `rustnet-driver-bus` (overridable device wrappers + register simulators). Each category has `dotnet/tests/Drivers/<Cat>.App` (smoke scenarios, run on the device) and `<Cat>.Tests` (same scenarios on the CLR); expected values come from datasheets. Authoring rules + dialect: `packages/README.md`; catalog: `docs/drivers.md`.
+- **Nested types are named `Ns.Outer+Inner`** by the MetadataProcessor. Before that, every class with a lambda produced its own `<>c` / `<>c__DisplayClass…` / `<>O` with the same simple name, and two of them in one app failed to compile. Object fields are zero-filled as `I32(0)` regardless of type, so the interpreter treats `I32(0)` and null as equal in comparisons.
 - Templates are instantiated by `rustnet new` with `__NAME__` token replacement; they resolve `RustNet.*` libs via the `RUSTNET_SDK` env var (repo root). Template csprojs are standalone (no `dotnet/Directory.Build.props`), so they must set `ImplicitUsings` themselves.
 
 ## Gotchas
@@ -97,3 +112,5 @@ Other structure worth knowing:
 - xunit E2E tests auto-locate `target/{debug,release}/rustnet-firmware.exe` by walking up from the test bin dir (`RUSTNET_FIRMWARE` env overrides) and skip if absent.
 - After changing Rust interpreter intrinsics, rebuild the firmware binary before re-running .NET E2E — the tests run the compiled exe, not the source.
 - PowerShell 5.1 quirks in this environment: no `&&`, prefer separate commands or bash tool.
+- ESP32 builds name their partition table as `$ENV{RUSTNET_ESP32_DIR}/partitions.csv` (set by `runtime/firmware-esp32/.cargo/config.toml`): a relative name resolves against esp-idf-sys's OUT_DIR deep under `C:/rnesp`, and an absolute one broke when the repo moved.
+- `cargo run --example run_rnx` now reports wall-clock time and M instr/s, and `Uptime.Ms()` there is real elapsed time — use it to measure interpreter changes.

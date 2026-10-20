@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ina",
+  "version": "0.1.0",
+  "description": "TI power/current monitors over I2C: INA219 (external shunt, calibration), INA228 (20-bit, energy/charge), INA260 (integrated 2 mOhm shunt)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

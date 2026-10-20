@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mcp3xxx",
+  "version": "0.1.0",
+  "description": "Microchip MCP3004/MCP3008 (10-bit) and MCP3204/MCP3208 (12-bit) SPI ADCs, single-ended and pseudo-differential",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -11,7 +11,7 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
 - [x] **Persistence in a reserved flash sector** — key and app survive a power cycle, so an uploaded app restarts by itself ✅
 - [x] **RNDP over the Netduino's native USB (CDC)** — no serial adapter; one PLL feeds both the 168 MHz core and USB's 48 MHz ✅
 - [~] microSD block device — card identifies but its storage is unreadable; driver written, unproven, needs a second card 🟡
-- [ ] Real filesystem on this target (`RustNet.IO.FileSystem`) — `rustnet-fs`'s `FatVolume` plus a `no_std` port of `fatfs`
+- [~] **Filesystem** (`RustNet.IO.FileSystem`) on `rustnet-flashfs` in the reserved sector; key/app as `/.sys/*`, old log migrated at boot; 16 KB (F401RE) / 32 KB (F427) file budget — compile-verified, not yet on hardware 🟡
 - [ ] WiFi (CC3100) — see Networking
 
 ## Bare metal (Kendryte K210, RV64GC)
@@ -35,7 +35,7 @@ one real bug it found.
 - [x] **Compaction has to erase what is used, not the whole region** — a sector erase costs tens to hundreds of milliseconds, so erasing a multi-megabyte window stalled the device past the tools' timeout. Fixed in both ports ✅
 - [x] **Opening the serial port reboots the board, and DTR picks the boot mode** — reset is asserted whenever DTR and RTS differ, so the first request after connecting is lost; and pulsing RTS enters the ROM loader rather than the application. `RndpClient` now pings until answered before letting a real command through, and only resets after an unanswered probe ✅
 - [x] **The FPU has to be switched on in software** — `mstatus.FS` is `Off` at reset, so a `csrs mstatus` in `#[pre_init]`; without it a C# program dies the first time it multiplies two doubles, and the trap points at the arithmetic rather than the cause. `riscv-rt` does not do this; Kendryte's `crt.S` does ✅
-- [ ] WiFi via the on-board ESP8285 as an ESP-AT companion on UART1 — same shape the STM32F4 port needs, so one `NetInterface` would serve both
+- [x] **WiFi via the on-board ESP8285** (ESP-AT 1.6.2 on UART1) — joins an AP, `RustNet.Net.Wifi` reports the DHCP address ✅
 - [ ] microSD on SPI1 (`firmware-stm32/src/sdcard.rs` is directly reusable), camera, microphone array, KPU
 
 ## Communication protocols (add)
@@ -206,12 +206,12 @@ one real bug it found.
 
 ## Roadmap ahead (v0.6+)
 
-### Cloud connectivity (v0.6) — new `RustNet.Cloud`
-- [ ] Azure IoT Hub client (MQTT + SAS, D2C telemetry, C2D, twin)
-- [ ] AWS IoT Core client (MQTT/TLS, shadows, pub/sub)
-- [ ] Google Cloud IoT Core client (MQTT + JWT, config/state)
-- [ ] IFTTT Webhooks (Maker) trigger client (HTTP)
-- [ ] `cloud-telemetry` template + on-device E2E
+### Cloud connectivity (v0.6) — new `RustNet.Cloud` ✅
+- [x] Azure IoT Hub client (MQTT + SAS, D2C telemetry, C2D)
+- [x] AWS IoT Core client (MQTT, Device Shadow topics + envelope)
+- [x] Google Cloud IoT Core client (MQTT + JWT HS256, config/state/events)
+- [x] IFTTT Webhooks (Maker) trigger client (HTTP)
+- [x] `cloud-telemetry` template, all four clients run on the virtual device
 
 ### Rich UI, graphics & designer (v0.7)
 - [x] `RustNet.UI` components: window/stack/panel/border/canvas/grid +
@@ -272,23 +272,29 @@ one real bug it found.
 
 ## Post-1.0 roadmap
 
-### On-device ML & GNSS (v1.1)
-- [ ] TensorFlow Lite for Microcontrollers — `RustNet.AI.TensorFlow`: load
-  `.tflite` (via Resources), int8/float inference; Rust host bridge to
-  TFLite-Micro on capable silicon, NotSupported on tiny targets
-- [ ] Lightweight ML — `RustNet.ML`: pure-managed classification (binary +
-  multiclass), regression, clustering (k-means), recommendation, small NN;
-  models serialize via RustNet.Serialization
-- [ ] GPS/GNSS NMEA parser — `RustNet.Sensors.Gnss`: streaming NMEA-0183
-  (GGA/RMC/GSV/GSA/VTG) over UART → fix/position/velocity/satellite events
+### On-device ML & GNSS (v1.1) ✅
+- [x] **TensorFlow Lite** — `RustNet.AI.TensorFlow` over `runtime/rustnet-tflite`
+  (dependency-free `no_std` interpreter, 31 operators, float32 + int8).
+  Outputs match TensorFlow's own interpreter on three TensorFlow-converted
+  models (float 1e-4, int8 ±1 step), in Rust and on the virtual device ✅
+- [x] **Lightweight ML** — `RustNet.ML`: linear/logistic/softmax regression,
+  k-NN, naive Bayes, k-means++, recommender, neural network; JSON
+  persistence; CLR + interpreter verified ✅
+- [x] **GNSS** — `RustNet.Sensors.Gnss`: GGA/RMC/GSA/GSV/VTG/GLL, checksums,
+  any talker, UART receiver; CLR + interpreter verified ✅
 
 ### Alternative UI frontends (v1.2) — packages, alt to RustNet.UI
-- [ ] WinForms  [ ] GTK  [ ] Silk.NET + SkiaSharp  [ ] AsciiConsole (terminal)
+- [ ] WinForms  [ ] GTK  [ ] Silk.NET + SkiaSharp  [x] **AsciiConsole** (terminal) ✅ —
+  `dotnet/frontends/RustNet.UI.AsciiConsole`, `rustnet ui preview`
 
 ### Community peripheral library (v1.3+) — shipped via `rustnet pkg`
 Managed `RustNet.*` drivers over the HAL buses, contributed/versioned apart
-from the core. Categories:
-- [ ] **Sensors** — atmospheric (BME280/680/688, SHTx, AHTx, BMPx, Si70xx,
+from the core. **89 packages written (2026-10-20)**, every listed chip covered
+(BMI270 config blob and ArduCAM sensor tables are user-supplied), 1,467
+datasheet-value checks green on the CLR and on the interpreter (E2E
+`DriverPackagesRunOnTheDevice`). Not yet verified on real hardware 🟡.
+Catalog: `docs/drivers.md`. Categories:
+- [x] **Sensors** — atmospheric (BME280/680/688, SHTx, AHTx, BMPx, Si70xx,
   MS5611, CCS811, SGP40…); motion (MPU6050, LSM6DSOX, BNO055, BMI270,
   ADXL3xx, HMC5883, LIS3MDL…); light (BH1750, TSL2591, VEML7700, SI1145…);
   distance (VL53L0X, HC-SR04, MaxBotix, A02YYUW…); environmental/AQI
@@ -298,15 +304,15 @@ from the core. Categories:
   keyboard, joystick); GNSS modules (MT3339, NEO-M8, BG95); load cell
   (HX711, NAU7802); soil moisture (capacitive, FC-28); power/current
   (INA219/228/260); fuel gauge (MAX17043/44); flow (Hall Gr/YF-B); sound (KY-038)
-- [ ] **Displays** — character/segment (HD44780, TM1637, 7/14/16-seg);
+- [x] **Displays** — character/segment (HD44780, TM1637, 7/14/16-seg);
   mono OLED (SSD1306/1309, SH1106/1107, CH1115, UC1609C, ST7565); color TFT
   (ILI9341/916x/94xx, ST7735/7789/7796S, SSD1331/1351, GC9A01, HX8357);
   e-paper (IL0373…, SSD1608/1680/1681, UC8151C, Waveshare EPD 1.54"–7.5")
-- [ ] **Actuators/motors** — DC (HBridgeMotor, BidirectionalDcMotor); stepper
+- [x] **Actuators/motors** — DC (HBridgeMotor, BidirectionalDcMotor); stepper
   (A4988, ULN2003, GpioStepper); ESC (brushless/drone); industrial
   (CerusXDrive VFD, Tb67h420ftg, StepperOnline BLD510B); LEDs (Led, PwmLed,
   RgbLed, RgbPwmLed, LedBarGraph, WS2812, APA102, PCA9633); Relay; PiezoSpeaker
-- [ ] **Support ICs** — ADC/DAC (ADS101x/111x, ADS7128, MCP3xxx, MCP492x);
+- [x] **Support ICs** — ADC/DAC (ADS101x/111x, ADS7128, MCP3xxx, MCP492x);
   IO expanders (MCP23xxx, PCF/PCA857x, TCA9535/9555, HT16K33); RTC (DS1307,
   DS3231/3232, PCF8523); digital pot (MCP4xxx)
 
@@ -315,12 +321,13 @@ Call native Rust from C#, loaded at runtime, no firmware rebuild. **Feasible**
 — reuses existing byte-array marshalling + RNSB signing + the intrinsic
 dispatch seam; the new work is a loader + a stable C ABI
 (`fn(args, len, out, cap) -> i32`). Chip-gated on code execution:
-- [ ] Host/virtual device (std) via `libloading` — fully feasible; reference
-  impl + E2E (build+sign+load+invoke a Rust cdylib, check result)
+- [x] Host/virtual device via `libloading`; RNSB kind **Native (4)**, verified
+  at load; E2E calls a signed sample cdylib from C# and refuses a foreign
+  signature ✅ (`docs/npc.md`)
 - [ ] RAM-executable silicon (ESP32 IRAM / Cortex-M SRAM) — PIC blob +
   relocating loader (W^X aware)
-- [ ] XIP/pure-Harvard chips — `NotSupported`
-- [ ] Toolchain: `rustnet native build`/`push` (RNSB-signed) + `Npc.Load`/
+- [x] XIP/pure-Harvard chips — `NotSupported` (`Npc.IsSupported()` false)
+- [x] Toolchain: `rustnet native build`/`push` (RNSB-signed) + `Npc.Load`/
   `Npc.Invoke`; native code runs unsandboxed (signing gates *who* loads)
 
 ### RP2040 silicon (v1.5) — Raspberry Pi Pico / Pico W
@@ -328,15 +335,15 @@ Bring RustNet to the **RP2040** (dual Cortex-M0+ @ 133 MHz, 264 KB SRAM, XIP
 QSPI flash, native USB 1.1, PIO). Same staged path as the ESP32 bring-up (v0.5);
 `no_std + alloc` core + HAL traits already exist, so it's a board crate + a
 firmware target:
-- [ ] Core profile for `thumbv6m-none-eabi` — `portable-atomic`
+- [x] Core profile for `thumbv6m-none-eabi` — `portable-atomic`
   (no native CAS) + libm/soft-division, like the RISC-V no_std profile
-- [ ] Board crate `rustnet-hal-rp2040` over `rp-hal`/Embassy — GPIO/PWM/ADC/
+- [x] Board crate `rustnet-hal-rp2040` over `rp-hal`/Embassy — GPIO/PWM/ADC/
   I2C/SPI/UART behind the HAL traits (every `RustNet.*` API unchanged)
 - [ ] **PIO** state machines → `Signal`/RMT pulse gen/capture + WS2812/APA102
   (a target-unique differentiator)
-- [ ] Deploy over **native USB-CDC** — RNDP on the existing byte-pipe transport
+- [x] Deploy over **native USB-CDC** (verified on a Pico) — RNDP on the existing byte-pipe transport
   (`serve_pipe`/`--stdio`); reuses the v0.8 `RustNet.Usb` device stack, no extra HW
-- [ ] Persistent app+provisioning in XIP QSPI flash → **OTA A/B** slots
+- [~] Persistent app+provisioning+files in XIP QSPI flash ✅ → **OTA A/B** slots still open
 - [ ] **Pico W** (CYW43): optional WiFi STA + RNDP TCP :7878 (ESP32 phase-2
   path); plain Pico stays USB-only
 - [ ] NPC on RP2040 — SRAM is W+X on M0+, so the v1.4 RAM-executable path applies
@@ -367,3 +374,18 @@ firmware target:
   and `rustnet flash/start/logs --device tcp:<ip>:7878` ran the complete
   deploy cycle over WiFi — incl. on-chip RSA verification (heap-budget
   fixes: trimmed WiFi/lwIP buffers, right-sized thread stacks)
+
+## Verification snapshot (2026-10-20, post-1.0 libraries)
+- `cargo test --workspace` green, incl. `rustnet-tflite` (5 tests against
+  TensorFlow-generated fixtures) and new interpreter tests (unsigned
+  conversions, null vs. unassigned field)
+- `dotnet test dotnet/RustNet.slnx`: **240 passed** — RustNet.Tests 97 (incl.
+  E2E LibApp: ML, GNSS, TFLite, NPC; the four driver apps on the virtual
+  device) + driver xunit 34/34/35/40
+- ESP32 release firmware builds with TFLite and the portable partition table
+- Interpreter/toolchain fixes found by this work: `conv.u8` zero-extension,
+  `conv.r.un`, `conv.ovf.*(.un)`, nested-type naming (`Outer+Inner`; lambda
+  classes no longer collide), null vs. zero-filled fields, `char.ToString()`
+  and span-based `string.Concat`, `double.IsNaN/IsInfinity`, `Math`
+  completeness and half-to-even `Round`, `List.RemoveRange/GetRange`,
+  culture-invariant number formatting, a managed `RustNet.Hal.Spi`

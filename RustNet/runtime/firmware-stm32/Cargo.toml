@@ -29,6 +29,9 @@ rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false 
 # as executing a C# app goes; the std-bound service crates (RNDP, FS, OTA) are
 # not involved, since the app is embedded in the image rather than flashed.
 rustnet-core = { path = "../rustnet-core", default-features = false }
+# The filesystem in the storage sector: named blobs over raw NOR, no_std +
+# alloc. Shared with the K210, RP2040 and Meadow F7 ports.
+rustnet-flashfs = { path = "../rustnet-flashfs" }
 # USB CDC, so the Netduino can serve RNDP over its own USB socket instead of
 # needing a USB-serial adapter on the header. Optional: the Nucleo has no USB
 # connector wired to the target, and pulls none of this in.

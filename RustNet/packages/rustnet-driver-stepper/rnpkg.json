@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-stepper",
+  "version": "0.1.0",
+  "description": "Stepper motor drivers with step-count positioning and a trapezoidal speed/acceleration profile: A4988 (STEP/DIR/ENABLE, MS1-MS3 microstepping), ULN2003 + 28BYJ-48 (half/full/wave sequences) and generic 4-wire GPIO steppers",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

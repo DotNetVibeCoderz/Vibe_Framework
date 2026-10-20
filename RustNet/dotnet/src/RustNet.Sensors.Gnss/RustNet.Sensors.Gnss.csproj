@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>RustNet GNSS: a streaming NMEA-0183 decoder (GGA/RMC/GSV/GSA/VTG/GLL) and a UART receiver for any GPS/GNSS module.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\RustNet.Hal\RustNet.Hal.csproj" />
+  </ItemGroup>
+</Project>

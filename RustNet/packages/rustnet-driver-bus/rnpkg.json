@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bus",
+  "version": "0.1.0",
+  "description": "Shared device wrappers for RustNet drivers: I2C/SPI/GPIO/PWM/ADC/UART devices with register helpers, and register-level simulators for testing drivers without hardware",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": {}
+}

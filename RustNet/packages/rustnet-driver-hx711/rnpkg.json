@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-hx711",
+  "version": "0.1.0",
+  "description": "Avia HX711 24-bit load-cell ADC, bit-banged over two GPIOs, with gain/channel selection, tare and scale",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

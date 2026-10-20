@@ -7,5 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RustNet.Deploy\RustNet.Deploy.csproj" />
     <ProjectReference Include="..\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
+    <ProjectReference Include="..\..\frontends\RustNet.UI.AsciiConsole\RustNet.UI.AsciiConsole.csproj" />
   </ItemGroup>
 </Project>

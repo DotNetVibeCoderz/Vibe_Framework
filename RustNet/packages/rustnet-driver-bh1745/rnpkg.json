@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bh1745",
+  "version": "0.1.0",
+  "description": "ROHM BH1745NUC RGB + clear colour sensor over I2C, with gain and measurement-time control",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

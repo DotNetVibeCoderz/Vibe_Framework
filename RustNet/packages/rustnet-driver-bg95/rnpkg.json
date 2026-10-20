@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bg95",
+  "version": "0.1.0",
+  "description": "Quectel BG95/BG96/BG77 GNSS over the AT port: AT+QGPS power, AT+QGPSLOC fix parsing, AT+QGPSGNMEA sentences. Needs RustNet.Sensors.Gnss from the RustNet NuGet",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -1,0 +1,34 @@
+<Project>
+  <!-- The driver packages in this category. Shared by the host test project
+       and the on-device smoke app, so both always compile the same sources. -->
+  <PropertyGroup>
+    <DriverPackages>$(MSBuildThisFileDirectory)..\..\..\..\packages\</DriverPackages>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(DriverPackages)rustnet-driver-bus\*.cs" Link="pkg\bus\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-adxl\*.cs" Link="pkg\adxl\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-mpu6050\*.cs" Link="pkg\mpu6050\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-lsm6dsox\*.cs" Link="pkg\lsm6dsox\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-lsm303agr\*.cs" Link="pkg\lsm303agr\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-bno055\*.cs" Link="pkg\bno055\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-bmi270\*.cs" Link="pkg\bmi270\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-magnetometer\*.cs" Link="pkg\magnetometer\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-vl53l0x\*.cs" Link="pkg\vl53l0x\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-ultrasonic\*.cs" Link="pkg\ultrasonic\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-ina\*.cs" Link="pkg\ina\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-max1704x\*.cs" Link="pkg\max1704x\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-hx711\*.cs" Link="pkg\hx711\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-nau7802\*.cs" Link="pkg\nau7802\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-flowmeter\*.cs" Link="pkg\flowmeter\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-touch\*.cs" Link="pkg\touch\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-mpr121\*.cs" Link="pkg\mpr121\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-input\*.cs" Link="pkg\input\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-mt3339\*.cs" Link="pkg\mt3339\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-ublox\*.cs" Link="pkg\ublox\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-bg95\*.cs" Link="pkg\bg95\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-amg8833\*.cs" Link="pkg\amg8833\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-mlx90640\*.cs" Link="pkg\mlx90640\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-vc0706\*.cs" Link="pkg\vc0706\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-arducam\*.cs" Link="pkg\arducam\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

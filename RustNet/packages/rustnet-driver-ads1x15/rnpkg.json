@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ads1x15",
+  "version": "0.1.0",
+  "description": "TI ADS1015 (12-bit) and ADS1115 (16-bit) I2C ADCs: mux, PGA, data rate, single-shot conversions to millivolts, comparator thresholds",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

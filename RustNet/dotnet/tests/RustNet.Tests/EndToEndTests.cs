@@ -293,6 +293,160 @@ public class EndToEndTests : IDisposable
         client.EraseApp("langapp");
     }
 
+    /// <summary>Provision, flash and run one test app; returns its logs once it exits.</summary>
+    private string RunApp(string assembly, string name, int timeoutSeconds, Action<RndpClient, byte[]>? beforeStart = null)
+    {
+        using var client = Client();
+        var (priv, pub) = Signing.GenerateKeypair();
+        client.ProvisionKey(pub);
+        beforeStart?.Invoke(client, priv);
+        string dll = Path.Combine(AppContext.BaseDirectory, assembly);
+        byte[] rnx = RnxCompiler.Compile(dll, out _);
+        client.FlashApp(name, Signing.Seal(ImageKind.App, ChipFamily.HostSim, rnx, priv));
+        client.StartApp(name);
+        string logs = "";
+        for (int i = 0; i < timeoutSeconds * 10; i++)
+        {
+            Thread.Sleep(100);
+            logs = client.GetLogs(300);
+            if (logs.Contains("exited") || logs.Contains("crashed"))
+            {
+                break;
+            }
+        }
+        client.EraseApp(name);
+        return logs;
+    }
+
+    [SkippableFact]
+    public void LibAppFeatureMatrix()
+    {
+        Skip.If(_firmware is null, "rustnet-firmware binary not built");
+        // The NPC sample module is a cdylib built by `cargo build -p rustnet-npc-sample`.
+        string? module = FindNativeSample();
+        string logs = RunApp("LibApp.dll", "libapp", 120, (client, priv) =>
+        {
+            if (module is not null)
+            {
+                byte[] sealedModule = Signing.Seal(ImageKind.Native, ChipFamily.HostSim, File.ReadAllBytes(module), priv);
+                client.FlashData("native/sample.rnsb", sealedModule);
+            }
+        });
+
+        Assert.DoesNotContain("crashed", logs);
+        // Math surface the libraries need (banker's rounding, Log with a base, culture-invariant format)
+        Assert.Contains("math tanh=462 asin=524 sign=-1 log2=3000 round=2 trunc=-2", logs);
+        Assert.Contains("invariant=0.5", logs);
+        // Lambdas in two classes (nested <>c types named through their owner) + null on an unassigned field
+        Assert.Contains("dialect2 nan=yes inf=yes char=xQy longidx=9 groups=10,15", logs);
+        Assert.Contains("dialect lambdas=30,35 nullfield=null notnull=no type=LambdaOwnerA", logs);
+        // GNSS NMEA decoder (v1.1)
+        Assert.Contains("gnss lat=48117 lon=11517 alt=545400 sats=8", logs);
+        Assert.Contains("gnss date=1994-03-23 time=12:35:19 kmh=41485 inview=8 pos=2 bad=1", logs);
+        // RustNet.ML (v1.1)
+        Assert.Contains("ml linear w0=3000 w1=-2000 b=5000", logs);
+        Assert.Contains("ml acc softmax=1000 bayes=1000 knn=1000", logs);
+        Assert.Contains("ml kmeans distinct=1 iters=ok", logs);
+        Assert.Contains("ml xor acc=1000 copy=1000", logs);
+        Assert.Contains("ml recommend u0=2 u3=5", logs);
+        // TensorFlow Lite (v1.1): TensorFlow-converted models, outputs checked against TensorFlow's interpreter
+        Assert.Contains("tflite cnn ops=", logs);
+        Assert.Contains("in=1x12x12x1 type=9", logs);
+        AssertTfliteMatchesTensorFlow(logs);
+        Assert.Contains("sum=1000", logs);
+        Assert.Contains("tflite garbage=rejected", logs);
+        // NPC (v1.4): signed native module loaded and called from C#
+        if (module is not null)
+        {
+            Assert.Contains("npc sum=100042", logs);
+            Assert.Contains("npc crc32=3421780262", logs); // CRC-32 check value of "123456789" (0xCBF43926)
+            Assert.Contains("npc reverse=teNtsuR", logs);
+            Assert.Contains("npc fail=code-7", logs);
+            Assert.Contains("npc missing=reported", logs);
+        }
+        else
+        {
+            Assert.Contains("npc absent", logs);
+        }
+        Assert.Contains("LibApp finished", logs);
+    }
+
+    /// <summary>The int8 CNN's output on the device, against TensorFlow's reference (±1 quantisation step).</summary>
+    private static void AssertTfliteMatchesTensorFlow(string logs)
+    {
+        var line = logs.Split('\n').First(l => l.Contains("tflite cnn out="));
+        string values = line[(line.IndexOf("out=", StringComparison.Ordinal) + 4)..].Split(' ')[0];
+        int[] got = values.Split(',').Select(int.Parse).ToArray();
+        string dir = AppContext.BaseDirectory;
+        while (!Directory.Exists(Path.Combine(dir, "runtime", "rustnet-tflite")))
+        {
+            dir = Path.GetDirectoryName(dir) ?? throw new DirectoryNotFoundException("repo root");
+        }
+        byte[] want = File.ReadAllBytes(Path.Combine(dir, "runtime", "rustnet-tflite", "tests", "models", "cnn_int8.out"));
+        Assert.Equal(want.Length, got.Length);
+        for (int i = 0; i < want.Length; i++)
+        {
+            Assert.InRange(got[i], (sbyte)want[i] - 1, (sbyte)want[i] + 1);
+        }
+        // The float MLP's probabilities, against TensorFlow's.
+        byte[] mlp = File.ReadAllBytes(Path.Combine(dir, "runtime", "rustnet-tflite", "tests", "models", "mlp_float.out"));
+        for (int i = 0; i < 3; i++)
+        {
+            int milli = (int)Math.Round(BitConverter.ToSingle(mlp, i * 4) * 1000.0);
+            Assert.Contains($"p{i}={milli}", logs);
+        }
+    }
+
+    private static string? FindNativeSample()
+    {
+        string file = OperatingSystem.IsWindows() ? "rustnet_npc_sample.dll"
+            : OperatingSystem.IsMacOS() ? "librustnet_npc_sample.dylib" : "librustnet_npc_sample.so";
+        string? fw = FindFirmware();
+        if (fw is null)
+        {
+            return null;
+        }
+        string candidate = Path.Combine(Path.GetDirectoryName(fw)!, file);
+        return File.Exists(candidate) ? candidate : null;
+    }
+
+    [SkippableFact]
+    public void NativeModuleSignedByAnotherKeyIsRefused()
+    {
+        Skip.If(_firmware is null, "rustnet-firmware binary not built");
+        string? module = FindNativeSample();
+        Skip.If(module is null, "rustnet-npc-sample not built");
+        var (otherKey, _) = Signing.GenerateKeypair();
+        string logs = RunApp("LibApp.dll", "libapp2", 120, (client, _) =>
+        {
+            byte[] forged = Signing.Seal(ImageKind.Native, ChipFamily.HostSim, File.ReadAllBytes(module!), otherKey);
+            client.FlashData("native/sample.rnsb", forged);
+        });
+        Assert.Contains("npc absent", logs);
+        Assert.Contains("signature check failed", logs);
+        Assert.DoesNotContain("npc sum=", logs);
+    }
+
+    /// <summary>
+    /// The community driver packages (packages/rustnet-driver-*), one app per
+    /// category, each driving every driver against bus simulators preloaded
+    /// with datasheet values. Running them on the device proves the drivers
+    /// compile to RNX and behave the same on the interpreter as on the CLR.
+    /// </summary>
+    [SkippableTheory]
+    [InlineData("DriversEnvironmentApp.dll")]
+    [InlineData("DriversMotionApp.dll")]
+    [InlineData("DriversDisplaysApp.dll")]
+    [InlineData("DriversActuatorsApp.dll")]
+    public void DriverPackagesRunOnTheDevice(string app)
+    {
+        Skip.If(_firmware is null, "rustnet-firmware binary not built");
+        string logs = RunApp(app, "drivers", 180);
+        Assert.DoesNotContain("crashed", logs);
+        Assert.DoesNotContain("FAIL", logs);
+        Assert.Matches(@"drivers finished passed=[1-9]\d* failed=0", logs);
+    }
+
     [SkippableFact]
     public void DebuggerBreakpointCycle()
     {

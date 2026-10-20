@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-veml7700",
+  "version": "0.1.0",
+  "description": "Vishay VEML7700 ambient light sensor over I2C: gain/integration settings, lux with resolution scaling and high-lux correction",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -10,6 +10,9 @@
 //! The firmware supplies the interpreter's whole `RuntimeHost` surface — four
 //! methods — backed by `rustnet-hal-stm32`: console to the UART, the clock and
 //! sleeps to the DWT delay, and `RustNet.Hal.Gpio::*` to the board's pins.
+//! `RustNet.IO.FileSystem::*` goes to a `rustnet-flashfs` store in a reserved
+//! flash sector (`storage.rs`), which also keeps the provisioned key and any
+//! application uploaded since — so the compiled-in app is only the fallback.
 //!
 //! Verified on a Nucleo-F401RE (over SWD) and a Netduino 3 WiFi (over DFU).
 //!
@@ -100,6 +103,13 @@ mod board {
     /// the previous 48 KB could not hold. `rustnet-core`'s heap_probe example
     /// gives the first number; the scratch verify probe gave the last.
     pub const HEAP_SIZE: usize = 64 * 1024;
+    /// Most the application's own files may hold in storage, headers included.
+    /// Set by what replacing the application has to fit into the heap at once:
+    /// the running app (~21 KB for the blink demo), the inbound frame and the
+    /// new app's record (up to 12 KB each), and — when the sector is full — a
+    /// compaction holding every other live file. 64 - 21 - 12 - 12 leaves 19 KB;
+    /// 16 KB of it for files, the rest for the key, the name and slack.
+    pub const FILES_BUDGET: u32 = 16 * 1024;
 
     /// HSI, not HSE: this board's 8 MHz HSE is fed from the on-board ST-LINK's
     /// MCO, which stops when CN2 is removed for an external probe — asking for
@@ -140,6 +150,11 @@ mod board {
     pub const MAX_RNDP_FRAME: usize = 48 * 1024;
     /// 96 KB out of 192 KB contiguous SRAM, leaving the rest for stack.
     pub const HEAP_SIZE: usize = 96 * 1024;
+    /// Most the application's own files may hold in storage. The same sum as
+    /// the F401RE's, with a 96 KB heap: room to replace a ~16 KB application
+    /// while ~21 KB of the old one is running and the sector needs compacting.
+    /// A full 48 KB frame does not fit beside a running app regardless of files.
+    pub const FILES_BUDGET: u32 = 32 * 1024;
 
     /// Real 25 MHz crystal on PH0/PH1 — no ST-LINK MCO involved here.
     pub fn clocks(rcc: pac::RCC) -> stm32f4xx_hal::rcc::Clocks {
@@ -167,7 +182,8 @@ mod usb;
 // Sector 7 of the internal flash, which `memory.x` deliberately leaves out of
 // the FLASH region so the linker can never place code here. Both supported
 // boards use the same address: the F401RE has nothing beyond it, and the
-// F427's remaining 1.6 MB is simply unused for now.
+// F427's remaining 1.6 MB is simply unused for now. It holds a
+// `rustnet-flashfs` filesystem — see `storage.rs`.
 
 pub(crate) const STORAGE_BASE: u32 = 0x0806_0000;
 pub(crate) const STORAGE_LEN: u32 = 128 * 1024;
@@ -183,6 +199,10 @@ static HEAP: LlffHeap = LlffHeap::empty();
 
 pub(crate) fn heap_used() -> usize {
     HEAP.used()
+}
+
+pub(crate) fn heap_free() -> usize {
+    HEAP.free()
 }
 
 // Direct access to the console USART's registers, for the two things the HAL
@@ -383,16 +403,25 @@ impl FirmwareHost {
     /// Load the provisioned key and any stored application out of flash.
     /// Returns the application, if one was kept.
     pub(crate) fn restore_persisted(&mut self) -> Option<Vec<u8>> {
-        if let Some(key) = storage::load(&mut self.board, storage::KIND_PUB_KEY) {
+        match storage::migrate_legacy(&mut self.board) {
+            storage::Migration::None => {}
+            storage::Migration::Done(n) => {
+                let _ = writeln!(self, "[storage] migrated {n} records from the old log");
+            }
+            storage::Migration::Failed(e) => {
+                let _ = writeln!(self, "[storage] old log not migrated: {e}");
+            }
+        }
+        if let Some(key) = storage::load(&mut self.board, storage::sys::PUB_KEY) {
             let _ = writeln!(self, "[storage] restored provisioning key");
             self.rndp.set_pub_key(key);
         }
-        if let Some(name) = storage::load(&mut self.board, storage::KIND_APP_NAME) {
+        if let Some(name) = storage::load(&mut self.board, storage::sys::APP_NAME) {
             if let Ok(text) = core::str::from_utf8(&name) {
                 self.rndp.set_app_name(text);
             }
         }
-        let app = storage::load(&mut self.board, storage::KIND_APP);
+        let app = storage::load(&mut self.board, storage::sys::APP);
         if let Some(bytes) = &app {
             // The size has to come across too, or `apps list` keeps reporting
             // the compiled-in application's length for the restored one.
@@ -404,10 +433,14 @@ impl FirmwareHost {
 
     /// Persist a value, reporting failure to the log rather than to the tool:
     /// losing persistence is worth knowing about but should not fail the
-    /// command that already succeeded in RAM.
-    pub(crate) fn persist(&mut self, kind: u32, data: &[u8]) {
-        if let Err(e) = storage::store(&mut self.board, kind, data) {
-            let _ = writeln!(self, "[storage] could not persist: {e}");
+    /// command that already succeeded in RAM. Says whether it was kept.
+    pub(crate) fn persist(&mut self, path: &str, data: &[u8]) -> bool {
+        match storage::store(&mut self.board, path, data) {
+            Ok(()) => true,
+            Err(e) => {
+                let _ = writeln!(self, "[storage] could not persist {path}: {e}");
+                false
+            }
         }
     }
 
@@ -546,6 +579,13 @@ impl RuntimeHost for FirmwareHost {
             signal(9);
         }
 
+        // Files take their arguments by value: a byte array is already one
+        // copy of the data in the managed heap, and on a 64 KB heap a second
+        // one made just to read the first is not free.
+        if name.starts_with("RustNet.IO.FileSystem::") {
+            return self.file_call(name, args);
+        }
+
         // Widen exactly as `runtime/firmware/src/apphost.rs` does. Numeric
         // arguments arrive in whatever form the evaluation stack held, and a
         // C# `bool` arrives as an integer, not `HostValue::Bool` — demanding
@@ -595,6 +635,67 @@ impl RuntimeHost for FirmwareHost {
                 Ok(HostValue::Void)
             }
 
+            other => Err(format!("unsupported internal call: {other}")),
+        }
+    }
+}
+
+impl FirmwareHost {
+    /// `RustNet.IO.FileSystem::*`, over the flashfs in the storage sector.
+    /// The canonical names are the K210 port's, which are the managed API's.
+    fn file_call(&mut self, name: &str, args: Vec<HostValue>) -> Result<HostValue, String> {
+        let mut args = args.into_iter();
+        let mut text = |n: usize| match args.next() {
+            Some(HostValue::Str(s)) => Ok(s),
+            other => Err(format!("{name}: argument {n} is not a string: {other:?}")),
+        };
+        let path = text(0)?;
+        let board = &mut self.board;
+
+        match name {
+            "RustNet.IO.FileSystem::WriteAllText(string,string)" => {
+                storage::app_write(board, &path, text(1)?.as_bytes(), false)?;
+                Ok(HostValue::Void)
+            }
+            "RustNet.IO.FileSystem::AppendText(string,string)" => {
+                storage::app_write(board, &path, text(1)?.as_bytes(), true)?;
+                Ok(HostValue::Void)
+            }
+            "RustNet.IO.FileSystem::ReadAllText(string)" => {
+                let bytes = storage::app_read(board, &path)?;
+                let text = String::from_utf8(bytes)
+                    .map_err(|_| format!("{path} is not UTF-8; read it with ReadAllBytes"))?;
+                Ok(HostValue::Str(text))
+            }
+            "RustNet.IO.FileSystem::WriteAllBytes(string,u1[])"
+            | "RustNet.IO.FileSystem::AppendBytes(string,u1[])" => {
+                let bytes = match args.next() {
+                    Some(HostValue::Bytes(b)) => b,
+                    other => {
+                        return Err(format!("{name}: argument 1 is not a byte array: {other:?}"))
+                    }
+                };
+                let append = name.contains("::AppendBytes(");
+                storage::app_write(board, &path, &bytes, append)?;
+                Ok(HostValue::Void)
+            }
+            "RustNet.IO.FileSystem::ReadAllBytes(string)" => {
+                Ok(HostValue::Bytes(storage::app_read(board, &path)?))
+            }
+            "RustNet.IO.FileSystem::Exists(string)" => {
+                Ok(HostValue::Bool(storage::app_exists(board, &path)?))
+            }
+            "RustNet.IO.FileSystem::Delete(string)" => {
+                storage::app_delete(board, &path)?;
+                Ok(HostValue::Void)
+            }
+            "RustNet.IO.FileSystem::CreateDirectory(string)" => {
+                storage::app_create_directory(board, &path)?;
+                Ok(HostValue::Void)
+            }
+            "RustNet.IO.FileSystem::List(string)" => {
+                Ok(HostValue::Str(storage::app_list(board, &path)?.join("\n")))
+            }
             other => Err(format!("unsupported internal call: {other}")),
         }
     }

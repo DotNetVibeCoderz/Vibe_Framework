@@ -112,8 +112,25 @@ pub fn normalise(path: &str) -> Result<String, String> {
 struct Record {
     flags: u32,
     name: String,
+    /// Offset of the record's header, and its whole length on flash — header,
+    /// padded name and padded data. Compaction copies records by this span.
+    start: u32,
+    len: u32,
     data_at: u32,
     data_len: u32,
+}
+
+/// A zeroed buffer, or an error instead of an allocation-failure panic.
+///
+/// On a microcontroller with tens of kilobytes of heap, a file is entirely
+/// capable of being bigger than what is free. Running out there should be an
+/// error the caller can report, not a halted device.
+fn buffer(len: usize) -> Result<Vec<u8>, String> {
+    let mut out = Vec::new();
+    out.try_reserve_exact(len)
+        .map_err(|_| format!("out of memory: {len} bytes needed for a file buffer"))?;
+    out.resize(len, 0);
+    Ok(out)
 }
 
 /// Walk the log in write order. A caller that keeps the last match per name
@@ -149,7 +166,7 @@ fn scan<F: FnMut(&Record)>(region: &mut dyn ExtMemory, mut visit: F) -> Result<u
         let mut name = vec![0u8; name_len as usize];
         region.read(name_at, &mut name).map_err(|e| format!("{e}"))?;
         if let Ok(name) = String::from_utf8(name) {
-            visit(&Record { flags, name, data_at, data_len });
+            visit(&Record { flags, name, start: at, len: next - at, data_at, data_len });
         }
         at = next;
     }
@@ -181,7 +198,7 @@ pub fn exists(region: &mut dyn ExtMemory, path: &str) -> Result<bool, String> {
 pub fn read(region: &mut dyn ExtMemory, path: &str) -> Result<Vec<u8>, String> {
     let path = normalise(path)?;
     let (at, len) = newest_live(region, &path)?.ok_or_else(|| format!("no such file: {path}"))?;
-    let mut data = vec![0u8; len as usize];
+    let mut data = buffer(len as usize)?;
     region.read(at, &mut data).map_err(|e| format!("{e}"))?;
     Ok(data)
 }
@@ -195,12 +212,14 @@ pub fn append_bytes(region: &mut dyn ExtMemory, path: &str, extra: &[u8]) -> Res
     let path = normalise(path)?;
     let mut data = match newest_live(region, &path)? {
         Some((at, len)) => {
-            let mut existing = vec![0u8; len as usize];
+            let mut existing = buffer(len as usize)?;
             region.read(at, &mut existing).map_err(|e| format!("{e}"))?;
             existing
         }
         None => Vec::new(),
     };
+    data.try_reserve_exact(extra.len())
+        .map_err(|_| format!("out of memory appending {} bytes to {path}", extra.len()))?;
     data.extend_from_slice(extra);
     append(region, &path, &data, 0)
 }
@@ -268,9 +287,16 @@ pub fn used(region: &mut dyn ExtMemory) -> u32 {
     scan(region, |_| {}).unwrap_or(0)
 }
 
-fn record_bytes(name: &str, data: &[u8], flags: u32) -> Vec<u8> {
-    let mut record =
-        Vec::with_capacity((HEADER + align4(name.len() as u32) + align4(data.len() as u32)) as usize);
+fn record_len(name_len: u32, data_len: u32) -> u32 {
+    HEADER + align4(name_len) + align4(data_len)
+}
+
+fn record_bytes(name: &str, data: &[u8], flags: u32) -> Result<Vec<u8>, String> {
+    let len = record_len(name.len() as u32, data.len() as u32) as usize;
+    let mut record = Vec::new();
+    record
+        .try_reserve_exact(len)
+        .map_err(|_| format!("out of memory: {len} bytes needed to write {name}"))?;
     record.extend_from_slice(&MAGIC.to_le_bytes());
     record.extend_from_slice(&flags.to_le_bytes());
     record.extend_from_slice(&(name.len() as u32).to_le_bytes());
@@ -283,19 +309,79 @@ fn record_bytes(name: &str, data: &[u8], flags: u32) -> Vec<u8> {
     while record.len() % 4 != 0 {
         record.push(0xFF);
     }
-    record
+    Ok(record)
+}
+
+/// What writing `data_len` bytes to `path` would cost, worked out without
+/// writing anything.
+///
+/// For a caller on a chip with little RAM: a compaction holds every live
+/// record in memory between reading it and erasing, so its cost is set by
+/// what is stored rather than by what is being written, and a caller that
+/// wants to refuse cleanly rather than fail partway needs to know it first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WritePlan {
+    /// Bytes of the record the write would append, header and padding included.
+    pub record: u32,
+    /// Bytes of every *other* live record: what a compaction would carry
+    /// through RAM, and, plus `record`, what will be live after the write.
+    pub carried: u32,
+    /// Bytes of the live record for `path` that the write supersedes, 0 if the
+    /// file does not exist. `carried + replaced` is everything live now.
+    pub replaced: u32,
+    /// Whether the write would compact first.
+    pub compacts: bool,
+}
+
+impl WritePlan {
+    /// Peak heap the write needs inside this crate, beyond the caller's own
+    /// copy of the data.
+    pub fn ram_needed(&self) -> u32 {
+        self.record + if self.compacts { self.carried } else { 0 }
+    }
+}
+
+pub fn plan_write(
+    region: &mut dyn ExtMemory,
+    path: &str,
+    data_len: usize,
+) -> Result<WritePlan, String> {
+    let path = normalise(path)?;
+    let record = record_len(path.len() as u32, data_len.min(u32::MAX as usize) as u32);
+
+    let mut live: Vec<(String, bool, u32)> = Vec::new();
+    let end = scan(region, |r| {
+        let deleted = r.flags & FLAG_DELETED != 0;
+        match live.iter_mut().find(|(name, ..)| *name == r.name) {
+            Some(entry) => {
+                entry.1 = deleted;
+                entry.2 = r.len;
+            }
+            None => live.push((r.name.clone(), deleted, r.len)),
+        }
+    })?;
+    let (mut carried, mut replaced) = (0u32, 0u32);
+    for (name, deleted, len) in &live {
+        match (*deleted, *name == path) {
+            (true, _) => {}
+            (false, true) => replaced = *len,
+            (false, false) => carried += *len,
+        }
+    }
+    let compacts = end.saturating_add(record) > region.size() || !blank(region, end, record)?;
+    Ok(WritePlan { record, carried, replaced, compacts })
 }
 
 fn append(region: &mut dyn ExtMemory, path: &str, data: &[u8], flags: u32) -> Result<(), String> {
     if data.len() as u32 > MAX_FILE {
         return Err(format!("file larger than {MAX_FILE} bytes"));
     }
-    let record = record_bytes(path, data, flags);
+    let record = record_bytes(path, data, flags)?;
     let capacity = region.size();
 
     let mut end = scan(region, |_| {})?;
     if end + record.len() as u32 > capacity || !blank(region, end, record.len() as u32)? {
-        compact(region, record.len() as u32)?;
+        compact(region, record.len() as u32, path)?;
         end = scan(region, |_| {})?;
         if end + record.len() as u32 > capacity {
             return Err(String::from("filesystem full even after compaction"));
@@ -327,18 +413,26 @@ pub fn blank(region: &mut dyn ExtMemory, at: u32, len: u32) -> Result<bool, Stri
 
 /// Write a record and read it back, because NOR reports nothing when a program
 /// lands badly.
+///
+/// The read-back goes through a small stack buffer rather than a second copy of
+/// the record. That is not only thrift: compaction calls this *after* erasing,
+/// and an allocation that fails there fails with the old contents already gone.
 fn put(region: &mut dyn ExtMemory, at: u32, record: &[u8]) -> Result<(), String> {
     region.write(at, record).map_err(|e| format!("{e}"))?;
 
-    let mut check = vec![0u8; record.len()];
-    region.read(at, &mut check).map_err(|e| format!("{e}"))?;
-    if let Some(bad) = record.iter().zip(check.iter()).position(|(a, b)| a != b) {
-        return Err(format!(
-            "flash verify failed at offset {}: wrote {:#04x}, read {:#04x}",
-            at + bad as u32,
-            record[bad],
-            check[bad]
-        ));
+    let mut check = [0u8; 128];
+    for (n, wrote) in record.chunks(check.len()).enumerate() {
+        let offset = (n * check.len()) as u32;
+        let read = &mut check[..wrote.len()];
+        region.read(at + offset, read).map_err(|e| format!("{e}"))?;
+        if let Some(bad) = wrote.iter().zip(read.iter()).position(|(a, b)| a != b) {
+            return Err(format!(
+                "flash verify failed at offset {}: wrote {:#04x}, read {:#04x}",
+                at + offset + bad as u32,
+                wrote[bad],
+                read[bad]
+            ));
+        }
     }
     Ok(())
 }
@@ -346,7 +440,15 @@ fn put(region: &mut dyn ExtMemory, at: u32, record: &[u8]) -> Result<(), String>
 /// Erase the used part of the window and write back only the live records.
 ///
 /// Reads the live set into RAM first, which bounds compaction by the heap
-/// rather than by the window — comfortable on a chip with megabytes of it.
+/// rather than by the window: comfortable on a chip with megabytes of it, and
+/// the binding constraint on one with tens of kilobytes. So all of that RAM is
+/// claimed **before** the erase, fallibly. Running short then is an error with
+/// nothing lost; running short after it would lose everything. Nothing past the
+/// erase allocates. [`plan_write`] reports the cost in advance.
+///
+/// `replacing` is the path whose write triggered this. Its current record is
+/// about to be superseded, so carrying it through RAM would only double the
+/// peak for the commonest rewrite of all: the same file again.
 ///
 /// **Only the used part.** Erasing the whole region is the obvious spelling and
 /// it is badly wrong at this scale: a sector erase costs tens to hundreds of
@@ -354,23 +456,34 @@ fn put(region: &mut dyn ExtMemory, at: u32, record: &[u8]) -> Result<(), String>
 /// the device not answering, which presents to the tools as a board that has
 /// died mid-upload. What has to be erased is what is written, plus room for the
 /// record that triggered this, rounded out to whole sectors.
-fn compact(region: &mut dyn ExtMemory, incoming: u32) -> Result<(), String> {
-    let used = scan(region, |_| {})?;
+fn compact(region: &mut dyn ExtMemory, incoming: u32, replacing: &str) -> Result<(), String> {
     let mut live: Vec<(String, u32, u32, u32)> = Vec::new();
-    scan(region, |r| {
-        let entry = (r.name.clone(), r.flags, r.data_at, r.data_len);
+    let used = scan(region, |r| {
+        let entry = (r.name.clone(), r.flags, r.start, r.len);
         match live.iter_mut().find(|(name, ..)| *name == r.name) {
             Some(slot) => *slot = entry,
             None => live.push(entry),
         }
     })?;
-    live.retain(|(_, flags, _, _)| flags & FLAG_DELETED == 0);
+    live.retain(|(name, flags, _, _)| flags & FLAG_DELETED == 0 && name != replacing);
 
-    let mut carried: Vec<(String, u32, Vec<u8>)> = Vec::with_capacity(live.len());
-    for (name, flags, at, len) in live {
-        let mut data = vec![0u8; len as usize];
-        region.read(at, &mut data).map_err(|e| format!("{e}"))?;
-        carried.push((name, flags, data));
+    let total: u32 = live.iter().map(|(.., len)| *len).sum();
+    let mut carried: Vec<Vec<u8>> = Vec::new();
+    carried
+        .try_reserve_exact(live.len())
+        .map_err(|_| String::from("out of memory listing files for compaction"))?;
+    for (_, _, at, len) in live {
+        // A live record is copied byte for byte — header, name, padding and
+        // all — so the write-back needs no re-encoding and no second buffer.
+        let mut record = buffer(len as usize).map_err(|_| {
+            format!(
+                "not enough RAM to compact the filesystem: its {total} live bytes must \
+                 be held in memory while the flash is erased; nothing was changed, \
+                 delete files to make room"
+            )
+        })?;
+        region.read(at, &mut record).map_err(|e| format!("{e}"))?;
+        carried.push(record);
     }
 
     let sector = region.sector_size().max(1);
@@ -379,9 +492,8 @@ fn compact(region: &mut dyn ExtMemory, incoming: u32) -> Result<(), String> {
     region.erase(0, span).map_err(|e| format!("{e}"))?;
 
     let mut at = 0u32;
-    for (name, flags, data) in carried {
-        let record = record_bytes(&name, &data, flags);
-        put(region, at, &record)?;
+    for record in &carried {
+        put(region, at, record)?;
         at += record.len() as u32;
     }
     Ok(())
@@ -465,7 +577,7 @@ mod tests {
     /// bytes, so the scanner steps from record to record with arithmetic alone.
     #[test]
     fn a_record_is_header_then_padded_name_then_padded_data() {
-        let record = record_bytes("/a", b"hello", 0);
+        let record = record_bytes("/a", b"hello", 0).unwrap();
         assert_eq!(record.len() as u32, HEADER + 4 + 8);
         assert_eq!(&record[0..4], &MAGIC.to_le_bytes());
         assert_eq!(&record[8..12], &2u32.to_le_bytes(), "name length");
@@ -610,6 +722,70 @@ mod tests {
             "compaction erased {} sectors; it should only cover the used span",
             nor.erased_sectors
         );
+    }
+
+    /// A file bigger than half the window must still be rewritable. Carrying
+    /// its old copy through a compaction would leave no room for the new one,
+    /// and on a small-RAM chip would also double the compaction's peak heap.
+    #[test]
+    fn compaction_does_not_carry_the_file_being_replaced() {
+        let mut nor = FakeNor::new(8 * 1024);
+        write(&mut nor, "/key", b"k").unwrap();
+        let big = [b'a'; 5000];
+        write(&mut nor, "/app", &big).unwrap();
+        let bigger = [b'b'; 5200];
+        write(&mut nor, "/app", &bigger).unwrap();
+        assert_eq!(read(&mut nor, "/app").unwrap(), bigger);
+        assert_eq!(read(&mut nor, "/key").unwrap(), b"k");
+    }
+
+    /// The plan has to agree with what a write then does, or a caller sizing
+    /// its heap by it is guessing.
+    #[test]
+    fn a_write_plan_predicts_compaction_and_its_cost() {
+        let mut nor = FakeNor::new(8 * 1024);
+        let fresh = plan_write(&mut nor, "/a", 100).unwrap();
+        assert_eq!(
+            fresh,
+            WritePlan { record: HEADER + 4 + 100, carried: 0, replaced: 0, compacts: false }
+        );
+
+        write(&mut nor, "/a", &[1u8; 100]).unwrap();
+        write(&mut nor, "/b", &[2u8; 3000]).unwrap();
+        write(&mut nor, "/gone", b"x").unwrap();
+        delete(&mut nor, "/gone").unwrap();
+
+        // Rewriting /a carries only /b; tombstoned files cost nothing.
+        let plan = plan_write(&mut nor, "a", 4000).unwrap();
+        assert_eq!(plan.carried, HEADER + 4 + 3000);
+        assert_eq!(plan.replaced, HEADER + 4 + 100);
+        assert!(!plan.compacts, "4 KB still fits after ~3.2 KB used");
+        assert_eq!(plan.ram_needed(), plan.record);
+
+        let plan = plan_write(&mut nor, "/a", 6000).unwrap();
+        assert!(plan.compacts, "6 KB does not fit behind what is there");
+        assert_eq!(plan.ram_needed(), plan.record + plan.carried);
+
+        // And the write it describes then succeeds, leaving exactly that live.
+        write(&mut nor, "/a", &[3u8; 4000]).unwrap();
+        write(&mut nor, "/b", &[4u8; 3000]).unwrap();
+        let after = plan_write(&mut nor, "/nothing", 0).unwrap();
+        assert_eq!(after.carried, (HEADER + 4 + 4000) + (HEADER + 4 + 3000));
+    }
+
+    /// Records written back by a compaction are byte-for-byte the records that
+    /// were there, so they scan back identically.
+    #[test]
+    fn compaction_preserves_flags_and_names() {
+        let mut nor = FakeNor::new(8 * 1024);
+        create_directory(&mut nor, "/cfg").unwrap();
+        write(&mut nor, "/cfg/odd-length-name.x", b"abc").unwrap();
+        for _ in 0..20 {
+            write(&mut nor, "/churn", &[7u8; 700]).unwrap();
+        }
+        assert_eq!(list(&mut nor, "/").unwrap(), ["cfg", "churn"]);
+        assert_eq!(list(&mut nor, "/cfg").unwrap(), ["odd-length-name.x"]);
+        assert_eq!(read(&mut nor, "/cfg/odd-length-name.x").unwrap(), b"abc");
     }
 
     #[test]

@@ -27,7 +27,9 @@ members = [
     "runtime/rustnet-db",
     "runtime/rustnet-gfx",
     "runtime/rustnet-usb",
+    "runtime/rustnet-tflite",
     "runtime/firmware",
+    "runtime/npc-sample",
 ]
 
 [workspace.package]
@@ -43,6 +45,7 @@ rustnet-rndp = { path = "runtime/rustnet-rndp" }
 rustnet-sched = { path = "runtime/rustnet-sched" }
 rustnet-diag = { path = "runtime/rustnet-diag" }
 rustnet-core = { path = "runtime/rustnet-core", default-features = false }
+rustnet-tflite = { path = "runtime/rustnet-tflite" }
 # default-features off at the workspace level, because a member cannot turn
 # them off otherwise: Cargo ignores `default-features = false` on a
 # `workspace = true` dependency unless the workspace declaration says so.

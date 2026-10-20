@@ -1380,23 +1380,14 @@ public sealed class RnxCompiler : IDisposable
         => $"{typeName}::{methodName}({string.Join(",", paramCodes)})";
 
     private static string FullTypeName(MetadataReader md, TypeDefinition type)
-    {
-        string ns = md.GetString(type.Namespace);
-        string name = md.GetString(type.Name);
-        return ns.Length == 0 ? name : ns + "." + name;
-    }
+        => SignatureProvider.DefinitionName(md, type);
 
     private static string TypeRefOrDefName(MetadataReader md, EntityHandle handle)
     {
         switch (handle.Kind)
         {
             case HandleKind.TypeReference:
-            {
-                var tref = md.GetTypeReference((TypeReferenceHandle)handle);
-                string ns = md.GetString(tref.Namespace);
-                string name = md.GetString(tref.Name);
-                return ns.Length == 0 ? name : ns + "." + name;
-            }
+                return SignatureProvider.ReferenceName(md, (TypeReferenceHandle)handle);
             case HandleKind.TypeDefinition:
                 return FullTypeName(md, md.GetTypeDefinition((TypeDefinitionHandle)handle));
             case HandleKind.TypeSpecification:

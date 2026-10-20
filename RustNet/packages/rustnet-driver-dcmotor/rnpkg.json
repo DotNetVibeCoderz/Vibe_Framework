@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-dcmotor",
+  "version": "0.1.0",
+  "description": "Brushed DC motor drivers: L298N-style H-bridge (two direction pins + PWM enable), two-PWM-input bridges (DRV8833/DRV8871 style, fast/slow decay, brake/coast) and the Toshiba TB67H420FTG dual H-bridge (incl. full-step bipolar stepping)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

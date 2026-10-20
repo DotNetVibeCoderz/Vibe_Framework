@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-temt6000",
+  "version": "0.1.0",
+  "description": "Vishay TEMT6000 ambient light phototransistor read through an ADC: lux from the load resistor voltage",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

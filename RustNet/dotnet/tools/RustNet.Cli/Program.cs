@@ -52,6 +52,8 @@ namespace RustNet.Cli
                 "new" => TemplateCommands.New(rest),
                 "templates" => TemplateCommands.List(rest),
                 "firmware" => FirmwareCommands.Dispatch(rest),
+                "native" => NativeCommands.Dispatch(rest),
+                "ui" => UiCommands.Dispatch(rest),
                 var other => Unknown(other),
             };
         }
@@ -83,7 +85,7 @@ namespace RustNet.Cli
             {
                 if (args[i].StartsWith('-'))
                 {
-                    bool takesValue = args[i] is not ("--follow" or "--watch" or "--release" or "--yes");
+                    bool takesValue = args[i] is not ("--follow" or "--watch" or "--release" or "--yes" or "--ascii" or "--interactive");
                     if (takesValue)
                     {
                         i++; // skip its value
@@ -137,6 +139,8 @@ namespace RustNet.Cli
                   templates                     list available templates
                   debug bp <method#> <ilOffset> | debug stack
                   pkg init|pack|publish|list|search|install ...
+                  ui preview <layout.xml> [--interactive] [--ascii]   show a layout as text
+                  native build <crate> | seal <lib> --key k | push <lib> --name m --key k   (NPC)
                 """);
         }
     }

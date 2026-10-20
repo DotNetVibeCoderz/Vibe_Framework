@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-piezo",
+  "version": "0.1.0",
+  "description": "Piezo speaker on a PWM channel: tones, equal-temperament note frequencies (A4 = 440 Hz) and a simple text melody player",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

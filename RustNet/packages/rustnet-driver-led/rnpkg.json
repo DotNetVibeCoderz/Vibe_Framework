@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-led",
+  "version": "0.1.0",
+  "description": "Single LEDs, PWM LEDs with gamma-corrected brightness, digital and PWM RGB LEDs (common anode/cathode, HSV colours) and LED bar graphs",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

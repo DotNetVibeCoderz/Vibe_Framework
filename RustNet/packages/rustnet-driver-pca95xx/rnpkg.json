@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-pca95xx",
+  "version": "0.1.0",
+  "description": "NXP/TI PCA9554, PCA9555, TCA9535 and TCA9555 I2C GPIO expanders: input/output/polarity/configuration registers",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

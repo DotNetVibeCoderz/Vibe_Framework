@@ -29,6 +29,9 @@ pub enum ImageKind {
     App = 1,
     Data = 2,
     BootImage = 3,
+    /// A native-code module for the NPC (Native Procedure Caller), verified
+    /// when an app loads it.
+    Native = 4,
 }
 
 impl ImageKind {
@@ -37,6 +40,7 @@ impl ImageKind {
             0 => ImageKind::Firmware,
             1 => ImageKind::App,
             2 => ImageKind::Data,
+            4 => ImageKind::Native,
             3 => ImageKind::BootImage,
             _ => return None,
         })

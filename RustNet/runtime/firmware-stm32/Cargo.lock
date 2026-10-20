@@ -603,6 +603,7 @@ dependencies = [
  "cortex-m-rt",
  "embedded-alloc",
  "rustnet-core",
+ "rustnet-flashfs",
  "rustnet-hal",
  "rustnet-hal-stm32",
  "rustnet-rndp",
@@ -610,6 +611,13 @@ dependencies = [
  "stm32f4xx-hal",
  "usb-device",
  "usbd-serial",
+]
+
+[[package]]
+name = "rustnet-flashfs"
+version = "0.1.0"
+dependencies = [
+ "rustnet-hal",
 ]
 
 [[package]]

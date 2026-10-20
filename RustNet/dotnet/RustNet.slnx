@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/RustNet/RustNet.csproj" />
+    <Project Path="src/RustNet.AI.TensorFlow/RustNet.AI.TensorFlow.csproj" />
     <Project Path="src/RustNet.Buses/RustNet.Buses.csproj" />
     <Project Path="src/RustNet.Cloud/RustNet.Cloud.csproj" />
     <Project Path="src/RustNet.Core/RustNet.Core.csproj" />
@@ -11,18 +12,35 @@
     <Project Path="src/RustNet.Graphics/RustNet.Graphics.csproj" />
     <Project Path="src/RustNet.Hal/RustNet.Hal.csproj" />
     <Project Path="src/RustNet.IO/RustNet.IO.csproj" />
+    <Project Path="src/RustNet.ML/RustNet.ML.csproj" />
     <Project Path="src/RustNet.Media/RustNet.Media.csproj" />
+    <Project Path="src/RustNet.Native/RustNet.Native.csproj" />
     <Project Path="src/RustNet.Net/RustNet.Net.csproj" />
     <Project Path="src/RustNet.Resources/RustNet.Resources.csproj" />
+    <Project Path="src/RustNet.Sensors.Gnss/RustNet.Sensors.Gnss.csproj" />
     <Project Path="src/RustNet.Serialization/RustNet.Serialization.csproj" />
     <Project Path="src/RustNet.UI/RustNet.UI.csproj" />
     <Project Path="src/RustNet.Usb/RustNet.Usb.csproj" />
+  </Folder>
+  <Folder Name="/frontends/">
+    <Project Path="frontends/RustNet.UI.AsciiConsole/RustNet.UI.AsciiConsole.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RustNet.Tests/RustNet.Tests.csproj" />
     <Project Path="tests/SampleApp/SampleApp.csproj" />
     <Project Path="tests/SysApp/SysApp.csproj" />
     <Project Path="tests/LangApp/LangApp.csproj" />
+    <Project Path="tests/LibApp/LibApp.csproj" />
+  </Folder>
+  <Folder Name="/tests/Drivers/">
+    <Project Path="tests/Drivers/Environment.App/Environment.App.csproj" />
+    <Project Path="tests/Drivers/Environment.Tests/Environment.Tests.csproj" />
+    <Project Path="tests/Drivers/Motion.App/Motion.App.csproj" />
+    <Project Path="tests/Drivers/Motion.Tests/Motion.Tests.csproj" />
+    <Project Path="tests/Drivers/Displays.App/Displays.App.csproj" />
+    <Project Path="tests/Drivers/Displays.Tests/Displays.Tests.csproj" />
+    <Project Path="tests/Drivers/Actuators.App/Actuators.App.csproj" />
+    <Project Path="tests/Drivers/Actuators.Tests/Actuators.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/RustNet.Cli/RustNet.Cli.csproj" />

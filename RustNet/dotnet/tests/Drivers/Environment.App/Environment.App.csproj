@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs every driver in this category against bus simulators on the
+       RustNet interpreter (virtual device). Proves the drivers compile to RNX
+       and execute in the device dialect. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>DriversEnvironmentApp</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\RustNet.Hal\RustNet.Hal.csproj" />
+  </ItemGroup>
+  <Import Project="Packages.props" />
+</Project>

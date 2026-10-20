@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mcp9808",
+  "version": "0.1.0",
+  "description": "Microchip MCP9808 precision temperature sensor over I2C: identification, resolution, shutdown and alert limits",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

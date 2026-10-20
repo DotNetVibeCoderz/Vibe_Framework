@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ccs811",
+  "version": "0.1.0",
+  "description": "ScioSense/ams CCS811 eCO2 and TVOC gas sensor over I2C, with application start, drive modes, environmental compensation and baseline",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

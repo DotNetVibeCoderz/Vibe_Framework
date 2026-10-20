@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bme680",
+  "version": "0.1.0",
+  "description": "Bosch BME680 / BME688 gas, temperature, humidity and pressure sensor over I2C, with the datasheet compensation, heater profile set-up and gas resistance",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

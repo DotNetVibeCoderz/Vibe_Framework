@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-dht12",
+  "version": "0.1.0",
+  "description": "Aosong DHT12 temperature and humidity over I2C, with checksum verification",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

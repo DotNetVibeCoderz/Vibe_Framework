@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-tcs34725",
+  "version": "0.1.0",
+  "description": "ams TCS34721/3/5/7 (TCS3472x) RGB colour sensor over I2C, with gain/integration control, lux and colour temperature (ams DN40)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

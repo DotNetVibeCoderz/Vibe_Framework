@@ -11,9 +11,10 @@
 //! milliseconds, so a polled reader would drop most of every frame. The ISR
 //! below moves bytes into a ring the main loop drains at its leisure.
 //!
-//! Only commands needing neither a filesystem nor crypto are answered here.
-//! Application upload needs both; `runtime/firmware`'s `DeviceService` is the
-//! full implementation, and it is `std`-bound.
+//! A subset of the commands `runtime/firmware`'s `DeviceService` answers (that
+//! one is the full implementation, and `std`-bound). Provisioning and
+//! application upload persist through `storage.rs`; a failure to persist is
+//! logged rather than failing a command that already took effect in RAM.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -153,8 +154,8 @@ pub struct Rndp {
     rx: Vec<u8>,
     /// Whether the application gets fuel. `start`/`stop` flip it.
     pub app_running: bool,
-    /// PKCS#1 DER public key from `rustnet provision`. Held in RAM only:
-    /// there is no filesystem here, so provisioning does not survive a reset.
+    /// PKCS#1 DER public key from `rustnet provision`. Also kept in storage
+    /// as `/.sys/signing.pub`, and restored from there at boot.
     pub_key: Option<Vec<u8>>,
     /// An application accepted by `rustnet flash`, waiting for the main loop
     /// to rebuild the interpreter around it.
@@ -343,7 +344,7 @@ impl Rndp {
                     return Err("empty key".to_string());
                 }
                 self.pub_key = Some(frame.payload.clone());
-                host.persist(crate::storage::KIND_PUB_KEY, &frame.payload);
+                host.persist(crate::storage::sys::PUB_KEY, &frame.payload);
                 Ok(Vec::new())
             }
 
@@ -382,8 +383,11 @@ impl Rndp {
 
                 self.app_name = String::from(name);
                 self.app_size = image.payload.len();
-                host.persist(crate::storage::KIND_APP, image.payload);
-                host.persist(crate::storage::KIND_APP_NAME, name.as_bytes());
+                // The name only follows a stored app: on its own it would
+                // relabel whichever older app is still in storage.
+                if host.persist(crate::storage::sys::APP, image.payload) {
+                    host.persist(crate::storage::sys::APP_NAME, name.as_bytes());
+                }
                 self.pending_app = Some(image.payload.to_vec());
                 Ok(Vec::new())
             }

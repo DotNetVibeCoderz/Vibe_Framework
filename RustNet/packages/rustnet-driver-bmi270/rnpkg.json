@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bmi270",
+  "version": "0.1.0",
+  "description": "Bosch BMI270 6-axis IMU over I2C: init with the user-supplied Bosch config file, accelerometer, gyroscope and temperature reads",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

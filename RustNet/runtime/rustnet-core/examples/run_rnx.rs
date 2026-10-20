@@ -10,7 +10,10 @@ use std::collections::HashMap;
 struct DevHost {
     console: String,
     files: HashMap<String, Vec<u8>>,
-    clock: u64,
+    /// Real elapsed time, so `Uptime.Ms()` measures something; sleeps are
+    /// added rather than waited out.
+    started: Option<std::time::Instant>,
+    slept: u64,
     /// App-defined `[InternalCall]` hooks — a firmware answers these, so they
     /// are answered benignly here and reported at exit rather than aborting
     /// the run.
@@ -26,11 +29,11 @@ impl RuntimeHost for DevHost {
         self.console.push_str(text);
     }
     fn now_ms(&mut self) -> u64 {
-        self.clock += 1;
-        self.clock
+        let started = *self.started.get_or_insert_with(std::time::Instant::now);
+        started.elapsed().as_millis() as u64 + self.slept
     }
     fn sleep_ms(&mut self, ms: u64) {
-        self.clock += ms;
+        self.slept += ms;
     }
     fn invoke(&mut self, name: &str, args: Vec<HostValue>) -> Result<HostValue, String> {
         let str_arg = |i: usize| match args.get(i) {
@@ -91,12 +94,19 @@ fn main() {
         module.strings.len()
     );
     let mut interp = Interpreter::new(&module, DevHost::default());
+    let t0 = std::time::Instant::now();
     let exit = interp.run_to_completion();
+    let secs = t0.elapsed().as_secs_f64();
     for name in &interp.host.unknown {
         eprintln!("[note] answered benignly (a firmware must implement it): {name}");
     }
     match exit {
-        RunExit::Completed => eprintln!("[exit: completed, {} instructions]", interp.instructions),
+        RunExit::Completed => eprintln!(
+            "[exit: completed, {} instructions in {:.3} s, {:.1} M instr/s]",
+            interp.instructions,
+            secs,
+            interp.instructions as f64 / secs.max(1e-9) / 1e6
+        ),
         other => {
             eprintln!("[exit: {other:?}]");
             std::process::exit(1);

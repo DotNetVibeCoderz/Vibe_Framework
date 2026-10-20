@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-digipot",
+  "version": "0.1.0",
+  "description": "Microchip digital potentiometers: MCP4131/MCP4151/MCP4231/MCP4251 (SPI, 7/8-bit), MCP4017/MCP4018/MCP4019 (I2C single byte) and MCP4451/MCP4461 (I2C quad, 9-bit commands)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

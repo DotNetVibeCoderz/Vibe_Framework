@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mcp9600",
+  "version": "0.1.0",
+  "description": "Microchip MCP9600 / MCP9601 (MCP960x) thermocouple EMF-to-temperature converter over I2C: hot/cold junction, thermocouple type, filter and ADC resolution",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

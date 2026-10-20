@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bmp180",
+  "version": "0.1.0",
+  "description": "Bosch BMP180 (and BMP085) temperature and pressure over I2C, with the datasheet's integer compensation and oversampling",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

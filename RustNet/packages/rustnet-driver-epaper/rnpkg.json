@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-epaper",
+  "version": "0.1.0",
+  "description": "E-paper controllers: SSD1608/IL3829, IL3897, SSD1680, SSD1681, IL0373, IL0376F, IL0398, IL91874, UC8151C, UC8179 and 7-colour ACeP, with Waveshare 1.54/2.13/2.7/2.9/4.2/5.65/7.5 inch presets; busy-pin waits with timeout, full refresh, deep sleep",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0", "rustnet-driver-display-core": "0.1.0" }
+}

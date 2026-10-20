@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bh1750",
+  "version": "0.1.0",
+  "description": "ROHM BH1750FVI ambient light sensor over I2C: one-shot and continuous modes, measurement-time (MTreg) sensitivity adjustment, lux output",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

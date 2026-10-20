@@ -17,8 +17,16 @@
     <ProjectReference Include="..\SampleApp\SampleApp.csproj" />
     <ProjectReference Include="..\SysApp\SysApp.csproj" />
     <ProjectReference Include="..\LangApp\LangApp.csproj" />
+    <ProjectReference Include="..\LibApp\LibApp.csproj" />
+    <ProjectReference Include="..\Drivers\Environment.App\Environment.App.csproj" />
+    <ProjectReference Include="..\Drivers\Motion.App\Motion.App.csproj" />
+    <ProjectReference Include="..\Drivers\Displays.App\Displays.App.csproj" />
+    <ProjectReference Include="..\Drivers\Actuators.App\Actuators.App.csproj" />
     <ProjectReference Include="..\..\src\RustNet.Cloud\RustNet.Cloud.csproj" />
     <ProjectReference Include="..\..\src\RustNet.Drawing\RustNet.Drawing.csproj" />
     <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.ML\RustNet.ML.csproj" />
+    <ProjectReference Include="..\..\frontends\RustNet.UI.AsciiConsole\RustNet.UI.AsciiConsole.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Sensors.Gnss\RustNet.Sensors.Gnss.csproj" />
   </ItemGroup>
 </Project>

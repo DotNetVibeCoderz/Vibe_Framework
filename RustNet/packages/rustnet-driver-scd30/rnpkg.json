@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-scd30",
+  "version": "0.1.0",
+  "description": "Sensirion SCD30 NDIR CO2, temperature and humidity module over I2C, with CRC checks, IEEE-754 float decoding and calibration commands",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

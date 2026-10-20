@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ultrasonic",
+  "version": "0.1.0",
+  "description": "Ultrasonic rangefinders: HC-SR04 (trigger/echo pulse), MaxBotix (analog and serial Rxxxx), DFRobot A02YYUW and ME007YS (UART 0xFF frames)",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

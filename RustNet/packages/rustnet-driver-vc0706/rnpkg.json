@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-vc0706",
+  "version": "0.1.0",
+  "description": "VC0706 serial JPEG camera (Adafruit TTL camera, LinkSprite) over UART: version, reset, image size, capture and chunked frame-buffer read",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

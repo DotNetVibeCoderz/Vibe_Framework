@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-pca9633",
+  "version": "0.1.0",
+  "description": "NXP PCA9633 4-channel I2C LED driver: individual 8-bit PWM, group dimming and group blinking",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

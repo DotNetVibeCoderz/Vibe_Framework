@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-vl53l0x",
+  "version": "0.1.0",
+  "description": "ST VL53L0X time-of-flight distance sensor over I2C: the ST API init (SPAD setup, tuning, VHV/phase calibration, timing budget) as ported by Pololu, single-shot and continuous ranging",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

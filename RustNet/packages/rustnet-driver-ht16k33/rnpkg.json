@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ht16k33",
+  "version": "0.1.0",
+  "description": "Holtek HT16K33 LED matrix/7-segment driver with key scan: display RAM, dimming, blinking, key data",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

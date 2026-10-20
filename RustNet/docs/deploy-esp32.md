@@ -94,7 +94,7 @@ Device spec syntax is `serial:COM4[:baud]`, default baud 115200
 ## 4. Create and build the app
 
 ```powershell
-$env:RUSTNET_SDK = "C:\Users\mifma\Documents\CodeSandbox\RustNet"
+$env:RUSTNET_SDK = "C:\path\to\RustNet"   # the repo root
 & $rustnet new graphics-primitives GfxTest
 dotnet build GfxTest\GfxTest.csproj -c Debug
 ```

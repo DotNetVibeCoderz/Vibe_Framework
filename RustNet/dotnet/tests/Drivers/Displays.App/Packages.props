@@ -1,0 +1,14 @@
+<Project>
+  <!-- The display driver packages. Shared by the host test project and the
+       on-device smoke app, so both always compile the same sources. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-bus\*.cs" Link="pkg\bus\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-display-core\*.cs" Link="pkg\display-core\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-segments\*.cs" Link="pkg\segments\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-tm1637\*.cs" Link="pkg\tm1637\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-charlcd\*.cs" Link="pkg\charlcd\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-mono-display\*.cs" Link="pkg\mono-display\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-tft\*.cs" Link="pkg\tft\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-epaper\*.cs" Link="pkg\epaper\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+[package]
+name = "rustnet-tflite"
+description = "RustNet TensorFlow Lite for Microcontrollers: a dependency-free .tflite reader and interpreter (float32 + int8) for no_std + alloc targets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+libm = "0.2"

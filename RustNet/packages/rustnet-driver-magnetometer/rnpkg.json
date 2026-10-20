@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-magnetometer",
+  "version": "0.1.0",
+  "description": "3-axis magnetometers over I2C: Honeywell/QST HMC5883L, ST LIS3MDL, NXP MAG3110, with compass heading",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

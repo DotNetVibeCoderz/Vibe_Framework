@@ -2,7 +2,7 @@
 
   <!-- The `RustNet` package: every RustNet.* library in one install.
 
-       This project carries no code of its own. It exists to gather the sixteen
+       This project carries no code of its own. It exists to gather the
        assemblies under src/ into a single package, because splitting them
        would buy nothing: they are all thin [InternalCall] façades that the
        Rust interpreter resolves by canonical name at run time, they version
@@ -23,7 +23,7 @@
          gates the whole build-output collection in NuGet's pack targets, and
          the target at the bottom of this file hooks into exactly that
          collection. Turning it off to suppress a 4 KB empty assembly also
-         silently drops the sixteen real ones - a 5 KB package that restores
+         silently drops the real ones - a 5 KB package that restores
          cleanly and provides nothing. -->
 
     <PackageId>RustNet</PackageId>
@@ -31,13 +31,16 @@
     <Authors>Dotnet Vibe Coderz</Authors>
     <Company>Dotnet Vibe Coderz</Company>
     <Product>RustNet</Product>
-    <Description>Write C# for microcontrollers. RustNet compiles a .NET application to a compact RNX module, signs it, and runs it on an IL interpreter written in Rust — on ESP32, ESP32-C3, K210 (RISC-V), STM32, RP2040 and Meadow F7. This package is the managed API those applications are written against: GPIO/ADC/PWM/I2C, WiFi and MQTT, a display and UI toolkit, a filesystem, an embedded SQL database, field buses (CAN, Modbus, 1-Wire), serializers, and camera/USB support.</Description>
+    <Description>Write C# for microcontrollers. RustNet compiles a .NET application to a compact RNX module, signs it, and runs it on an IL interpreter written in Rust — on ESP32, ESP32-C3, K210 (RISC-V), STM32, RP2040 and Meadow F7. This package is the managed API those applications are written against: GPIO/ADC/PWM/I2C, WiFi and MQTT, a display and UI toolkit, a filesystem, an embedded SQL database, field buses (CAN, Modbus, 1-Wire), serializers, camera/USB support, on-device machine learning and TensorFlow Lite inference, a GNSS/NMEA decoder, and native procedure calls (NPC).</Description>
     <Copyright>Copyright (c) 2026 Dotnet Vibe Coderz</Copyright>
 
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- C# on a chip, powered by Rust. Drawn by make_icon.py; a published
+         version keeps its icon forever, so change it before a release. -->
+    <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/RustNet</PackageProjectUrl>
-    <PackageTags>iot;embedded;microcontroller;mcu;esp32;esp32-c3;stm32;rp2040;risc-v;k210;meadow;rust;interpreter;gpio;mqtt;nanoframework</PackageTags>
+    <PackageTags>iot;embedded;microcontroller;mcu;esp32;esp32-c3;stm32;rp2040;risc-v;k210;meadow;rust;interpreter;gpio;mqtt;nanoframework;tflite;machine-learning;gnss</PackageTags>
 
     <!-- The repository URL has to be one a client can clone; nuget.org's
          "Source repository" link and Source Link both treat it that way, and a
@@ -58,10 +61,12 @@
   <ItemGroup>
     <!-- Forward slashes: this packs on Linux in CI as well as on Windows. -->
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="icon.png" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)../../../LICENSE" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RustNet.AI.TensorFlow\RustNet.AI.TensorFlow.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Buses\RustNet.Buses.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Cloud\RustNet.Cloud.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Core\RustNet.Core.csproj" PrivateAssets="all" />
@@ -72,9 +77,12 @@
     <ProjectReference Include="..\RustNet.Graphics\RustNet.Graphics.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Hal\RustNet.Hal.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.IO\RustNet.IO.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.ML\RustNet.ML.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Media\RustNet.Media.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Native\RustNet.Native.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Net\RustNet.Net.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Resources\RustNet.Resources.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\RustNet.Sensors.Gnss\RustNet.Sensors.Gnss.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Serialization\RustNet.Serialization.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.UI\RustNet.UI.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\RustNet.Usb\RustNet.Usb.csproj" PrivateAssets="all" />
@@ -91,7 +99,7 @@
        Only the assemblies in it carry `ReferenceSourceTarget` metadata,
        though; the doc and symbol files sit beside them with none. Filtering
        all three on that metadata is why an earlier version of this shipped
-       sixteen assemblies and one XML file. So the assemblies are selected, and
+       every assembly but only one XML file. So the assemblies are selected, and
        the other two are derived from where each one lives. -->
   <PropertyGroup>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackReferencedAssemblies</TargetsForTfmSpecificBuildOutput>

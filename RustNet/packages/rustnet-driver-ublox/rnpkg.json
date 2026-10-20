@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ublox",
+  "version": "0.1.0",
+  "description": "u-blox NEO-M8 (and other UBX-protocol receivers) over UART: UBX frames with Fletcher checksum, CFG-PRT/CFG-MSG/CFG-RATE, ACK, NAV-PVT, with NMEA passed through. Needs RustNet.Sensors.Gnss from the RustNet NuGet",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

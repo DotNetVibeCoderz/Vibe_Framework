@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mpl3115a2",
+  "version": "0.1.0",
+  "description": "NXP MPL3115A2 pressure / altitude / temperature sensor over I2C, one-shot or with sea-level calibration",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

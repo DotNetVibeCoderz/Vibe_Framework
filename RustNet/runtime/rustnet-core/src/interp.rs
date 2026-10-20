@@ -281,11 +281,20 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                 }
             }
 
-            // Reschedule when blocked, finished or the slice is up.
-            let now = self.host.now_ms();
+            // Reschedule when blocked, finished or the slice is up. The common
+            // case — a running thread mid-slice with nothing to wait on — is
+            // decided without asking the host for the time: that was a clock
+            // read per IL instruction, a syscall on a desktop and an SoC timer
+            // read on a chip.
             let cur_ok = !self.frames.is_empty()
-                && self.thread_runnable_active(now)
-                && self.slice_used < THREAD_SLICE;
+                && self.slice_used < THREAD_SLICE
+                && if self.thread_unblocked_fast() {
+                    true
+                } else {
+                    let now = self.host.now_ms();
+                    self.thread_runnable_active(now)
+                };
+            let now = if cur_ok { 0 } else { self.host.now_ms() };
             if !cur_ok {
                 match self.pick_next(now) {
                     Some(next) => {
@@ -365,7 +374,7 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                 };
             }
 
-            if self.breakpoints.contains(&site) && self.last_paused != Some(site) {
+            if !self.breakpoints.is_empty() && self.breakpoints.contains(&site) && self.last_paused != Some(site) {
                 self.last_paused = Some(site);
                 return RunExit::Paused { method: site.0, il_offset: site.1 };
             }
@@ -391,6 +400,14 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                 self.collect_garbage();
             }
         }
+    }
+
+    /// True when the active thread is certainly runnable without consulting
+    /// the clock: not finished, not sleeping, not joining, not awaiting.
+    #[inline]
+    fn thread_unblocked_fast(&self) -> bool {
+        let t = &self.threads[self.cur_thread];
+        !t.finished && t.sleep_until == 0 && t.join_on.is_none() && t.wait_task.is_none()
     }
 
     fn thread_runnable_active(&self, now: u64) -> bool {
@@ -1255,24 +1272,39 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
             }
             op::CONV_I1 => self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as i8 as i32))?,
             op::CONV_I2 => self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as i16 as i32))?,
-            op::CONV_I4 | op::CONV_OVF_I4 | op::CONV_I => {
+            // Overflow-checked forms convert like their plain counterparts
+            // (the checks are not modelled); a `long` array index or size
+            // emits conv.ovf.i, and checked casts the .un variants.
+            op::CONV_I4 | op::CONV_OVF_I4 | op::CONV_I | op::CONV_OVF_I | op::CONV_OVF_I4_UN | op::CONV_OVF_I_UN => {
                 self.conv_checked(|v| v.as_i32().map(Value::I32))?
             }
-            op::CONV_I8 | op::CONV_OVF_I8 => self.conv_checked(|v| v.as_i64().map(Value::I64))?,
+            op::CONV_I8 | op::CONV_OVF_I8 | op::CONV_OVF_I8_UN => self.conv_checked(|v| v.as_i64().map(Value::I64))?,
             op::CONV_R4 => self.conv_checked(|v| v.as_f64().map(|f| Value::F64(f as f32 as f64)))?,
             op::CONV_R8 => self.conv_checked(|v| v.as_f64().map(Value::F64))?,
-            op::CONV_U4 | op::CONV_OVF_U4 | op::CONV_U => {
+            // Unsigned integer to float: the stack slot's bits are an unsigned value.
+            op::CONV_R_UN => self.conv_checked(|v| match v {
+                Value::I32(x) => Ok(Value::F64(x as u32 as f64)),
+                Value::I64(x) => Ok(Value::F64(x as u64 as f64)),
+                other => other.as_f64().map(Value::F64),
+            })?,
+            op::CONV_U4 | op::CONV_OVF_U4 | op::CONV_U | op::CONV_OVF_U | op::CONV_OVF_U4_UN | op::CONV_OVF_U_UN => {
                 self.conv_checked(|v| v.as_i64().map(|x| Value::I32(x as u32 as i32)))?
             }
-            op::CONV_U8 | op::CONV_OVF_U8 => self.conv_checked(|v| v.as_i64().map(Value::I64))?,
-            op::CONV_U1 | op::CONV_OVF_U1 => {
+            // conv.u8 zero-extends an int32 (ECMA-335 III.3.27). C# relies on it:
+            // `0xFFFFFFFFL` compiles to `ldc.i4.m1; conv.u8`, and (ulong)someUint
+            // to conv.u8 as well. Sign-extending turned both into -1.
+            op::CONV_U8 | op::CONV_OVF_U8 | op::CONV_OVF_U8_UN => self.conv_checked(|v| match v {
+                Value::I32(x) => Ok(Value::I64(x as u32 as i64)),
+                other => other.as_i64().map(Value::I64),
+            })?,
+            op::CONV_U1 | op::CONV_OVF_U1 | op::CONV_OVF_U1_UN => {
                 self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as u8 as i32))?
             }
-            op::CONV_U2 | op::CONV_OVF_U2 => {
+            op::CONV_U2 | op::CONV_OVF_U2 | op::CONV_OVF_U2_UN => {
                 self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as u16 as i32))?
             }
-            op::CONV_OVF_I1 => self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as i8 as i32))?,
-            op::CONV_OVF_I2 => self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as i16 as i32))?,
+            op::CONV_OVF_I1 | op::CONV_OVF_I1_UN => self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as i8 as i32))?,
+            op::CONV_OVF_I2 | op::CONV_OVF_I2_UN => self.conv(|v| Value::I32(v.as_i32().unwrap_or(0) as i16 as i32))?,
             op::LDSTR => {
                 let idx = self.fetch_u32()?;
                 let s = self
@@ -1759,8 +1791,16 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                 return Ok(matches!(kind, op::P_CGT_UN));
             }
             (Value::Null, Value::Ref(_)) => return Ok(false),
+            // A reference field that was never stored still holds the
+            // object's zero fill (field types are not known at allocation),
+            // so `field == null` / `field != null` meets I32(0) on one side.
+            // Zero and null are the same "nothing" for every comparison.
+            (Value::Ref(_), Value::I32(0)) => return Ok(matches!(kind, op::P_CGT_UN)),
+            (Value::I32(0), Value::Ref(_)) => return Ok(false),
             _ => {}
         }
+        let a = if matches!(a, Value::Null) { Value::I32(0) } else { a };
+        let b = if matches!(b, Value::Null) { Value::I32(0) } else { b };
         let out = match (a, b) {
             (Value::F64(_), _) | (_, Value::F64(_)) => {
                 let (x, y) = (a.as_f64()?, b.as_f64()?);

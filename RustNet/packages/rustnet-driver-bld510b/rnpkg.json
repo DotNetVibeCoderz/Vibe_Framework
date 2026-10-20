@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-bld510b",
+  "version": "0.1.0",
+  "description": "StepperOnline BLD-510B brushless DC motor driver: PWM speed (SV), direction (F/R), enable (EN), brake (BRK) and SPEED pulse feedback converted to RPM",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

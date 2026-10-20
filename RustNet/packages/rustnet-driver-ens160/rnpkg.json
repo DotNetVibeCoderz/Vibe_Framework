@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ens160",
+  "version": "0.1.0",
+  "description": "ScioSense ENS160 digital metal-oxide multi-gas sensor over I2C: AQI-UBA, TVOC and eCO2 with temperature/humidity compensation",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

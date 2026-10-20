@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-thermistor",
+  "version": "0.1.0",
+  "description": "NTC thermistor temperature through an ADC voltage divider, with Beta-parameter and Steinhart-Hart models",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

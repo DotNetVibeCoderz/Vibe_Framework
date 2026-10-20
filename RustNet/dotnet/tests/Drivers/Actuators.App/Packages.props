@@ -1,0 +1,29 @@
+<Project>
+  <!-- The driver packages in this category. Shared by the host test project
+       and the on-device smoke app, so both always compile the same sources. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-bus\*.cs" Link="pkg\bus\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-dcmotor\*.cs" Link="pkg\dcmotor\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-stepper\*.cs" Link="pkg\stepper\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-servo\*.cs" Link="pkg\servo\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-bld510b\*.cs" Link="pkg\bld510b\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-cerusxdrive\*.cs" Link="pkg\cerusxdrive\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-led\*.cs" Link="pkg\led\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-ws2812\*.cs" Link="pkg\ws2812\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-apa102\*.cs" Link="pkg\apa102\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-pca9633\*.cs" Link="pkg\pca9633\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-relay\*.cs" Link="pkg\relay\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-piezo\*.cs" Link="pkg\piezo\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-ads1x15\*.cs" Link="pkg\ads1x15\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-ads7128\*.cs" Link="pkg\ads7128\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-mcp3xxx\*.cs" Link="pkg\mcp3xxx\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-mcp4725\*.cs" Link="pkg\mcp4725\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-mcp49xx\*.cs" Link="pkg\mcp49xx\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-mcp23xxx\*.cs" Link="pkg\mcp23xxx\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-pcf857x\*.cs" Link="pkg\pcf857x\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-pca95xx\*.cs" Link="pkg\pca95xx\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-ht16k33\*.cs" Link="pkg\ht16k33\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-rtc\*.cs" Link="pkg\rtc\%(Filename)%(Extension)" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\..\..\packages\rustnet-driver-digipot\*.cs" Link="pkg\digipot\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

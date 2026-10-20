@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-charlcd",
+  "version": "0.1.0",
+  "description": "HD44780-compatible character LCDs (16x2, 20x4...) in 4-bit mode, over six GPIOs or a PCF8574 I2C backpack",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

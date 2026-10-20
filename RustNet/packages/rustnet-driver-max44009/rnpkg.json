@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-max44009",
+  "version": "0.1.0",
+  "description": "Maxim MAX44009 ambient light sensor over I2C: 0.045..188000 lux from the exponent/mantissa reading",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

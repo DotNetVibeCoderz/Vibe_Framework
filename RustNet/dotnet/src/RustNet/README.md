@@ -20,7 +20,7 @@ Tools (CLI ▪ Workbench ▪ VSCode) ◀─────────────�
 dotnet add package RustNet
 ```
 
-One package, sixteen assemblies — they version together and an application
+One package, twenty assemblies — they version together and an application
 that touches one usually touches several.
 
 ## Hello, blinking world
@@ -58,6 +58,10 @@ rustnet logs --follow
 | `RustNet.Cloud` | Azure IoT Hub, AWS IoT Core, Google Cloud IoT |
 | `RustNet.Media` · `RustNet.Usb` | camera capture, USB device/host (chip-gated) |
 | `RustNet.Core` · `RustNet.Diagnostics` · `RustNet.Resources` | threading, logging, embedded assets |
+| `RustNet.ML` | on-device machine learning: linear/logistic/softmax regression, k-NN, naive Bayes, k-means, a recommender and a small neural network, all trainable on the device |
+| `RustNet.AI.TensorFlow` | TensorFlow Lite inference for float32 and int8 `.tflite` models |
+| `RustNet.Sensors.Gnss` | a streaming NMEA-0183 decoder and UART receiver for GPS/GNSS modules |
+| `RustNet.Native` | NPC — call signed native Rust procedures loaded at run time |
 
 Nearly every member is an `[InternalCall]` façade: calling one off-device
 throws `RuntimeOnlyException`, because the behaviour lives in the interpreter

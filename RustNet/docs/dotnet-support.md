@@ -14,14 +14,15 @@ What C# code runs on the RustNet interpreter (runtime v0.4, RNX format v3).
 | async/await | full await flow on the green-thread scheduler: `Task`/`Task<T>`-returning async methods, `Task.Delay`, `Task.FromResult`, `Task.Yield`, exception propagation through faulted tasks, cooperative `Wait()`/`Result`. Compile with the **Debug** configuration (class state machines); Release struct machines are not supported |
 | Exceptions | `try` / `catch` / `finally`, **`catch when` filters**, `throw`, `rethrow`, runtime faults become catchable managed exceptions |
 | Delegates & lambdas | `Func<>`/`Action<>`, closures, method groups (`ldftn`/`ldvirtftn`) |
+| Unsigned & checked conversions | `uint`/`ulong` arithmetic and conversions (`conv.u8` zero-extends, `conv.r.un`), `conv.ovf.*` and `conv.ovf.*.un` (overflow itself not checked) |
 | Generics (BCL) | `List<T>`, `Dictionary<K,V>`, `Queue<T>`, `Stack<T>`, `KeyValuePair`, `Tuple` — arity-canonicalized, type-argument-agnostic dispatch |
 | `foreach` | arrays, `List<T>`, `Dictionary<K,V>` (struct enumerators handled) |
 | LINQ-to-objects | `Where Select Sum Count Min Max Average Any All First(OrDefault) Last(OrDefault) Take Skip OrderBy(Descending) Distinct Reverse Contains ElementAt ToArray ToList Range` |
 | Strings | interpolation (`$"..."`), `Concat` (any part count — 5+ parts lower to an inline-array `ReadOnlySpan` and are handled), `Substring IndexOf Replace Trim/TrimStart/TrimEnd Split StartsWith ToCharArray`, `StringBuilder` (incl. `Append(char)`) |
-| Text/encoding | `Encoding.UTF8`, `Convert` (incl. Base64), `BitConverter` (incl. `DoubleToInt64Bits`), `char` classification, numeric `Parse`/`ToString` (bool prints `True`/`False`) |
+| Text/encoding | `Encoding.UTF8`, `Convert` (incl. Base64), `BitConverter` (incl. `DoubleToInt64Bits`, `SingleToInt32Bits`), `char` classification and `char.ToString()` (so `"a" + c` works), numeric `Parse`/`ToString` (bool prints `True`/`False`), `CultureInfo.InvariantCulture` overloads of `ToString`/`Parse` |
 | Regex | `System.Text.RegularExpressions.Regex` subset: literals, classes, `. * + ? | ( ) ^ $ \d \w \s`, `IsMatch Match Replace Split` (compact backtracking engine in Rust) |
 | Threading | green threads (`Thread`), `Interlocked`, `Monitor` (no-op: cooperative scheduler), `Task` subset (`Run`, `Delay`, `Wait`), `RustNet.Timers.Timer` |
-| Math/random | `System.Math`, `System.Random` |
+| Math/random | `System.Math` (incl. `Tanh Asin Acos Sinh Cosh Log2 Cbrt Truncate Sign Clamp`, `Log(x, base)`, and `Round` half-to-even as .NET does), `System.Random`; `double.IsNaN/IsInfinity/IsFinite` |
 | Serialization | `RustNet.Serialization` JSON / XML / binary DOM (reflection-free) |
 | Streams | `RustNet.IO.MemoryStream / FileStream / BinaryPacker` |
 

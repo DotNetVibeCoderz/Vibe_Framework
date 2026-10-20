@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-aht",
+  "version": "0.1.0",
+  "description": "Aosong AHT10, AHT20/AHT21 and the AHT10-compatible DHT10 temperature and humidity over I2C",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

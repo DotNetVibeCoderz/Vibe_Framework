@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-ky038",
+  "version": "0.1.0",
+  "description": "KY-038 / KY-037 microphone sound sensor module: analog sound level (peak-to-peak / RMS) and the comparator threshold output",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-sht4x",
+  "version": "0.1.0",
+  "description": "Sensirion SHT40/SHT41/SHT45 (SHT4x) temperature and humidity over I2C, with CRC checks, precision modes, heater pulses and serial number",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

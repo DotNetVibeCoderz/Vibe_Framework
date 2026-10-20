@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-touch",
+  "version": "0.1.0",
+  "description": "Resistive touch-screen controllers: XPT2046/ADS7843 (SPI) and TSC2004 (I2C), with pressure and 3-point affine calibration",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

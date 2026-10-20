@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-max1704x",
+  "version": "0.1.0",
+  "description": "Maxim MAX17043/MAX17044 ModelGauge LiPo fuel gauges over I2C: cell voltage, state of charge, quick-start, alert threshold",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

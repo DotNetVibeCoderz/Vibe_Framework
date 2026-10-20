@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- An alternative frontend for RustNet.UI on a full OS: renders the same
+       element tree as text, for terminals, SSH sessions and CI logs. It runs
+       on the desktop CLR, not on the device, so it is ordinary C#. -->
+  <PropertyGroup>
+    <Description>RustNet.UI AsciiConsole frontend: render and drive a RustNet.UI layout as text in a terminal.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>RustNet.UI.AsciiConsole</PackageId>
+    <Authors>Dotnet Vibe Coderz</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+  </ItemGroup>
+</Project>

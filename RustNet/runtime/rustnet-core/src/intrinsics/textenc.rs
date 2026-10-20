@@ -369,6 +369,13 @@ pub fn char_intrinsic<H: RuntimeHost>(
         "IsLower" => push(interp, Value::I32(c.is_lowercase() as i32)),
         "ToUpper" => push(interp, Value::I32(c.to_ascii_uppercase() as i32)),
         "ToLower" => push(interp, Value::I32(c.to_ascii_lowercase() as i32)),
+        "IsPunctuation" => push(interp, Value::I32(c.is_ascii_punctuation() as i32)),
+        "IsControl" => push(interp, Value::I32(c.is_control() as i32)),
+        // `"text" + c` compiles to c.ToString() then Concat.
+        "ToString" => {
+            let r = interp.heap.alloc_str(c.to_string());
+            push(interp, Value::Ref(r));
+        }
         other => return Err(format!("unsupported Char intrinsic: {other}")),
     }
     Ok(())
@@ -500,6 +507,16 @@ pub fn bitconverter_intrinsic<H: RuntimeHost>(
         "Int64BitsToDouble" => {
             let v = interp.deref(args[0])?.as_i64()?;
             push(interp, Value::F64(f64::from_bits(v as u64)));
+        }
+        // Floats live on the stack as f64; these convert through f32 so the
+        // bits are the single-precision encoding a packed buffer expects.
+        "SingleToInt32Bits" | "SingleToUInt32Bits" => {
+            let v = interp.deref(args[0])?.as_f64()?;
+            push(interp, Value::I32((v as f32).to_bits() as i32));
+        }
+        "Int32BitsToSingle" | "UInt32BitsToSingle" => {
+            let v = interp.deref(args[0])?.as_i64()?;
+            push(interp, Value::F64(f32::from_bits(v as u32) as f64));
         }
         "ToInt32" | "ToUInt32" | "ToInt16" | "ToUInt16" | "ToInt64" | "ToUInt64" | "ToDouble"
         | "ToSingle" | "ToBoolean" => {

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-max6675",
+  "version": "0.1.0",
+  "description": "Maxim MAX6675 cold-junction-compensated K-type thermocouple converter over SPI, with open-thermocouple detection",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-mlx90640",
+  "version": "0.1.0",
+  "description": "Melexis MLX90640 32x24 thermal camera over I2C: EEPROM parameter extraction and the full Melexis object temperature calculation",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-rtc",
+  "version": "0.1.0",
+  "description": "Real-time clocks: Maxim DS1307 (CH bit, SQW, RAM), DS3231/DS3232 (alarms, temperature, OSF flag, DS3232 SRAM) and NXP PCF8523 (battery switch-over), with BCD time",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}
