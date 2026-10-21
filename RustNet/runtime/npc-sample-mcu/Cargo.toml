@@ -1,0 +1,20 @@
+[package]
+name = "rustnet-npc-sample-mcu"
+description = "Sample NPC module for microcontrollers: no_std native procedures a C# app loads at run time (RNPC format)"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# Its own workspace: built for a Cortex-M target by `rustnet native build`,
+# never for the host.
+[workspace]
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+doctest = false
+
+[profile.release]
+opt-level = "s"
+panic = "abort"
+codegen-units = 1

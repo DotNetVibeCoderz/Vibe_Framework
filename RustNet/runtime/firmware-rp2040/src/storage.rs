@@ -20,7 +20,7 @@
 //!
 //! ## The window
 //!
-//! The image is a little under 256 KB and grows; the window starts at 1 MB to
+//! The image is about 325 KB and grows; the window starts at 1 MB to
 //! leave room for it to double without moving, which matters because moving it
 //! invalidates everything already stored there. A Pico's 2 MB leaves 1 MB for
 //! storage, which is four times what the K210 port gives its filesystem.
@@ -196,4 +196,140 @@ pub mod sys {
     pub const PUB_KEY: &str = "/.sys/signing.pub";
     /// Present, with the app's name, when it should run on power-up.
     pub const AUTOSTART: &str = "/.sys/autostart";
+    /// The directory all of the above live in. Applications are refused it.
+    pub const DIR: &str = "/.sys";
+}
+
+// ---------------------------------------------------------------------------
+// The application's files
+// ---------------------------------------------------------------------------
+//
+// `RustNet.IO.FileSystem` reaches the same flashfs window the firmware keeps
+// its own records in, so two rules sit between them — the same two the STM32
+// port enforces:
+//
+// - **`/.sys` is not the application's.** A writable `signing.pub` would make
+//   the signature check decorative, and a deletable `app.rnx` is an app that
+//   can uninstall itself. Every path is normalised first, so `\.sys\x`,
+//   `/./.sys/x` and `.sys/x` are all the same refusal.
+// - **A write must not strand a compaction.** When the window fills, flashfs
+//   compacts: every live record is held in RAM while the used span is erased
+//   and rewritten. On a 128 KB heap that the running application is also
+//   using, that is the write most likely to fail — and the write that matters
+//   most, `rustnet flash`, carries every application file through it. So the
+//   application's files are held to [`FILES_BUDGET`], and every write is
+//   planned and checked against free heap before anything is touched.
+
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+
+use rustnet_flashfs as flashfs;
+
+/// Most bytes the application's own files may occupy, records included.
+/// Small next to the 1 MB window on purpose: it is what replacing the
+/// application has to carry through RAM during a compaction.
+pub const FILES_BUDGET: u32 = 32 * 1024;
+
+/// Heap left untouched by any write, for the bookkeeping around it.
+const HEAP_MARGIN: usize = 4 * 1024;
+
+/// Normalise an application's path and keep it out of the firmware's own.
+pub fn app_path(path: &str) -> Result<String, String> {
+    let path = flashfs::normalise(path)?;
+    if path == sys::DIR || path.starts_with("/.sys/") {
+        return Err(format!("{path}: reserved for the firmware"));
+    }
+    Ok(path)
+}
+
+fn check_ram(plan: &flashfs::WritePlan) -> Result<(), String> {
+    let needed = plan.ram_needed() as usize + HEAP_MARGIN;
+    let free = crate::heap_free();
+    if needed <= free {
+        return Ok(());
+    }
+    Err(if plan.compacts {
+        format!(
+            "not enough RAM to write: storage is full and must be compacted, which holds the \
+             other {} live bytes in RAM, plus {} for the new record; {free} bytes of heap are \
+             free. Nothing was changed; delete files to make room",
+            plan.carried, plan.record
+        )
+    } else {
+        format!("not enough RAM to write {} bytes to storage; {free} bytes of heap are free", plan.record)
+    })
+}
+
+/// Live bytes under everything that is not `/.sys`, after a write of
+/// `plan.record` to a non-system path.
+fn app_bytes_after(flash: &mut QspiFlash, plan: &flashfs::WritePlan) -> Result<u32, String> {
+    let mut system = 0u32;
+    for name in [sys::APP, sys::APP_NAME, sys::PUB_KEY, sys::AUTOSTART] {
+        system += flashfs::plan_write(flash, name, 0)?.replaced;
+    }
+    Ok((plan.carried + plan.record).saturating_sub(system))
+}
+
+/// Write (or with `append`, extend) one of the application's files.
+pub fn app_write(flash: &mut QspiFlash, path: &str, data: &[u8], append: bool) -> Result<(), String> {
+    let path = app_path(path)?;
+    let joined;
+    let data = if append {
+        let mut existing = flashfs::read(flash, &path).unwrap_or_default();
+        existing
+            .try_reserve_exact(data.len())
+            .map_err(|_| format!("out of memory appending {} bytes to {path}", data.len()))?;
+        existing.extend_from_slice(data);
+        joined = existing;
+        &joined[..]
+    } else {
+        data
+    };
+
+    let plan = flashfs::plan_write(flash, &path, data.len())?;
+    let total = app_bytes_after(flash, &plan)?;
+    if total > FILES_BUDGET {
+        return Err(format!(
+            "storage budget exceeded: application files would total {total} bytes and this \
+             board allows {FILES_BUDGET}. Replacing the application compacts storage, holding \
+             every other file in RAM meanwhile, so this cap is what keeps `rustnet flash` working"
+        ));
+    }
+    check_ram(&plan)?;
+    flashfs::write(flash, &path, data)
+}
+
+pub fn app_read(flash: &mut QspiFlash, path: &str) -> Result<Vec<u8>, String> {
+    flashfs::read(flash, &app_path(path)?)
+}
+
+pub fn app_exists(flash: &mut QspiFlash, path: &str) -> Result<bool, String> {
+    flashfs::exists(flash, &app_path(path)?)
+}
+
+/// Deleting writes a tombstone, so it can need a compaction like any write.
+pub fn app_delete(flash: &mut QspiFlash, path: &str) -> Result<(), String> {
+    let path = app_path(path)?;
+    if !flashfs::exists(flash, &path)? {
+        return Ok(());
+    }
+    check_ram(&flashfs::plan_write(flash, &path, 0)?)?;
+    flashfs::delete(flash, &path)
+}
+
+pub fn app_create_directory(flash: &mut QspiFlash, path: &str) -> Result<(), String> {
+    let path = app_path(path)?;
+    check_ram(&flashfs::plan_write(flash, &path, 0)?)?;
+    flashfs::create_directory(flash, &path)
+}
+
+/// Immediate children of `path`, without the firmware's own directory.
+pub fn app_list(flash: &mut QspiFlash, path: &str) -> Result<Vec<String>, String> {
+    let path = app_path(path)?;
+    let mut names = flashfs::list(flash, &path)?;
+    if path == "/" {
+        names.retain(|n| n != ".sys");
+    }
+    Ok(names)
 }

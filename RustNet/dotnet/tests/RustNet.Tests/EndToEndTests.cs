@@ -447,6 +447,46 @@ public class EndToEndTests : IDisposable
         Assert.Matches(@"drivers finished passed=[1-9]\d* failed=0", logs);
     }
 
+    /// <summary>
+    /// The desktop frontends' framebuffer against the device's: the same
+    /// layout rendered by RustNet.UI on the virtual device and by
+    /// FramebufferCanvas on the CLR must produce the same pixels.
+    /// </summary>
+    [SkippableFact]
+    public void DesktopFramebufferMatchesTheDevicePixelForPixel()
+    {
+        Skip.If(_firmware is null, "rustnet-firmware binary not built");
+        string logs = RunApp("UiParityApp.dll", "uiparity", 60);
+        Assert.Contains("ui parity rendered", logs);
+        using var client = Client();
+        var (w, h, device) = client.GetDisplay();
+
+        string xml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "parity.xml"));
+        var session = RustNet.UI.Frontends.UiSession.FromXml(xml);
+        session.Render();
+        var canvas = session.Canvas;
+        Assert.Equal(w, canvas.Width);
+        Assert.Equal(h, canvas.Height);
+
+        int differ = 0;
+        string first = "";
+        for (int i = 0; i < w * h; i++)
+        {
+            ushort dev = (ushort)(device[i * 2] | (device[i * 2 + 1] << 8));
+            if (dev != canvas.Pixels[i])
+            {
+                if (differ == 0)
+                {
+                    first = $"first at ({i % w},{i / w}): device {dev:X4}, desktop {canvas.Pixels[i]:X4}";
+                }
+                differ++;
+            }
+        }
+        Assert.True(differ == 0, $"{differ} of {w * h} pixels differ; {first}");
+        // And the frame is not trivially empty.
+        Assert.True(canvas.Pixels.Distinct().Count() > 5);
+    }
+
     [SkippableFact]
     public void DebuggerBreakpointCycle()
     {

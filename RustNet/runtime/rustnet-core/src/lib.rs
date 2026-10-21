@@ -249,6 +249,90 @@ mod tests {
     }
 
     #[test]
+    fn single_thread_does_not_read_the_clock_per_instruction() {
+        // A long single-threaded loop must run its slices without asking the
+        // host for the time on every instruction. Re-picking the only thread
+        // once failed to reset the slice, and from then on each instruction
+        // went round the scheduler (a 4-5x slowdown everywhere).
+        struct CountingHost {
+            reads: u64,
+        }
+        impl RuntimeHost for CountingHost {
+            fn console_write(&mut self, _text: &str) {}
+            fn now_ms(&mut self) -> u64 {
+                self.reads += 1;
+                0
+            }
+            fn sleep_ms(&mut self, _ms: u64) {}
+            fn invoke(&mut self, name: &str, _args: Vec<HostValue>) -> Result<HostValue, String> {
+                Err(format!("unexpected host call {name}"))
+            }
+        }
+        let mut b = Builder::new();
+        // i = 0; while (i < 20000) i = i + 1;
+        #[rustfmt::skip]
+        let code = vec![
+            0x16, 0x0A,                         // i = 0
+            op::BR_S, 4,                        // -> check
+            0x06, 0x17, 0x58, 0x0A,             // i = i + 1
+            0x06, op::LDC_I4, 0x20, 0x4E, 0, 0, // ldloc.0; ldc.i4 20000
+            op::BLT_S, 0xF4,                    // -> body
+            op::RET,
+        ];
+        let main = b.add_method("Demo::Main()", None, S, 0, 1, code);
+        b.set_entry(main);
+        let module = b.build();
+        let mut interp = Interpreter::new(&module, CountingHost { reads: 0 });
+        assert_eq!(interp.run_to_completion(), RunExit::Completed);
+        assert!(interp.instructions > 100_000);
+        assert!(
+            interp.host.reads < interp.instructions / 500,
+            "{} clock reads for {} instructions",
+            interp.host.reads,
+            interp.instructions
+        );
+    }
+
+    #[test]
+    fn a_sleep_ends_the_run_slice() {
+        // Fuel counts instructions and sleeping costs none, so without this a
+        // loop that mostly sleeps kept one `run` call going for most of a
+        // minute on a Pico, and a newly flashed app waited for it to end.
+        struct ClockHost {
+            now: u64,
+        }
+        impl RuntimeHost for ClockHost {
+            fn console_write(&mut self, _text: &str) {}
+            fn now_ms(&mut self) -> u64 {
+                self.now
+            }
+            fn sleep_ms(&mut self, ms: u64) {
+                self.now += ms;
+            }
+            fn invoke(&mut self, name: &str, _args: Vec<HostValue>) -> Result<HostValue, String> {
+                Err(format!("unexpected host call {name}"))
+            }
+        }
+        let mut b = Builder::new();
+        let sleep = b.add_method("System.Threading.Thread::Sleep(i4)", None, SI, 1, 0, vec![]);
+        // Thread.Sleep(500) three times, then return.
+        let mut code = Vec::new();
+        for _ in 0..3 {
+            code.extend([op::LDC_I4, 0xF4, 0x01, 0, 0]);
+            code.extend(call(sleep));
+        }
+        code.push(op::RET);
+        let main = b.add_method("Demo::Main()", None, S, 0, 0, code);
+        b.set_entry(main);
+        let module = b.build();
+        let mut interp = Interpreter::new(&module, ClockHost { now: 0 });
+        assert_eq!(interp.run(1_000_000), RunExit::OutOfFuel);
+        assert_eq!(interp.host.now, 500, "one sleep per slice");
+        assert_eq!(interp.run_to_completion(), RunExit::Completed);
+        assert_eq!(interp.host.now, 1500);
+    }
+
+    #[test]
     fn unassigned_reference_field_compares_equal_to_null() {
         // `obj.F == null` and `obj.F != null` on a field nothing ever stored:
         // the zero fill must read as null, not fail as "expected int32".

@@ -1,0 +1,8 @@
+[package]
+name = "rustnet-npc"
+description = "RustNet NPC on microcontrollers: the RNPC relocatable native-module format and a no_std loader that places a module in RAM and resolves its procedures"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

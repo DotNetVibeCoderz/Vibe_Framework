@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RustNet.UI on Silk.NET + SkiaSharp: GPU-accelerated and cross-platform.
+       The frame is drawn with Skia onto an OpenGL surface in a Silk.NET
+       window; SkiaUiRenderer also draws into any SKCanvas (raster, PDF, GL).
+       Runs as a viewer: RustNet.UI.Skia layout.xml (zoom option: zoom 3). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>RustNet.UI Silk.NET + SkiaSharp frontend: GPU-accelerated, cross-platform, pixel-identical to the device.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>RustNet.UI.Skia</PackageId>
+    <Authors>Dotnet Vibe Coderz</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.UI.Frontends\RustNet.UI.Frontends.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
+  </ItemGroup>
+</Project>

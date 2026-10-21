@@ -36,6 +36,7 @@ rustnet-rndp = { path = "../rustnet-rndp" }
 rustnet-core = { path = "../rustnet-core", default-features = false }
 rustnet-flashfs = { path = "../rustnet-flashfs" }
 rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false }
+rustnet-npc = { path = "../rustnet-npc" }
 
 [profile.release]
 codegen-units = 1

@@ -59,7 +59,8 @@ pub enum RunExit {
     Completed,
     /// Hit a breakpoint or finished a single step (active thread).
     Paused { method: u32, il_offset: u32 },
-    /// Fuel exhausted; call `run` again to continue.
+    /// Fuel exhausted — or the app slept, which ends the slice too; call
+    /// `run` again to continue.
     OutOfFuel,
     /// Unhandled managed exception or interpreter fault.
     Error(String),
@@ -221,6 +222,11 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
 
     fn switch_thread(&mut self, next: usize) {
         if next == self.cur_thread {
+            // Re-picking the running thread still starts a new slice. Without
+            // this a single-threaded app's slice never reset, so after its
+            // first thousand instructions every one of them went the slow way
+            // round the scheduler, reading the clock each time.
+            self.slice_used = 0;
             return;
         }
         core::mem::swap(&mut self.frames, &mut self.threads[self.cur_thread].frames);
@@ -313,7 +319,12 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                         }
                         self.threads[self.cur_thread].sleep_until = 0;
                         self.slice_used = 0;
-                        continue;
+                        // A sleep ends the slice. Fuel counts instructions and
+                        // sleeping costs none, so a blink loop — twenty
+                        // instructions per half-second wait — kept one
+                        // `run(2000)` going for most of a minute, and the host
+                        // could not swap in a newly flashed app until it ended.
+                        return RunExit::OutOfFuel;
                     }
                     None => {
                         // Everything is sleeping/joined/awaiting: advance to
@@ -341,7 +352,8 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                             }
                         }
                         self.slice_used = 0;
-                        continue;
+                        // As above: hand control back after every wait.
+                        return RunExit::OutOfFuel;
                     }
                 }
                 if self.frames.is_empty() {
@@ -385,6 +397,30 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
                 return RunExit::Error(e);
             }
 
+            // With no debugger in play, run the rest of the slice in a tight
+            // loop instead of going round the scheduler per instruction — that
+            // bookkeeping cost as much as executing the instruction did. The
+            // loop stops on anything the scheduler must see: a sleep or wait
+            // request, a drained stack, a due collection, or the slice ending —
+            // which is also how Thread.Join blocks the running thread
+            // (`join_thread` uses up the slice).
+            if self.breakpoints.is_empty() && !self.single_step {
+                while budget > 0
+                    && self.slice_used < THREAD_SLICE
+                    && self.sleep_request.is_none()
+                    && self.wait_request.is_none()
+                    && !self.frames.is_empty()
+                    && !self.heap.should_collect()
+                {
+                    budget -= 1;
+                    self.slice_used += 1;
+                    self.instructions += 1;
+                    if let Err(e) = self.step_checked() {
+                        return RunExit::Error(e);
+                    }
+                }
+            }
+
             if let Some(ms) = self.sleep_request.take() {
                 let now = self.host.now_ms();
                 self.threads[self.cur_thread].sleep_until = now + ms;
@@ -397,14 +433,313 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
             }
 
             if self.heap.should_collect() {
-                self.collect_garbage();
+                self.collect_garbage_auto();
             }
         }
     }
 
+    /// The hottest opcodes — locals, args, small constants, int32 arithmetic
+    /// and int32 compare-and-branch — executed in place on the current frame.
+    /// Returns false, having changed nothing, for anything else (or any
+    /// operand it cannot take the fast way, such as a non-int32 value), and
+    /// `step_one` then runs the instruction with its full semantics.
+    ///
+    /// It exists because `step_one` is one very large function: on targets
+    /// built for size (`opt-level = "z"`), entering it costs more than a
+    /// simple instruction does, and most instructions are simple.
+    #[inline(always)]
+    fn step_fast(&mut self) -> bool {
+        let module = self.module;
+        let Some(f) = self.frames.last_mut() else {
+            return false;
+        };
+        let code: &[u8] = &module.methods[f.method as usize].code;
+        let ip = f.ip;
+        let Some(&opc) = code.get(ip) else {
+            return false;
+        };
+        let next = match opc {
+            op::LDLOC_0..=op::LDLOC_3 => {
+                let Some(&v) = f.locals.get((opc - op::LDLOC_0) as usize) else {
+                    return false;
+                };
+                f.stack.push(v);
+                ip + 1
+            }
+            op::STLOC_0..=op::STLOC_3 => {
+                let i = (opc - op::STLOC_0) as usize;
+                if i >= f.locals.len() {
+                    return false;
+                }
+                let Some(v) = f.stack.pop() else {
+                    return false;
+                };
+                f.locals[i] = v;
+                ip + 1
+            }
+            op::LDARG_0..=op::LDARG_3 => {
+                let Some(&v) = f.args.get((opc - op::LDARG_0) as usize) else {
+                    return false;
+                };
+                f.stack.push(v);
+                ip + 1
+            }
+            op::LDLOC_S => {
+                let Some(&i) = code.get(ip + 1) else {
+                    return false;
+                };
+                let Some(&v) = f.locals.get(i as usize) else {
+                    return false;
+                };
+                f.stack.push(v);
+                ip + 2
+            }
+            op::STLOC_S => {
+                let Some(&i) = code.get(ip + 1) else {
+                    return false;
+                };
+                if i as usize >= f.locals.len() || f.stack.is_empty() {
+                    return false;
+                }
+                f.locals[i as usize] = f.stack.pop().unwrap();
+                ip + 2
+            }
+            op::LDC_I4_M1..=op::LDC_I4_8 => {
+                f.stack.push(Value::I32(opc as i32 - op::LDC_I4_0 as i32));
+                ip + 1
+            }
+            op::LDC_I4_S => {
+                let Some(&b) = code.get(ip + 1) else {
+                    return false;
+                };
+                f.stack.push(Value::I32(b as i8 as i32));
+                ip + 2
+            }
+            op::LDC_I4 => {
+                let Some(b) = code.get(ip + 1..ip + 5) else {
+                    return false;
+                };
+                f.stack.push(Value::I32(i32::from_le_bytes([b[0], b[1], b[2], b[3]])));
+                ip + 5
+            }
+            op::DUP => {
+                let Some(&v) = f.stack.last() else {
+                    return false;
+                };
+                f.stack.push(v);
+                ip + 1
+            }
+            op::POP => {
+                if f.stack.pop().is_none() {
+                    return false;
+                }
+                ip + 1
+            }
+            op::ADD | op::SUB | op::MUL | op::AND | op::OR | op::XOR | op::SHL | op::SHR => {
+                let n = f.stack.len();
+                if n < 2 {
+                    return false;
+                }
+                let (a, b) = match (f.stack[n - 2], f.stack[n - 1]) {
+                    (Value::I32(a), Value::I32(b)) => (a, b),
+                    // Two doubles (every float rides the stack as f64); mixed
+                    // or other operands go the slow way.
+                    (Value::F64(x), Value::F64(y)) if matches!(opc, op::ADD | op::SUB | op::MUL) => {
+                        let r = match opc {
+                            op::ADD => x + y,
+                            op::SUB => x - y,
+                            _ => x * y,
+                        };
+                        f.stack.truncate(n - 1);
+                        f.stack[n - 2] = Value::F64(r);
+                        f.instr_ip = ip;
+                        f.ip = ip + 1;
+                        return true;
+                    }
+                    _ => return false,
+                };
+                let r = match opc {
+                    op::ADD => a.wrapping_add(b),
+                    op::SUB => a.wrapping_sub(b),
+                    op::MUL => a.wrapping_mul(b),
+                    op::AND => a & b,
+                    op::OR => a | b,
+                    op::XOR => a ^ b,
+                    op::SHL => a.wrapping_shl(b as u32),
+                    _ => a.wrapping_shr(b as u32),
+                };
+                f.stack.truncate(n - 1);
+                f.stack[n - 2] = Value::I32(r);
+                ip + 1
+            }
+            op::LDARG_S => {
+                let Some(&i) = code.get(ip + 1) else {
+                    return false;
+                };
+                let Some(&v) = f.args.get(i as usize) else {
+                    return false;
+                };
+                f.stack.push(v);
+                ip + 2
+            }
+            op::CONV_R8 => {
+                let r = match f.stack.last() {
+                    Some(&Value::I32(v)) => v as f64,
+                    Some(&Value::F64(v)) => v,
+                    _ => return false,
+                };
+                *f.stack.last_mut().unwrap() = Value::F64(r);
+                ip + 1
+            }
+            op::CONV_I4 => {
+                let r = match f.stack.last() {
+                    Some(&Value::I32(v)) => v,
+                    Some(&Value::F64(v)) if v.is_finite() => v as i32,
+                    _ => return false,
+                };
+                *f.stack.last_mut().unwrap() = Value::I32(r);
+                ip + 1
+            }
+            // ceq / cgt / clt (and .un) on two int32s or two doubles.
+            op::PREFIX => {
+                let Some(&kind) = code.get(ip + 1) else {
+                    return false;
+                };
+                if !(op::P_CEQ..=op::P_CLT_UN).contains(&kind) {
+                    return false;
+                }
+                let n = f.stack.len();
+                if n < 2 {
+                    return false;
+                }
+                let r = match (f.stack[n - 2], f.stack[n - 1]) {
+                    (Value::I32(a), Value::I32(b)) => match kind {
+                        op::P_CEQ => a == b,
+                        op::P_CGT => a > b,
+                        op::P_CGT_UN => (a as u32) > (b as u32),
+                        op::P_CLT => a < b,
+                        _ => (a as u32) < (b as u32),
+                    },
+                    (Value::F64(a), Value::F64(b)) => match kind {
+                        op::P_CEQ => a == b,
+                        op::P_CGT => a > b,
+                        op::P_CGT_UN => a > b || a.is_nan() || b.is_nan(),
+                        op::P_CLT => a < b,
+                        _ => a < b || a.is_nan() || b.is_nan(),
+                    },
+                    _ => return false,
+                };
+                f.stack.truncate(n - 1);
+                f.stack[n - 2] = Value::I32(r as i32);
+                ip + 2
+            }
+            op::LDLEN => {
+                let Some(&Value::Ref(r)) = f.stack.last() else {
+                    return false;
+                };
+                let Ok(HeapObject::Array { data, .. }) = self.heap.get(r) else {
+                    return false;
+                };
+                *f.stack.last_mut().unwrap() = Value::I32(data.len() as i32);
+                ip + 1
+            }
+            op::LDELEM_I1..=op::LDELEM_REF => {
+                let n = f.stack.len();
+                if n < 2 {
+                    return false;
+                }
+                let (Value::Ref(r), Value::I32(i)) = (f.stack[n - 2], f.stack[n - 1]) else {
+                    return false;
+                };
+                let Ok(HeapObject::Array { data, .. }) = self.heap.get(r) else {
+                    return false;
+                };
+                let Some(&v) = data.get(i as u32 as usize) else {
+                    return false;
+                };
+                f.stack.truncate(n - 1);
+                f.stack[n - 2] = v;
+                ip + 1
+            }
+            op::STELEM_I..=op::STELEM_REF => {
+                let n = f.stack.len();
+                if n < 3 {
+                    return false;
+                }
+                let (Value::Ref(r), Value::I32(i)) = (f.stack[n - 3], f.stack[n - 2]) else {
+                    return false;
+                };
+                let v = f.stack[n - 1];
+                let Ok(HeapObject::Array { data, .. }) = self.heap.get_mut(r) else {
+                    return false;
+                };
+                let Some(slot) = data.get_mut(i as u32 as usize) else {
+                    return false;
+                };
+                *slot = v;
+                f.stack.truncate(n - 3);
+                ip + 1
+            }
+            op::BR_S => {
+                let Some(&o) = code.get(ip + 1) else {
+                    return false;
+                };
+                (ip as isize + 2 + o as i8 as isize) as usize
+            }
+            op::BRTRUE_S | op::BRFALSE_S => {
+                let Some(&o) = code.get(ip + 1) else {
+                    return false;
+                };
+                let Some(&Value::I32(v)) = f.stack.last() else {
+                    return false;
+                };
+                f.stack.pop();
+                if (v != 0) == (opc == op::BRTRUE_S) {
+                    (ip as isize + 2 + o as i8 as isize) as usize
+                } else {
+                    ip + 2
+                }
+            }
+            op::BEQ_S..=op::BLT_UN_S => {
+                let Some(&o) = code.get(ip + 1) else {
+                    return false;
+                };
+                let n = f.stack.len();
+                if n < 2 {
+                    return false;
+                }
+                let (Value::I32(a), Value::I32(b)) = (f.stack[n - 2], f.stack[n - 1]) else {
+                    return false;
+                };
+                let (ua, ub) = (a as u32, b as u32);
+                let taken = match opc {
+                    op::BEQ_S => a == b,
+                    op::BGE_S => a >= b,
+                    op::BGT_S => a > b,
+                    op::BLE_S => a <= b,
+                    op::BLT_S => a < b,
+                    op::BNE_UN_S => a != b,
+                    op::BGE_UN_S => ua >= ub,
+                    op::BGT_UN_S => ua > ub,
+                    op::BLE_UN_S => ua <= ub,
+                    _ => ua < ub,
+                };
+                f.stack.truncate(n - 2);
+                if taken {
+                    (ip as isize + 2 + o as i8 as isize) as usize
+                } else {
+                    ip + 2
+                }
+            }
+            _ => return false,
+        };
+        f.instr_ip = ip;
+        f.ip = next;
+        true
+    }
+
     /// True when the active thread is certainly runnable without consulting
     /// the clock: not finished, not sleeping, not joining, not awaiting.
-    #[inline]
     fn thread_unblocked_fast(&self) -> bool {
         let t = &self.threads[self.cur_thread];
         !t.finished && t.sleep_until == 0 && t.join_on.is_none() && t.wait_task.is_none()
@@ -433,7 +768,11 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
 
     /// One instruction; runtime faults become managed exceptions when a
     /// catch handler exists anywhere on the stack.
+    #[inline(always)]
     fn step_checked(&mut self) -> Result<(), String> {
+        if self.step_fast() {
+            return Ok(());
+        }
         match self.step_one() {
             Ok(()) => Ok(()),
             Err(e) => {
@@ -443,7 +782,21 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
         }
     }
 
+    /// A full collection of every generation (`GC.Collect()`, and tests that
+    /// want an exact live count).
     pub fn collect_garbage(&mut self) {
+        let roots = self.gc_roots();
+        self.heap.collect_full(roots.into_iter());
+    }
+
+    /// The allocation-triggered collection: generational (minor, or major
+    /// when the old generation has grown enough).
+    fn collect_garbage_auto(&mut self) {
+        let roots = self.gc_roots();
+        self.heap.collect(roots.into_iter());
+    }
+
+    fn gc_roots(&self) -> Vec<u32> {
         let mut roots: Vec<u32> = Vec::new();
         let visit = |frames: &Vec<Frame>, roots: &mut Vec<u32>| {
             for f in frames {
@@ -484,7 +837,7 @@ impl<'m, H: RuntimeHost> Interpreter<'m, H> {
         if let Some(Value::Ref(r)) = &self.current_exception {
             roots.push(*r);
         }
-        self.heap.collect(roots.into_iter());
+        roots
     }
 
     fn annotate_error(&self, e: String) -> String {

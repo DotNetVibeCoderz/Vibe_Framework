@@ -2,6 +2,8 @@
 
 Authoritative plan; progress checkboxes live in [Progress.md](Progress.md).
 Architecture background: [docs/architecture.md](docs/architecture.md).
+`[-]` marks an item deliberately not done (won't do, superseded, or parked
+for lack of hardware); the reason is on the line.
 
 ## v0.1 — Foundation ✅ (shipped)
 
@@ -90,7 +92,20 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         thread boundary as a `usize`). Compiles/links/boots clean on-chip; not
         yet reachable from a C# app (Rust-internal HAL method), so functional
         edge-triggering awaits an app-surface binding or external signal
-  - [ ] OTA A/B via `esp_ota` partitions — need on-chip iteration
+  - [x] **OTA A/B via `esp_ota` partitions** — written (2026-10-21): the
+        service's OTA became a pluggable `OtaBackend`; `EspOta` streams the
+        RNSB container through a new `StreamVerifier` (signature over the whole
+        image checked before the slot is made bootable) straight into the idle
+        `ota_x` partition, then lets the ESP-IDF bootloader switch and roll
+        back (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`). Table
+        `partitions-ota-16mb.csv` for the 16 MB M5Stack boards. Builds for the
+        Core2 (2.8 MB image, 3 MB slots). **Verified on a Core2**: push
+        (1.87 MB in ~3.5 min over UART), unconfirmed reset rolls back,
+        confirm survives reboot, `ota rollback` switches slots. Two fixes
+        from the board: a rollback leaves an NVS note so the known-good slot
+        it returns to boots *confirmed* (ESP-IDF boots any newly selected
+        slot pending, so the next reset went forward again), and a push is
+        refused while the running image is still pending
   - [x] **M5Stack Tough board bring-up** — the first RustNet device with a live
         physical panel. AXP192 PMIC over I²C (LDO2/LDO3/DCDC3 rails + GPIO reset/
         backlight-enable), ILI9342C 320×240 over SPI2 (manual CS/DC, FIFO/no-DMA
@@ -99,9 +114,11 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         Built with `--features board-m5tough`; **verified live on the M5 Tough
         (COM5)** running the `graphics-primitives` demo — backlight + full
         colour showcase confirmed on-screen
-- [~] bare-metal firmware executor (no_std service loop) — **done for
-      STM32F4 and the K210** (both below, both on hardware); ESP32-C3
-      (esp-hal) still pending
+- [x] bare-metal firmware executor (no_std service loop) — **done for
+      STM32F4 and the K210** (both below, both on hardware), then the RP2040
+      and Meadow F7. ESP32-C3 via esp-hal is **superseded**: the ESP-IDF port
+      (`firmware-esp32`) already covers the C3 with WiFi, BLE and OTA, so a
+      second, register-level C3 executor would buy nothing
 - [x] **STM32F4 (Cortex-M4F) runs RustNet on bare metal** — the first target
       with no OS underneath it at all. `runtime/rustnet-hal-stm32` implements
       the HAL straight on the chip's registers with no dependency beyond
@@ -148,7 +165,7 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         hold the other live files in RAM. Compaction now reserves all its RAM
         *before* erasing (a flashfs fix that also protects the other ports).
         **Compile-verified for both boards; not yet run on hardware**
-  - [ ] **WiFi** — the Netduino's radio is a TI CC3100 on SPI1, which speaks
+  - [-] **WiFi — won't do.** The Netduino's radio is a TI CC3100 on SPI1, which speaks
         SimpleLink's proprietary binary protocol rather than AT commands.
         There is no Rust driver for it, and nanoFramework's own port of this
         board ships without WiFi. An ESP-AT companion on a spare UART is the
@@ -212,8 +229,10 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         joins an access point over AT 1.6.2; `RustNet.Net.Wifi` reports the
         DHCP address. The shared `rustnet-espat` crate also drives the Meadow
         F7's ESP32 coprocessor
-  - [ ] microSD on SPI1 (`firmware-stm32/src/sdcard.rs` ports directly), the
-        camera and microphone array, and eventually the KPU
+  - [-] microSD on SPI1 (`firmware-stm32/src/sdcard.rs` ports directly), the
+        camera and microphone array, and eventually the KPU — **parked**: the
+        Maix Go is no longer on the bench, and none of these can be verified
+        without it
 
 ---
 
@@ -362,12 +381,26 @@ returns `NotSupported` elsewhere.
         after each collection (`live * 2`, floored at 1024) instead of a fixed
         1024, so retain-heavy heaps aren't fully scanned every 1024 allocations;
         GC frequency tracks garbage, not live-set size. Verified: heap unit tests
-  - [ ] generational/incremental GC (write barriers), or interpreter
-        superinstructions / baseline JIT where RAM is writable+executable.
-        Measured 2026-10-20 with `run_rnx` (which now reports M instr/s):
-        ~6 M IL instructions/s on a desktop, where the main loop reads the
-        host clock and probes the breakpoint set on every instruction — the
-        first, cheapest win before any of the above
+  - [x] **interpreter throughput ×4–5** (2026-10-21): a scheduler bug made
+        every single-threaded app read the host clock and re-run the scheduler
+        on every instruction after its first slice (re-picking the only thread
+        never reset the slice) — fixed, with a regression test; plus a fast
+        path for the hottest opcodes ahead of the big dispatch. 16 → ~70 M
+        IL instructions/s on the micro-benchmark, C# benchmark 2.16 → 0.46 s,
+        +8 KB flash on the STM32F401. Measured with samply profiles
+  - [x] **generational GC** (2026-10-21): young/old generations over the
+        existing slot heap; minor collections trace only the nursery plus a
+        remembered set, majors run when the old generation doubles. The write
+        barrier is `Heap::get_mut` itself — every mutation goes through it, so
+        none can be missed. On a retain-and-churn benchmark the largest pause
+        fell from a full trace of the live set (30–60 k objects, every
+        collection) to ≤ 2 k objects per minor collection, with 3 majors in
+        all; throughput unchanged. `GC.Collect()` still runs a full collection
+  - [-] superinstructions / baseline JIT — **out of scope**. The measured
+        fast path (`step_fast`) took the interpreter from 16 to ~70 M instr/s
+        for 8 KB of flash; a JIT would need a code generator per ISA (Thumb,
+        RV32/64, Xtensa) and executable RAM the ESP32 only offers in small
+        word-addressed IRAM. Native hot spots go through NPC instead
 - [x] database:
   - [x] secondary indexes — `CREATE/DROP INDEX`; equality `WHERE` (incl. `?`
         params and one `AND` conjunct) served from the index then re-checked;
@@ -392,7 +425,19 @@ returns `NotSupported` elsewhere.
         ATT-MTU-sized GATT packets and reassembles them, so RNDP framing works
         over BLE unchanged; `ble:<address>` spec + pluggable
         `TransportFactory.BleLinkProvider`. Verified: fragmentation/reassembly +
-        factory unit tests (loopback link). Remaining: per-chip BLE radio HAL
+        factory unit tests (loopback link).
+    - [x] ESP32 GATT server + Windows host link (`docs/ble.md`) — firmware
+          feature `ble` (NimBLE via esp32-nimble 0.11.1, Nordic-UART-style
+          service, notifications cut to ATT MTU − 3, advertises `RustNet-XXXX`;
+          enabled per build through `sdkconfig.defaults.ble`), radio-free
+          reassembly/chunking in `rustnet_firmware::ble` (unit tests); WinRT
+          GATT client `RustNet.Deploy.Ble.Windows` plugged into the CLI on
+          Windows (`--device ble:<address|name>`, `rustnet ble scan`).
+          **Verified on a Core2 (2026-10-21)**: scan, repeated `info`, a
+          7 KB app flashed over BLE in 5.7 s and run, `ota confirm` over BLE.
+          Windows' discovery by service UUID failed on first contact
+          (`0x80070016`); the host now falls back to a full discovery.
+          Remaining: BlueZ/macOS host backends; BLE on other chips
 
 ---
 
@@ -449,9 +494,13 @@ Desktop/host UI toolkits as **alternatives to `RustNet.UI`** for tools,
 simulators and gateway apps that run on a full OS (not the constrained
 device surface). Each is an optional package.
 
-- [ ] **WinForms** frontend (Windows tooling)
-- [ ] **GTK** frontend (Linux/cross-platform)
-- [ ] **Silk.NET + SkiaSharp** frontend (GPU-accelerated, cross-platform)
+- [x] **Shared core** — RustNet.UI paints through `Paint`, which a frontend
+      redirects to an `IUiCanvas`; `FramebufferCanvas` reproduces rustnet-gfx
+      exactly, verified **pixel-identical to the virtual device**
+- [x] **WinForms** frontend (`RustNet.UI.WinForms`)
+- [x] **GTK** frontend (`RustNet.UI.Gtk`, GtkSharp)
+- [x] **Silk.NET + SkiaSharp** frontend (`RustNet.UI.Skia`, OpenGL surface;
+      headless PNG rendering too)
 - [x] **AsciiConsole** frontend (`dotnet/frontends/RustNet.UI.AsciiConsole`):
       renders the arranged UI tree as text, one cell per device glyph, every
       control kind; keyboard input routed through `Ui.Tap`;
@@ -553,9 +602,19 @@ error). Simple, bounds-checked, matches the byte-array channel.
       (`runtime/npc-sample`) is signed, pushed and called from C# (sum,
       CRC-32, reverse, error propagation); a module signed by another key is
       refused. `docs/npc.md`
-- [ ] **RAM-executable silicon** (ESP32 IRAM, Cortex-M SRAM) — a
-      position-independent blob + a small relocating loader into executable
-      RAM (MPU/`W^X` aware). Feasible; per-chip bring-up.
+- [x] **RAM-executable silicon** — Cortex-M done in software: the RNPC
+      format (`runtime/rustnet-npc`, a `no_std` loader rebasing `R_ARM_ABS32`
+      words and Thumb-2 `movw`/`movt` pairs), `rustnet native build --target
+      thumbv6m-none-eabi|thumbv7em-none-eabihf` (staticlib → `rust-lld` at 0
+      with `--emit-relocs` → RNPC), verified by running the sample module on an
+      emulated Cortex-M at two load addresses; Meadow F7 firmware binds
+      `Npc.*` (heap in executable SRAM1/2). **ESP32** too: RNPC v2 (separate
+      code/data segments — IRAM takes only word accesses), built with the
+      `esp` toolchain + `-Zbuild-std=core`, placed by a platform loader in
+      IRAM via `MALLOC_CAP_EXEC`. **Verified on silicon (2026-10-21)**: the
+      NpcDemo's sum / CRC-32 / reverse / error-code checks pass on a Pico
+      (`thumbv6m`), a Meadow F7 (`thumbv7em`, movw/movt pairs) and a Core2
+      (Xtensa, RNPC v2)
 - [x] **XIP/flash-only or pure-Harvard chips** — `Npc.IsSupported()` is false
       and `Load` throws `NotSupported` on every build without the loader.
 - [x] **Toolchain** — `rustnet native build` compiles a Rust crate to the
@@ -579,26 +638,49 @@ infrastructure.
       for `thumbv6m-none-eabi`. Cortex-M0+ has no native atomic CAS and no
       hardware divide: add `portable-atomic` (critical-section impl) and lean
       on libm/soft-division, mirroring the existing RISC-V `no_std` profile
-- [x] **Board crate** (`rustnet-hal-rp2040`) over `rp-hal`/Embassy — GPIO,
-      PWM, ADC, I2C, SPI, UART behind the existing HAL traits, so every
-      `RustNet.*` API lights up unchanged
-- [ ] **PIO** — map the RP2040's programmable-IO state machines onto the
-      `Signal`/RMT-style surface (precise pulse generate/capture) and to
-      WS2812/APA102 LED drivers; a differentiator no current target has
+- [~] **Board crate** (`rustnet-hal-rp2040`, register-level, no PAC) — GPIO,
+      UART, timer, flash run on a Pico; **PWM (8 slices, channel = GPIO), ADC
+      (GP26–29 + temperature), I2C (2× DW_apb_i2c, 10 kHz–1 MHz, NACK →
+      error, RESTART for write-read), SPI (2× PL022, modes 0–3) written and
+      host-tested** (divider/count/pin-map/field-packing arithmetic checked
+      against the datasheet and SDK values); the firmware binds
+      `Gpio/Adc/Pwm/I2c/Spi/Uart(port 1)/Signal` and the full
+      `RustNet.IO.FileSystem` set (`/.sys` refused to apps, 32 KB file budget).
+      **On-chip test pending** — checklist + `demo/PeripheralTour` in the
+      port's README
+- [~] **PIO** — `Signal` generate/capture/pulse-feedback on PIO0 SM0 with
+      hand-assembled programs at 5 MHz (1 µs edges, 0.4 µs capture
+      resolution); encoder and programs host-tested against `pioasm` words.
+      **On-chip test pending**; WS2812/APA102 drivers still open
 - [x] **Deploy over native USB-CDC** (verified on a Pico; `reboot 01` re-enters BOOTSEL by itself) — the RP2040's built-in USB device
       presents CDC-ACM; RNDP rides the existing byte-pipe transport
       (`serve_pipe` / `--stdio`), so `rustnet flash/logs/…` work over the USB
       cable with no extra hardware. Reuses the v0.8 `RustNet.Usb` device stack
-- [~] **Persistent flash** — app + provisioning + files in 1 MB of QSPI above
-      the image (`rustnet-flashfs`), surviving reboot and reflash ✅; **OTA A/B**
-      across two app slots still open
-- [ ] **Pico W WiFi** (CYW43) — optional: WiFi STA + RNDP TCP :7878 for fully
+- [x] **Persistent flash** — app + provisioning + files in 1 MB of QSPI above
+      the image (`rustnet-flashfs`), surviving reboot and reflash ✅
+- [x] **OTA A/B** — a 2.2 KB slot picker (`firmware-rp2040/boot`) behind the
+      second stage chooses between two firmware slots (A at `0x10004000`, B at
+      `0x10080000`, the firmware linked for each) from an append-only boot-state
+      log; `rustnet ota push` streams an `RNP2` pair (`tools/make_ota.py`),
+      verified over the stream, into the slot not running; a trial gets 3 boots
+      to be confirmed before the picker goes back. State log, compaction under
+      power loss and the image parser are host-tested
+      (`rustnet_hal_rp2040::ota`); **verified on a Pico** — push, confirm
+      across reboot, A↔B alternation, 3-boot rollback (needs a gap-free UF2;
+      see the port README). `data push` now
+      refuses `/.sys` on the Pico and the Meadow (it could replace the
+      provisioning key)
+- [-] **Pico W WiFi** (CYW43) — **parked: needs a Pico W**, the bench board
+      is a plain Pico. Optional: WiFi STA + RNDP TCP :7878 for fully
       wireless deploy, exactly like the ESP32 phase-2 path; plain Pico stays
       USB-only
-- [ ] **NPC on RP2040** — SRAM is writable+executable on M0+, so the v1.4
-      "RAM-executable silicon" path applies: relocate a PIC blob into SRAM and
-      call it (per-chip bring-up)
-- [ ] **HIL verification** — extend `tools/hil-smoke.sh` with a Pico target
+- [x] **NPC on RP2040** — SRAM is writable+executable on M0+ and uncached,
+      so the RNPC loader places a `thumbv6m` module in the heap and calls it
+      (`firmware-rp2040/src/npc.rs`; module memory is freed when the app
+      changes). **Verified on a Pico**: NpcDemo's four checks pass
+- [~] **HIL verification** — `tools/hil-smoke.sh` has a Pico target (RNDP
+      info, optional `rustnet firmware flash`, then the stage-1 smoke); the run
+      on a board is pending. Originally: extend it
       (BOOTSEL/UF2 via `elf2uf2`/`picotool`), then the on-chip E2E: provision
       → RSA-verified flash → C# app (incl. async/await) with live GPIO/PWM/ADC
       from managed code

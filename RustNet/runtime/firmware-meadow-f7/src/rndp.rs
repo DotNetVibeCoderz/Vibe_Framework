@@ -397,6 +397,13 @@ impl Rndp {
                 }
                 let path = String::from_utf8_lossy(&frame.payload[2..2 + n]).to_string();
                 let data = &frame.payload[2 + n..];
+                // The provisioning key and the flashed app live under /.sys; a
+                // data push that could reach them would let anyone on the USB
+                // cable replace the key that every later image is checked against.
+                let path = rustnet_flashfs::normalise(&path)?;
+                if path == "/.sys" || path.starts_with("/.sys/") {
+                    return Err(format!("{path}: reserved for the firmware"));
+                }
                 let flash = host.flash.as_mut().ok_or_else(no_storage)?;
                 rustnet_flashfs::write(flash, &path, data)?;
                 Ok(Vec::new())

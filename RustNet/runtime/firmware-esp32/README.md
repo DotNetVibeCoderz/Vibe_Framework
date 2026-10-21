@@ -28,6 +28,10 @@ espflash flash C:/rnesp/xtensa-esp32-espidf/release/rustnet-firmware-esp32 \
     --partition-table partitions.csv --port COM4
 ```
 
+RNDP over Bluetooth LE as well (NimBLE GATT server, `--device ble:<addr>`)
+is the `ble` feature, which also needs `sdkconfig.defaults.ble` named in
+`ESP_IDF_SDKCONFIG_DEFAULTS` with absolute paths; see `docs/ble.md`.
+
 Then, from the repo root (full step-by-step walkthrough, including app
 creation and troubleshooting: `docs/deploy-esp32.md`, or
 `docs/deploy-esp32.id.md` in Indonesian):

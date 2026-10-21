@@ -739,67 +739,67 @@ public class UiElement
 
         if (Kind == "label" || Kind == "textblock")
         {
-            Display.DrawText(x, y, Text, Foreground, Scale);
+            Paint.DrawText(x, y, Text, Foreground, Scale);
         }
         else if (Kind == "button")
         {
-            Display.FillRect(x, y, w, h, Background);
-            Display.DrawRect(x, y, w, h, Border);
-            Display.DrawText(x + 4, y + 4, Text, Foreground, Scale);
+            Paint.FillRect(x, y, w, h, Background);
+            Paint.DrawRect(x, y, w, h, Border);
+            Paint.DrawText(x + 4, y + 4, Text, Foreground, Scale);
         }
         else if (Kind == "textbox")
         {
-            Display.FillRect(x, y, w, h, UiColors.Black);
-            Display.DrawRect(x, y, w, h, Border);
-            Display.DrawText(x + 3, y + 4, Text, Foreground, Scale);
+            Paint.FillRect(x, y, w, h, UiColors.Black);
+            Paint.DrawRect(x, y, w, h, Border);
+            Paint.DrawText(x + 3, y + 4, Text, Foreground, Scale);
         }
         else if (Kind == "checkbox")
         {
-            Display.DrawRect(x, y + 1, 10, 10, Border);
+            Paint.DrawRect(x, y + 1, 10, 10, Border);
             if (Checked)
             {
-                Display.DrawLine(x + 2, y + 6, x + 4, y + 8, Foreground);
-                Display.DrawLine(x + 4, y + 8, x + 8, y + 2, Foreground);
+                Paint.DrawLine(x + 2, y + 6, x + 4, y + 8, Foreground);
+                Paint.DrawLine(x + 4, y + 8, x + 8, y + 2, Foreground);
             }
-            Display.DrawText(x + 14, y + 2, Text, Foreground, Scale);
+            Paint.DrawText(x + 14, y + 2, Text, Foreground, Scale);
         }
         else if (Kind == "radio")
         {
-            Display.DrawRect(x, y + 1, 10, 10, Border);
+            Paint.DrawRect(x, y + 1, 10, 10, Border);
             if (Checked)
             {
-                Display.FillRect(x + 3, y + 4, 4, 4, Foreground);
+                Paint.FillRect(x + 3, y + 4, 4, 4, Foreground);
             }
-            Display.DrawText(x + 14, y + 2, Text, Foreground, Scale);
+            Paint.DrawText(x + 14, y + 2, Text, Foreground, Scale);
         }
         else if (Kind == "slider")
         {
             int midY = y + h / 2;
-            Display.DrawLine(x, midY, x + w - 1, midY, Border);
+            Paint.DrawLine(x, midY, x + w - 1, midY, Border);
             int span = Max > Min ? Max - Min : 1;
             int knob = x + (w - 6) * (Value - Min) / span;
-            Display.FillRect(knob, y + 2, 6, h - 4, Foreground);
+            Paint.FillRect(knob, y + 2, 6, h - 4, Foreground);
         }
         else if (Kind == "progress")
         {
-            Display.FillRect(x, y, w, h, UiColors.DarkGray);
+            Paint.FillRect(x, y, w, h, UiColors.DarkGray);
             int span = Max > Min ? Max - Min : 1;
             int fill = w * (Value - Min) / span;
-            Display.FillRect(x, y, fill, h, Foreground);
+            Paint.FillRect(x, y, fill, h, Foreground);
         }
         else if (Kind == "listbox")
         {
-            Display.FillRect(x, y, w, h, UiColors.Black);
-            Display.DrawRect(x, y, w, h, Border);
+            Paint.FillRect(x, y, w, h, UiColors.Black);
+            Paint.DrawRect(x, y, w, h, Border);
             int rowH = 8 * Scale + 4;
             for (int i = 0; i < Items.Count; i++)
             {
                 int ry = y + 2 + i * rowH;
                 if (i == Selected)
                 {
-                    Display.FillRect(x + 1, ry, w - 2, rowH, UiColors.Accent);
+                    Paint.FillRect(x + 1, ry, w - 2, rowH, UiColors.Accent);
                 }
-                Display.DrawText(x + 3, ry + 2, Items[i], Foreground, Scale);
+                Paint.DrawText(x + 3, ry + 2, Items[i], Foreground, Scale);
             }
         }
         else if (Kind == "combobox")
@@ -808,14 +808,14 @@ public class UiElement
             // layer has nowhere to put a dropdown that would not cover the
             // thing being configured, so a tap advances the selection and the
             // caret says there is more than one.
-            Display.FillRect(x, y, w, h, UiColors.Black);
-            Display.DrawRect(x, y, w, h, Border);
+            Paint.FillRect(x, y, w, h, UiColors.Black);
+            Paint.DrawRect(x, y, w, h, Border);
             string shown = Selected >= 0 && Selected < Items.Count ? Items[Selected] : "";
-            Display.DrawText(x + 4, y + 4, shown, Foreground, Scale);
+            Paint.DrawText(x + 4, y + 4, shown, Foreground, Scale);
             int cx = x + w - 12;
             int cy = y + h / 2 - 1;
-            Display.DrawLine(cx, cy, cx + 4, cy + 4, Foreground);
-            Display.DrawLine(cx + 4, cy + 4, cx + 8, cy, Foreground);
+            Paint.DrawLine(cx, cy, cx + 4, cy + 4, Foreground);
+            Paint.DrawLine(cx + 4, cy + 4, cx + 8, cy, Foreground);
         }
         else if (Kind == "textflow")
         {
@@ -823,7 +823,7 @@ public class UiElement
             int ly = y + Padding;
             for (int i = 0; i < lines.Count; i++)
             {
-                Display.DrawText(x + Padding, ly, lines[i], Foreground, Scale);
+                Paint.DrawText(x + Padding, ly, lines[i], Foreground, Scale);
                 ly = ly + LineHeight(Scale) + 2;
             }
         }
@@ -850,13 +850,13 @@ public class UiElement
             int r = rx < ry ? rx : ry;
             if (Background != UiColors.Black)
             {
-                Display.FillCircle(x + rx, y + ry, r, Background);
+                Paint.FillCircle(x + rx, y + ry, r, Background);
             }
-            Display.DrawCircle(x + rx, y + ry, r, Border);
+            Paint.DrawCircle(x + rx, y + ry, r, Border);
         }
         else if (Kind == "line")
         {
-            Display.DrawLine(x, y, x + (X2 - X), y + (Y2 - Y), Foreground);
+            Paint.DrawLine(x, y, x + (X2 - X), y + (Y2 - Y), Foreground);
         }
         else if (Kind == "polygon")
         {
@@ -866,29 +866,29 @@ public class UiElement
             for (int i = 0; i < count; i++)
             {
                 int j = (i + 1) % count;
-                Display.DrawLine(x + Points[i * 2], y + Points[i * 2 + 1],
+                Paint.DrawLine(x + Points[i * 2], y + Points[i * 2 + 1],
                     x + Points[j * 2], y + Points[j * 2 + 1], Foreground);
             }
         }
         else if (Kind == "image")
         {
-            Display.FillRect(x, y, w, h, Background);
-            Display.DrawRect(x, y, w, h, Border);
+            Paint.FillRect(x, y, w, h, Background);
+            Paint.DrawRect(x, y, w, h, Border);
         }
         else if (Kind == "rect")
         {
-            Display.FillRect(x, y, w, h, Background);
+            Paint.FillRect(x, y, w, h, Background);
         }
         else if (Kind == "scrollviewer")
         {
-            Display.FillRect(x, y, w, h, Background);
+            Paint.FillRect(x, y, w, h, Background);
             // Clip children to the viewport so scrolled content can't overdraw.
-            Display.SetClip(x, y, w, h);
+            Paint.SetClip(x, y, w, h);
             for (int i = 0; i < Children.Count; i++)
             {
                 Children[i].Render();
             }
-            Display.ClearClip();
+            Paint.ClearClip();
             // Scrollbar thumb on the right edge when content overflows.
             int viewInner = h - Padding * 2;
             if (ContentH > viewInner && ContentH > 0)
@@ -904,20 +904,20 @@ public class UiElement
                 {
                     thumbY = thumbY + ScrollOffset * (viewInner - thumbH) / range;
                 }
-                Display.FillRect(x + w - 3, y + Padding, 2, viewInner, UiColors.DarkGray);
-                Display.FillRect(x + w - 3, thumbY, 2, thumbH, UiColors.Accent);
+                Paint.FillRect(x + w - 3, y + Padding, 2, viewInner, UiColors.DarkGray);
+                Paint.FillRect(x + w - 3, thumbY, 2, thumbH, UiColors.Accent);
             }
         }
         else if (Kind == "groupbox")
         {
             int top = y + LineHeight(Scale) / 2;
-            Display.FillRect(x, y, w, h, Background);
-            Display.DrawRect(x, top, w, h - (top - y), Border);
+            Paint.FillRect(x, y, w, h, Background);
+            Paint.DrawRect(x, top, w, h - (top - y), Border);
             // The title interrupts the frame rather than sitting inside it,
             // so a group reads as one thing even when packed against another.
             int labelW = Text.Length * CharWidth(Scale) + 8;
-            Display.FillRect(x + 8, y, labelW, LineHeight(Scale), Background);
-            Display.DrawText(x + 12, y, Text, Foreground, Scale);
+            Paint.FillRect(x + 8, y, labelW, LineHeight(Scale), Background);
+            Paint.DrawText(x + 12, y, Text, Foreground, Scale);
             for (int i = 0; i < Children.Count; i++)
             {
                 Children[i].Render();
@@ -926,10 +926,10 @@ public class UiElement
         else if (Kind == "expander")
         {
             int headerH = LineHeight(Scale) + 8;
-            Display.FillRect(x, y, w, headerH, Background);
-            Display.DrawRect(x, y, w, headerH, Border);
-            Display.DrawText(x + 6, y + 4, Checked ? "-" : "+", UiColors.Accent, Scale);
-            Display.DrawText(x + 6 + CharWidth(Scale) + 4, y + 4, Text, Foreground, Scale);
+            Paint.FillRect(x, y, w, headerH, Background);
+            Paint.DrawRect(x, y, w, headerH, Border);
+            Paint.DrawText(x + 6, y + 4, Checked ? "-" : "+", UiColors.Accent, Scale);
+            Paint.DrawText(x + 6 + CharWidth(Scale) + 4, y + 4, Text, Foreground, Scale);
             if (Checked)
             {
                 for (int i = 0; i < Children.Count; i++)
@@ -941,18 +941,18 @@ public class UiElement
         else if (Kind == "tabcontrol")
         {
             int strip = LineHeight(Scale) + 8;
-            Display.FillRect(x, y, w, h, Background);
+            Paint.FillRect(x, y, w, h, Background);
             int tx = x;
             for (int i = 0; i < Children.Count; i++)
             {
                 string header = Children[i].Text;
                 int tw = header.Length * CharWidth(Scale) + 12;
                 bool active = i == (Selected < 0 ? 0 : Selected);
-                Display.FillRect(tx, y, tw, strip, active ? UiColors.Accent : UiColors.DarkGray);
-                Display.DrawText(tx + 6, y + 4, header, Foreground, Scale);
+                Paint.FillRect(tx, y, tw, strip, active ? UiColors.Accent : UiColors.DarkGray);
+                Paint.DrawText(tx + 6, y + 4, header, Foreground, Scale);
                 tx = tx + tw + 2;
             }
-            Display.DrawLine(x, y + strip, x + w - 1, y + strip, Border);
+            Paint.DrawLine(x, y + strip, x + w - 1, y + strip, Border);
             UiElement page = SelectedPage();
             if (page != null)
             {
@@ -980,14 +980,14 @@ public class UiElement
             int boxH = h / 3;
             int bx = x + (w - boxW) / 2;
             int by = y + (h - boxH) / 2;
-            Display.FillRect(bx + 3, by + 3, boxW, boxH, UiColors.Black);
-            Display.FillRect(bx, by, boxW, boxH, Background);
-            Display.DrawRect(bx, by, boxW, boxH, UiColors.Accent);
+            Paint.FillRect(bx + 3, by + 3, boxW, boxH, UiColors.Black);
+            Paint.FillRect(bx, by, boxW, boxH, Background);
+            Paint.DrawRect(bx, by, boxW, boxH, UiColors.Accent);
             List<string> lines = WrapText(Text, boxW - Padding * 2, Scale);
             int ly = by + Padding;
             for (int i = 0; i < lines.Count; i++)
             {
-                Display.DrawText(bx + Padding, ly, lines[i], Foreground, Scale);
+                Paint.DrawText(bx + Padding, ly, lines[i], Foreground, Scale);
                 ly = ly + LineHeight(Scale) + 2;
             }
             for (int i = 0; i < Children.Count; i++)
@@ -1000,11 +1000,11 @@ public class UiElement
             // Containers: border/panel paint a frame; then children.
             if (Background != UiColors.Black || Kind == "border" || Kind == "panel")
             {
-                Display.FillRect(x, y, w, h, Background);
+                Paint.FillRect(x, y, w, h, Background);
             }
             if (Kind == "border")
             {
-                Display.DrawRect(x, y, w, h, Border);
+                Paint.DrawRect(x, y, w, h, Border);
             }
             for (int i = 0; i < Children.Count; i++)
             {
@@ -1045,13 +1045,13 @@ public class UiElement
             int y0 = cy - (int)(Math.Sin(a0) * r);
             int x1 = cx + (int)(Math.Cos(a1) * r);
             int y1 = cy - (int)(Math.Sin(a1) * r);
-            Display.DrawLine(x0, y0, x1, y1, i < filled ? Foreground : UiColors.DarkGray);
+            Paint.DrawLine(x0, y0, x1, y1, i < filled ? Foreground : UiColors.DarkGray);
         }
         double na = start + sweep * (Value - Min) / span;
-        Display.DrawLine(cx, cy, cx + (int)(Math.Cos(na) * (r - 4)),
+        Paint.DrawLine(cx, cy, cx + (int)(Math.Cos(na) * (r - 4)),
             cy - (int)(Math.Sin(na) * (r - 4)), UiColors.Accent);
         string label = Value.ToString();
-        Display.DrawText(cx - label.Length * CharWidth(Scale) / 2, cy - 10, label,
+        Paint.DrawText(cx - label.Length * CharWidth(Scale) / 2, cy - 10, label,
             Foreground, Scale);
     }
 
@@ -1066,8 +1066,8 @@ public class UiElement
     /// </remarks>
     private void RenderChart(int x, int y, int w, int h)
     {
-        Display.FillRect(x, y, w, h, Background);
-        Display.DrawRect(x, y, w, h, Border);
+        Paint.FillRect(x, y, w, h, Background);
+        Paint.DrawRect(x, y, w, h, Border);
         if (Series.Count == 0)
         {
             return;
@@ -1098,7 +1098,7 @@ public class UiElement
             for (int i = 0; i < Series.Count; i++)
             {
                 int bh = plotH * (Series[i] - lo) / range;
-                Display.FillRect(plotX + i * barW, plotY + plotH - bh,
+                Paint.FillRect(plotX + i * barW, plotY + plotH - bh,
                     barW > 1 ? barW - 1 : 1, bh, Foreground);
             }
             return;
@@ -1109,7 +1109,7 @@ public class UiElement
         {
             int px = plotX + plotW * i / (Series.Count - 1 > 0 ? Series.Count - 1 : 1);
             int py = plotY + plotH - plotH * (Series[i] - lo) / range;
-            Display.DrawLine(prevX, prevY, px, py, Foreground);
+            Paint.DrawLine(prevX, prevY, px, py, Foreground);
             prevX = px;
             prevY = py;
         }
@@ -1126,8 +1126,8 @@ public class UiElement
     /// </remarks>
     private void RenderDataGrid(int x, int y, int w, int h)
     {
-        Display.FillRect(x, y, w, h, UiColors.Black);
-        Display.DrawRect(x, y, w, h, Border);
+        Paint.FillRect(x, y, w, h, UiColors.Black);
+        Paint.DrawRect(x, y, w, h, Border);
         int cols = Columns > 0 ? Columns : 1;
         int colW = (w - 2) / cols;
         int rowH = LineHeight(Scale) + 4;
@@ -1141,21 +1141,21 @@ public class UiElement
             bool header = r == 0;
             if (header)
             {
-                Display.FillRect(x + 1, ry, w - 2, rowH, UiColors.DarkGray);
+                Paint.FillRect(x + 1, ry, w - 2, rowH, UiColors.DarkGray);
             }
             else if (r == Selected)
             {
-                Display.FillRect(x + 1, ry, w - 2, rowH, UiColors.Accent);
+                Paint.FillRect(x + 1, ry, w - 2, rowH, UiColors.Accent);
             }
             string[] cells = Items[r].Split('|');
             for (int c = 0; c < cols && c < cells.Length; c++)
             {
-                Display.DrawText(x + 3 + c * colW, ry + 2, cells[c], Foreground, Scale);
+                Paint.DrawText(x + 3 + c * colW, ry + 2, cells[c], Foreground, Scale);
             }
         }
         for (int c = 1; c < cols; c++)
         {
-            Display.DrawLine(x + c * colW, y + 1, x + c * colW, y + h - 2, Border);
+            Paint.DrawLine(x + c * colW, y + 1, x + c * colW, y + h - 2, Border);
         }
     }
 
@@ -1169,14 +1169,14 @@ public class UiElement
     /// </remarks>
     private void RenderCalendar(int x, int y, int w, int h)
     {
-        Display.FillRect(x, y, w, h, Background);
-        Display.DrawRect(x, y, w, h, Border);
+        Paint.FillRect(x, y, w, h, Background);
+        Paint.DrawRect(x, y, w, h, Border);
         int cellW = w / 7;
         int rowH = LineHeight(Scale) + 4;
         string[] days = new string[] { "S", "M", "T", "W", "T", "F", "S" };
         for (int i = 0; i < 7; i++)
         {
-            Display.DrawText(x + i * cellW + cellW / 2 - CharWidth(Scale) / 2, y + 2,
+            Paint.DrawText(x + i * cellW + cellW / 2 - CharWidth(Scale) / 2, y + 2,
                 days[i], UiColors.Gray, Scale);
         }
         int first = FirstWeekday(Year, Month);
@@ -1194,10 +1194,10 @@ public class UiElement
             }
             if (d == Value)
             {
-                Display.FillRect(cx + 1, cy, cellW - 2, rowH, UiColors.Accent);
+                Paint.FillRect(cx + 1, cy, cellW - 2, rowH, UiColors.Accent);
             }
             string label = d.ToString();
-            Display.DrawText(cx + cellW / 2 - label.Length * CharWidth(Scale) / 2, cy + 2,
+            Paint.DrawText(cx + cellW / 2 - label.Length * CharWidth(Scale) / 2, cy + 2,
                 label, Foreground, Scale);
         }
     }
@@ -1242,10 +1242,10 @@ public class UiElement
             int marker = c.Children.Count > 0 ? 1 : 0;
             if (marker == 1)
             {
-                Display.DrawText(c.LayoutX, c.LayoutY + 2, c.Checked ? "-" : "+",
+                Paint.DrawText(c.LayoutX, c.LayoutY + 2, c.Checked ? "-" : "+",
                     UiColors.Accent, c.Scale);
             }
-            Display.DrawText(c.LayoutX + CharWidth(c.Scale) + 2, c.LayoutY + 2,
+            Paint.DrawText(c.LayoutX + CharWidth(c.Scale) + 2, c.LayoutY + 2,
                 c.Text, c.Foreground, c.Scale);
             if (c.Checked)
             {
@@ -1586,15 +1586,15 @@ public static class Ui
         int h = root.Height > 0 ? root.Height : _height;
         if (!_inited || w != _width || h != _height)
         {
-            Display.Init(w, h);
+            Paint.Init(w, h);
             _width = w;
             _height = h;
             _inited = true;
         }
         root.Arrange(0, 0, w, h);
-        Display.Clear(root.Background);
+        Paint.Clear(root.Background);
         root.Render();
-        Display.Present();
+        Paint.Present();
     }
 
     /// <summary>

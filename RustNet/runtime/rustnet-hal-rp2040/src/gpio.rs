@@ -35,15 +35,69 @@ const PAD_IE: u32 = 1 << 6;
 const PAD_PUE: u32 = 1 << 3;
 const PAD_PDE: u32 = 1 << 2;
 
-/// `IO_BANK0` function select. 5 is SIO — the core's own GPIO.
-const FUNC_SIO: u32 = 5;
+/// `IO_BANK0` function select values (datasheet 2.19.2, the F1..F9 columns).
+/// The function *number* is the same on every pin; which instance and which
+/// signal it carries depends on the pin — see [`crate::pins`].
+pub mod func {
+    pub const SPI: u32 = 1;
+    pub const UART: u32 = 2;
+    pub const I2C: u32 = 3;
+    pub const PWM: u32 = 4;
+    /// The core's own GPIO.
+    pub const SIO: u32 = 5;
+    pub const PIO0: u32 = 6;
+    pub const PIO1: u32 = 7;
+    /// Nothing drives the pin. What an analogue input wants.
+    pub const NULL: u32 = 0x1F;
+}
 
-fn pad_ctrl(pin: u32) -> usize {
+const FUNC_SIO: u32 = func::SIO;
+
+/// `PADS_BANK0.GPIOn`: one word per pin, after the `VOLTAGE_SELECT` word.
+pub(crate) fn pad_ctrl(pin: u32) -> usize {
     PADS_BANK0 + 0x04 + 4 * pin as usize
 }
 
-fn io_ctrl(pin: u32) -> usize {
+/// `IO_BANK0.GPIOn_CTRL`: the second word of each pin's STATUS/CTRL pair.
+pub(crate) fn io_ctrl(pin: u32) -> usize {
     IO_BANK0 + 0x04 + 8 * pin as usize
+}
+
+/// The pin's input level as SIO sees it — valid whichever peripheral the pin
+/// is routed to, because inputs fan out to every function at once.
+pub fn level(pin: u32) -> bool {
+    pin < PIN_COUNT && reg::read(SIO_GPIO_IN) & (1 << pin) != 0
+}
+
+/// Set the pad's pull resistors. Both may be off; asking for both is refused
+/// by turning both off, since the pad would otherwise sit at mid-rail as a
+/// resistive divider — a level every input reads differently.
+pub fn set_pulls(pin: u32, up: bool, down: bool) {
+    if pin >= PIN_COUNT {
+        return;
+    }
+    let pad = pad_ctrl(pin);
+    reg::clear_bits(pad, PAD_PUE | PAD_PDE);
+    match (up, down) {
+        (true, false) => reg::set_bits(pad, PAD_PUE),
+        (false, true) => reg::set_bits(pad, PAD_PDE),
+        _ => {}
+    }
+}
+
+/// Prepare a pin for the ADC: digital input off, output off, no pulls, no
+/// function. The SDK's `adc_gpio_init` does the same, and for the same reason:
+/// a digital input buffer on a pin sitting at mid-rail draws current and adds
+/// noise to the very voltage being measured, and a pull is a resistor in
+/// parallel with the source.
+pub fn set_analog(pin: u32) {
+    if pin >= PIN_COUNT {
+        return;
+    }
+    let pad = pad_ctrl(pin);
+    reg::clear_bits(pad, PAD_IE | PAD_PUE | PAD_PDE);
+    reg::set_bits(pad, PAD_OD);
+    reg::write(io_ctrl(pin), func::NULL);
 }
 
 /// Release the GPIO blocks. Called once before any pin is touched — writes to
@@ -149,5 +203,33 @@ impl GpioPin for Rp2040Pin {
 
     fn clear_interrupt(&mut self) -> HalResult<()> {
         Err(HalError::NotSupported)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Register addresses per pin. IO_BANK0 interleaves STATUS and CTRL, so a
+    /// stride of 4 instead of 8 lands on the *next pin's status* — writes
+    /// that vanish without a trace.
+    #[test]
+    fn per_pin_register_addresses() {
+        assert_eq!(io_ctrl(0), 0x4001_4004);
+        assert_eq!(io_ctrl(25), 0x4001_40CC);
+        assert_eq!(pad_ctrl(0), 0x4001_C004);
+        assert_eq!(pad_ctrl(26), 0x4001_C06C);
+    }
+
+    #[test]
+    fn function_numbers_match_the_datasheet() {
+        assert_eq!(func::SPI, 1);
+        assert_eq!(func::UART, 2);
+        assert_eq!(func::I2C, 3);
+        assert_eq!(func::PWM, 4);
+        assert_eq!(func::SIO, 5);
+        assert_eq!(func::PIO0, 6);
+        assert_eq!(func::PIO1, 7);
+        assert_eq!(func::NULL, 0x1F);
     }
 }

@@ -24,6 +24,10 @@
   </Folder>
   <Folder Name="/frontends/">
     <Project Path="frontends/RustNet.UI.AsciiConsole/RustNet.UI.AsciiConsole.csproj" />
+    <Project Path="frontends/RustNet.UI.Frontends/RustNet.UI.Frontends.csproj" />
+    <Project Path="frontends/RustNet.UI.Gtk/RustNet.UI.Gtk.csproj" />
+    <Project Path="frontends/RustNet.UI.Skia/RustNet.UI.Skia.csproj" />
+    <Project Path="frontends/RustNet.UI.WinForms/RustNet.UI.WinForms.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RustNet.Tests/RustNet.Tests.csproj" />
@@ -31,6 +35,9 @@
     <Project Path="tests/SysApp/SysApp.csproj" />
     <Project Path="tests/LangApp/LangApp.csproj" />
     <Project Path="tests/LibApp/LibApp.csproj" />
+    <Project Path="tests/UiParityApp/UiParityApp.csproj" />
+    <Project Path="tests/Frontends.Tests/Frontends.Tests.csproj" />
+    <Project Path="tests/Frontends.Windows.Tests/Frontends.Windows.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Drivers/">
     <Project Path="tests/Drivers/Environment.App/Environment.App.csproj" />
@@ -46,6 +53,7 @@
     <Project Path="tools/RustNet.Cli/RustNet.Cli.csproj" />
     <Project Path="tools/RustNet.Debugger/RustNet.Debugger.csproj" />
     <Project Path="tools/RustNet.Deploy/RustNet.Deploy.csproj" />
+    <Project Path="tools/RustNet.Deploy.Ble.Windows/RustNet.Deploy.Ble.Windows.csproj" />
     <Project Path="tools/RustNet.MetadataProcessor/RustNet.MetadataProcessor.csproj" />
     <Project Path="tools/RustNet.Workbench/RustNet.Workbench.csproj" />
     <Project Path="tools/RustNet.Designer.Core/RustNet.Designer.Core.csproj" />

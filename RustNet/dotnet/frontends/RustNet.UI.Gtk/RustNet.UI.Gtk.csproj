@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RustNet.UI on GTK 3 (GtkSharp): the device-exact frame painted with
+       Cairo into a DrawingArea. Needs the GTK 3 runtime (standard on Linux;
+       on Windows GtkSharp fetches it on first run). Runs as a viewer:
+       RustNet.UI.Gtk layout.xml (zoom option: zoom 3). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>RustNet.UI GTK frontend: show and drive a RustNet.UI layout in a GTK 3 window, pixel-identical to the device.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>RustNet.UI.Gtk</PackageId>
+    <Authors>Dotnet Vibe Coderz</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.UI.Frontends\RustNet.UI.Frontends.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="GtkSharp" Version="3.24.24.95" />
+  </ItemGroup>
+</Project>

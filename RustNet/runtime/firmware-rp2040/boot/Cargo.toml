@@ -1,0 +1,33 @@
+[package]
+name = "rustnet-boot-rp2040"
+description = "RustNet's RP2040 slot picker: runs after the second stage, reads the OTA boot-state log and jumps into firmware slot A or B"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone workspace, like the firmware it boots.
+[workspace]
+
+[dependencies]
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+rp2040-boot2 = "0.3"
+# For the boot ROM's flash routines and the interrupt table cortex-m-rt wants.
+rp2040-hal = { version = "0.10", features = ["rt", "critical-section-impl"] }
+rustnet-hal = { path = "../../rustnet-hal", default-features = false }
+rustnet-hal-rp2040 = { path = "../../rustnet-hal-rp2040" }
+
+[features]
+# Bring-up only: jump into slot A without reading the state or checking the
+# vector table, to tell a picker fault from a firmware fault on a new board.
+force-slot-a = []
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug = true
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+opt-level = "z"

@@ -1,4 +1,5 @@
 using RustNet.Cli;
+using RustNet.Deploy;
 
 return Cli.Run(args);
 
@@ -13,13 +14,23 @@ namespace RustNet.Cli
                 PrintHelp();
                 return args.Length == 0 ? 2 : 0;
             }
+            // Bluetooth LE comes from a platform plugin (Windows only, for now);
+            // without one, a ble: spec explains why it is unavailable.
+            BlePlatform.TryRegister();
             try
             {
                 return Dispatch(args);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"error: {ex.Message}");
+                // A task's AggregateException says only "One or more errors
+                // occurred"; the reason is in the inner exception.
+                Exception shown = ex is AggregateException agg ? agg.Flatten().InnerExceptions[0] : ex;
+                Console.Error.WriteLine($"error: {shown.Message}");
+                if (Environment.GetEnvironmentVariable("RUSTNET_DEBUG") is { Length: > 0 })
+                {
+                    Console.Error.WriteLine(ex);
+                }
                 return 1;
             }
         }
@@ -54,6 +65,7 @@ namespace RustNet.Cli
                 "firmware" => FirmwareCommands.Dispatch(rest),
                 "native" => NativeCommands.Dispatch(rest),
                 "ui" => UiCommands.Dispatch(rest),
+                "ble" => BleCommands.Dispatch(rest),
                 var other => Unknown(other),
             };
         }
@@ -105,12 +117,13 @@ namespace RustNet.Cli
             Console.WriteLine("""
                 RustNet CLI — .NET on microcontrollers, powered by a Rust runtime
 
-                Device (all take --device tcp:host:port | serial:COM3[:baud]):
+                Device (all take --device tcp:host:port | serial:COM3[:baud] | ble:<address|name>):
                   info                          device identity & status
                   logs [--follow] [-n 100]      device log buffer
                   profile [--watch]             CPU/heap/GC/instruction counters
-                  reboot                        restart the device
+                  reboot [--bootloader]         restart the device (or into its ROM bootloader)
                   display capture -o out.ppm    screenshot the (virtual) display
+                  ble scan [--timeout 5]        list advertising RustNet BLE devices (Windows)
 
                 Security:
                   keys generate --out <dir>     create RSA-2048 signing keypair
@@ -140,7 +153,9 @@ namespace RustNet.Cli
                   debug bp <method#> <ilOffset> | debug stack
                   pkg init|pack|publish|list|search|install ...
                   ui preview <layout.xml> [--interactive] [--ascii]   show a layout as text
-                  native build <crate> | seal <lib> --key k | push <lib> --name m --key k   (NPC)
+                  native build <crate> [--target thumbv6m-none-eabi|thumbv7em-none-eabihf]   (NPC module;
+                         a cdylib for the host, an RNPC module for a Cortex-M board)
+                  native seal <module> --key k | push <module> --name m --key k [--chip c]
                 """);
         }
     }

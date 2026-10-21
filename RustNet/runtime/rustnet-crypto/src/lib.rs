@@ -82,11 +82,34 @@ pub fn aes_ctr_apply(key: &[u8], nonce: &[u8; 16], data: &mut [u8]) -> Result<()
 /// Verify `signature` over `data` with a PKCS#1 DER public key
 /// (the byte format produced by .NET `RSA.ExportRSAPublicKey()`).
 pub fn rsa_verify(pub_key_der: &[u8], data: &[u8], signature: &[u8]) -> Result<(), CryptoError> {
+    rsa_verify_prehashed(pub_key_der, &sha256(data), signature)
+}
+
+/// [`rsa_verify`] for a message already hashed with SHA-256 — for images too
+/// large to hold in RAM, hashed as they stream past (see [`Sha256Stream`]).
+pub fn rsa_verify_prehashed(pub_key_der: &[u8], hashed: &[u8; 32], signature: &[u8]) -> Result<(), CryptoError> {
     let key = RsaPublicKey::from_pkcs1_der(pub_key_der)
         .map_err(|e| CryptoError::BadKeyFormat(e.to_string()))?;
-    let hashed = sha256(data);
-    key.verify(Pkcs1v15Sign::new::<Sha256>(), &hashed, signature)
+    key.verify(Pkcs1v15Sign::new::<Sha256>(), hashed, signature)
         .map_err(|_| CryptoError::SignatureInvalid)
+}
+
+/// Incremental SHA-256.
+#[derive(Clone, Default)]
+pub struct Sha256Stream(Sha256);
+
+impl Sha256Stream {
+    pub fn new() -> Self {
+        Self(Sha256::new())
+    }
+
+    pub fn update(&mut self, data: &[u8]) {
+        self.0.update(data);
+    }
+
+    pub fn finish(self) -> [u8; 32] {
+        self.0.finalize().into()
+    }
 }
 
 /// Sign with a PKCS#1 DER private key (used by tests and the host `sign`

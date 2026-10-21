@@ -43,8 +43,8 @@ do not exist) and copies their build output into `lib/net10.0`.
 2. Tag it and push the tag:
 
    ```bash
-   git tag rustnet-v0.2.0
-   git push origin rustnet-v0.2.0
+   git tag rustnet-v0.3.0
+   git push origin rustnet-v0.3.0
    ```
 
 3. `Publish RustNet to NuGet` runs: the full CI suite first, then pack and

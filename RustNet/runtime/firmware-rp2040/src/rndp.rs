@@ -32,7 +32,8 @@ use rustnet_core::Module;
 use rustnet_rndp::{
     Frame, CMD_ERASE_APP, CMD_FLASH_APP, CMD_FLASH_DATA, CMD_GET_LOGS, CMD_INFO, CMD_LIST_APPS,
     CMD_PING, CMD_PROVISION_KEY, CMD_READ_DATA, CMD_REBOOT, CMD_SET_AUTOSTART, CMD_START_APP,
-    CMD_STOP_APP, ST_ERR, ST_OK,
+    CMD_OTA_BEGIN, CMD_OTA_CONFIRM, CMD_OTA_DATA, CMD_OTA_END, CMD_OTA_ROLLBACK, CMD_STOP_APP, ST_ERR,
+    ST_OK,
 };
 use rustnet_secureboot::{verify, ChipFamily, ImageKind};
 
@@ -71,6 +72,8 @@ pub struct Rndp {
     /// An application accepted but not yet running: the main loop takes it,
     /// drops the current module and starts this one.
     pub pending_app: Option<Vec<u8>>,
+    /// A firmware update being streamed into the other slot (`ota.rs`).
+    ota: Option<crate::ota::Session>,
 }
 
 impl Rndp {
@@ -84,6 +87,7 @@ impl Rndp {
             app_size: 0,
             app_running: true,
             pending_app: None,
+            ota: None,
         }
     }
 
@@ -116,7 +120,10 @@ impl Rndp {
                 Ok(Some((frame, used))) => {
                     self.rx.drain(..used);
                     let response = match self.dispatch(&frame, host) {
-                        Ok(payload) => Frame::new(ST_OK, payload),
+                        Ok(payload) => {
+                            crate::crash::healthy();
+                            Frame::new(ST_OK, payload)
+                        }
                         Err(message) => Frame::new(ST_ERR, message.into_bytes()),
                     };
                     if let Some(usb) = host.usb.as_mut() {
@@ -133,6 +140,14 @@ impl Rndp {
                     break;
                 }
             }
+        }
+        // Give back what a large frame grew the buffer to. Draining keeps the
+        // capacity, so after `rustnet flash` the 25 KB the app arrived in
+        // stayed reserved out of a 128 KB heap while that app ran — and a
+        // tool polling `logs` during the run tipped it into an allocation
+        // failure.
+        if self.rx.is_empty() && self.rx.capacity() > 1024 {
+            self.rx = Vec::new();
         }
     }
 
@@ -187,8 +202,11 @@ impl Rndp {
 
             CMD_FLASH_DATA => {
                 // `u16` path length, the path, then the bytes — the shape
-                // docs/protocol.md gives. This port's filesystem is a flat
-                // namespace of named blobs, so the name arrives as given.
+                // docs/protocol.md gives. It goes through the same gate as an
+                // app's own writes: /.sys is refused (it holds the provisioning
+                // key, which a push must never be able to replace) and the
+                // files budget and RAM check apply, so a push cannot fill the
+                // storage that the next `rustnet flash` has to compact.
                 if frame.payload.len() < 2 {
                     return Err(String::from("empty payload"));
                 }
@@ -198,7 +216,7 @@ impl Rndp {
                 }
                 let path = String::from_utf8_lossy(&frame.payload[2..2 + path_len]).to_string();
                 let data = &frame.payload[2 + path_len..];
-                rustnet_flashfs::write(&mut host.flash, &path, data)?;
+                crate::storage::app_write(&mut host.flash, &path, data, false)?;
                 Ok(Vec::new())
             }
 
@@ -295,6 +313,34 @@ impl Rndp {
                 self.app_size = image.payload.len();
                 self.pending_app = Some(image.payload.to_vec());
                 Ok(Vec::new())
+            }
+
+            // ---- OTA A/B (ota.rs; the slot picker is boot/) ----------------
+            CMD_OTA_BEGIN => {
+                let key = self.pub_key.clone().ok_or_else(|| String::from("device not provisioned: flash a key first"))?;
+                self.ota = Some(crate::ota::Session::begin(key));
+                Ok(Vec::new())
+            }
+            CMD_OTA_DATA => {
+                let session = self.ota.as_mut().ok_or_else(|| String::from("no update in progress (OTA_BEGIN first)"))?;
+                if let Err(e) = session.write(&frame.payload) {
+                    // A rejected stream cannot be resumed; the tool starts over.
+                    self.ota = None;
+                    return Err(e);
+                }
+                Ok(Vec::new())
+            }
+            CMD_OTA_END => {
+                let session = self.ota.take().ok_or_else(|| String::from("no update in progress"))?;
+                let slot = session.end()?;
+                self.reboot_requested = true;
+                Ok(slot.name().as_bytes().to_vec())
+            }
+            CMD_OTA_CONFIRM => Ok(crate::ota::confirm()?.name().as_bytes().to_vec()),
+            CMD_OTA_ROLLBACK => {
+                let slot = crate::ota::rollback()?;
+                self.reboot_requested = true;
+                Ok(slot.name().as_bytes().to_vec())
             }
 
             CMD_REBOOT => {

@@ -11,11 +11,6 @@ edition = "2021"
 [dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7"
-# The 256-byte second-stage bootloader the RP2040's ROM loads from flash
-# offset 0. It configures the QSPI interface for execute-in-place and is
-# checked by a CRC the ROM verifies, so it is taken prebuilt rather than
-# hand-assembled — an incorrect CRC is a board that does nothing at all.
-rp2040-boot2 = "0.3"
 # The HAL trait surface needs `alloc` (GpioPin::on_edge takes a Box), so a
 # bare-metal RustNet port must supply a global allocator.
 embedded-alloc = "0.6"
@@ -38,6 +33,14 @@ rustnet-secureboot = { path = "../rustnet-secureboot", default-features = false 
 spin = { version = "0.9.9", default-features = false, features = ["portable_atomic"] }
 portable-atomic = { version = "1", default-features = false, features = ["critical-section"] }
 rustnet-core = { path = "../rustnet-core", default-features = false }
+rustnet-npc = { path = "../rustnet-npc" }
+
+[features]
+# Link for OTA slot B (0x10080000) instead of slot A (0x10004000); see build.rs.
+slot-b = []
+# Bring-up only: log the raw words the slot picker decides on (both slots'
+# vector tables, both state-sector headers) at boot.
+ota-diag = []
 
 [profile.release]
 opt-level = "z"

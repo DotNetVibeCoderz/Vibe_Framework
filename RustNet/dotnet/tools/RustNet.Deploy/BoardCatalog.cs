@@ -464,10 +464,18 @@ public static class BoardCatalog
                 // Next to the ELF rather than in the crate: it is a build
                 // artifact, and the target directory is already ignored.
                 string uf2 = Path.Combine(Path.GetDirectoryName(elf)!, "rustnet-pico.uf2");
+                // The firmware is linked for OTA slot A and the slot picker
+                // (boot/, its own workspace) sits in front of it at offset 0,
+                // so the UF2 carries both. `--blank` erases the OTA boot
+                // state, so the picker boots the slot A it was just given
+                // rather than whatever an earlier update left confirmed.
+                string boot = Path.Combine(ws, "boot");
+                steps.Add(new RunStep("cargo build (slot picker)", "cargo", "build --release", boot));
+                string bootElf = Path.Combine(boot, "target", "thumbv6m-none-eabi", "release", "rustnet-boot-rp2040");
                 steps.Add(new RunStep(
                     "pack UF2",
                     "python",
-                    $"tools/elf2uf2.py \"{elf}\" \"{uf2}\"",
+                    $"tools/elf2uf2.py \"{bootElf}\" \"{elf}\" --blank 0xFE000:0x2000 \"{uf2}\"",
                     ws));
                 if (deviceSpec is not null)
                 {

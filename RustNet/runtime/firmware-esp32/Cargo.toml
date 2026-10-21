@@ -18,7 +18,12 @@ esp-idf-svc = "0.51"
 rustnet-firmware = { path = "../firmware", default-features = false }
 rustnet-hal = { path = "../rustnet-hal", features = ["std"] }
 rustnet-fs = { path = "../rustnet-fs" }
+rustnet-secureboot = { path = "../rustnet-secureboot" }
+rustnet-npc = { path = "../rustnet-npc" }
 rustnet-diag = { path = "../rustnet-diag" }
+# NimBLE GATT server for RNDP over BLE (`--features ble`). Pinned to the last
+# release built against esp-idf-svc 0.51 — 0.12 moved to 0.52, 0.13 to 0.53.
+esp32-nimble = { version = "=0.11.1", optional = true }
 
 [features]
 default = ["chip-esp32"]
@@ -35,6 +40,14 @@ chip-esp32c3 = ["rustnet-firmware/chip-esp32c3"]
 board-m5 = []
 board-m5tough = ["board-m5"]
 board-m5core2 = ["board-m5"]
+# RNDP over Bluetooth LE: a Nordic-UART-style GATT server (src/ble.rs). Off
+# by default — NimBLE costs flash and, on the classic ESP32, DRAM the
+# controller reserves. It also needs Bluetooth switched on in the ESP-IDF
+# config, which a cargo feature cannot do (see sdkconfig.defaults.ble and
+# docs/ble.md; build.rs stops a `ble` build that lacks it):
+#   $env:ESP_IDF_SDKCONFIG_DEFAULTS = "$PWD\sdkconfig.defaults;$PWD\sdkconfig.defaults.ble"
+#   cargo build --release --features ble
+ble = ["dep:esp32-nimble"]
 
 [build-dependencies]
 embuild = "0.33"

@@ -92,6 +92,14 @@ internal static class DeviceCommands
     public static int Reboot(string[] args)
     {
         using var client = Client(args);
+        // --bootloader: into the chip's ROM bootloader instead (the Pico's
+        // BOOTSEL drive), for boards whose firmware supports it.
+        if (Cli.Flag(args, "--bootloader"))
+        {
+            client.RebootToBootloader();
+            Console.WriteLine("device rebooting into its bootloader");
+            return 0;
+        }
         client.Reboot();
         Console.WriteLine("device rebooted");
         return 0;

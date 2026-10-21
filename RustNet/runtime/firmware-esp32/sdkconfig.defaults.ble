@@ -1,0 +1,60 @@
+# Bluetooth LE for `--features ble` (RNDP over a NimBLE GATT server).
+#
+# Layered on top of sdkconfig.defaults, and only for BLE builds. From this
+# directory:
+#
+#   PowerShell:  $env:ESP_IDF_SDKCONFIG_DEFAULTS = "$PWD\sdkconfig.defaults;$PWD\sdkconfig.defaults.ble"
+#   bash:        export ESP_IDF_SDKCONFIG_DEFAULTS="$PWD/sdkconfig.defaults;$PWD/sdkconfig.defaults.ble"
+#   then:        cargo build --release --features ble[,board-m5core2]
+#
+# The paths must be ABSOLUTE: .cargo/config.toml's own value is made absolute
+# by cargo (`relative = true`), but a shell value is not, and esp-idf-sys
+# resolves relative names somewhere else and then silently uses no defaults at
+# all (a 3.5 KB main stack, no PSRAM, no partition table). build.rs refuses a
+# `ble` build whose sdkconfig lacks NimBLE, so that mistake cannot ship.
+#
+# Why not a cargo feature: esp-idf-sys builds ESP-IDF from the sdkconfig files
+# named in that variable (or package metadata), and a build script only ever
+# sees its *own* crate's features — ours never reach it. Its automatic
+# `sdkconfig.defaults.<profile>` lookup does not help either: cargo reports
+# every release-derived custom profile to build scripts as plain "release".
+# The variable set in the shell wins over the one in .cargo/config.toml.
+#
+# Enabling this for every build instead would cost the non-BLE image the
+# controller's DRAM reservation on the classic ESP32 (CONFIG_BTDM_RESERVE_DRAM,
+# 0xdb5c = 56 KB carved out of internal RAM at link time), which the WiFi +
+# RSA-verify heap cannot spare.
+#
+# Switching between BLE and non-BLE builds in the same target dir reconfigures
+# and rebuilds ESP-IDF each time; a second target dir avoids it:
+#   $env:CARGO_TARGET_DIR = "C:/rnesp-ble"
+
+CONFIG_BT_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=n
+CONFIG_BT_NIMBLE_ENABLED=y
+
+# BLE-only controller: the classic-BT half of its memory is handed back to the
+# heap at init (esp32-nimble calls esp_bt_controller_mem_release for it).
+CONFIG_BTDM_CTRL_MODE_BLE_ONLY=y
+CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY=n
+CONFIG_BTDM_CTRL_MODE_BTDM=n
+
+# One host at a time, like the serial port. Fewer connections = smaller pools.
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BTDM_CTRL_BLE_MAX_CONN=1
+# Peripheral only: the device is connected to and never scans or connects
+# out, so the central and observer halves of NimBLE are dead weight. Small
+# (4.5 KB), but the BLE image has ~14 KB to spare in the 2 MB factory slot.
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+# No pairing/bonding is used, so nothing needs to persist in NVS.
+CONFIG_BT_NIMBLE_NVS_PERSIST=n
+# Ask for big ATT MTUs: fewer, fuller notifications per RNDP response.
+CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=517
+
+# Let NimBLE's host pools follow the normal malloc policy, so on PSRAM boards
+# (M5Stack Core2/Tough) the large ones land in SPI RAM instead of internal DRAM.
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_DEFAULT=y
+
+# UART0 carries RNDP frames: nothing from the BT stacks may print there.
+CONFIG_BT_NIMBLE_LOG_LEVEL_NONE=y

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shared core of the desktop frontends for RustNet.UI: a framebuffer that
+       paints exactly what the device's rustnet-gfx paints, and the session
+       logic (render, scale, route clicks to Ui.Tap) every toolkit reuses. -->
+  <PropertyGroup>
+    <Description>RustNet.UI desktop frontend core: a pixel-exact software framebuffer of the device display and a toolkit-neutral UI session.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>RustNet.UI.Frontends</PackageId>
+    <Authors>Dotnet Vibe Coderz</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+  </ItemGroup>
+</Project>

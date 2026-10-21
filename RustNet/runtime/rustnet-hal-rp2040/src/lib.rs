@@ -23,16 +23,27 @@
 //! register another core or an interrupt also touches loses whichever update
 //! landed in between, and the RP2040 has two cores.
 //!
-//! Nothing here has run on hardware yet — see the port's README.
+//! Clocks, GPIO, UART, the timer and flash have run on a Pico. PWM, ADC, I2C,
+//! SPI and the PIO-based signal engine are written against the datasheet and
+//! their arithmetic is host-tested; they await their first on-chip pass — see
+//! the port's README for the checklist.
 
 #![no_std]
 
 extern crate alloc;
 
+pub mod adc;
+pub mod ota;
 pub mod clocks;
 pub mod gpio;
+pub mod i2c;
+pub mod pins;
+pub mod pio;
+pub mod pwm;
 pub mod reg;
 pub mod resets;
+pub mod signal;
+pub mod spi;
 pub mod timer;
 pub mod uart;
 
@@ -55,5 +66,33 @@ pub mod base {
     pub const TIMER: usize = 0x4005_4000;
     pub const UART0: usize = 0x4003_4000;
     pub const UART1: usize = 0x4003_8000;
+    pub const SPI0: usize = 0x4003_C000;
+    pub const SPI1: usize = 0x4004_0000;
+    pub const I2C0: usize = 0x4004_4000;
+    pub const I2C1: usize = 0x4004_8000;
+    pub const ADC: usize = 0x4004_C000;
+    pub const PWM: usize = 0x4005_0000;
     pub const WATCHDOG: usize = 0x4005_8000;
+    pub const PIO0: usize = 0x5020_0000;
+    pub const PIO1: usize = 0x5030_0000;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::base;
+
+    /// The memory map (datasheet 2.2). Every driver is a base plus an offset,
+    /// so a wrong base is a driver writing into some other peripheral.
+    #[test]
+    fn peripheral_bases_match_the_memory_map() {
+        assert_eq!(base::UART0, 0x4003_4000);
+        assert_eq!(base::SPI0, 0x4003_C000);
+        assert_eq!(base::SPI1, 0x4004_0000);
+        assert_eq!(base::I2C0, 0x4004_4000);
+        assert_eq!(base::I2C1, 0x4004_8000);
+        assert_eq!(base::ADC, 0x4004_C000);
+        assert_eq!(base::PWM, 0x4005_0000);
+        assert_eq!(base::PIO0, 0x5020_0000);
+        assert_eq!(base::PIO1, 0x5030_0000);
+    }
 }

@@ -9,4 +9,45 @@
     <ProjectReference Include="..\RustNet.MetadataProcessor\RustNet.MetadataProcessor.csproj" />
     <ProjectReference Include="..\..\frontends\RustNet.UI.AsciiConsole\RustNet.UI.AsciiConsole.csproj" />
   </ItemGroup>
+
+  <!-- BLE on Windows. The WinRT GATT backend needs a windows10.0.x TFM, which a
+       net10.0 tool cannot reference, and the CLI must stay net10.0 so it (and
+       RustNet.Tests, which references it) builds on Linux CI. So on Windows
+       only: build the backend as a plugin, copy it and its WinRT projection
+       next to rustnet.exe, and let BlePlatform.TryRegister bind it by
+       reflection at startup. Elsewhere none of this exists, and a ble: spec
+       fails with a message saying BLE is Windows-only for now.
+       PrivateAssets keeps the reference from flowing to projects that
+       reference the CLI; ReferenceOutputAssembly=false + an explicit
+       TargetFramework is what lets a net10.0 project build a net10.0-windows
+       one at all. -->
+  <PropertyGroup>
+    <_BleBackendProject>..\RustNet.Deploy.Ble.Windows\RustNet.Deploy.Ble.Windows.csproj</_BleBackendProject>
+    <_BleBackendTfm>net10.0-windows10.0.19041.0</_BleBackendTfm>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <ProjectReference Include="$(_BleBackendProject)"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      SetTargetFramework="TargetFramework=$(_BleBackendTfm)"
+                      PrivateAssets="all" />
+  </ItemGroup>
+  <Target Name="_ResolveBleBackendFiles" Condition="'$(OS)' == 'Windows_NT'">
+    <MSBuild Projects="$(_BleBackendProject)" Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=$(_BleBackendTfm)">
+      <Output TaskParameter="TargetOutputs" ItemName="_BleBackendTarget" />
+    </MSBuild>
+    <PropertyGroup>
+      <_BleBackendDir>@(_BleBackendTarget->'%(RootDir)%(Directory)')</_BleBackendDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_BleBackendFile Include="$(_BleBackendDir)RustNet.Deploy.Ble.Windows.dll;$(_BleBackendDir)Microsoft.Windows.SDK.NET.dll;$(_BleBackendDir)WinRT.Runtime.dll" />
+    </ItemGroup>
+  </Target>
+  <Target Name="CopyBleBackend" AfterTargets="Build" DependsOnTargets="_ResolveBleBackendFiles" Condition="'$(OS)' == 'Windows_NT'">
+    <Copy SourceFiles="@(_BleBackendFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="PublishBleBackend" AfterTargets="Publish" DependsOnTargets="_ResolveBleBackendFiles" Condition="'$(OS)' == 'Windows_NT'">
+    <Copy SourceFiles="@(_BleBackendFile)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

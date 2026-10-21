@@ -514,6 +514,7 @@ dependencies = [
  "rustnet-flashfs",
  "rustnet-hal",
  "rustnet-hal-stm32",
+ "rustnet-npc",
  "rustnet-rndp",
  "rustnet-secureboot",
  "spin",
@@ -539,6 +540,10 @@ version = "0.1.0"
 dependencies = [
  "rustnet-hal",
 ]
+
+[[package]]
+name = "rustnet-npc"
+version = "0.1.0"
 
 [[package]]
 name = "rustnet-rndp"

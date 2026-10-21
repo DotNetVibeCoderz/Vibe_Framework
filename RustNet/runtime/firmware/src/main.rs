@@ -14,7 +14,6 @@ use rustnet_firmware::proto::Frame;
 use rustnet_firmware::service::DeviceService;
 use rustnet_firmware::dirfs::DirFs;
 use rustnet_fs::{MemFs, Vfs};
-use rustnet_hal_host::HostBoard;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;

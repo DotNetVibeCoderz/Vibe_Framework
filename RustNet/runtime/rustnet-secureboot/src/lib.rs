@@ -210,11 +210,163 @@ pub fn verify<'a>(
     }
 }
 
+/// Verify a container that arrives in pieces and is too large to hold in RAM
+/// (a firmware image streamed into an OTA partition). Each [`feed`] returns
+/// the payload bytes in that piece, for the caller to write where they belong;
+/// [`finish`] checks the signature over everything seen. It accepts exactly
+/// what [`verify`] accepts — same header checks, same signed bytes.
+///
+/// Nothing a stream feeds should be *used* before `finish` succeeds: a
+/// payload written to flash is only made bootable afterwards.
+///
+/// [`feed`]: StreamVerifier::feed
+/// [`finish`]: StreamVerifier::finish
+pub struct StreamVerifier {
+    device_chip: ChipFamily,
+    header: Vec<u8>,
+    hasher: rustnet_crypto::Sha256Stream,
+    kind: Option<ImageKind>,
+    chip: u8,
+    payload_len: usize,
+    payload_seen: usize,
+    sig_len: usize,
+    signature: Vec<u8>,
+}
+
+impl StreamVerifier {
+    pub fn new(device_chip: ChipFamily) -> Self {
+        Self {
+            device_chip,
+            header: Vec::with_capacity(HEADER_LEN),
+            hasher: rustnet_crypto::Sha256Stream::new(),
+            kind: None,
+            chip: 0,
+            payload_len: 0,
+            payload_seen: 0,
+            sig_len: 0,
+            signature: Vec::new(),
+        }
+    }
+
+    /// Kind of the image, once its header has arrived.
+    pub fn kind(&self) -> Option<ImageKind> {
+        self.kind
+    }
+
+    /// Payload length announced by the header, once it has arrived.
+    pub fn payload_len(&self) -> Option<usize> {
+        self.kind.map(|_| self.payload_len)
+    }
+
+    /// Consume the next piece; returns the part of it that is payload.
+    pub fn feed<'a>(&mut self, mut chunk: &'a [u8]) -> Result<&'a [u8], BootError> {
+        if self.kind.is_none() {
+            let need = HEADER_LEN - self.header.len();
+            let take = need.min(chunk.len());
+            self.header.extend_from_slice(&chunk[..take]);
+            chunk = &chunk[take..];
+            if self.header.len() < HEADER_LEN {
+                return Ok(&[]);
+            }
+            self.parse_header()?;
+        }
+        let payload_left = self.payload_len - self.payload_seen;
+        let n = payload_left.min(chunk.len());
+        let payload = &chunk[..n];
+        self.hasher.update(payload);
+        self.payload_seen += n;
+        let rest = &chunk[n..];
+        if self.signature.len() + rest.len() > self.sig_len {
+            return Err(BootError::NotAnImage); // bytes beyond the signature
+        }
+        self.signature.extend_from_slice(rest);
+        Ok(payload)
+    }
+
+    fn parse_header(&mut self) -> Result<(), BootError> {
+        let h = &self.header;
+        if &h[0..4] != MAGIC {
+            return Err(BootError::NotAnImage);
+        }
+        let version = u16::from_le_bytes([h[4], h[5]]);
+        if version != VERSION {
+            return Err(BootError::UnsupportedVersion(version));
+        }
+        let kind = ImageKind::from_u8(h[6]).ok_or(BootError::NotAnImage)?;
+        let chip = h[7];
+        if chip != ChipFamily::Any as u8 && chip != self.device_chip as u8 {
+            return Err(BootError::WrongChip { image: chip, device: self.device_chip });
+        }
+        self.payload_len = u32::from_le_bytes([h[8], h[9], h[10], h[11]]) as usize;
+        self.sig_len = u32::from_le_bytes([h[12], h[13], h[14], h[15]]) as usize;
+        if self.sig_len > 4096 {
+            return Err(BootError::NotAnImage);
+        }
+        // The signed view has sig_len zeroed.
+        let mut signed = [0u8; HEADER_LEN];
+        signed.copy_from_slice(&h[..HEADER_LEN]);
+        signed[12..16].copy_from_slice(&0u32.to_le_bytes());
+        self.hasher.update(&signed);
+        self.kind = Some(kind);
+        self.chip = chip;
+        Ok(())
+    }
+
+    /// Check the signature once every byte has been fed.
+    pub fn finish(self, pub_key_der: &[u8]) -> Result<(ImageKind, u8), BootError> {
+        let kind = self.kind.ok_or(BootError::Truncated)?;
+        if self.payload_seen < self.payload_len || self.signature.len() < self.sig_len {
+            return Err(BootError::Truncated);
+        }
+        let hashed = self.hasher.finish();
+        match rustnet_crypto::rsa_verify_prehashed(pub_key_der, &hashed, &self.signature) {
+            Ok(()) => Ok((kind, self.chip)),
+            Err(CryptoError::SignatureInvalid) => Err(BootError::BadSignature),
+            Err(e) => Err(BootError::BadKey(e.to_string())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey};
     use rsa::RsaPrivateKey;
+
+    fn stream(image: &[u8], pub_der: &[u8], chip: ChipFamily, piece: usize) -> Result<(Vec<u8>, ImageKind), BootError> {
+        let mut v = StreamVerifier::new(chip);
+        let mut payload = Vec::new();
+        for c in image.chunks(piece) {
+            payload.extend_from_slice(v.feed(c)?);
+        }
+        let (kind, _) = v.finish(pub_der)?;
+        Ok((payload, kind))
+    }
+
+    #[test]
+    fn streaming_verify_agrees_with_verify() {
+        let (priv_der, pub_der) = keypair();
+        let payload: Vec<u8> = (0..5000u32).map(|i| (i * 7 + 3) as u8).collect();
+        let image = seal(ImageKind::Firmware, ChipFamily::Esp32, &payload, &priv_der).unwrap();
+        // Piece sizes that straddle the header, the payload/signature boundary
+        // and single bytes.
+        for piece in [1, 7, 16, 17, 1000, 4096, image.len()] {
+            let (got, kind) = stream(&image, &pub_der, ChipFamily::Esp32, piece).unwrap();
+            assert_eq!(got, payload, "piece {piece}");
+            assert_eq!(kind, ImageKind::Firmware);
+        }
+        // Tampered payload, wrong chip, truncation, trailing bytes, foreign key.
+        let mut bad = image.clone();
+        bad[HEADER_LEN + 100] ^= 1;
+        assert_eq!(stream(&bad, &pub_der, ChipFamily::Esp32, 512).unwrap_err(), BootError::BadSignature);
+        assert!(matches!(stream(&image, &pub_der, ChipFamily::Stm32, 512), Err(BootError::WrongChip { .. })));
+        assert_eq!(stream(&image[..image.len() - 1], &pub_der, ChipFamily::Esp32, 512).unwrap_err(), BootError::Truncated);
+        let mut longer = image.clone();
+        longer.push(0);
+        assert!(stream(&longer, &pub_der, ChipFamily::Esp32, 512).is_err());
+        let (_, other_pub) = keypair();
+        assert_eq!(stream(&image, &other_pub, ChipFamily::Esp32, 512).unwrap_err(), BootError::BadSignature);
+    }
 
     fn keypair() -> (Vec<u8>, Vec<u8>) {
         let key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).unwrap();

@@ -72,3 +72,10 @@ SSID/RSSI from `esp_wifi_sta_get_ap_info` and the address from the
 `WIFI_STA_DEF` netif, while `bring_up`/`bring_down` stay `NotSupported` on
 purpose — the boot path owns the radio, and RNDP may be riding on it.
 `templates/mqtt-dashboard` shows both values live on the panel.
+
+## RNDP over Bluetooth LE
+
+The device protocol itself (not app networking) can also ride on BLE: an
+ESP32 built with `--features ble` serves RNDP from a GATT server, and the
+tools reach it with `--device ble:<address|name>` (`rustnet ble scan` lists
+devices). Build switches, image sizes and the host backend: [`ble.md`](ble.md).

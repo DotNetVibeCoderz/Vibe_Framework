@@ -352,7 +352,7 @@ impl ExtMemory for Qspi {
 
 /// Names the firmware keeps for itself.
 ///
-/// Under `/.sys/` so a `data push` cannot collide with them by accident, and
+/// Under `/.sys/`, which `data push` refuses (see `rndp.rs`), and
 /// so an application's own files stay visibly separate from the things that
 /// make the device work.
 pub mod sys {

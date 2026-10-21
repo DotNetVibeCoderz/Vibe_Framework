@@ -21,7 +21,22 @@ and a block whose address is not page-aligned is not where the bootloader
 puts it. The symptom is a board that accepts the UF2 and comes straight back
 as BOOTSEL with nothing to say about why. This port shipped that bug once.
 
-    python elf2uf2.py firmware.elf firmware.uf2
+Since OTA A/B, a bootable Pico needs two programs: the slot picker at
+offset 0 (`boot/`, carrying the second stage) and the firmware linked for
+slot A. `--blank` adds erased pages, which is how a USB reflash resets the OTA
+boot state so the picker boots the slot A it was just given.
+
+**The pieces go out as one contiguous run**, the gaps between them filled
+with erased bytes. A UF2 whose blocks skipped from the picker straight to
+slot A was accepted by a real Pico's boot ROM, which then rebooted — and slot
+A did not hold what the file carried: the picker found no valid vector table,
+and forcing a jump into the slot never brought the firmware up. The same two
+programs with the gaps filled boot first time. (The emulator, which writes
+blocks where they say, ran the gapped image happily; only the board showed
+it.) The cost is a larger file — the run reaches the end of the last piece.
+
+
+    python elf2uf2.py boot.elf firmware.elf --blank 0xFE000:0x2000 rustnet-pico.uf2
 """
 import struct
 import sys
@@ -82,18 +97,33 @@ def flatten(segments):
     return base, bytes(image)
 
 
-def to_uf2(base, image):
+def pad_to_pages(base, image):
+    """Pages are the unit the bootloader writes, so pieces must be whole pages."""
+    if base % PAYLOAD:
+        raise SystemExit(f"a piece starts at {base:#010x}, which is not page-aligned")
+    if len(image) % PAYLOAD:
+        image = image + ERASED * (PAYLOAD - len(image) % PAYLOAD)
+    return base, image
+
+
+def to_uf2(pieces):
     # Padded to a whole number of pages, and every block declares a full 256
     # bytes. The RP2040's bootloader writes flash a page at a time and every
     # known-good producer (picotool, elf2uf2-rs) does the same; a short final
     # block is accepted into the drive and then quietly not booted, which is
     # indistinguishable from a bad image.
-    if len(image) % PAYLOAD:
-        image = image + ERASED * (PAYLOAD - len(image) % PAYLOAD)
-    blocks = [
-        (base + off, image[off:off + PAYLOAD])
-        for off in range(0, len(image), PAYLOAD)
-    ]
+    pieces = sorted(pad_to_pages(b, i) for b, i in pieces)
+    for (a, ai), (b, _) in zip(pieces, pieces[1:]):
+        if b < a + len(ai):
+            raise SystemExit(f"pieces overlap at {b:#010x}")
+    # One run from the first piece to the end of the last, gaps erased (see
+    # the module docs for why a gapped UF2 is not safe on this ROM).
+    start = pieces[0][0]
+    end = max(b + len(i) for b, i in pieces)
+    run = bytearray(ERASED * (end - start))
+    for base, image in pieces:
+        run[base - start:base - start + len(image)] = image
+    blocks = [(start + off, bytes(run[off:off + PAYLOAD])) for off in range(0, len(run), PAYLOAD)]
     out = bytearray()
     for index, (addr, chunk) in enumerate(blocks):
         out += struct.pack(
@@ -114,24 +144,35 @@ def to_uf2(base, image):
 
 
 def main():
-    if len(sys.argv) != 3:
+    args = sys.argv[1:]
+    blanks = []
+    while "--blank" in args:
+        i = args.index("--blank")
+        offset, length = (int(v, 0) for v in args[i + 1].split(":"))
+        blanks.append((FLASH_START + offset, ERASED * length))
+        del args[i:i + 2]
+    if len(args) < 2:
         raise SystemExit(__doc__)
-    segments = load_segments(sys.argv[1])
-    if not segments:
-        raise SystemExit("no loadable flash segments — is this a linked image?")
+    *elves, target = args
 
-    base, image = flatten(segments)
-    if base != FLASH_START:
+    pieces = []
+    for elf in elves:
+        segments = load_segments(elf)
+        if not segments:
+            raise SystemExit(f"{elf}: no loadable flash segments — is this a linked image?")
+        pieces.append(flatten(segments))
+    if min(base for base, _ in pieces) != FLASH_START:
         raise SystemExit(
-            f"image starts at {base:#010x}, not {FLASH_START:#010x}: the "
-            "second stage must sit at flash offset 0 or the ROM will not run it"
+            f"nothing starts at {FLASH_START:#010x}: the second stage must sit at "
+            "flash offset 0 or the ROM will not run it — pass the slot picker "
+            "(boot/) as well as the firmware"
         )
 
-    uf2 = to_uf2(base, image)
-    with open(sys.argv[2], "wb") as handle:
+    uf2 = to_uf2(pieces + blanks)
+    with open(target, "wb") as handle:
         handle.write(uf2)
-    print(f"{len(image)} bytes from {base:#010x} in {len(uf2) // BLOCK} blocks "
-          f"-> {sys.argv[2]}")
+    print(f"{len(elves)} image(s), {len(blanks)} erased range(s) in "
+          f"{len(uf2) // BLOCK} blocks -> {target}")
 
 
 if __name__ == "__main__":

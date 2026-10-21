@@ -14,6 +14,7 @@ struct DevHost {
     /// added rather than waited out.
     started: Option<std::time::Instant>,
     slept: u64,
+    clock_reads: u64,
     /// App-defined `[InternalCall]` hooks — a firmware answers these, so they
     /// are answered benignly here and reported at exit rather than aborting
     /// the run.
@@ -29,6 +30,7 @@ impl RuntimeHost for DevHost {
         self.console.push_str(text);
     }
     fn now_ms(&mut self) -> u64 {
+        self.clock_reads += 1;
         let started = *self.started.get_or_insert_with(std::time::Instant::now);
         started.elapsed().as_millis() as u64 + self.slept
     }
@@ -97,6 +99,10 @@ fn main() {
     let t0 = std::time::Instant::now();
     let exit = interp.run_to_completion();
     let secs = t0.elapsed().as_secs_f64();
+    eprintln!(
+        "[gc: {} minor (largest {} objects), {} major (largest {} objects)]",
+        interp.heap.minor_collections, interp.heap.max_minor_work, interp.heap.major_collections, interp.heap.max_major_work
+    );
     for name in &interp.host.unknown {
         eprintln!("[note] answered benignly (a firmware must implement it): {name}");
     }

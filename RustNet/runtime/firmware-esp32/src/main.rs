@@ -6,9 +6,17 @@
 //! - a wear-levelled FAT partition mounted at /spiflash backing the
 //!   device filesystem, so provisioning and apps survive reboots
 //! - real chip reboot on CMD_REBOOT
+//! - with `--features ble`, RNDP over a Bluetooth LE GATT server too
+//!   (`src/ble.rs`; `rustnet ... --device ble:<address>`)
 
+#[cfg(feature = "ble")]
+mod ble;
 mod board;
 mod link;
+// RNPC modules are Xtensa code; the C3 (RISC-V) has no loader yet.
+#[cfg(target_arch = "xtensa")]
+mod npc_loader;
+mod ota;
 
 use esp_idf_svc::sys;
 use rustnet_firmware::apphost::SharedState;
@@ -58,7 +66,14 @@ fn main() {
     let free = unsafe { sys::esp_get_free_heap_size() };
     logger.info("boot", format!("free heap: {free} bytes"));
 
-    let service = Arc::new(Mutex::new(DeviceService::new(state)));
+    // NPC: signed native modules placed in IRAM (docs/npc.md).
+    #[cfg(target_arch = "xtensa")]
+    rustnet_firmware::npc::set_platform_loader(Box::new(npc_loader::EspNpcLoader));
+    let mut device = DeviceService::new(state);
+    // OTA A/B through ESP-IDF's partitions and bootloader rollback.
+    device.set_ota_backend(Box::new(ota::EspOta::new()));
+    logger.info("ota", ota::EspOta::boot_report());
+    let service = Arc::new(Mutex::new(device));
 
     // Resume the autostart app (if configured) after a power-up / reset.
     service.lock().unwrap().try_autostart();
@@ -99,6 +114,24 @@ fn main() {
             .name("wifi-bringup".into())
             .stack_size(20 * 1024)
             .spawn(move || start_networking(svc, log))
+            .ok();
+    }
+
+    // BLE on its own thread as well: NimBLE's bring-up blocks until the host
+    // stack has synced with the controller, and nothing that can block
+    // belongs in front of the serial lifeline.
+    #[cfg(feature = "ble")]
+    {
+        let svc = service.clone();
+        let log = logger.clone();
+        std::thread::Builder::new()
+            .name("ble-bringup".into())
+            .stack_size(12 * 1024)
+            .spawn(move || {
+                if let Err(e) = ble::start(svc, log.clone()) {
+                    log.warn("ble", format!("BLE unavailable: {e}"));
+                }
+            })
             .ok();
     }
 

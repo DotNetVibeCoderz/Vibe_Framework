@@ -7,10 +7,13 @@
 //! - [`apphost`] — runs a managed (.rnx) app on the interpreter and binds
 //!   `RustNet.*` internal calls to the HAL/services.
 //! - [`chip`] — chip variant selection (feature `chip-*`).
+//! - [`ble`] — RNDP over Bluetooth LE: packet reassembly + MTU chunking.
 
 pub mod apphost;
+pub mod ble;
 pub mod dirfs;
 pub mod npc;
+pub mod ota;
 pub mod chip;
 pub mod proto;
 pub mod service;

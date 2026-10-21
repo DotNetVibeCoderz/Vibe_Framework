@@ -151,9 +151,13 @@ public class BoardCatalogTests
 
         var unattended = BoardCatalog.FlashPlan(root, pico, port: null, deviceSpec: "serial:COM12");
         Assert.Collection(unattended,
-            s => Assert.IsType<RunStep>(s),
+            s => Assert.Equal("cargo", Assert.IsType<RunStep>(s).Exe),
+            s => Assert.Contains("--blank 0xFE000:0x2000", Assert.IsType<RunStep>(s).Args),
             s => Assert.IsType<EnterBootloaderStep>(s),
             s => Assert.IsType<CopyToVolumeStep>(s));
+        // The UF2 carries the slot picker as well as the firmware, or the ROM
+        // has nothing to run at offset 0.
+        Assert.Contains("rustnet-boot-rp2040", ((RunStep)unattended[1]).Args);
 
         // With no device to ask, the board is expected to be in BOOTSEL
         // already — the step is skipped rather than failing the plan.

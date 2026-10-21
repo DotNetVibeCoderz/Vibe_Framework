@@ -96,3 +96,38 @@ And the capture is a snapshot of the framebuffer taken whenever it arrives, so
 stopping an app to freeze a scene can catch it **half drawn**: the demo's
 second scene captured as its background gradient alone, before the wireframe
 went down.
+
+## Updating the firmware over the air (OTA A/B)
+
+The Core2 and the Tough carry 16 MB of flash, enough for two firmware slots.
+Flash once with the OTA partition table **and ESP-IDF's own bootloader** (the
+one espflash bundles knows nothing of rollback):
+
+```bash
+cd runtime/firmware-esp32
+cargo build --release --features board-m5core2
+espflash flash C:/rnesp/xtensa-esp32-espidf/release/rustnet-firmware-esp32 \
+    --bootloader C:/rnesp/xtensa-esp32-espidf/release/bootloader.bin \
+    --partition-table partitions-ota-16mb.csv --flash-size 16mb --port COM14
+```
+
+The table moves the `storage` partition, so provision again afterwards. From
+then on a new firmware goes in over RNDP — serial or WiFi — without touching
+the USB cable's DTR:
+
+```bash
+espflash save-image --chip esp32 C:/rnesp/xtensa-esp32-espidf/release/rustnet-firmware-esp32 fw.bin
+rustnet ota push fw.bin --key keys/rustnet-signing.key --chip esp32 --device serial:COM14
+# ... the board reboots into the new slot; check it, then:
+rustnet ota confirm --device serial:COM14
+```
+
+The container is verified as it streams — the signature over the whole image
+is checked before the slot is made bootable — and written straight into the
+idle `ota_x` partition, so a 2.8 MB image never sits in RAM. A new image boots
+*pending verification*: reset it before `ota confirm` and the bootloader goes
+back to the previous slot by itself. `rustnet ota rollback` switches back on
+request, and the slot it returns to comes up already confirmed (`rolled back;
+confirmed` in the log). A new push is refused while the running image is
+still pending: confirm or roll back first. The boot log (`rustnet logs`) says which slot is running and whether
+it is still unconfirmed.

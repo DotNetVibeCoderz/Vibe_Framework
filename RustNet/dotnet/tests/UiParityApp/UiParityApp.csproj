@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Renders parity.xml on the device. The E2E test renders the same file
+       with the desktop FramebufferCanvas and requires identical pixels. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="parity.xml" LogicalName="parity.xml" />
+    <None Include="parity.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RustNet.Core\RustNet.Core.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.UI\RustNet.UI.csproj" />
+    <ProjectReference Include="..\..\src\RustNet.Resources\RustNet.Resources.csproj" />
+  </ItemGroup>
+</Project>

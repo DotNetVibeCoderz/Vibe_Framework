@@ -18,6 +18,8 @@
     <ProjectReference Include="..\SysApp\SysApp.csproj" />
     <ProjectReference Include="..\LangApp\LangApp.csproj" />
     <ProjectReference Include="..\LibApp\LibApp.csproj" />
+    <ProjectReference Include="..\UiParityApp\UiParityApp.csproj" />
+    <ProjectReference Include="..\..\frontends\RustNet.UI.Frontends\RustNet.UI.Frontends.csproj" />
     <ProjectReference Include="..\Drivers\Environment.App\Environment.App.csproj" />
     <ProjectReference Include="..\Drivers\Motion.App\Motion.App.csproj" />
     <ProjectReference Include="..\Drivers\Displays.App\Displays.App.csproj" />
@@ -28,5 +30,8 @@
     <ProjectReference Include="..\..\src\RustNet.ML\RustNet.ML.csproj" />
     <ProjectReference Include="..\..\frontends\RustNet.UI.AsciiConsole\RustNet.UI.AsciiConsole.csproj" />
     <ProjectReference Include="..\..\src\RustNet.Sensors.Gnss\RustNet.Sensors.Gnss.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fixtures\*" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures" />
   </ItemGroup>
 </Project>

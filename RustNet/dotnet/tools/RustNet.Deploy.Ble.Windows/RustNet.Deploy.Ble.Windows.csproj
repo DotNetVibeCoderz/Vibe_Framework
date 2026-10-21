@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RNDP over Bluetooth LE on Windows: a WinRT GATT client implementing
+       RustNet.Deploy's IBlePacketLink. Windows-only (WinRT projections need a
+       windows10.0.x TFM), so it is kept out of RustNet.Deploy itself, which
+       stays plain net10.0. The CLI copies this assembly next to rustnet.exe
+       when built on Windows and binds it by reflection (BlePlatform). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <!-- A plugin: bound at run time by BlePlatform, so its output folder carries
+         its own dependencies (the WinRT projection: Microsoft.Windows.SDK.NET
+         + WinRT.Runtime), which the CLI copies next to rustnet.exe. -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Description>RustNet BLE backend for Windows: WinRT GATT client for RNDP over Bluetooth LE.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.Deploy\RustNet.Deploy.csproj" />
+  </ItemGroup>
+</Project>

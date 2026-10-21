@@ -121,6 +121,9 @@ jobs:
           for t in Environment Motion Displays Actuators; do
             dotnet test "dotnet/tests/Drivers/$t.Tests/$t.Tests.csproj" --nologo
           done
+          # Desktop UI frontends: the shared session and the Skia renderer
+          # (raster — no GPU on the runner). The WinForms tests are Windows-only.
+          dotnet test dotnet/tests/Frontends.Tests/Frontends.Tests.csproj --nologo
 
       # The two Avalonia GUIs are not in the test graph but are cross-platform,
       # so they are built explicitly — otherwise the only front-ends CI could

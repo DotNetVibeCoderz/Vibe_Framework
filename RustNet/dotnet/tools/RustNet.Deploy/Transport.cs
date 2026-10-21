@@ -124,8 +124,8 @@ public sealed class SerialTransport : IDeviceTransport
 }
 
 /// <summary>
-/// Parses "tcp:host:port", "tcp:port", or "serial:COM3[:baud]" device
-/// specifiers. Default is the local virtual device.
+/// Parses "tcp:host:port", "tcp:port", "serial:COM3[:baud]" or
+/// "ble:&lt;address|name&gt;" device specifiers. Default is the local virtual device.
 /// </summary>
 public static class TransportFactory
 {
@@ -139,6 +139,12 @@ public static class TransportFactory
     /// </summary>
     public static Func<string, IBlePacketLink>? BleLinkProvider { get; set; }
 
+    /// <summary>
+    /// Lists advertising RustNet devices for `rustnet ble scan`; registered
+    /// alongside <see cref="BleLinkProvider"/> by the platform backend.
+    /// </summary>
+    public static Func<TimeSpan, IReadOnlyList<BleAdvertisement>>? BleScanProvider { get; set; }
+
     public static IDeviceTransport Open(string? spec)
     {
         spec = string.IsNullOrWhiteSpace(spec) ? DefaultSpec : spec;
@@ -151,7 +157,7 @@ public static class TransportFactory
                 parts[1], parts.Length > 2 ? int.Parse(parts[2]) : 115200),
             "ble" when parts.Length >= 2 => OpenBle(spec[(spec.IndexOf(':') + 1)..]),
             _ => throw new ArgumentException(
-                $"bad device spec '{spec}' (use tcp:host:port, serial:COM3[:baud] or ble:<address>)"),
+                $"bad device spec '{spec}' (use tcp:host:port, serial:COM3[:baud] or ble:<address|name>)"),
         };
     }
 
@@ -159,8 +165,7 @@ public static class TransportFactory
     {
         if (BleLinkProvider is null)
         {
-            throw new NotSupportedException(
-                "BLE transport needs a platform BLE backend — set TransportFactory.BleLinkProvider");
+            throw new NotSupportedException(BlePlatform.UnavailableReason());
         }
         return new BleTransport(BleLinkProvider(address));
     }

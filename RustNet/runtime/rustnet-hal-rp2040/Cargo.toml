@@ -2,7 +2,7 @@
 name = "rustnet-hal-rp2040"
 version = "0.1.0"
 edition = "2021"
-description = "Register-level RP2040 HAL for RustNet: resets, clocks, GPIO, UART, timer"
+description = "Register-level RP2040 HAL for RustNet: resets, clocks, GPIO, UART, timer, PWM, ADC, I2C, SPI, PIO signal control"
 
 [dependencies]
 rustnet-hal = { path = "../rustnet-hal", default-features = false }

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RustNet.UI on Windows Forms: a control that shows the device-exact
+       framebuffer and routes mouse and keyboard to the UI tree. Also runs as
+       a viewer: RustNet.UI.WinForms.exe layout.xml (zoom option: zoom 3). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Description>RustNet.UI WinForms frontend: show and drive a RustNet.UI layout in a Windows Forms app, pixel-identical to the device.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>RustNet.UI.WinForms</PackageId>
+    <Authors>Dotnet Vibe Coderz</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustNet.UI.Frontends\RustNet.UI.Frontends.csproj" />
+  </ItemGroup>
+</Project>

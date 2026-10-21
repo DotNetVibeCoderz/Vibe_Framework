@@ -63,6 +63,7 @@ use rustnet_hal_stm32::{Clocks, Stm32F4Board};
 mod chipid;
 mod dfu;
 mod espat;
+mod npc;
 mod qspi;
 mod rndp;
 mod uart;
@@ -458,6 +459,8 @@ pub struct FirmwareHost {
     /// speaks RNDP at it, protocol thereafter. That is the right default too,
     /// because the console matters most before any tool can connect.
     pub uart_is_protocol: bool,
+    /// Native modules loaded by the running app (NPC).
+    npc: npc::NpcTable,
 }
 
 /// How many console lines to keep. Sized for a boot banner plus a few hundred
@@ -750,6 +753,29 @@ impl RuntimeHost for FirmwareHost {
                     "this board's user LED pin is not known yet; see board::USER_LED",
                 )),
             },
+            // ---- NPC: native procedures loaded at run time (docs/npc.md) ----
+            "RustNet.Native.Npc::IsSupported()" => Ok(HostValue::Bool(true)),
+            "RustNet.Native.Npc::Load(string,string)" => {
+                let module = str_arg(args, 0)?;
+                let symbol = str_arg(args, 1)?;
+                if module.is_empty() || module.contains('/') || module.contains("..") {
+                    return Err(format!("invalid native module name '{module}'"));
+                }
+                let key = self.rndp.pub_key.clone().ok_or_else(|| String::from("device not provisioned"))?;
+                let flash = self.flash.as_mut().ok_or_else(|| String::from("no storage"))?;
+                let container = rustnet_flashfs::read(flash, &format!("native/{module}.rnsb"))
+                    .map_err(|_| format!("native module '{module}' not found (rustnet native push)"))?;
+                Ok(HostValue::I32(self.npc.load(&module, &container, &key, &symbol)?))
+            }
+            "RustNet.Native.Npc::Invoke(i4,u1[],i4)" => {
+                let handle = int_arg(args, 0)? as i32;
+                let bytes = match args.get(1) {
+                    Some(HostValue::Bytes(b)) => b.as_slice(),
+                    _ => &[][..],
+                };
+                let cap = int_arg(args, 2)?.max(0) as usize;
+                Ok(HostValue::Bytes(self.npc.invoke(handle, bytes, cap)?))
+            }
             other => Err(format!("unknown internal call: {other}")),
         }
     }
@@ -833,6 +859,7 @@ fn main() -> ! {
         partial: String::new(),
         last_beat_ms: 0,
         uart_is_protocol: false,
+        npc: npc::NpcTable::default(),
     };
 
     // The serial console, before anything that might go wrong. It is the one

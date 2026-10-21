@@ -39,6 +39,15 @@ internal static class NativeCommands
             Console.Error.WriteLine($"error: no Cargo.toml in {dir}");
             return 1;
         }
+        string? mcuTarget = Cli.Opt(args, "--target");
+        if (mcuTarget is not null && mcuTarget.StartsWith("thumb", StringComparison.Ordinal))
+        {
+            return BuildMcu(manifest, mcuTarget);
+        }
+        if (mcuTarget is not null && mcuTarget.StartsWith("xtensa-esp32", StringComparison.Ordinal))
+        {
+            return BuildXtensa(manifest, mcuTarget);
+        }
         var cargoArgs = new List<string> { "build", "--lib", "--message-format=json-render-diagnostics", "--manifest-path", manifest };
         if (Cli.Flag(args, "--release"))
         {
@@ -83,6 +92,203 @@ internal static class NativeCommands
         }
         Console.WriteLine(module);
         return 0;
+    }
+
+    /// <summary>
+    /// A module for a microcontroller: build the crate as a <c>no_std</c>
+    /// staticlib for <paramref name="target"/>, link it at address 0 with its
+    /// relocations kept, and convert it to RNPC (see <see cref="NpcModule"/>).
+    /// Prints the .rnpc path.
+    /// </summary>
+    private static int BuildMcu(string manifest, string target)
+    {
+        var arch = target.StartsWith("thumbv6m", StringComparison.Ordinal) ? NpcModule.Arch.ThumbV6M
+            : target.StartsWith("thumbv7", StringComparison.Ordinal) ? NpcModule.Arch.ThumbV7EM
+            : throw new ArgumentException($"no RNPC loader for {target}; supported: thumbv6m-none-eabi, thumbv7em-none-eabi[hf]");
+        var psi = new ProcessStartInfo("cargo") { RedirectStandardOutput = true, UseShellExecute = false };
+        foreach (string a in new[] { "build", "--lib", "--release", "--target", target, "--message-format=json-render-diagnostics", "--manifest-path", manifest })
+        {
+            psi.ArgumentList.Add(a);
+        }
+        string? archive = null;
+        string? crateName = null;
+        using (var proc = Process.Start(psi) ?? throw new InvalidOperationException("could not start cargo"))
+        {
+            string? line;
+            while ((line = proc.StandardOutput.ReadLine()) is not null)
+            {
+                if (!line.StartsWith('{'))
+                {
+                    continue;
+                }
+                using var doc = JsonDocument.Parse(line);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("reason", out var reason) && reason.GetString() == "compiler-artifact"
+                    && root.GetProperty("target").GetProperty("crate_types").EnumerateArray().Any(t => t.GetString() == "staticlib"))
+                {
+                    archive = root.GetProperty("filenames").EnumerateArray().Select(f => f.GetString()!).FirstOrDefault(f => f.EndsWith(".a", StringComparison.Ordinal));
+                    crateName = root.GetProperty("target").GetProperty("name").GetString()!.Replace('-', '_');
+                }
+            }
+            proc.WaitForExit();
+            if (proc.ExitCode != 0)
+            {
+                Console.Error.WriteLine("error: cargo build failed");
+                return proc.ExitCode;
+            }
+        }
+        if (archive is null || crateName is null)
+        {
+            Console.Error.WriteLine("error: the crate produced no staticlib — set `crate-type = [\"staticlib\"]` under [lib] and `#![no_std]`");
+            return 1;
+        }
+
+        string tools = RustTools();
+        // The module's own exported functions: global text symbols defined in
+        // the crate's object files (not core's or compiler_builtins').
+        var exports = Run(Path.Combine(tools, "llvm-nm"), "--defined-only", "-g", "-A", archive)
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Contains($"{crateName}-", StringComparison.Ordinal) && l.Contains(" T ", StringComparison.Ordinal))
+            .Select(l => l[(l.LastIndexOf(' ') + 1)..])
+            .Where(n => !n.StartsWith('_') && n != "rust_begin_unwind")
+            .Distinct()
+            .ToList();
+        if (exports.Count == 0)
+        {
+            Console.Error.WriteLine("error: the module exports no procedures — mark them #[no_mangle] pub extern \"C\"");
+            return 1;
+        }
+
+        string dir = Path.GetDirectoryName(archive)!;
+        string script = Path.Combine(dir, "rnpc.ld");
+        File.WriteAllText(script, NpcModule.LinkerScript);
+        string elf = Path.Combine(dir, crateName + ".npc.elf");
+        var link = new List<string> { "-flavor", "gnu", "--emit-relocs", "--gc-sections", "--no-undefined", "-e", "0", "-T", script, "-o", elf };
+        foreach (string e in exports)
+        {
+            link.Add("-u");
+            link.Add(e);
+        }
+        link.Add(archive);
+        Run(Path.Combine(tools, "rust-lld"), link.ToArray());
+
+        var converted = NpcModule.FromElf(File.ReadAllBytes(elf), arch, exports);
+        string output = Path.Combine(dir, crateName + ".rnpc");
+        File.WriteAllBytes(output, converted.Rnpc);
+        Console.Error.WriteLine(
+            $"{converted.ImageLength} bytes of code+data, {converted.BssLength} of bss, {converted.Relocations.Count} relocations; " +
+            $"exports {string.Join(", ", converted.Exports.Select(e => e.Name))}");
+        Console.WriteLine(output);
+        return 0;
+    }
+
+    /// <summary>
+    /// An ESP32 module: the Espressif Rust toolchain (`+esp`) builds the
+    /// staticlib with `-Zbuild-std=core` (no prebuilt Xtensa core exists), its
+    /// GNU linker places code at 0 and data at 0x1000_0000 keeping relocations,
+    /// and the result becomes RNPC version 2 (separate code and data segments).
+    /// </summary>
+    private static int BuildXtensa(string manifest, string target)
+    {
+        var psi = new ProcessStartInfo("cargo") { RedirectStandardOutput = true, UseShellExecute = false };
+        foreach (string a in new[] { "+esp", "build", "--lib", "--release", "--target", target, "-Zbuild-std=core", "--message-format=json-render-diagnostics", "--manifest-path", manifest })
+        {
+            psi.ArgumentList.Add(a);
+        }
+        string? archive = null;
+        string? crateName = null;
+        using (var proc = Process.Start(psi) ?? throw new InvalidOperationException("could not start cargo"))
+        {
+            string? line;
+            while ((line = proc.StandardOutput.ReadLine()) is not null)
+            {
+                if (!line.StartsWith('{'))
+                {
+                    continue;
+                }
+                using var doc = JsonDocument.Parse(line);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("reason", out var reason) && reason.GetString() == "compiler-artifact"
+                    && root.GetProperty("target").GetProperty("crate_types").EnumerateArray().Any(t => t.GetString() == "staticlib"))
+                {
+                    archive = root.GetProperty("filenames").EnumerateArray().Select(f => f.GetString()!).FirstOrDefault(f => f.EndsWith(".a", StringComparison.Ordinal));
+                    crateName = root.GetProperty("target").GetProperty("name").GetString()!.Replace('-', '_');
+                }
+            }
+            proc.WaitForExit();
+            if (proc.ExitCode != 0)
+            {
+                Console.Error.WriteLine("error: cargo +esp build failed (install the Espressif toolchain with espup)");
+                return proc.ExitCode;
+            }
+        }
+        if (archive is null || crateName is null)
+        {
+            Console.Error.WriteLine("error: the crate produced no staticlib");
+            return 1;
+        }
+        string bin = Path.Combine(Run("rustc", "+esp", "--print", "sysroot").Trim(), "xtensa-esp-elf", "bin");
+        string Tool(string name) => Path.Combine(bin, OperatingSystem.IsWindows() ? name + ".exe" : name);
+        var exports = Run(Tool("xtensa-esp32-elf-nm"), "--defined-only", "-g", "-A", archive)
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Contains($"{crateName}-", StringComparison.Ordinal) && l.Contains(" T ", StringComparison.Ordinal))
+            .Select(l => l[(l.LastIndexOf(' ') + 1)..])
+            .Where(n => !n.StartsWith('_') && n != "rust_begin_unwind")
+            .Distinct()
+            .ToList();
+        if (exports.Count == 0)
+        {
+            Console.Error.WriteLine("error: the module exports no procedures — mark them #[no_mangle] pub extern \"C\"");
+            return 1;
+        }
+        string dir = Path.GetDirectoryName(archive)!;
+        string script = Path.Combine(dir, "rnpc-xtensa.ld");
+        File.WriteAllText(script, NpcModule.XtensaLinkerScript);
+        string elf = Path.Combine(dir, crateName + ".npc.elf");
+        var link = new List<string> { "--emit-relocs", "--gc-sections", "--no-undefined", "-e", "0", "-T", script, "-o", elf };
+        foreach (string e in exports)
+        {
+            link.Add("-u");
+            link.Add(e);
+        }
+        link.Add(archive);
+        Run(Tool("xtensa-esp32-elf-ld"), link.ToArray());
+        var converted = NpcModule.FromXtensaElf(File.ReadAllBytes(elf), exports);
+        string output = Path.Combine(dir, crateName + ".rnpc");
+        File.WriteAllBytes(output, converted.Rnpc);
+        Console.Error.WriteLine(
+            $"{converted.ImageLength} bytes of code+data, {converted.BssLength} of bss, {converted.Relocations.Count} relocations; " +
+            $"exports {string.Join(", ", converted.Exports.Select(e => e.Name))}");
+        Console.WriteLine(output);
+        return 0;
+    }
+
+    /// <summary>The LLVM tools that ship with the active Rust toolchain (rust-lld, llvm-nm).</summary>
+    private static string RustTools()
+    {
+        string sysroot = Run("rustc", "--print", "sysroot").Trim();
+        string host = Run("rustc", "-vV").Split('\n').First(l => l.StartsWith("host:", StringComparison.Ordinal))[5..].Trim();
+        return Path.Combine(sysroot, "lib", "rustlib", host, "bin");
+    }
+
+    private static string Run(string exe, params string[] args)
+    {
+        var psi = new ProcessStartInfo(exe) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (string a in args)
+        {
+            psi.ArgumentList.Add(a);
+        }
+        using var p = Process.Start(psi) ?? throw new InvalidOperationException($"could not start {exe}");
+        string stdout = p.StandardOutput.ReadToEnd();
+        string stderr = p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        if (p.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"{Path.GetFileName(exe)} failed: {stderr.Trim()}");
+        }
+        return stdout;
     }
 
     /// <summary>The cdylib path from one cargo JSON message, if it names one.</summary>

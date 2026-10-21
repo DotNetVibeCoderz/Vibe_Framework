@@ -4,7 +4,7 @@ use crate::apphost::{AppRunner, DebugState, SharedState};
 use crate::chip;
 use crate::proto::*;
 use rustnet_diag::Level;
-use rustnet_ota::{MemSlots, OtaManager, Slot, SlotStorage};
+use crate::ota::{OtaBackend, SimOta};
 use rustnet_secureboot::{verify, ImageKind};
 use std::sync::{Arc, Mutex};
 
@@ -18,7 +18,7 @@ pub struct DeviceService {
     runner: Option<AppRunner>,
     active_app: Option<String>,
     debug: Arc<Mutex<DebugState>>,
-    ota: Option<OtaManager<MemSlots>>,
+    ota: Box<dyn OtaBackend>,
     config_key: [u8; 32],
 }
 
@@ -32,7 +32,7 @@ impl DeviceService {
             runner: None,
             active_app: None,
             debug: Arc::new(Mutex::new(DebugState::default())),
-            ota: None,
+            ota: Box::new(SimOta::new(chip::chip_family())),
             config_key,
         };
         let _ = svc.state.fs.lock().unwrap().mkdir("/apps");
@@ -53,12 +53,9 @@ impl DeviceService {
         self.state.fs.lock().unwrap().read("/device.pub").ok()
     }
 
-    fn ota_manager(&mut self) -> &mut OtaManager<MemSlots> {
-        if self.ota.is_none() {
-            let key = self.pub_key().unwrap_or_default();
-            self.ota = Some(OtaManager::new(MemSlots::new(), key, chip::chip_family()));
-        }
-        self.ota.as_mut().unwrap()
+    /// Use a chip's own OTA implementation instead of the RAM-backed simulation.
+    pub fn set_ota_backend(&mut self, backend: Box<dyn OtaBackend>) {
+        self.ota = backend;
     }
 
     pub fn handle(&mut self, frame: &Frame) -> Frame {
@@ -364,32 +361,41 @@ impl DeviceService {
                 Ok(json.into_bytes())
             }
             CMD_OTA_BEGIN => {
-                self.ota_manager().begin();
+                let key = self.pub_key().ok_or("device not provisioned: flash a key first")?;
+                self.ota.begin(&key)?;
                 self.state.logger.info("ota", "update started");
                 Ok(Vec::new())
             }
             CMD_OTA_DATA => {
-                self.ota_manager().write_chunk(p).map_err(|e| format!("{e:?}"))?;
+                self.ota.write(p)?;
                 Ok(Vec::new())
             }
             CMD_OTA_END => {
-                self.ota_manager().finish().map_err(|e| format!("ota verify failed: {e:?}"))?;
-                let slot = self.ota_manager().on_boot();
-                self.state
-                    .logger
-                    .info("ota", format!("update verified; rebooted into slot {slot:?}"));
-                Ok(format!("{slot:?}").into_bytes())
+                let armed = self.ota.end()?;
+                let slot = armed.slot;
+                if armed.reboot {
+                    self.stop_app();
+                    self.reboot_requested = true;
+                    self.state.logger.info("ota", format!("update verified; rebooting into {slot}"));
+                } else {
+                    self.state.logger.info("ota", format!("update verified; rebooted into slot {slot}"));
+                }
+                Ok(slot.into_bytes())
             }
             CMD_OTA_CONFIRM => {
-                self.ota_manager().confirm_boot();
-                let active = self.ota_manager().storage.state().active;
-                self.state.logger.info("ota", format!("slot {active:?} confirmed"));
-                Ok(format!("{active:?}").into_bytes())
+                let active = self.ota.confirm()?;
+                self.state.logger.info("ota", format!("slot {active} confirmed"));
+                Ok(active.into_bytes())
             }
             CMD_OTA_ROLLBACK => {
-                let slot: Slot = self.ota_manager().rollback().map_err(|e| format!("{e:?}"))?;
-                self.state.logger.warn("ota", format!("rolled back to slot {slot:?}"));
-                Ok(format!("{slot:?}").into_bytes())
+                let armed = self.ota.rollback()?;
+                let slot = armed.slot;
+                if armed.reboot {
+                    self.stop_app();
+                    self.reboot_requested = true;
+                }
+                self.state.logger.warn("ota", format!("rolled back to slot {slot}"));
+                Ok(slot.into_bytes())
             }
             CMD_DEBUG_SET_BP => {
                 if p.len() != 8 {
