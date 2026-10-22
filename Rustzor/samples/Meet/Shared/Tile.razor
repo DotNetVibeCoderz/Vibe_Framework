@@ -1,0 +1,76 @@
+@using Rustzor.Browser.Media
+@using Rustzor.Browser.WebRTC
+@* One person in the call, framed like a studio feed: a lower-third strap with
+   their name and bureau, and a red tally lamp while they are talking. The
+   <video> stays in the page even with the camera off, because it also plays
+   their sound. *@
+<figure class="tile @(Speaking ? "on-air" : "") @(ShowVideo ? "" : "no-video") @(IsScreen ? "screen" : "") @(Mine ? "mine" : "")" data-peer="@Id">
+    <video @ref="video" class="feed @(Mine && !IsScreen ? "mirror" : "")" autoplay playsinline data-remote="@(Mine ? "false" : "true")"></video>
+    @if (!ShowVideo)
+    {
+        <div class="slate">
+            <i class="bars" aria-hidden="true"></i>
+            <span class="slate-initials" style="--bureau:@bureau.Color">@Newsroom.Initials(Name)</span>
+            <span class="slate-label">@(HasCamera ? "Camera off" : "No camera")</span>
+        </div>
+    }
+    <span class="tally" aria-hidden="@(Speaking ? "false" : "true")">On air</span>
+    <div class="badges">
+        @if (IsScreen) { <span class="badge screen-badge"><Glyph Name="screen" Size="14" /> Screen</span> }
+        @if (Recording) { <span class="badge rec-badge"><i></i>Rec</span> }
+        @if (HandOrder > 0) { <span class="badge hand-badge" title="Hand raised"><Glyph Name="hand" Size="14" /> @HandOrder</span> }
+    </div>
+    <figcaption class="strap">
+        <span class="strap-tab" style="--bureau:@bureau.Color">@bureau.City</span>
+        <span class="strap-name">@Name@(Mine ? " (you)" : "")</span>
+        @if (!Mic)
+        {
+            <span class="strap-muted" title="Muted" aria-label="Muted"><Glyph Name="mic-off" Size="15" /></span>
+        }
+        else
+        {
+            <span class="strap-level" aria-hidden="true">@for (var i = 1; i <= 4; i++) { <i class="@(Level >= i * 2 ? "lit" : "")"></i> }</span>
+        }
+    </figcaption>
+    <div class="floats" aria-live="polite">
+        @foreach (var r in Reactions)
+        {
+            <span class="float" @key="r.Id">@r.Emoji</span>
+        }
+    </div>
+</figure>
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public string Bureau { get; set; } = "";
+    [Parameter] public bool Mine { get; set; }
+    [Parameter] public MediaStream? LocalStream { get; set; }
+    [Parameter] public RemoteStream? RemoteStream { get; set; }
+    [Parameter] public bool Mic { get; set; } = true;
+    [Parameter] public bool Cam { get; set; } = true;
+    [Parameter] public bool HasCamera { get; set; } = true;
+    [Parameter] public bool IsScreen { get; set; }
+    [Parameter] public bool Speaking { get; set; }
+    [Parameter] public int Level { get; set; }
+    [Parameter] public int HandOrder { get; set; }
+    [Parameter] public bool Recording { get; set; }
+    [Parameter] public IReadOnlyList<Reaction> Reactions { get; set; } = Array.Empty<Reaction>();
+
+    private ElementReference video;
+    private int attached;
+    private Bureau bureau = Newsroom.Bureaus[0];
+
+    private bool ShowVideo => IsScreen || (Cam && HasCamera);
+
+    protected override void OnParametersSet() => bureau = Newsroom.BureauOf(Bureau);
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var handle = Mine ? LocalStream?.Handle ?? 0 : RemoteStream?.Handle ?? 0;
+        if (handle == attached || handle == 0) return;
+        attached = handle;
+        if (Mine) LocalStream!.AttachTo(video, muted: true);
+        else RemoteStream!.AttachTo(video);
+    }
+}

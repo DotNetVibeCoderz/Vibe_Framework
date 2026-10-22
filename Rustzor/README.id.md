@@ -63,6 +63,7 @@ Tambahkan `App.razor` (sebuah `Router`), `_Imports.razor`, dan `wwwroot/index.ht
 | ![CRM](docs/images/sample-crm.png) **Nusantara CRM.** Papan pipeline dengan drag and drop, perusahaan, kontak, aktivitas, dan laporan SQL di atas SQLite di dalam browser. | ![POS](docs/images/sample-pos.png) **Kedai Senja POS.** Mesin kasir kafe: pilihan minuman, kode promo, pajak PB1, tunai, QRIS dan kartu, struk, laporan shift, di atas IndexedDB. |
 | ![Chat](docs/images/sample-chat.png) **Serambi chat.** Channel, thread, reaksi, dan indikator mengetik antar-tab browser tanpa server, ditambah rekan tim simulasi. | ![API Playground](docs/images/sample-api-grpc.png) **API Playground.** REST, WebSocket, SignalR, dan gRPC-Web ke server ASP.NET Core, dengan setiap frame yang lewat di jaringan ditampilkan. |
 | ![ERP](docs/images/sample-erp.png) **Jati Lestari ERP.** Workshop mebel Jepara: pembelian, penjualan dengan PPN 11%, produksi dari bill of materials, tiga gudang, dan pembukuan berpasangan yang menerima jurnal dari setiap transaksi. | ![Dashboard](docs/images/sample-dashboard-grid.png) **Arus grid dashboard.** Simulasi jaringan listrik Jawa–Bali secara langsung: beban, frekuensi, pembangkitan per sumber, dan diagram satu garis jaringan 500 kV. |
+| ![Video call](docs/images/sample-meet.png) **Ruang Redaksi video call.** Panggilan WebRTC antar-tab browser tanpa server: berbagi layar, tally pembicara aktif, chat, angkat tangan, dan rekaman yang digabung di browser. | |
 
 Semua sample app, beserta screenshot lainnya: [docs/id/samples.md](docs/id/samples.md).
 

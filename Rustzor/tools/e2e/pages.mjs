@@ -3,13 +3,13 @@
 // usage: node pages.mjs <base-url> <out-dir> <route> [route ...]
 //   routes are relative ("", "deals", "companies/1"); a screenshot is saved as
 //   <out-dir>/<route with / as ->.png ("home.png" for "").
-import { chromium } from "playwright-core";
+import { launch } from "./chrome.mjs";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const [base, outDir, ...routes] = process.argv.slice(2);
 mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 let current = "";
 const problems = [];

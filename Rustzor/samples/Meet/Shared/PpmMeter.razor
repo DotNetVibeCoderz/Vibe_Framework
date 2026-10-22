@@ -1,0 +1,41 @@
+@implements IDisposable
+@* A peak programme meter like the one on a studio desk: 24 segments, green up
+   to -9, amber to -3, red above. It reads the microphone ten times a second. *@
+<div class="ppm" role="meter" aria-label="Microphone level" aria-valuemin="0" aria-valuemax="24" aria-valuenow="@lit">
+    <div class="ppm-bar">
+        @for (var i = 0; i < Segments; i++)
+        {
+            <i class="@(i < lit ? "lit" : "") @(i >= 21 ? "red" : i >= 17 ? "amber" : "")"></i>
+        }
+        <span class="ppm-peak" style="left:calc(@(peak * 100.0 / Segments)% - 1px)" hidden="@(peak == 0)"></span>
+    </div>
+    <div class="ppm-scale" aria-hidden="true">
+        <span>-30</span><span>-20</span><span>-12</span><span>-9</span><span>-6</span><span>-3</span><span>0</span>
+    </div>
+</div>
+
+@code {
+    private const int Segments = 24;
+    private IDisposable? timer;
+    private int lit;
+    private int peak;
+    private double peakAt;
+
+    protected override void OnInitialized() => timer = Scheduler.SetInterval(Read, 100);
+
+    private void Read()
+    {
+        var level = Call.Mic && Call.HasMic ? Call.Local?.Level() ?? 0 : 0;
+        var next = (int)Math.Round(Math.Clamp(level, 0, 1) * Segments);
+        var now = Call.Now;
+        var nextPeak = peak;
+        if (next >= peak) { nextPeak = next; peakAt = now; }
+        else if (now - peakAt > 1200) nextPeak = Math.Max(next, peak - 1);
+        if (next == lit && nextPeak == peak) return;
+        lit = next;
+        peak = nextPeak;
+        StateHasChanged();
+    }
+
+    public void Dispose() => timer?.Dispose();
+}

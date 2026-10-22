@@ -1,0 +1,246 @@
+@using Rustzor.Browser.Media
+@implements IDisposable
+@* The check before going on air: the camera preview with title-safe guides,
+   the microphone on a PPM, the devices, and who is already in the room. *@
+<section class="prejoin" aria-label="Check your camera and microphone">
+    <div class="monitor-col">
+        <div class="monitor @(showVideo ? "" : "dark")">
+            <video @ref="preview" class="feed mirror" autoplay playsinline hidden="@(!showVideo)"></video>
+            @if (!showVideo)
+            {
+                <div class="slate">
+                    <i class="bars" aria-hidden="true"></i>
+                    <span class="slate-initials" style="--bureau:@Newsroom.BureauOf(bureau).Color">@Newsroom.Initials(name.Length > 0 ? name : "?")</span>
+                    <span class="slate-label">@(loading ? "Opening the camera…" : Call.HasCamera ? "Camera off" : "No camera")</span>
+                </div>
+            }
+            <i class="safe action" aria-hidden="true"></i>
+            <i class="safe title" aria-hidden="true"></i>
+            <span class="monitor-tag">PVW</span>
+            <span class="monitor-clock">@clock</span>
+            <div class="strap preview-strap">
+                <span class="strap-tab" style="--bureau:@Newsroom.BureauOf(bureau).Color">@Newsroom.BureauOf(bureau).City</span>
+                <span class="strap-name">@(name.Trim().Length > 0 ? name.Trim() : "Your name")</span>
+            </div>
+        </div>
+        <div class="monitor-controls">
+            <button class="round @(mic ? "" : "off")" aria-pressed="@(!mic)" disabled="@(!Call.HasMic)" title="@(mic ? "Mute" : "Unmute")" @onclick="ToggleMic">
+                <Glyph Name="@(mic ? "mic" : "mic-off")" />
+            </button>
+            <button class="round @(cam ? "" : "off")" aria-pressed="@(!cam)" disabled="@(!Call.HasCamera)" title="@(cam ? "Turn camera off" : "Turn camera on")" @onclick="ToggleCam">
+                <Glyph Name="@(cam ? "cam" : "cam-off")" />
+            </button>
+            <PpmMeter />
+        </div>
+        @if (Call.MediaProblem.Length > 0)
+        {
+            <p class="media-note" role="status">@Call.MediaProblem</p>
+        }
+        <ul class="studio-check" aria-label="Before you go on air">
+            <li><strong>Eyes in the inner frame.</strong> The solid line is title-safe: keep your face inside it. Your name strap sits on its lower corner.</li>
+            <li><strong>Peaks around -9.</strong> Speak at your on-air level; if the meter reaches red, move back from the microphone.</li>
+            <li><strong>Headphones on.</strong> Two tabs on one computer hear each other, so mute one, or wear headphones in a real call.</li>
+        </ul>
+    </div>
+
+    <form class="checkin" @onsubmit="JoinAsync" @onsubmit:preventDefault="true">
+        <p class="eyebrow">@Desk.Kind · @Desk.Schedule</p>
+        <h1 class="desk-title">@Desk.Name</h1>
+        <p class="desk-purpose">@Desk.Purpose</p>
+
+        <div class="in-room">
+            @{ var here = Call.InRoom(Desk.Id).ToList(); }
+            @if (here.Count == 0)
+            {
+                <span class="in-room-empty">Nobody is in this room yet. Join to open it, then open this page in another tab to call yourself.</span>
+            }
+            else
+            {
+                <span class="in-room-label">In the room now</span>
+                <ul>
+                    @foreach (var p in here)
+                    {
+                        <li><i style="--bureau:@Newsroom.BureauOf(p.Bureau).Color"></i>@p.Name <span>@Newsroom.BureauOf(p.Bureau).City</span></li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <label class="fld">
+            <span>Your name, as it appears on your strap</span>
+            <input id="join-name" value="@name" maxlength="40" autocomplete="name" @oninput="e => name = e.Value?.ToString() ?? string.Empty" />
+        </label>
+
+        <fieldset class="fld bureaus">
+            <legend>Bureau</legend>
+            <div class="bureau-row">
+                @foreach (var b in Newsroom.Bureaus)
+                {
+                    var id = b.Id;
+                    <button type="button" class="bureau @(bureau == id ? "on" : "")" style="--bureau:@b.Color" aria-pressed="@(bureau == id)" @onclick="() => bureau = id">@b.City</button>
+                }
+            </div>
+        </fieldset>
+
+        <div class="devices">
+            <label class="fld">
+                <span>Camera</span>
+                <select disabled="@(cameras.Count == 0)" @onchange="e => PickAsync(e.Value?.ToString(), micId)">
+                    @if (cameras.Count == 0) { <option>No camera found</option> }
+                    @foreach (var d in cameras)
+                    {
+                        <option value="@d.DeviceId" selected="@(d.DeviceId == cameraId)">@Label(d, "Camera")</option>
+                    }
+                </select>
+            </label>
+            <label class="fld">
+                <span>Microphone</span>
+                <select disabled="@(mics.Count == 0)" @onchange="e => PickAsync(cameraId, e.Value?.ToString())">
+                    @if (mics.Count == 0) { <option>No microphone found</option> }
+                    @foreach (var d in mics)
+                    {
+                        <option value="@d.DeviceId" selected="@(d.DeviceId == micId)">@Label(d, "Microphone")</option>
+                    }
+                </select>
+            </label>
+        </div>
+
+        @if (error.Length > 0) { <p class="form-error" role="alert">@error</p> }
+        <div class="join-row">
+            <button type="submit" class="btn primary big" id="join">Join the call</button>
+            <a class="btn ghost" href="">Back to the lobby</a>
+        </div>
+        <p class="fine">Calls go straight from tab to tab in this browser. Nothing is sent to a server, and nothing is kept after you leave except recordings you save.</p>
+    </form>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Desk Desk { get; set; } = default!;
+
+    private ElementReference preview;
+    private int attached;
+    private bool loading = true;
+    private bool mic = true;
+    private bool cam = true;
+    private string name = "";
+    private string bureau = "mks";
+    private string error = "";
+    private string clock = "";
+    private string? cameraId;
+    private string? micId;
+    private List<MediaDevice> cameras = new();
+    private List<MediaDevice> mics = new();
+    private IDisposable? timer;
+    private bool disposed;
+
+    private bool showVideo => !loading && cam && Call.HasCamera;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Call.Changed += Refresh;
+        timer = Scheduler.SetInterval(Tick, 1000);
+        Tick();
+        if (Call.Name.Length > 0)
+        {
+            name = Call.Name;
+            bureau = Call.Bureau;
+        }
+        else
+        {
+            var s = Newsroom.Suggestions[Call.Lobby.Count % Newsroom.Suggestions.Length];
+            name = s.Name;
+            bureau = s.Bureau;
+        }
+        mic = Call.Mic;
+        cam = Call.Cam;
+        await Call.PrepareMediaAsync();
+        if (disposed)
+        {
+            if (Call.Room is null) Call.ReleaseMedia();
+            return;
+        }
+        await LoadDevicesAsync();
+        loading = false;
+    }
+
+    private async Task LoadDevicesAsync()
+    {
+        try
+        {
+            var all = await MediaDevices.EnumerateAsync();
+            cameras = all.Where(d => d.Kind == "videoinput" && d.DeviceId.Length > 0).ToList();
+            mics = all.Where(d => d.Kind == "audioinput" && d.DeviceId.Length > 0 && d.DeviceId != "default" && d.DeviceId != "communications").ToList();
+            if (!Call.HasCamera) cameras.Clear();
+            if (!Call.HasMic) mics.Clear();
+            cameraId ??= cameras.FirstOrDefault()?.DeviceId;
+            micId ??= mics.FirstOrDefault()?.DeviceId;
+        }
+        catch (Exception)
+        {
+            cameras.Clear();
+            mics.Clear();
+        }
+    }
+
+    private static string Label(MediaDevice d, string fallback) => d.Label.Length > 0 ? d.Label : fallback;
+
+    private async Task PickAsync(string? camera, string? microphone)
+    {
+        cameraId = camera;
+        micId = microphone;
+        loading = true;
+        await Call.PrepareMediaAsync(cameraId, micId);
+        loading = false;
+    }
+
+    private void ToggleMic()
+    {
+        mic = !mic;
+        Call.SetStartState(mic, cam);
+    }
+
+    private void ToggleCam()
+    {
+        cam = !cam;
+        Call.SetStartState(mic, cam);
+    }
+
+    private void Tick()
+    {
+        clock = DateTime.Now.ToString("HH:mm:ss");
+        StateHasChanged();
+    }
+
+    private Task JoinAsync()
+    {
+        if (name.Trim().Length < 2)
+        {
+            error = "Type your name so the others know who is talking.";
+            return Task.CompletedTask;
+        }
+        error = "";
+        Call.SetIdentity(name, bureau);
+        Call.SetStartState(mic, cam);
+        Call.Join(Desk);
+        return Task.CompletedTask;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var h = Call.Local?.Handle ?? 0;
+        if (h == attached || h == 0) return;
+        attached = h;
+        Call.Local!.AttachTo(preview, muted: true);
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        disposed = true;
+        Call.Changed -= Refresh;
+        timer?.Dispose();
+        // Walking away without joining turns the camera light off.
+        if (Call.Room is null) Call.ReleaseMedia();
+    }
+}

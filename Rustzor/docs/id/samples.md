@@ -77,6 +77,26 @@ Chat tim untuk sebuah studio kecil. Setiap tab browser masuk sebagai satu orang;
 
 Menunjukkan: real-time antar-tab, `MarkupString` dengan escaping, identitas per tab di `sessionStorage`, komponen yang subscribe ke sebuah store.
 
+## Ruang Redaksi video call
+
+`samples/Meet` · `Rustzor.Browser.WebRTC`, `Rustzor.Browser.Media`, `Rustzor.Browser.WebSocket` (`BroadcastChannel`), `Rustzor.UI`
+
+Ruang rapat Kabar Pesisir, koperasi lima redaksi pesisir (Makassar, Ambon, Bitung, Kendari, Ternate): rapat redaksi pukul 07.00, meja biro, dan meja liputan banjir. Video call sungguhan antar-tab dalam satu browser, tanpa server: setiap tab di sebuah ruang mengumumkan dirinya lewat `BroadcastChannel`, setiap pasangan tab bertukar offer, answer, dan kandidat ICE di sana, lalu gambar, suara, dan data channel berjalan peer to peer. Buka satu ruang di dua tab, masuk sebagai dua reporter, dan keduanya saling melihat dan mendengar.
+
+- Pemeriksaan sebelum masuk: kamera di monitor preview dengan garis title-safe, mikrofon di PPM, pemilih kamera dan mikrofon, strap nama dan biro Anda, serta siapa yang sudah ada di ruang.
+- Panggilan: grid yang menyesuaikan ukuran setiap tile dengan layar; strap lower-third di setiap tile; lampu tally merah pada siapa pun yang sedang bicara (dari tingkat suara); mute, kamera, dan berbagi layar (layar yang dibagikan tampil besar); chat, antrean angkat tangan, dan reaksi lewat data channel; rundown rapat yang bisa dimajukan siapa saja untuk semua orang; timecode; keluar, atau akhiri untuk semua.
+- Perekaman: panggilan digabung di tab menjadi satu video 1280×720 (gambar setiap orang dalam grid dengan namanya, dan semua suara), diumumkan ke peserta lain selama berjalan, lalu disimpan di Recordings untuk diunduh.
+- Tanpa kamera Anda masuk dengan mikrofon saja dan yang lain melihat inisial Anda di slate; tanpa keduanya Anda tetap bisa menonton, mendengar, dan chat.
+
+| | |
+| --- | --- |
+| ![Tiga reporter di rapat pagi](../images/sample-meet.png) | ![Pemeriksaan sebelum masuk](../images/sample-meet-prejoin.png) |
+| ![Layar yang dibagikan, tema gelap](../images/sample-meet-dark.png) | ![Ponsel](../images/sample-meet-phone.png) |
+
+Menunjukkan: `PeerConnection` dengan signalling lewat `BroadcastChannel`, aturan pasangan (id yang lebih kecil yang memanggil) sehingga tidak ada offer ganda, `ReplaceTrackAsync` untuk berbagi layar tanpa negosiasi ulang, `MediaMixer` dan `MediaRecorder`, tingkat suara untuk pembicara aktif, unit container query untuk grid.
+
+`node tools/e2e/meet.mjs http://localhost:5260` menjalankannya di Chrome headless dengan perangkat palsu: dua tab saling melihat video, chat, mute, angkat tangan, reaksi, rundown, tally, perekaman (video yang disimpan diperiksa per frame), berbagi layar, tab ketiga tanpa kamera, keluar, mengakhiri untuk semua, dan ponsel 400 px.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -105,4 +125,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Delapan sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: video conference, tool desain mirip Figma, editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Tujuh sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: tool desain mirip Figma, editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.

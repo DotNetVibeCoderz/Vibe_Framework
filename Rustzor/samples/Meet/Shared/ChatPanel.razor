@@ -1,0 +1,60 @@
+@implements IDisposable
+@* The call's chat. Messages go over each peer's data channel, so only the
+   people in the call see them, and they are gone when the call ends. *@
+<div class="chat">
+    <div class="chat-log" @ref="log">
+        @if (Call.Chat.Count == 0)
+        {
+            <p class="chat-empty">Messages here reach everyone in the call, straight from tab to tab. They disappear when the call ends.</p>
+        }
+        @{ string? last = null; }
+        @foreach (var line in Call.Chat)
+        {
+            var mine = line.From == Call.MyId;
+            var first = last != line.From;
+            last = line.From;
+            <div class="line @(mine ? "mine" : "") @(first ? "first" : "")" @key="line.Id">
+                @if (first)
+                {
+                    <div class="line-head">
+                        <i style="--bureau:@Newsroom.BureauOf(line.Bureau).Color"></i>
+                        <strong>@(mine ? "You" : line.Name)</strong>
+                        <span>@Newsroom.BureauOf(line.Bureau).City · @Time(line.At)</span>
+                    </div>
+                }
+                <p>@line.Text</p>
+            </div>
+        }
+    </div>
+    <form class="chat-compose" @onsubmit="Send" @onsubmit:preventDefault="true">
+        <input id="chat-input" placeholder="Message everyone" aria-label="Message everyone" maxlength="500" value="@draft" @oninput="e => draft = e.Value?.ToString() ?? string.Empty" />
+        <button type="submit" class="icon-btn send" aria-label="Send" disabled="@(draft.Trim().Length == 0)"><Glyph Name="send" Size="18" /></button>
+    </form>
+</div>
+
+@code {
+    private ElementReference log;
+    private string draft = "";
+    private int shown = -1;
+
+    protected override void OnInitialized() => Call.Changed += Refresh;
+
+    private static string Time(double at) => DateTime.UnixEpoch.AddMilliseconds(at).ToLocalTime().ToString("HH:mm");
+
+    private void Send()
+    {
+        Call.SendChat(draft);
+        draft = "";
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (Call.Chat.Count == shown) return;
+        shown = Call.Chat.Count;
+        log.ScrollToBottom();
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Call.Changed -= Refresh;
+}

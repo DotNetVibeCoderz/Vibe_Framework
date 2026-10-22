@@ -1,0 +1,52 @@
+@* Everyone in the call: raised hands first, in the order they went up. *@
+<div class="people">
+    @if (Hands.Count > 0)
+    {
+        <p class="people-label">Hands up, in order</p>
+        <ol class="hand-queue">
+            @foreach (var id in Hands)
+            {
+                var who = id;
+                var (name, bureau) = Who(id);
+                <li>
+                    <span class="hand-n">@(Hands.IndexOf(id) + 1)</span>
+                    <span class="person-name">@name@(id == Call.MyId ? " (you)" : "")</span>
+                    <span class="person-bureau">@Newsroom.BureauOf(bureau).City</span>
+                    <button class="btn small" @onclick="() => Call.LowerHandOf(who)">Lower</button>
+                </li>
+            }
+        </ol>
+    }
+    <p class="people-label">In the call · @(Call.Peers.Count + 1)</p>
+    <ul class="person-list">
+        <li>
+            <i class="chip" style="--bureau:@Newsroom.BureauOf(Call.Bureau).Color">@Newsroom.Initials(Call.Name)</i>
+            <span class="person-main"><span class="person-name">@Call.Name (you)</span><span class="person-bureau">@Newsroom.BureauOf(Call.Bureau).City@(Call.Sharing ? " · sharing" : "")</span></span>
+            <span class="person-icons">@Icons(Call.Mic && Call.HasMic, Call.Cam && Call.HasCamera)</span>
+        </li>
+        @foreach (var p in Call.Peers.Values.OrderBy(p => p.State.Name))
+        {
+            <li>
+                <i class="chip" style="--bureau:@Newsroom.BureauOf(p.State.Bureau).Color">@Newsroom.Initials(p.State.Name)</i>
+                <span class="person-main">
+                    <span class="person-name">@p.State.Name</span>
+                    <span class="person-bureau">@Newsroom.BureauOf(p.State.Bureau).City@(p.State.Sharing ? " · sharing" : "")@(p.Connected ? "" : " · connecting…")</span>
+                </span>
+                <span class="person-icons">@Icons(p.State.Mic, p.State.Cam && p.State.HasCamera)</span>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter] public List<string> Hands { get; set; } = new();
+
+    private static (string Name, string Bureau) Who(string id) =>
+        id == Call.MyId ? (Call.Name, Call.Bureau) : Call.Peers.TryGetValue(id, out var p) ? (p.State.Name, p.State.Bureau) : (id, "mks");
+
+    private static RenderFragment Icons(bool mic, bool cam) => __builder =>
+    {
+        <span class="@(mic ? "" : "off")" title="@(mic ? "Microphone on" : "Muted")"><Glyph Name="@(mic ? "mic" : "mic-off")" Size="16" /></span>
+        <span class="@(cam ? "" : "off")" title="@(cam ? "Camera on" : "Camera off")"><Glyph Name="@(cam ? "cam" : "cam-off")" Size="16" /></span>
+    };
+}

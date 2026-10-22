@@ -1,0 +1,10 @@
+@* The top of the lobby and the recordings: the cooperative's name, the two pages, the theme. *@
+<header class="masthead">
+    <a class="wordmark" href=""><span>Kabar</span><span>Pesisir</span></a>
+    <span class="masthead-sub">Ruang Redaksi · call rooms of five coastal newsrooms</span>
+    <nav class="masthead-nav">
+        <NavLink href="" Match="NavLinkMatch.All"><Glyph Name="door" Size="16" /> Rooms</NavLink>
+        <NavLink href="recordings"><Glyph Name="film" Size="16" /> Recordings@(Call.Recordings.Count > 0 ? $" ({Call.Recordings.Count})" : "")</NavLink>
+        <ThemeToggle />
+    </nav>
+</header>

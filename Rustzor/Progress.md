@@ -2,6 +2,53 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-22: Ruang Redaksi video-call sample
+
+- `samples/Meet`: video calls for Kabar Pesisir, a cooperative of five coastal
+  newsrooms, between tabs of one browser with no server. Tabs in a room
+  announce themselves on a `BroadcastChannel` every 1.5 s; for each pair the
+  smaller id calls, so nobody offers twice; offers, answers and ICE
+  candidates go over the same channel, then media and a data channel go peer
+  to peer. Routes: `/` (rooms, with who is in each, live), `/r/{RoomId}`
+  (pre-join check, then the call), `/recordings`.
+- Pre-join: camera on a preview monitor with title-safe guides, the
+  microphone on a 24-segment PPM, camera and microphone pickers, name strap
+  and bureau, who is already in the room. The call: a grid sized with
+  container query units, lower-third straps, a tally lamp on the active
+  speaker from audio levels, mute, camera, screen share in a spotlight, chat,
+  raised hands in order, reactions, the meeting's rundown moved for everyone,
+  a timecode, leave or end for everyone. Recording mixes everyone's picture
+  and voice into one 1280×720 video in the tab, shown to the others as REC.
+  No camera: microphone only and a slate with initials; no devices at all:
+  watch, listen and chat.
+- Its own look: a news studio. Sofia Sans Extra Condensed straps and slugs,
+  Onest, Martian Mono timecode; studio grey-blue with tally red and cue
+  amber; picture areas stay dark in both themes.
+- Libraries:
+  - `Rustzor.Browser.WebRTC`: every connection has an audio and a video slot
+    even with nothing to send (a peer without a camera still receives video,
+    and a track can be added later); `ReplaceTrackAsync` (screen sharing
+    without renegotiating); `OnDataOpen`/`DataOpen`; `Remote`;
+    `RemoteStream.Level()` and `VideoSize`; `AttachTo(..., muted)`; the
+    remote stream's handle and meter are released on `Dispose`.
+  - `Rustzor.Browser.Media`: `MediaMixer` (several streams into one canvas
+    grid with labels, and their sound mixed); `MediaRecorder` takes any
+    stream handle and `FinishAsync` returns the size; microphone choice in
+    `GetUserMediaAsync`; `HasAudio`/`HasVideo`; `OnEnded` (the browser's
+    "Stop sharing"); level meters closed with their stream.
+  - `tools/e2e/chrome.mjs`: one launcher for `probe.mjs` and `pages.mjs`;
+    `RZ_FAKE_MEDIA=1` adds a fake camera, microphone and screen.
+- Verified: warning-free build; every route renders with no console errors
+  (`pages.mjs` with fake media); `node tools/e2e/meet.mjs` passes all 23
+  checks: two tabs see each other's video, chat crosses the data channel, mute,
+  a raised hand and a reaction show on the other side, the rundown moves for
+  both, the tally lights, recording is announced and the saved 1280×720 video
+  shows the call (94% of a sampled frame is the fake cameras' picture), screen
+  share reaches the other tab and returns to the grid, a third tab without a
+  camera sees the others and shows a slate, leaving removes the tile, ending
+  for everyone ends the call for the others, and the call fits a 400 px phone
+  without sideways scrolling. No runtime changes were needed.
+
 ## 2026-10-11: Jati Lestari ERP sample
 
 - `samples/Erp`: ERP for a teak furniture workshop in Jepara, on `Rustzor.UI`

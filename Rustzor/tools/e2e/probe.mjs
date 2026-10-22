@@ -1,9 +1,10 @@
 // Opens a page in headless Chrome, runs optional steps, prints console + DOM.
 // usage: node probe.mjs <url> [screenshot.png] [steps.json]
 //   FULL=0 captures the viewport only (right for screens with a modal open).
-import { chromium } from "playwright-core";
+//   RZ_FAKE_MEDIA=1 gives Chrome a fake camera and microphone (see chrome.mjs).
+import { launch } from "./chrome.mjs";
 const [url, shot, stepsJson] = process.argv.slice(2);
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 page.on("console", (m) => console.log(`[${m.type()}] ${m.text()}`));
 page.on("pageerror", (e) => console.log(`[pageerror] ${e.stack ?? e.message}`));

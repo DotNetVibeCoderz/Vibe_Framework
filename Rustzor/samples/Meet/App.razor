@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <div class="lost">
+            <h1>No such room</h1>
+            <p>This call room does not exist. The rooms are listed in the lobby.</p>
+            <a class="btn" href="">Back to the lobby</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

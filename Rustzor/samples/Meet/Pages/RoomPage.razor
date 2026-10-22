@@ -1,0 +1,318 @@
+@page "/r/{RoomId}"
+@implements IDisposable
+@inject NavigationManager Nav
+
+@if (desk is null)
+{
+    <div class="lost">
+        <h1>No such room</h1>
+        <p>There is no call room called “@RoomId”. The rooms are listed in the lobby.</p>
+        <a class="btn" href="">Back to the lobby</a>
+    </div>
+}
+else if (Call.Room is not null && Call.Room.Id != desk.Id)
+{
+    <div class="lost">
+        <h1>You are in another call</h1>
+        <p>You are still in @Call.Room.Name. Leave it before joining @desk.Name.</p>
+        <div class="join-row">
+            <a class="btn primary" href="r/@Call.Room.Id">Back to @Call.Room.Name</a>
+            <button class="btn" @onclick="() => Call.LeaveAsync()">Leave @Call.Room.Name</button>
+        </div>
+    </div>
+}
+else if (Call.Room is null && left)
+{
+    <div class="left-card">
+        <p class="eyebrow">@desk.Kind · @desk.Name</p>
+        <h1>@(Call.EndedBy.Length > 0 ? $"{Call.EndedBy} ended the call" : "You left the call")</h1>
+        <p>@(leftLength) on air. @(Call.Recordings.Count > 0 ? "Your recordings stay here until you close this tab." : "")</p>
+        <div class="join-row">
+            <button class="btn primary" @onclick="Rejoin">Rejoin @desk.Name</button>
+            @if (Call.Recordings.Count > 0) { <a class="btn" href="recordings"><Glyph Name="film" Size="16" /> Recordings</a> }
+            <a class="btn ghost" href="">Lobby</a>
+        </div>
+    </div>
+}
+else if (Call.Room is null)
+{
+    <div class="studio-page">
+        <Masthead />
+        <PreJoin Desk="desk" />
+    </div>
+}
+else
+{
+    var peers = Call.Peers.Values.ToList();
+    var hands = Hands();
+    var sharer = Call.Sharing ? Call.MyId : Call.Sharer?.Id ?? "";
+    var count = peers.Count + 1;
+    var item = desk.Rundown[Math.Clamp(Call.Story, 0, desk.Rundown.Length - 1)];
+    var recorder = peers.FirstOrDefault(p => p.Recording);
+    <div class="call @(panel.Length > 0 ? "with-panel" : "") @(sharer.Length > 0 ? "staged" : "")">
+        <header class="callbar">
+            <a class="wordmark" href="" title="Lobby"><span>Kabar</span><span>Pesisir</span></a>
+            <div class="call-title">
+                <span class="eyebrow">@desk.Kind</span>
+                <h1>@desk.Name</h1>
+            </div>
+            <ol class="rundown" aria-label="Rundown">
+                @for (var i = 0; i < desk.Rundown.Length; i++)
+                {
+                    var index = i;
+                    var r = desk.Rundown[i];
+                    <li class="@(i < Call.Story ? "done" : i == Call.Story ? "now" : "")">
+                        <button title="@r.Note" @onclick="() => Call.GoToStory(index)">
+                            <span class="slug">@r.Slug</span>
+                            <span class="dur">@Newsroom.Duration(r.Seconds)</span>
+                        </button>
+                    </li>
+                }
+            </ol>
+            <div class="clock">
+                @if (Call.Recording)
+                {
+                    <span class="rec-lamp" title="You are recording"><i></i>REC @Newsroom.Timecode(DateTime.Now - Call.RecordingSince)</span>
+                }
+                <span class="timecode" title="Time on air">@Newsroom.Timecode(TimeSpan.FromMilliseconds(Math.Max(0, Call.Now - Call.CallSince)))</span>
+            </div>
+        </header>
+
+        <div class="cue">
+            <span class="cue-tag">Now</span>
+            <strong>@item.Slug</strong>
+            <span class="cue-desk">@item.Desk · @Newsroom.Duration(item.Seconds)</span>
+            <span class="cue-note">@item.Note</span>
+            <span class="cue-nav">
+                <button class="icon-btn" title="Previous story" aria-label="Previous story" disabled="@(Call.Story == 0)" @onclick="() => Call.GoToStory(Call.Story - 1)"><Glyph Name="prev" Size="16" /></button>
+                <button class="icon-btn" title="Next story" aria-label="Next story" disabled="@(Call.Story >= desk.Rundown.Length - 1)" @onclick="() => Call.GoToStory(Call.Story + 1)"><Glyph Name="next" Size="16" /></button>
+            </span>
+        </div>
+
+        @if (recorder is not null)
+        {
+            <div class="notice-rec" role="status"><i></i>@recorder.State.Name is recording this call.</div>
+        }
+
+        <main class="stage" data-count="@count" aria-label="People in the call">
+            @if (sharer.Length > 0)
+            {
+                <div class="spotlight">
+                    @if (sharer == Call.MyId) { @MyTile(hands) }
+                    else { var s = Call.Peers[sharer]; @PeerTile(s, hands) }
+                </div>
+                <div class="filmstrip">
+                    @if (sharer != Call.MyId) { @MyTile(hands) }
+                    @foreach (var p in peers.Where(p => p.Id != sharer)) { @PeerTile(p, hands) }
+                </div>
+            }
+            else
+            {
+                <div class="grid">
+                    @MyTile(hands)
+                    @foreach (var p in peers) { @PeerTile(p, hands) }
+                    @if (peers.Count == 0)
+                    {
+                        <div class="waiting">
+                            <p class="eyebrow">Waiting for the others</p>
+                            <p>Open this room in another tab, or in another window of this browser, and join as someone else. The tabs call each other directly.</p>
+                            <button class="btn" @onclick="CopyLink"><Glyph Name="copy" Size="16" /> Copy the room link</button>
+                        </div>
+                    }
+                </div>
+            }
+        </main>
+
+        @if (panel.Length > 0)
+        {
+            <aside class="panel" aria-label="@(panel == "chat" ? "Chat" : "People")">
+                <div class="panel-tabs" role="tablist">
+                    <button role="tab" class="@(panel == "chat" ? "on" : "")" aria-selected="@(panel == "chat")" @onclick='() => Open("chat")'>Chat</button>
+                    <button role="tab" class="@(panel == "people" ? "on" : "")" aria-selected="@(panel == "people")" @onclick='() => Open("people")'>People <span class="count">@count</span></button>
+                    <button class="icon-btn" aria-label="Close panel" @onclick="() => panel = string.Empty"><Glyph Name="x" Size="16" /></button>
+                </div>
+                @if (panel == "chat") { <ChatPanel /> }
+                else { <PeoplePanel Hands="hands" /> }
+            </aside>
+        }
+
+        <footer class="controls" aria-label="Call controls">
+            <div class="controls-group">
+                <button class="ctl @(Call.Mic && Call.HasMic ? "" : "off")" id="ctl-mic" aria-pressed="@(!Call.Mic)" disabled="@(!Call.HasMic)" @onclick="Call.ToggleMic">
+                    <Glyph Name="@(Call.Mic && Call.HasMic ? "mic" : "mic-off")" /><span>@(Call.Mic ? "Mute" : "Unmute")</span>
+                </button>
+                <button class="ctl @(Call.Cam && Call.HasCamera ? "" : "off")" id="ctl-cam" aria-pressed="@(!Call.Cam)" disabled="@(!Call.HasCamera)" @onclick="Call.ToggleCam">
+                    <Glyph Name="@(Call.Cam && Call.HasCamera ? "cam" : "cam-off")" /><span>@(Call.Cam ? "Stop video" : "Start video")</span>
+                </button>
+                <button class="ctl @(Call.Sharing ? "active" : "")" id="ctl-share" aria-pressed="@Call.Sharing" disabled="@(sharer.Length > 0 && !Call.Sharing)" @onclick="Call.ShareScreenAsync">
+                    <Glyph Name="@(Call.Sharing ? "screen-off" : "screen")" /><span>@(Call.Sharing ? "Stop sharing" : "Share screen")</span>
+                </button>
+            </div>
+            <div class="controls-group">
+                <button class="ctl @(Call.Hand > 0 ? "cue-on" : "")" id="ctl-hand" aria-pressed="@(Call.Hand > 0)" @onclick="Call.ToggleHand">
+                    <Glyph Name="hand" /><span>@(Call.Hand > 0 ? "Lower hand" : "Raise hand")</span>
+                </button>
+                <div class="react-wrap">
+                    <button class="ctl" id="ctl-react" aria-expanded="@reacting" @onclick="() => reacting = !reacting"><Glyph Name="smile" /><span>React</span></button>
+                    @if (reacting)
+                    {
+                        <div class="react-pop" role="menu">
+                            @foreach (var e in Emojis)
+                            {
+                                var emoji = e;
+                                <button role="menuitem" aria-label="React @emoji" @onclick="() => React(emoji)">@emoji</button>
+                            }
+                        </div>
+                    }
+                </div>
+                <button class="ctl @(Call.Recording ? "rec-on" : "")" id="ctl-rec" aria-pressed="@Call.Recording" @onclick="ToggleRecording">
+                    <Glyph Name="rec" /><span>@(Call.Recording ? "Stop recording" : "Record")</span>
+                </button>
+            </div>
+            <div class="controls-group">
+                <button class="ctl @(panel == "chat" ? "active" : "")" id="ctl-chat" @onclick='() => Toggle("chat")'>
+                    <Glyph Name="chat" /><span>Chat</span>@if (Unread > 0) { <b class="dot">@Unread</b> }
+                </button>
+                <button class="ctl @(panel == "people" ? "active" : "")" id="ctl-people" @onclick='() => Toggle("people")'>
+                    <Glyph Name="people" /><span>People</span><b class="dot quiet">@count</b>
+                </button>
+                <button class="ctl leave" id="ctl-leave" @onclick="() => confirmLeave = true"><Glyph Name="leave" /><span>Leave</span></button>
+            </div>
+        </footer>
+    </div>
+
+    <Modal @bind-Open="confirmLeave" Title="Leave the call?">
+        <ChildContent>
+            <p class="lede">@(count > 1 ? $"{count - 1} other {(count == 2 ? "person stays" : "people stay")} in {desk.Name} if you leave." : "You are the only one here.")@(Call.Recording ? " Your recording is saved when you leave." : "")</p>
+        </ChildContent>
+        <Footer>
+            @if (count > 1) { <button class="btn" id="end-all" @onclick="() => LeaveAsync(true)">End for everyone</button> }
+            <button class="btn danger" id="leave-confirm" @onclick="() => LeaveAsync(false)">Leave</button>
+        </Footer>
+    </Modal>
+}
+
+@code {
+    [Parameter] public string RoomId { get; set; } = "";
+
+    private static readonly string[] Emojis = { "👏", "👍", "❤️", "😂", "🎉", "🙏" };
+
+    private Desk? desk;
+    private string panel = "";
+    private bool reacting;
+    private bool confirmLeave;
+    private bool left;
+    private string leftLength = "";
+    private int chatSeen;
+    private IDisposable? clock;
+
+    private int Unread => panel == "chat" ? 0 : Math.Max(0, Call.Chat.Count(c => c.From != Call.MyId) - chatSeen);
+
+    protected override void OnInitialized()
+    {
+        Call.Start();
+        Call.Changed += Refresh;
+        Call.Levels += Refresh;
+        clock = Scheduler.SetInterval(() => { if (Call.Room is not null) StateHasChanged(); }, 1000);
+        if (Window.InnerWidth >= 1100) panel = "chat";
+    }
+
+    protected override void OnParametersSet()
+    {
+        desk = Newsroom.DeskOf(RoomId);
+        if (Call.Room is null) left = false;
+    }
+
+    private List<string> Hands() =>
+        Call.Peers.Values.Where(p => p.State.Hand > 0).Select(p => (p.Id, p.State.Hand))
+            .Append((Call.MyId, Call.Hand)).Where(x => x.Item2 > 0).OrderBy(x => x.Item2).Select(x => x.Item1).ToList();
+
+    private RenderFragment MyTile(List<string> hands) => __builder =>
+    {
+        <Tile @key="Call.MyId" Id="@Call.MyId" Name="@Call.Name" Bureau="@Call.Bureau" Mine="true"
+              LocalStream="@(Call.Sharing && Call.Screen is not null ? Call.Screen : Call.Local)"
+              Mic="@(Call.Mic && Call.HasMic)" Cam="Call.Cam" HasCamera="Call.HasCamera" IsScreen="Call.Sharing"
+              Speaking="@(Call.Speaker == Call.MyId)" Level="Call.MyLevel" HandOrder="@(hands.IndexOf(Call.MyId) + 1)" Recording="Call.Recording" Reactions="@Call.ReactionsOf(Call.MyId).ToList()" />
+    };
+
+    private RenderFragment PeerTile(Peer p, List<string> hands) => __builder =>
+    {
+        <Tile @key="p.Id" Id="@p.Id" Name="@p.State.Name" Bureau="@p.State.Bureau" RemoteStream="p.Stream"
+              Mic="p.State.Mic" Cam="p.State.Cam" HasCamera="p.State.HasCamera" IsScreen="p.State.Sharing"
+              Speaking="@(Call.Speaker == p.Id)" Level="p.Level" HandOrder="@(hands.IndexOf(p.Id) + 1)" Recording="p.Recording" Reactions="@Call.ReactionsOf(p.Id).ToList()" />
+    };
+
+    private void Open(string which)
+    {
+        panel = which;
+        if (which == "chat") chatSeen = Call.Chat.Count(c => c.From != Call.MyId);
+    }
+
+    private void Toggle(string which)
+    {
+        if (panel == which) panel = "";
+        else Open(which);
+    }
+
+    private void React(string emoji)
+    {
+        reacting = false;
+        Call.React(emoji);
+    }
+
+    private async Task ToggleRecording()
+    {
+        if (Call.Recording) await Call.StopRecordingAsync();
+        else
+        {
+            Call.StartRecording();
+            Toasts.Show("Recording. Everyone in the call sees that you are.", "info");
+        }
+    }
+
+    private async Task LeaveAsync(bool everyone)
+    {
+        confirmLeave = false;
+        leftLength = Newsroom.Timecode(TimeSpan.FromMilliseconds(Math.Max(0, Call.Now - Call.CallSince)));
+        Call.EndedBy = "";
+        await Call.LeaveAsync(everyone);
+        left = true;
+    }
+
+    private void Rejoin()
+    {
+        left = false;
+        Call.EndedBy = "";
+    }
+
+    private async Task CopyLink()
+    {
+        try
+        {
+            await Clipboard.WriteTextAsync(Nav.Uri);
+            Toasts.Show("Room link copied.");
+        }
+        catch (Exception)
+        {
+            Toasts.Show("Copy this address from the address bar: " + Nav.Uri, "info", 6000);
+        }
+    }
+
+    private void Refresh()
+    {
+        if (panel == "chat") chatSeen = Call.Chat.Count(c => c.From != Call.MyId);
+        if (Call.Room is null && Call.EndedBy.Length > 0 && !left)
+        {
+            leftLength = Newsroom.Timecode(TimeSpan.FromMilliseconds(Math.Max(0, Call.Now - Call.Since)));
+            left = true;
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Call.Changed -= Refresh;
+        Call.Levels -= Refresh;
+        clock?.Dispose();
+    }
+}

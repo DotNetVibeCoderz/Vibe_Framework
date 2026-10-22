@@ -1,0 +1,59 @@
+@page "/recordings"
+@implements IDisposable
+
+<div class="studio-page">
+    <Masthead />
+    <main class="tapes">
+        <section class="lobby-head">
+            <p class="eyebrow">This tab only</p>
+            <h1>Recordings</h1>
+            <p class="lede">Each recording is one video, mixed in this tab while the call ran: everyone's picture in a grid with their name, and all the voices. They are kept in memory, so download the ones you want before closing the tab.</p>
+        </section>
+        @if (Call.Recordings.Count == 0)
+        {
+            <div class="tapes-empty">
+                <Glyph Name="film" Size="32" />
+                <h2>No recordings yet</h2>
+                <p>Join a room and press Record in the call controls. Everyone in the call sees a REC notice while you record.</p>
+                <a class="btn primary" href="">Go to the rooms</a>
+            </div>
+        }
+        else
+        {
+            <ul class="tape-list">
+                @foreach (var r in Call.Recordings)
+                {
+                    var desk = Newsroom.DeskOf(r.Desk);
+                    <li class="tape">
+                        <video src="@(r.Url + "#t=0.1")" controls preload="auto"></video>
+                        <div class="tape-label">
+                            <span class="eyebrow">@r.Started.ToString("ddd d MMM · HH:mm")</span>
+                            <h2>@(desk?.Name ?? r.Desk)</h2>
+                            <dl>
+                                <div><dt>Length</dt><dd>@Newsroom.Timecode(r.Length)</dd></div>
+                                <div><dt>People</dt><dd>@r.People</dd></div>
+                                <div><dt>Size</dt><dd>@Size(r.Bytes)</dd></div>
+                            </dl>
+                            <a class="btn primary" href="@r.Url" download="@r.FileName"><Glyph Name="download" Size="16" /> Download .webm</a>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </main>
+    <footer class="studio-foot">Ruang Redaksi is a Rustzor sample. Built by Gravicode Studios, led by Kang Fadhil.</footer>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Call.Start();
+        Call.Changed += Refresh;
+    }
+
+    private static string Size(long bytes) => bytes >= 1_048_576 ? $"{bytes / 1048576.0:0.0} MB" : $"{Math.Max(1, bytes / 1024)} KB";
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Call.Changed -= Refresh;
+}

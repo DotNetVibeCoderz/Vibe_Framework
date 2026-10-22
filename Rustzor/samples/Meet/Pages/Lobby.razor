@@ -1,0 +1,75 @@
+@page "/"
+@implements IDisposable
+
+<div class="studio-page">
+    <Masthead />
+    <main class="lobby">
+        <section class="lobby-head">
+            <p class="eyebrow">@DateTime.Today.ToString("dddd, d MMMM yyyy") · WITA</p>
+            <h1>Pick a room. Each tab is one person.</h1>
+            <p class="lede">The five bureaus of Kabar Pesisir meet here. Calls go straight from tab to tab with WebRTC, found and connected through the browser itself: open a room in a second tab, join as someone else, and the two see and hear each other.</p>
+        </section>
+
+        <ul class="doors">
+            @foreach (var d in Newsroom.Desks)
+            {
+                var here = Call.InRoom(d.Id).ToList();
+                var mine = Call.Room?.Id == d.Id;
+                var people = here.Count + (mine ? 1 : 0);
+                <li class="door @(people > 0 ? "live" : "")">
+                    <div class="door-top">
+                        <span class="eyebrow">@d.Kind · @d.Schedule</span>
+                        <span class="door-lamp" aria-label="@(people > 0 ? $"{people} in the call" : "Empty")"><i></i>@(people > 0 ? $"On air · {people}" : "Off air")</span>
+                    </div>
+                    <h2>@d.Name</h2>
+                    <p class="door-purpose">@d.Purpose</p>
+                    <ol class="door-rundown">
+                        @foreach (var r in d.Rundown.Take(4))
+                        {
+                            <li><span class="slug">@r.Slug</span><span class="dur">@Newsroom.Duration(r.Seconds)</span></li>
+                        }
+                        @if (d.Rundown.Length > 4) { <li class="more">+@(d.Rundown.Length - 4) more</li> }
+                    </ol>
+                    <div class="door-foot">
+                        <span class="door-total">Running time @Newsroom.Duration(d.Rundown.Sum(r => r.Seconds))</span>
+                        <span class="door-people">
+                            @foreach (var p in here.Take(5))
+                            {
+                                <i class="chip" title="@p.Name · @Newsroom.BureauOf(p.Bureau).City" style="--bureau:@Newsroom.BureauOf(p.Bureau).Color">@Newsroom.Initials(p.Name)</i>
+                            }
+                        </span>
+                        <a class="btn @(people > 0 ? "primary" : "")" href="r/@d.Id">@(mine ? "Back to the call" : people > 0 ? "Join" : "Open the room")</a>
+                    </div>
+                </li>
+            }
+        </ul>
+
+        <section class="how">
+            <div>
+                <h3>Try it with two tabs</h3>
+                <p>Open a room here, join, then open the same room in a new tab and join as another reporter. The second tab finds the first on a BroadcastChannel, they swap an offer, an answer and network candidates, and from then on video, sound and chat go peer to peer.</p>
+            </div>
+            <div>
+                <h3>No camera?</h3>
+                <p>Join anyway. The others see your initials on a slate, and you still hear, see and chat with them.</p>
+            </div>
+            <div>
+                <h3>Recordings stay with you</h3>
+                <p>Record a call and it is mixed in this tab into one video with everyone's picture and voice. Download it from Recordings before you close the tab.</p>
+            </div>
+        </section>
+    </main>
+    <footer class="studio-foot">Ruang Redaksi is a Rustzor sample. Built by Gravicode Studios, led by Kang Fadhil.</footer>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Call.Start();
+        Call.Changed += Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Call.Changed -= Refresh;
+}

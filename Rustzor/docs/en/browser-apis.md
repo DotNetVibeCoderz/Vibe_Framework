@@ -15,14 +15,14 @@ Each browser API is a separate package, `Rustzor.Browser.*`, so an app downloads
 | `Rustzor.Browser.Workers` | `WebWorker`, `ServiceWorkers` | Web Workers; service workers, offline and install prompts (PWA) |
 | `Rustzor.Browser.Location` | `Geolocation`, `GeoPosition` | Current position, watching, distance |
 | `Rustzor.Browser.Sensors` | `DeviceSensors`, `BatteryState` | Orientation, motion, generic sensors, ambient light, battery, keeping the screen on |
-| `Rustzor.Browser.Media` | `MediaDevices`, `MediaStream`, `MediaRecorder` | Camera, microphone, screen capture, recording |
+| `Rustzor.Browser.Media` | `MediaDevices`, `MediaStream`, `MediaRecorder`, `MediaMixer` | Camera, microphone, screen capture, recording; mixing several streams into one picture and sound |
 | `Rustzor.Browser.Audio` | `AudioEngine`, `SoundClip`, `Music` | Tones, sound effects, music, spectrum, speech synthesis |
 | `Rustzor.Browser.Video` | `VideoPlayer` | Video playback control |
 | `Rustzor.Browser.Canvas` | `Canvas2D`, `CanvasImage`, `CanvasInput` | 2D drawing with batched commands, images, pointer input |
 | `Rustzor.Browser.OffscreenCanvas` | `Offscreen`, `OffscreenWorker` | Rendering in a worker |
 | `Rustzor.Browser.WebGL` | `GlContext`, `Mat4` | WebGL 2 |
 | `Rustzor.Browser.WebGPU` | `Gpu`, `GpuInfo`, `ShaderCanvas` | Adapter info, WGSL compute (`ComputeAsync`), shader canvases |
-| `Rustzor.Browser.WebRTC` | `PeerConnection`, `RemoteStream` | Peer-to-peer media and data |
+| `Rustzor.Browser.WebRTC` | `PeerConnection`, `RemoteStream` | Peer-to-peer media and data; swapping a track without renegotiating (screen sharing); received loudness |
 | `Rustzor.Browser.WebXR` | `Xr`, `XrSession` | VR and AR sessions |
 | `Rustzor.Browser.Bluetooth` | `Ble`, `BleDevice` | Web Bluetooth (GATT) |
 | `Rustzor.Browser.USB` | `UsbDevice` | WebUSB |

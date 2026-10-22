@@ -77,6 +77,26 @@ A team chat for a small studio. Each browser tab signs in as a person; open a se
 
 Shows: real-time between tabs, `MarkupString` with escaping, per-tab identity in `sessionStorage`, components that subscribe to a store.
 
+## Ruang Redaksi video calls
+
+`samples/Meet` · `Rustzor.Browser.WebRTC`, `Rustzor.Browser.Media`, `Rustzor.Browser.WebSocket` (`BroadcastChannel`), `Rustzor.UI`
+
+The call rooms of Kabar Pesisir, a cooperative of five coastal newsrooms (Makassar, Ambon, Bitung, Kendari, Ternate): the 07.00 editorial meeting, a bureau desk and a flood desk. Real video calls between tabs of one browser, with no server: each tab in a room announces itself on a `BroadcastChannel`, the two tabs of each pair swap an offer, an answer and ICE candidates there, and from then on picture, sound and a data channel go peer to peer. Open a room in two tabs, join as two reporters, and they see and hear each other.
+
+- A pre-join check: the camera on a preview monitor with title-safe guides, the microphone on a PPM, camera and microphone pickers, your name strap and bureau, and who is already in the room.
+- The call: a grid that sizes every tile to the stage; a lower-third strap on each tile; the red tally lamp on whoever is talking (from audio levels); mute, camera and screen share (the shared screen takes the spotlight); chat, raised hands in order and reactions over the data channel; the meeting's rundown, which anyone can move on for everyone; a timecode; leave, or end for everyone.
+- Recording: the call is mixed in the tab into one 1280×720 video (everyone's picture in a grid with their name, and all the voices), announced to the others while it runs, and saved under Recordings for download.
+- Without a camera you join with the microphone alone and the others see your initials on a slate; without either you can still watch, listen and chat.
+
+| | |
+| --- | --- |
+| ![Three reporters in the morning meeting](../images/sample-meet.png) | ![The pre-join check](../images/sample-meet-prejoin.png) |
+| ![A shared screen in the spotlight, dark theme](../images/sample-meet-dark.png) | ![Phone](../images/sample-meet-phone.png) |
+
+Shows: `PeerConnection` with signalling over `BroadcastChannel`, a perfect pairing rule (the smaller id calls) so nobody offers twice, `ReplaceTrackAsync` for screen sharing without renegotiating, `MediaMixer` and `MediaRecorder`, audio levels for an active speaker, container query units for the grid.
+
+`node tools/e2e/meet.mjs http://localhost:5260` drives it in headless Chrome with fake devices: two tabs see each other's video, chat, mute, hands, reactions, the rundown, the tally, recording (the saved video is checked frame by frame), screen sharing, a third tab without a camera, leaving, ending for everyone, and a 400 px phone.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -105,4 +125,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Eight more samples from the [roadmap](../../PLAN.md) are on the way: video conference, a Figma-like design tool, a Photoshop-like editor, GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Seven more samples from the [roadmap](../../PLAN.md) are on the way: a Figma-like design tool, a Photoshop-like editor, GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.

@@ -15,14 +15,14 @@ Setiap API browser adalah package terpisah, `Rustzor.Browser.*`, sehingga aplika
 | `Rustzor.Browser.Workers` | `WebWorker`, `ServiceWorkers` | Web Worker; service worker, mode offline, dan prompt instalasi (PWA) |
 | `Rustzor.Browser.Location` | `Geolocation`, `GeoPosition` | Posisi saat ini, pemantauan posisi, jarak |
 | `Rustzor.Browser.Sensors` | `DeviceSensors`, `BatteryState` | Orientasi, gerakan, sensor generik, cahaya sekitar, baterai, menjaga layar tetap menyala |
-| `Rustzor.Browser.Media` | `MediaDevices`, `MediaStream`, `MediaRecorder` | Kamera, mikrofon, tangkapan layar, perekaman |
+| `Rustzor.Browser.Media` | `MediaDevices`, `MediaStream`, `MediaRecorder`, `MediaMixer` | Kamera, mikrofon, tangkapan layar, perekaman; menggabungkan beberapa stream menjadi satu gambar dan suara |
 | `Rustzor.Browser.Audio` | `AudioEngine`, `SoundClip`, `Music` | Nada, efek suara, musik, spektrum, sintesis suara (speech synthesis) |
 | `Rustzor.Browser.Video` | `VideoPlayer` | Kontrol pemutaran video |
 | `Rustzor.Browser.Canvas` | `Canvas2D`, `CanvasImage`, `CanvasInput` | Menggambar 2D dengan perintah yang di-batch, gambar, input pointer |
 | `Rustzor.Browser.OffscreenCanvas` | `Offscreen`, `OffscreenWorker` | Rendering di dalam worker |
 | `Rustzor.Browser.WebGL` | `GlContext`, `Mat4` | WebGL 2 |
 | `Rustzor.Browser.WebGPU` | `Gpu`, `GpuInfo`, `ShaderCanvas` | Info adapter, compute WGSL (`ComputeAsync`), shader canvas |
-| `Rustzor.Browser.WebRTC` | `PeerConnection`, `RemoteStream` | Media dan data peer-to-peer |
+| `Rustzor.Browser.WebRTC` | `PeerConnection`, `RemoteStream` | Media dan data peer-to-peer; mengganti track tanpa negosiasi ulang (berbagi layar); tingkat suara yang diterima |
 | `Rustzor.Browser.WebXR` | `Xr`, `XrSession` | Sesi VR dan AR |
 | `Rustzor.Browser.Bluetooth` | `Ble`, `BleDevice` | Web Bluetooth (GATT) |
 | `Rustzor.Browser.USB` | `UsbDevice` | WebUSB |
