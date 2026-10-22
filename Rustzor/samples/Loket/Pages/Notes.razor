@@ -1,0 +1,72 @@
+@page "/catatan"
+@implements IDisposable
+
+<section class="lk-page">
+    <header class="lk-page-head">
+        <p class="lk-eyebrow">@L.T("Untuk petugas", "For the staff")</p>
+        <h1>@L.T("Catatan tindak lanjut", "Follow-up notes")</h1>
+        <p>@L.T("Ditulis oleh asisten dengan alat create_note saat warga perlu kembali, membawa berkas, atau minta diingatkan.", "Written by the assistant with the create_note tool when a resident needs to come back, bring a document, or be reminded.")</p>
+    </header>
+    @if (Desk.Notes.Count == 0)
+    {
+        <div class="lk-empty">
+            <p>@L.T("Belum ada catatan. Coba tulis di antrean: “Catat: telepon Pak RT soal surat domisili”.", "No notes yet. Try writing in the queue: “Note: call the RT about my domicile letter”.")</p>
+            <a class="lk-btn primary" href="">@L.T("Ke antrean", "To the queue")</a>
+        </div>
+    }
+    else
+    {
+        <ul class="lk-notes">
+            @foreach (var note in Desk.Notes)
+            {
+                <li class="lk-note-item @(note.Done ? "done" : "")" @key="note.Id" data-testid="note">
+                    <label class="lk-check">
+                        <input type="checkbox" checked="@note.Done" @onchange="() => Toggle(note)" />
+                        <span>
+                            <b>@note.Title</b>
+                            @if (note.Detail.Length > 0)
+                            {
+                                <small>@note.Detail</small>
+                            }
+                            <small class="lk-note-meta">@Desk.Ago(note.Created)@(note.Due.Length > 0 ? " · " + note.Due : "")@(Desk.Find(note.ConvId) is { } c ? " · " + c.Ticket : "")</small>
+                        </span>
+                    </label>
+                    @if (Desk.Find(note.ConvId) is { } conv)
+                    {
+                        <a class="lk-btn small" href="@("c/" + conv.Id)">@conv.Ticket</a>
+                    }
+                    <button class="lk-icon-btn danger" @onclick="() => Remove(note)" aria-label="@L.T("Hapus catatan", "Delete note")"><Glyph Name="trash" Size="16" /></button>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Desk.Load();
+        Desk.Changed += Redraw;
+        L.Changed += Redraw;
+    }
+
+    private void Toggle(Note note)
+    {
+        note.Done = !note.Done;
+        Desk.SaveNotes();
+    }
+
+    private void Remove(Note note)
+    {
+        Desk.Notes.Remove(note);
+        Desk.SaveNotes();
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Desk.Changed -= Redraw;
+        L.Changed -= Redraw;
+    }
+}

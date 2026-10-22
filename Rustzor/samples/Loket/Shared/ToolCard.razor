@@ -1,0 +1,75 @@
+@* A tool call, shown as the slip the desk filled in: what it asked, what came back. *@
+
+<div class="lk-tool @(Run.Running ? "running" : Run.Failed ? "failed" : "done")" data-testid="tool-card" data-tool="@Run.Name">
+    <div class="lk-tool-head">
+        <Glyph Name="@Icon" Size="16" />
+        <b>@Title</b>
+        <span class="lk-tool-state">@(Run.Running ? L.T("berjalan…", "running…") : Run.Failed ? L.T("gagal", "failed") : L.T("selesai", "done"))</span>
+        <button type="button" class="lk-tool-toggle" @onclick="() => _open = !_open" aria-expanded="@(_open ? "true" : "false")">@(_open ? L.T("Tutup", "Hide") : L.T("Rincian", "Details"))</button>
+    </div>
+    <div class="lk-tool-line" data-testid="tool-summary">@Summary</div>
+    @if (_open)
+    {
+        <dl class="lk-tool-detail">
+            <dt>@L.T("Masukan", "Input")</dt>
+            <dd><code>@Run.Args</code></dd>
+            <dt>@L.T("Hasil", "Result")</dt>
+            <dd><pre>@Run.Result</pre></dd>
+        </dl>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ToolRun Run { get; set; } = default!;
+    private bool _open;
+
+    private string Icon => Run.Name switch
+    {
+        "calculator" => "calc",
+        "current_time" => "clock",
+        "search_documents" => "search",
+        "create_note" => "note",
+        _ => "gear",
+    };
+
+    private string Title => Run.Name switch
+    {
+        "calculator" => L.T("Kalkulator", "Calculator"),
+        "current_time" => L.T("Jam kantor", "Office clock"),
+        "search_documents" => L.T("Cari dokumen", "Search documents"),
+        "create_note" => L.T("Catatan petugas", "Staff note"),
+        _ => Run.Name,
+    };
+
+    private string Summary
+    {
+        get
+        {
+            var args = new ToolCall(Run.Id, Run.Name, Run.Args).Args;
+            if (Run.Running) return Run.Name == "search_documents" ? "“" + args["query"].AsStringOrNull() + "”" : Run.Args;
+            if (Run.Failed) return Run.Result;
+            try
+            {
+                switch (Run.Name)
+                {
+                    case "calculator":
+                        var r = JsonValue.Parse(Run.Result);
+                        return $"{r["expression"].AsString()} = {r["result"].AsString()}";
+                    case "current_time":
+                        var t = JsonValue.Parse(Run.Result);
+                        return $"{t["date"].AsString()}, {t["time"].AsString()} · {(t["office_open"].AsBool() ? L.T("kantor buka", "office open") : L.T("kantor tutup", "office closed"))}";
+                    case "create_note":
+                        return "✓ " + JsonValue.Parse(Run.Result)["title"].AsString();
+                    case "search_documents":
+                        var count = Run.Result.StartsWith("[") ? Run.Result.Split("\n\n").Length : 0;
+                        return "“" + args["query"].AsStringOrNull() + "” → " + (count == 0 ? L.T("tidak ada yang cocok", "nothing matched") : L.T($"{count} bagian dokumen", $"{count} passages"));
+                }
+            }
+            catch (Exception)
+            {
+                // Show the raw result below.
+            }
+            return Run.Result.Length > 120 ? Run.Result[..120] + "…" : Run.Result;
+        }
+    }
+}

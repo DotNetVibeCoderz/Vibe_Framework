@@ -190,6 +190,30 @@ Memperlihatkan: C# memegang tinjauannya (pohon, apa yang tampil, pilihan, penguk
 
 `node tools/e2e/tilik.mjs http://localhost:5340` menjalankannya di Chrome headless dan mencocokkannya dengan GLB itu sendiri: jumlah part, klik pada breather yang memilihnya di tampilan dan di pohon, menyembunyikan tutup (hilang dari daftar gambar dan dari piksel) dan mengisolasi rakitan output (8 part-nya), potongan Y yang tidak menyisakan apa pun di atas bidang dan bergeser saat diseret, jarak hasil snap antara dua kepala baut (140,00 mm, sama dengan di file), tepi (36,00 mm) dan sudut (90,0°) pada pasak input, slider explode, catatan dan tampilan tersimpan yang tetap ada setelah reload, CSV daftar material (23 baris, 36 part), kubus STL 8 cm³, screenshot PNG, dan waktu frame. Model terbuka dalam sekitar 0,45 detik; orbit menggambar satu frame dalam 0,6 ms (p95 0,9 ms) dan mengikuti 60 fps layar. `node tools/e2e/tilik-shots.mjs` mengambil screenshot di atas.
 
+## Loket, meja layanan
+
+`samples/Loket` · `Rustzor.AI`, `Rustzor.UI`, `Rustzor.Browser.Storage`, `Rustzor.Browser.FileSystem`, `Rustzor.Browser.Audio`, `Rustzor.Browser.DOM`, dan modul browser kecil (`rustzor.module.js`)
+
+Meja layanan Kelurahan Kemuning Raya di Kota Sentosa (keduanya rekaan). Warga bertanya, dalam bahasa Indonesia atau Inggris, apa yang perlu dibawa untuk KTP-el, KK, akta kelahiran, atau surat domisili, dan asisten menjawab dari SOP kantor sendiri, dengan sumber di setiap pernyataan. Tampilannya tampilan loket: papan antrean dengan nomor tiket berwarna kuning marigold, setiap percakapan berupa tiket antrean bernomor, kutipan berupa stempel karet merah kecil, dan pemanggilan alat berupa slip yang diisi petugas. Bahasa Indonesia menjadi bawaan; antarmuka berganti ke bahasa Inggris dengan satu ketukan, dan jawaban mengikuti bahasa pertanyaan.
+
+- **Chat streaming dengan tombol Hentikan.** Teks tampil saat tiba; Hentikan membatalkan permintaan HTTP di browser dan menyimpan yang sudah tertulis.
+- **Markdown yang aman.** Judul, daftar, tabel, kutipan, tautan (hanya http, https, dan mailto), dan blok kode dengan tombol Salin. Setiap karakter di-escape lebih dulu, jadi `<script>` atau `<img onerror>` di pertanyaan maupun jawaban tampil sebagai teks.
+- **Percakapan** ditampilkan sebagai tiket antrean: cari, ganti nama, hapus, semuanya tersimpan di browser ini; ekspor ke Markdown atau JSON.
+- **Penyedia model:** model demo bawaan yang luring (tanpa kunci, tanpa jaringan, alatnya sama), Azure OpenAI, OpenAI, Anthropic Claude, dan endpoint apa pun yang kompatibel dengan OpenAI (Ollama, LM Studio, vLLM, DeepSeek, Groq), dengan uji sambungan. Kunci API tetap di penyimpanan browser ini dan hanya dikirim ke penyedia yang dipilih. Editor kepribadian (system prompt) dengan tiga preset.
+- **Empat alat**, ditampilkan sebagai kartu berisi masukan dan hasilnya: kalkulator yang tepat (memahami `2.400.000` dan `15% dari` seperti tulisan orang Indonesia), jam kantor (WIB, dan apakah kantor sedang buka), pencarian dokumen, dan catatan untuk petugas yang muncul di `/catatan`.
+- **Dokumen** (`/dokumen`): lima SOP bawaan, ditambah `.md`, `.txt`, atau `.pdf` apa pun yang dijatuhkan atau dipilih (teks PDF lewat pdf.js). Setiap dokumen dipotong per bagian dan dicari dengan BM25 di browser, dengan stemmer bahasa Indonesia sederhana; tidak perlu model embedding atau server. Kutipan membuka bagian asalnya, dan arsip terbuka tepat di bagian itu, disorot.
+- **Gambar** untuk model yang bisa melihat (diperkecil ke 1280 px sebelum dikirim); **masukan suara** lewat Web Speech API bila browser mendukung, dan **jawaban dibacakan** lewat speech synthesis. Bila salah satunya tidak tersedia, tombolnya disembunyikan atau loket tetap diam.
+- **Pemakaian:** token masuk dan keluar per jawaban dan per percakapan (angka dari penyedia bila dikirim), serta biaya dari harga per juta token yang bisa diubah.
+
+| | |
+| --- | --- |
+| ![Jawaban dengan kutipan, kartu kalkulator, dan sumber yang terbuka](../images/sample-loket.png) | ![Arsip dokumen di bagian yang dikutip](../images/sample-loket-docs.png) |
+| ![Tema gelap, dengan catatan untuk petugas](../images/sample-loket-dark.png) | ![Di ponsel](../images/sample-loket-phone.png) |
+
+Menunjukkan: tool calling `Rustzor.AI` (`ChatTool`, `ToolAgent`, `IToolChatModel`) dan streaming yang bisa dibatalkan, jalur kode yang sama untuk model lokal dan tiga API jarak jauh, serta jawaban berbasis dokumen (RAG) dengan kutipan yang seluruhnya berjalan di browser.
+
+`node tools/e2e/loket.mjs http://localhost:5360` menjalankannya di Chrome headless dengan model demo: jawaban yang mengalir sepotong demi sepotong, Hentikan yang mengakhiri jawaban lebih awal tanpa ada teks yang datang sesudahnya, tabel, daftar, dan blok kode Markdown dengan Salin, pemanggilan kalkulator yang kartunya berbunyi `15% * 2.400.000 = 360000`, catatan di daftar petugas, `<script>` dan `<img onerror>` yang tampil sebagai teks dan tidak pernah berjalan, berkas Markdown yang dijatuhkan lalu ditemukan oleh pertanyaan dan dikutip (kutipannya membuka bagian itu), hitungan token, percakapan yang bertahan setelah reload, dan penghapusan yang tetap terhapus. Skrip ini juga menjalankan penyedia yang kompatibel dengan OpenAI lewat HTTP sungguhan ke server tiruan lokal yang mengirim tool call sepotong-sepotong. Bila `LOKET_AZURE_ENDPOINT`, `LOKET_AZURE_KEY`, dan `LOKET_AZURE_MODEL` diisi, ditambah uji langsung: pemanggilan kalkulator sungguhan, jawaban yang mengalir, pencarian dokumen dengan kutipan, dan hitungan token dari penyedia. `node tools/e2e/loket-shots.mjs` mengambil tangkapan layar di atas.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -218,4 +242,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Tiga sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Dua sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: game multiplayer dan digital twin.

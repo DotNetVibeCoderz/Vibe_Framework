@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- A Rustzor sample app: a bilingual front-desk assistant that answers from the office's own documents. Built by Gravicode Studios, led by Kang Fadhil. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Loket</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Copy buttons, citations, speech recognition, downloads and PDF text. -->
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" />
+    <ProjectReference Include="..\..\src\Rustzor.UI\Rustzor.UI.csproj" />
+    <ProjectReference Include="..\..\src\Frameworks\Rustzor.AI\Rustzor.AI.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.Storage\Rustzor.Browser.Storage.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.FileSystem\Rustzor.Browser.FileSystem.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.Audio\Rustzor.Browser.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.DOM\Rustzor.Browser.DOM.csproj" />
+  </ItemGroup>
+</Project>

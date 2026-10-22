@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>Rustzor.AI</RootNamespace>
-    <Description>Rustzor.AI: AI for Rustzor apps. Streaming chat with OpenAI, Azure OpenAI, Anthropic Claude, Ollama and any OpenAI-compatible endpoint; embeddings; an in-memory vector store and a retrieval-augmented generation pipeline; and local inference in the browser with transformers.js or Chrome's built-in model.</Description>
-    <PackageTags>$(PackageTags);ai;llm;openai;claude;ollama;rag;embeddings;vector-search</PackageTags>
+    <Description>Rustzor.AI: AI for Rustzor apps. Streaming chat with OpenAI, Azure OpenAI, Anthropic Claude, Ollama and any OpenAI-compatible endpoint, with tool calling and cancellation; embeddings; an in-memory vector store and a retrieval-augmented generation pipeline; and local inference in the browser with transformers.js or Chrome's built-in model.</Description>
+    <PackageTags>$(PackageTags);ai;llm;openai;claude;ollama;rag;embeddings;vector-search;tool-calling</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Browser\Rustzor.Browser.Fetch\Rustzor.Browser.Fetch.csproj" />

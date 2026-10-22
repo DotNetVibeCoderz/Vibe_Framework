@@ -1,0 +1,291 @@
+@page "/"
+@page "/c/{Id}"
+@implements IDisposable
+@inject NavigationManager Nav
+@using Rustzor.Browser.FileSystem
+
+<section class="lk-chat">
+    <header class="lk-board">
+        <div class="lk-board-ticket" aria-label="@L.T("Nomor antrean", "Queue number")">
+            <small>@L.T("Nomor antrean", "Queue number")</small>
+            <b data-testid="ticket">@(_conv?.Ticket ?? "A-···")</b>
+        </div>
+        <div class="lk-board-counter">
+            <small>@L.T("Dilayani di", "Served at")</small>
+            <b>@L.T("Loket 3", "Counter 3")</b>
+            <span class="lk-board-model" title="@L.T("Model yang menjawab", "The model answering")">
+                <span class="lk-dot @(Desk.Settings.Provider == "demo" ? "demo" : "live")"></span>@Providers.NameOf(Desk.Settings.Provider) · @Providers.ModelOf(Desk.Settings)
+            </span>
+        </div>
+        <dl class="lk-usage" aria-label="@L.T("Pemakaian", "Usage")">
+            <div><dt>@L.T("Token masuk", "Tokens in")</dt><dd data-testid="tokens-in">@Fmt(_conv?.TokensIn ?? 0)</dd></div>
+            <div><dt>@L.T("Token keluar", "Tokens out")</dt><dd data-testid="tokens-out">@Fmt(_conv?.TokensOut ?? 0)</dd></div>
+            <div><dt>@L.T("Biaya", "Cost")</dt><dd data-testid="cost">@Money(_conv?.Cost ?? 0)</dd></div>
+        </dl>
+        <div class="lk-board-actions">
+            <button class="lk-icon-btn @(Desk.Settings.Speak ? "on" : "")" @onclick="ToggleSpeak" title="@L.T("Bacakan jawaban", "Read answers aloud")" aria-pressed="@(Desk.Settings.Speak ? "true" : "false")" aria-label="@L.T("Bacakan jawaban", "Read answers aloud")">
+                <Glyph Name="@(Desk.Settings.Speak ? "speaker" : "mute")" />
+            </button>
+            <button class="lk-icon-btn" @onclick="ExportMarkdown" disabled="@(_conv is null || _conv.Items.Count == 0)" title="@L.T("Unduh sebagai Markdown", "Download as Markdown")" aria-label="@L.T("Unduh sebagai Markdown", "Download as Markdown")"><Glyph Name="download" /></button>
+            <button class="lk-btn small" @onclick="ExportJson" disabled="@(_conv is null || _conv.Items.Count == 0)">JSON</button>
+        </div>
+    </header>
+
+    <div class="lk-thread" id="lk-thread" aria-live="polite">
+        @if (_conv is null || _conv.Items.Count == 0)
+        {
+            <div class="lk-welcome">
+                <p class="lk-welcome-eyebrow">@Seed.Office · @Seed.City</p>
+                <h1>@L.T("Selamat datang di loket layanan.", "Welcome to the service desk.")</h1>
+                <p>@L.T("Tanyakan syarat KTP-el, KK, akta kelahiran, atau surat keterangan. Jawaban diambil dari dokumen kantor, lengkap dengan sumbernya.", "Ask about identity cards, family cards, birth certificates or letters. Answers come from the office's own documents, with their sources.")</p>
+                <div class="lk-suggest">
+                    @foreach (var s in Suggestions)
+                    {
+                        <button class="lk-chip" @onclick="() => SendAsync(s)">@s</button>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            @for (var i = 0; i < _conv.Items.Count; i++)
+            {
+                var index = i;
+                var item = _conv.Items[i];
+                <Bubble @key="index" Item="item" Index="index" Streaming="@(Counter.BusyConv == _conv.Id && index == _conv.Items.Count - 1)" />
+            }
+        }
+    </div>
+
+    <form class="lk-compose" @onsubmit="() => SendAsync(_draft)" @onsubmit:preventDefault="true">
+        @if (_image is not null)
+        {
+            <div class="lk-attach">
+                <img src="@_image" alt="@L.T("Gambar yang akan dikirim", "Picture to send")" />
+                <span>@L.T("Gambar dilampirkan", "Picture attached")@(Providers.SeesImages(Desk.Settings) ? "" : L.T(" · model ini tidak melihat gambar", " · this model cannot see pictures"))</span>
+                <button type="button" class="lk-icon-btn" @onclick="() => _image = null" aria-label="@L.T("Lepas gambar", "Remove picture")"><Glyph Name="close" Size="16" /></button>
+            </div>
+        }
+        <div class="lk-compose-row">
+            <button type="button" class="lk-icon-btn" @onclick="AttachAsync" title="@L.T("Lampirkan gambar", "Attach a picture")" aria-label="@L.T("Lampirkan gambar", "Attach a picture")"><Glyph Name="image" /></button>
+            @if (_canListen)
+            {
+                <button type="button" class="lk-icon-btn @(_listening ? "listening" : "")" @onclick="ToggleListen" title="@L.T("Bicara", "Speak")" aria-pressed="@(_listening ? "true" : "false")" aria-label="@L.T("Masukan suara", "Voice input")"><Glyph Name="mic" /></button>
+            }
+            <textarea @ref="_box" id="lk-input" rows="1" value="@_draft" placeholder="@L.T("Tulis pertanyaan Anda…", "Write your question…")" aria-label="@L.T("Pertanyaan", "Question")"
+                      @oninput="e => _draft = e.Value?.ToString() ?? string.Empty" @onkeydown="KeyAsync"></textarea>
+            @if (Counter.Busy)
+            {
+                <button type="button" class="lk-send stop" @onclick="Counter.Stop" data-testid="stop"><Glyph Name="stop" /> <span>@L.T("Hentikan", "Stop")</span></button>
+            }
+            else
+            {
+                <button type="submit" class="lk-send" disabled="@(_draft.Trim().Length == 0 && _image is null)" data-testid="send"><Glyph Name="send" /> <span>@L.T("Kirim", "Send")</span></button>
+            }
+        </div>
+        <p class="lk-compose-hint">@L.T("Enter untuk kirim · Shift+Enter baris baru · jawaban bisa keliru; pastikan di loket untuk hal penting.", "Enter sends · Shift+Enter new line · answers can be wrong; confirm important things at the counter.")</p>
+    </form>
+</section>
+
+@if (_source is { } src)
+{
+    <aside class="lk-sheet" role="dialog" aria-modal="false" aria-labelledby="lk-src-title">
+        <div class="lk-sheet-head">
+            <span class="lk-stamp">@L.T("Sumber", "Source") @src.N</span>
+            <button class="lk-icon-btn" @onclick="() => _source = null" aria-label="@L.T("Tutup sumber", "Close source")"><Glyph Name="close" /></button>
+        </div>
+        <h2 id="lk-src-title">@src.DocTitle</h2>
+        @if (src.Section.Length > 0)
+        {
+            <p class="lk-sheet-section">§ @src.Section</p>
+        }
+        <blockquote class="lk-sheet-quote" data-testid="source-text">@src.Text</blockquote>
+        <a class="lk-btn" href="@($"dokumen?doc={src.DocId}&chunk={src.Chunk}")">@L.T("Buka dokumen lengkap", "Open the whole document")</a>
+    </aside>
+}
+
+@code {
+    [Parameter] public string? Id { get; set; }
+
+    private Conv? _conv;
+    private string _draft = "";
+    private string? _image;
+    private Source? _source;
+    private ElementReference _box;
+    private int _callback;
+    private int _voiceCallback;
+    private bool _canListen;
+    private bool _listening;
+    private bool _scroll;
+
+    private string[] Suggestions => L.English
+        ? new[] { "What do I need to register a birth?", "Is the office open now?", "What is 15% of 2,400,000?", "Note: call the RT about my domicile letter" }
+        : new[] { "Apa syarat membuat KTP-el?", "Apakah kantor buka sekarang?", "Berapa 15% dari 2.400.000?", "Catat: telepon Pak RT soal surat domisili" };
+
+    protected override void OnInitialized()
+    {
+        Desk.Load();
+        Desk.Changed += Redraw;
+        L.Changed += Redraw;
+        Counter.Tick += OnTick;
+        _callback = Callbacks.Register(OnPage);
+        Js.Send("lk.bind", Js.Args("cb", _callback));
+        try
+        {
+            _canListen = Js.Call("lk.speech", Js.Args())["listen"].AsBool();
+        }
+        catch (Exception)
+        {
+            _canListen = false;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _source = null;
+        _conv = Id is null ? null : Desk.Find(Id);
+        if (Id is not null && _conv is null) Nav.NavigateTo("", replace: true);
+        _scroll = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!_scroll) return;
+        _scroll = false;
+        Js.Send("lk.scroll", Js.Args("sel", "#lk-thread", "force", true));
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private void OnTick()
+    {
+        StateHasChanged();
+        Js.Send("lk.scroll", Js.Args("sel", "#lk-thread", "force", false));
+    }
+
+    private void OnPage(JsonValue msg)
+    {
+        if (msg["kind"].AsString() != "cite" || _conv is null) return;
+        var index = msg["msg"].AsInt();
+        var n = msg["n"].AsInt();
+        if (index < 0 || index >= _conv.Items.Count) return;
+        _source = _conv.Items[index].Sources.FirstOrDefault(s => s.N == n);
+        StateHasChanged();
+    }
+
+    private async Task SendAsync(string text)
+    {
+        text = text.Trim();
+        if ((text.Length == 0 && _image is null) || Counter.Busy) return;
+        if (text.Length == 0) text = L.T("Apa yang ada di gambar ini?", "What is in this picture?");
+        var conv = _conv;
+        if (conv is null)
+        {
+            conv = Desk.Create();
+            _conv = conv;
+            Nav.NavigateTo("c/" + conv.Id, replace: true);
+        }
+        var image = _image;
+        _draft = "";
+        _image = null;
+        _box.SetValue("");
+        _scroll = true;
+        StateHasChanged();
+        await Counter.AskAsync(conv, text, image);
+        _scroll = true;
+        StateHasChanged();
+    }
+
+    private async Task KeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || e.ShiftKey || e.IsComposing) return;
+        var text = _draft;
+        // The browser still inserts the newline after this handler; clear it once it has.
+        Scheduler.SetTimeout(() => _box.SetValue(_draft), 0);
+        await SendAsync(text);
+    }
+
+    private async Task AttachAsync()
+    {
+        var files = await Files.PickAsync("image/*");
+        if (files.Count == 0) return;
+        if (files[0].Size > 8_000_000)
+        {
+            Toasts.Error(L.T("Gambar lebih dari 8 MB.", "That picture is over 8 MB."));
+            return;
+        }
+        var url = await files[0].ReadDataUrlAsync();
+        var small = await Js.CallAsync("lk.shrink", Js.Args("url", url, "max", 1280));
+        _image = small["url"].AsString();
+        StateHasChanged();
+    }
+
+    private void ToggleListen()
+    {
+        if (_listening)
+        {
+            Js.Send("lk.listenStop", Js.Args());
+            return;
+        }
+        if (_voiceCallback == 0) _voiceCallback = Callbacks.Register(OnVoice);
+        var before = _draft.Length > 0 ? _draft.TrimEnd() + " " : "";
+        _voicePrefix = before;
+        _listening = Js.Call("lk.listen", Js.Args("cb", _voiceCallback, "lang", L.English ? "en-US" : "id-ID")).AsBool();
+    }
+
+    private string _voicePrefix = "";
+
+    private void OnVoice(JsonValue msg)
+    {
+        switch (msg["kind"].AsString())
+        {
+            case "interim":
+            case "final":
+                _draft = _voicePrefix + msg["text"].AsString();
+                _box.SetValue(_draft);
+                break;
+            case "error":
+                Toasts.Error(L.T("Masukan suara gagal: ", "Voice input failed: ") + msg["text"].AsString());
+                _listening = false;
+                break;
+            case "end":
+                _listening = false;
+                break;
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleSpeak()
+    {
+        Desk.Settings.Speak = !Desk.Settings.Speak;
+        if (!Desk.Settings.Speak) Js.Send("lk.speakStop", Js.Args());
+        Desk.SaveSettings();
+    }
+
+    private void ExportMarkdown()
+    {
+        if (_conv is null) return;
+        Js.Send("lk.download", Js.Args("name", $"loket-{_conv.Ticket}.md", "text", Markdown.Export(_conv), "type", "text/markdown"));
+        Toasts.Success(L.T("Percakapan diunduh sebagai Markdown.", "Downloaded the conversation as Markdown."));
+    }
+
+    private void ExportJson()
+    {
+        if (_conv is null) return;
+        Js.Send("lk.download", Js.Args("name", $"loket-{_conv.Ticket}.json", "text", Json.Serialize(_conv), "type", "application/json"));
+        Toasts.Success(L.T("Percakapan diunduh sebagai JSON.", "Downloaded the conversation as JSON."));
+    }
+
+    private static string Fmt(int n) => DemoModel.Grouped(n.ToString(System.Globalization.CultureInfo.InvariantCulture), L.English);
+
+    private static string Money(double usd) => usd <= 0 ? "$0" : usd < 0.01 ? "$" + usd.ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture) : "$" + usd.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    public void Dispose()
+    {
+        Desk.Changed -= Redraw;
+        L.Changed -= Redraw;
+        Counter.Tick -= OnTick;
+        Callbacks.Unregister(_callback);
+        if (_voiceCallback != 0) Callbacks.Unregister(_voiceCallback);
+    }
+}

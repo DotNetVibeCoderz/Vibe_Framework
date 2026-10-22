@@ -1,0 +1,164 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Nav
+@* The counter: the queue of conversations on the left, the desk on the right. *@
+
+<div class="lk-app @(_drawer ? "drawer-open" : "")">
+    <aside class="lk-rail" aria-label="@L.T("Antrean percakapan", "Conversation queue")">
+        <div class="lk-rail-head">
+            <a class="lk-brand" href="" @onclick="CloseDrawer">
+                <span class="lk-mark" aria-hidden="true">L</span>
+                <span class="lk-brand-text"><b>Loket</b><small>@Seed.Office</small></span>
+            </a>
+            <button class="lk-icon-btn lk-rail-close" @onclick="CloseDrawer" aria-label="@L.T("Tutup", "Close")"><Glyph Name="close" /></button>
+        </div>
+        <button class="lk-take" @onclick="NewTicket">
+            <span class="lk-take-label">@L.T("Ambil nomor antrean", "Take a queue number")</span>
+            <span class="lk-take-sub">@L.T("Percakapan baru", "New conversation")</span>
+        </button>
+        <label class="lk-find">
+            <Glyph Name="search" Size="16" />
+            <input type="search" placeholder="@L.T("Cari percakapan", "Search conversations")" value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" />
+        </label>
+        <ol class="lk-queue">
+            @foreach (var conv in Visible)
+            {
+                var current = conv.Id == CurrentId;
+                <li class="lk-ticket @(current ? "current" : "")" @key="conv.Id">
+                    @if (_renaming == conv.Id)
+                    {
+                        <form class="lk-rename" @onsubmit="() => FinishRename(conv)" @onsubmit:preventDefault="true">
+                            <input class="lk-rename-input" value="@_renameText" @oninput="e => _renameText = e.Value?.ToString() ?? string.Empty" aria-label="@L.T("Nama percakapan", "Conversation name")" />
+                            <button type="submit" class="lk-icon-btn" aria-label="@L.T("Simpan", "Save")"><Glyph Name="check" Size="16" /></button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a class="lk-ticket-link" href="@("c/" + conv.Id)" @onclick="CloseDrawer">
+                            <span class="lk-ticket-num">@conv.Ticket</span>
+                            <span class="lk-ticket-title">@(conv.Title.Length > 0 ? conv.Title : L.T("Belum ada pertanyaan", "No question yet"))</span>
+                            <span class="lk-ticket-meta">@Desk.Ago(conv.Updated) · @(conv.Items.Count(i => i.Role == "user")) @L.T("pertanyaan", "questions")</span>
+                        </a>
+                        <span class="lk-ticket-actions">
+                            <button class="lk-icon-btn" title="@L.T("Ganti nama", "Rename")" aria-label="@L.T("Ganti nama", "Rename") @conv.Ticket" @onclick="() => StartRename(conv)"><Glyph Name="edit" Size="15" /></button>
+                            <button class="lk-icon-btn danger" title="@L.T("Hapus", "Delete")" aria-label="@L.T("Hapus", "Delete") @conv.Ticket" @onclick="() => AskDelete(conv)"><Glyph Name="trash" Size="15" /></button>
+                        </span>
+                    }
+                </li>
+            }
+            @if (!Visible.Any())
+            {
+                <li class="lk-queue-empty">@(_query.Length > 0 ? L.T("Tidak ada yang cocok.", "Nothing matches.") : L.T("Antrean masih kosong.", "The queue is empty."))</li>
+            }
+        </ol>
+        <nav class="lk-nav" aria-label="@L.T("Halaman", "Pages")">
+            <NavLink href="dokumen" @onclick="CloseDrawer"><Glyph Name="doc" Size="17" /> @L.T("Dokumen", "Documents") <span class="lk-count">@Knowledge.Docs.Count</span></NavLink>
+            <NavLink href="catatan" @onclick="CloseDrawer"><Glyph Name="note" Size="17" /> @L.T("Catatan petugas", "Staff notes") <span class="lk-count">@Desk.Notes.Count(n => !n.Done)</span></NavLink>
+            <NavLink href="pengaturan" @onclick="CloseDrawer"><Glyph Name="gear" Size="17" /> @L.T("Pengaturan", "Settings")</NavLink>
+        </nav>
+        <div class="lk-rail-foot">
+            <div class="lk-rail-tools">
+                <button class="lk-lang" @onclick="() => L.Set(!L.English)" aria-label="@L.T("Bahasa antarmuka", "Interface language")">
+                    <span class="@(L.English ? "" : "on")">ID</span><span class="@(L.English ? "on" : "")">EN</span>
+                </button>
+                <ThemeToggle />
+            </div>
+            <p class="lk-credit">@L.T("Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil", "Built by Gravicode Studios, led by Kang Fadhil") · Rustzor</p>
+        </div>
+    </aside>
+    <div class="lk-scrim" @onclick="CloseDrawer"></div>
+    <div class="lk-desk">
+        <button class="lk-icon-btn lk-drawer-btn" @onclick="() => _drawer = true" aria-label="@L.T("Buka antrean", "Open the queue")"><Glyph Name="menu" /></button>
+        @Body
+    </div>
+</div>
+
+@if (_deleting is { } doomed)
+{
+    <div class="lk-dialog-scrim" @onclick="() => _deleting = null">
+        <div class="lk-dialog" role="dialog" aria-modal="true" aria-labelledby="lk-del-title" @onclick:stopPropagation="true">
+            <h2 id="lk-del-title">@L.T($"Hapus {doomed.Ticket}?", $"Delete {doomed.Ticket}?")</h2>
+            <p>@L.T("Percakapan ini dan semua jawabannya hilang dari browser ini. Catatan petugas tetap ada.", "This conversation and its answers are removed from this browser. Staff notes stay.")</p>
+            <div class="lk-dialog-actions">
+                <button class="lk-btn" @onclick="() => _deleting = null">@L.T("Batal", "Cancel")</button>
+                <button class="lk-btn danger" @onclick="ConfirmDelete">@L.T("Hapus percakapan", "Delete conversation")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string _query = "";
+    private string? _renaming;
+    private string _renameText = "";
+    private Conv? _deleting;
+    private bool _drawer;
+
+    private string? CurrentId
+    {
+        get
+        {
+            var path = Nav.ToBaseRelativePath(Nav.Uri);
+            return path.StartsWith("c/") ? path[2..].Split('?', '#')[0] : null;
+        }
+    }
+
+    private IEnumerable<Conv> Visible => _query.Trim().Length == 0
+        ? Desk.Convs
+        : Desk.Convs.Where(c => Matches(c, _query.Trim()));
+
+    private static bool Matches(Conv c, string q) =>
+        c.Ticket.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+        c.Title.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+        c.Items.Any(i => i.Text.Contains(q, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized()
+    {
+        Desk.Load();
+        Desk.Changed += Redraw;
+        L.Changed += Redraw;
+        Nav.LocationChanged += OnLocation;
+    }
+
+    private void OnLocation(object? sender, LocationChangedEventArgs e) => StateHasChanged();
+    private void Redraw() => StateHasChanged();
+    private void CloseDrawer() => _drawer = false;
+
+    private void NewTicket()
+    {
+        var conv = Desk.Create();
+        _drawer = false;
+        Nav.NavigateTo("c/" + conv.Id);
+    }
+
+    private void StartRename(Conv conv)
+    {
+        _renaming = conv.Id;
+        _renameText = conv.Title;
+    }
+
+    private void FinishRename(Conv conv)
+    {
+        if (_renameText.Trim().Length > 0) Desk.Rename(conv, _renameText);
+        _renaming = null;
+    }
+
+    private void AskDelete(Conv conv) => _deleting = conv;
+
+    private void ConfirmDelete()
+    {
+        if (_deleting is null) return;
+        var wasCurrent = _deleting.Id == CurrentId;
+        Desk.Delete(_deleting);
+        Toasts.Success(L.T($"{_deleting.Ticket} dihapus.", $"Deleted {_deleting.Ticket}."));
+        _deleting = null;
+        if (wasCurrent) Nav.NavigateTo("");
+    }
+
+    public void Dispose()
+    {
+        Desk.Changed -= Redraw;
+        L.Changed -= Redraw;
+        Nav.LocationChanged -= OnLocation;
+    }
+}

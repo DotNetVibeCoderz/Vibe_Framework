@@ -190,6 +190,30 @@ Shows: C# owning the review (the tree, what is shown, selection, measurements, n
 
 `node tools/e2e/tilik.mjs http://localhost:5340` drives it in headless Chrome and checks it against the GLB itself: the part count, a click on the breather selecting it in the view and the tree, hiding the cover (out of the draw list and the pixels) and isolating the output assembly (its 8 parts), a Y section that leaves nothing above the plane and moves when dragged, a snapped distance between two bolt heads (140.00 mm, as in the file), an edge (36.00 mm) and an angle (90.0°) on the input key, the explode slider, a note and a saved view surviving a reload, the BOM CSV (23 lines, 36 parts), an STL cube's 8 cm³, a PNG screenshot, and frame times. The model opens in about 0.45 s; orbiting it draws a frame in 0.6 ms (p95 0.9 ms) and keeps the display's 60 fps. `node tools/e2e/tilik-shots.mjs` takes the screenshots above.
 
+## Loket front desk
+
+`samples/Loket` · `Rustzor.AI`, `Rustzor.UI`, `Rustzor.Browser.Storage`, `Rustzor.Browser.FileSystem`, `Rustzor.Browser.Audio`, `Rustzor.Browser.DOM`, and a small browser module (`rustzor.module.js`)
+
+The front desk of Kelurahan Kemuning Raya, a neighbourhood office in the (invented) Kota Sentosa. Residents ask, in Indonesian or English, what to bring for an identity card, a family card, a birth certificate or a letter of domicile, and the assistant answers from the office's own procedures, citing a source for each claim. The look is the service counter's: a queue board with the ticket number in marigold, every conversation a numbered queue ticket, citations as small red rubber stamps, tool calls as the slips the desk fills in. Indonesian is the default; the interface switches to English in one tap, and replies follow the language of the question.
+
+- **Streaming chat with Stop.** Text renders as it arrives; Stop aborts the HTTP request in the browser and keeps what was written.
+- **Safe Markdown.** Headings, lists, tables, quotes, links (http, https and mailto only), and code blocks with a Copy button. Every character is escaped first, so a `<script>` or `<img onerror>` in a question or a reply is shown as text.
+- **Conversations** listed as queue tickets: search, rename, delete, all kept in this browser; export to Markdown or JSON.
+- **Providers:** a built-in offline demo model (no key, no network, the same tools), Azure OpenAI, OpenAI, Anthropic Claude, and any OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, DeepSeek, Groq), with a connection test. The key stays in this browser's storage and goes only to the chosen provider. A persona (system prompt) editor with three presets.
+- **Four tools**, shown as cards with their input and result: an exact calculator (it reads `2.400.000` and `15% dari` the way Indonesians write them), the office clock (WIB, and whether the office is open now), document search, and a note for the staff that lands on `/catatan`.
+- **The documents** (`/dokumen`): five seeded procedures, plus any `.md`, `.txt` or `.pdf` dropped or picked (PDF text through pdf.js). Each is cut into passages by section and searched with BM25 in the browser, with a light Indonesian stemmer; no embedding model or server is needed. A citation opens the passage it came from, and the archive opens on it, highlighted.
+- **Pictures** for models that can see them (shrunk to 1280 px before sending); **voice input** through the Web Speech API where the browser has it, and **spoken replies** through speech synthesis. Where either is missing, the button is hidden or the desk stays silent.
+- **Usage:** tokens in and out per answer and per conversation (the provider's own counts when it sends them), and a cost from editable per-million prices.
+
+| | |
+| --- | --- |
+| ![An answer with citations, a calculator card, and a source open](../images/sample-loket.png) | ![The document archive on the cited passage](../images/sample-loket-docs.png) |
+| ![Dark theme, with a note for the staff](../images/sample-loket-dark.png) | ![On a phone](../images/sample-loket-phone.png) |
+
+Shows: `Rustzor.AI` tool calling (`ChatTool`, `ToolAgent`, `IToolChatModel`) and streaming with cancellation, the same code path for a local model and three remote APIs, and retrieval-augmented answers with citations done entirely in the browser.
+
+`node tools/e2e/loket.mjs http://localhost:5360` drives it in headless Chrome against the demo model: a reply streaming in piece by piece, Stop ending one early with nothing arriving after, Markdown tables, lists and a code block with Copy, a calculator call whose card reads `15% * 2.400.000 = 360000`, a note on the staff list, a `<script>` and an `<img onerror>` shown as text and never run, a dropped Markdown file found by a question and cited (the citation opens its passage), token counts, conversations surviving a reload, and a deletion that stays deleted. It also runs the OpenAI-compatible provider over real HTTP against a local mock server that streams a tool call in pieces. With `LOKET_AZURE_ENDPOINT`, `LOKET_AZURE_KEY` and `LOKET_AZURE_MODEL` set it adds a live run: a real calculator call, a streamed answer, a cited document search, and the provider's token counts. `node tools/e2e/loket-shots.mjs` takes the screenshots above.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -218,4 +242,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Three more samples from the [roadmap](../../PLAN.md) are on the way: an AI assistant, a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Two more samples from the [roadmap](../../PLAN.md) are on the way: a multiplayer game and a digital twin.

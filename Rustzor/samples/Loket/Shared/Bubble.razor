@@ -1,0 +1,68 @@
+@* One turn of the conversation. The resident's words are escaped like the answers: both go through Markdown.Render. *@
+
+@if (Item.Role == "user")
+{
+    <article class="lk-msg user" data-testid="user-msg">
+        <div class="lk-msg-who">@L.T("Warga", "Resident")</div>
+        <div class="lk-msg-body">
+            @if (Item.Image is not null)
+            {
+                <img class="lk-msg-img" src="@Item.Image" alt="@L.T("Gambar yang dikirim", "Picture sent")" />
+            }
+            <div class="lk-md">@((MarkupString)Markdown.Render(Item.Text))</div>
+        </div>
+    </article>
+}
+else
+{
+    <article class="lk-msg desk @(Streaming ? "streaming" : "")" data-testid="desk-msg">
+        <div class="lk-msg-who">
+            <span class="lk-msg-stub">@L.T("Loket 3", "Counter 3")</span>
+            @if (Item.Model.Length > 0)
+            {
+                <span class="lk-msg-model">@Item.Model</span>
+            }
+        </div>
+        <div class="lk-msg-body">
+            @foreach (var run in Item.Tools)
+            {
+                <ToolCard Run="run" />
+            }
+            @if (Item.Text.Length > 0)
+            {
+                <div class="lk-md" data-testid="answer">@((MarkupString)Markdown.Render(Item.Text, Item.Sources.Count, Index))</div>
+            }
+            else if (Streaming && Item.Tools.All(t => !t.Running))
+            {
+                <div class="lk-typing" aria-label="@L.T("Sedang menjawab", "Answering")"><span></span><span></span><span></span></div>
+            }
+            @if (Item.Stopped)
+            {
+                <p class="lk-msg-flag" data-testid="stopped">@L.T("Dihentikan. Jawaban di atas belum lengkap.", "Stopped. The answer above is incomplete.")</p>
+            }
+            @if (Item.Error.Length > 0)
+            {
+                <p class="lk-msg-error" role="alert"><Glyph Name="warn" Size="16" /> @Item.Error</p>
+            }
+            @if (Item.Sources.Count > 0 && !Streaming)
+            {
+                <ul class="lk-sources" aria-label="@L.T("Sumber", "Sources")">
+                    @foreach (var s in Item.Sources)
+                    {
+                        <li><button type="button" class="lk-cite" data-msg="@Index" data-n="@s.N">@s.N</button> @s.DocTitle@(s.Section.Length > 0 ? " — " + s.Section : "")</li>
+                    }
+                </ul>
+            }
+            @if (!Streaming && (Item.In > 0 || Item.Out > 0))
+            {
+                <p class="lk-msg-usage">@DemoModel.Grouped(Item.In.ToString(), L.English) @L.T("masuk", "in") · @DemoModel.Grouped(Item.Out.ToString(), L.English) @L.T("keluar", "out")@(Item.Cost > 0 ? " · $" + Item.Cost.ToString("0.0000") : "")</p>
+            }
+        </div>
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired] public Item Item { get; set; } = default!;
+    [Parameter] public int Index { get; set; }
+    [Parameter] public bool Streaming { get; set; }
+}

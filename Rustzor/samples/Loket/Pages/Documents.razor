@@ -1,0 +1,184 @@
+@page "/dokumen"
+@implements IDisposable
+@inject NavigationManager Nav
+@using Rustzor.Browser.FileSystem
+
+<section class="lk-page">
+    <header class="lk-page-head">
+        <p class="lk-eyebrow">@L.T("Arsip loket", "Desk archive")</p>
+        <h1>@L.T("Dokumen yang menjadi dasar jawaban", "The documents answers come from")</h1>
+        <p>@L.T("Setiap dokumen dipotong per bagian dan dicari dengan BM25 di browser ini, tanpa server. Tambahkan SOP, pengumuman, atau panduan dalam bentuk .md, .txt, atau .pdf.", "Each document is cut into passages by section and searched with BM25 in this browser, with no server. Add procedures, notices or guides as .md, .txt or .pdf.")</p>
+    </header>
+
+    <div class="lk-drop" @ref="_dropZone" data-testid="drop">
+        <Glyph Name="upload" Size="22" />
+        <p><b>@L.T("Jatuhkan berkas di sini", "Drop files here")</b> @L.T("atau", "or")</p>
+        <button class="lk-btn primary" @onclick="PickAsync">@L.T("Pilih berkas", "Choose files")</button>
+        <small>.md · .txt · .pdf · @L.T("maks. 2 MB per berkas", "up to 2 MB each")</small>
+    </div>
+    @if (_busy.Length > 0)
+    {
+        <p class="lk-note-line">@_busy</p>
+    }
+
+    <div class="lk-docs">
+        <ul class="lk-doc-list" aria-label="@L.T("Dokumen", "Documents")">
+            @foreach (var doc in Knowledge.Docs)
+            {
+                <li class="lk-doc @(doc.Id == _openId ? "open" : "")" @key="doc.Id">
+                    <button class="lk-doc-pick" @onclick="() => Open(doc.Id, -1)">
+                        <span class="lk-doc-kind">@(doc.Seeded ? L.T("SOP kantor", "Office SOP") : L.T("Ditambahkan", "Added"))</span>
+                        <b>@doc.Title</b>
+                        <small>@Knowledge.ChunkCount(doc.Id) @L.T("bagian", "passages") · @DemoModel.Grouped(doc.Text.Length.ToString(), L.English) @L.T("huruf", "characters") · @(doc.Lang == "en" ? "English" : "Indonesia")</small>
+                    </button>
+                    @if (!doc.Seeded)
+                    {
+                        <button class="lk-icon-btn danger" @onclick="() => Remove(doc)" aria-label="@L.T("Hapus", "Delete") @doc.Title"><Glyph Name="trash" Size="16" /></button>
+                    }
+                </li>
+            }
+        </ul>
+        <div class="lk-doc-view">
+            @if (Opened is { } d)
+            {
+                <h2>@d.Title</h2>
+                @foreach (var chunk in Knowledge.Chunks.Where(c => c.DocId == d.Id))
+                {
+                    <div class="lk-passage @(chunk.Index == _chunk ? "hit" : "")" id="@("p-" + chunk.Index)" data-testid="passage">
+                        <span class="lk-passage-no">§ @(chunk.Index + 1)@(chunk.Section.Length > 0 ? " · " + chunk.Section : "")</span>
+                        <p>@chunk.Text</p>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="lk-empty">
+                    <p>@L.T("Pilih dokumen untuk membaca bagian-bagiannya.", "Choose a document to read its passages.")</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private ElementReference _dropZone;
+    private IDisposable? _drop;
+    private string _busy = "";
+    private string? _openId;
+    private int _chunk = -1;
+    private bool _scrollTo;
+
+    private Doc? Opened => Knowledge.Docs.FirstOrDefault(d => d.Id == _openId);
+
+    protected override void OnInitialized()
+    {
+        Desk.Load();
+        L.Changed += Redraw;
+        Nav.LocationChanged += OnLocation;
+        ReadQuery();
+    }
+
+    private void OnLocation(object? s, LocationChangedEventArgs e)
+    {
+        ReadQuery();
+        StateHasChanged();
+    }
+
+    private void ReadQuery()
+    {
+        var question = Nav.Uri.IndexOf('?');
+        var query = question < 0 ? "" : Nav.Uri[(question + 1)..].Split('#')[0];
+        string? doc = null;
+        var chunk = -1;
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length != 2) continue;
+            if (kv[0] == "doc") doc = Uri.UnescapeDataString(kv[1]);
+            if (kv[0] == "chunk" && int.TryParse(kv[1], out var c)) chunk = c;
+        }
+        if (doc is not null) Open(doc, chunk);
+        else _openId ??= Knowledge.Docs.FirstOrDefault()?.Id;
+    }
+
+    private void Open(string id, int chunk)
+    {
+        _openId = id;
+        _chunk = chunk;
+        _scrollTo = chunk >= 0;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _drop = Files.OnDrop(_dropZone, files => _ = AddAsync(files));
+        }
+        if (_scrollTo)
+        {
+            _scrollTo = false;
+            Js.Send("lk.reveal", Js.Args("sel", "#p-" + _chunk));
+        }
+    }
+
+    private async Task PickAsync() => await AddAsync(await Files.PickAsync(".md,.txt,.markdown,.pdf,text/plain,text/markdown,application/pdf", true));
+
+    private async Task AddAsync(List<PickedFile> files)
+    {
+        foreach (var f in files)
+        {
+            if (f.Size > 2_000_000)
+            {
+                Toasts.Error(L.T($"{f.Name} lebih dari 2 MB.", $"{f.Name} is over 2 MB."));
+                continue;
+            }
+            _busy = L.T($"Membaca {f.Name}…", $"Reading {f.Name}…");
+            StateHasChanged();
+            try
+            {
+                string text;
+                if (f.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) || f.Type == "application/pdf")
+                {
+                    var bytes = await f.ReadBytesAsync();
+                    text = (await Js.CallAsync("lk.pdfText", Js.Args("b64", Convert.ToBase64String(bytes)))).AsString();
+                }
+                else text = await f.ReadTextAsync();
+                if (text.Trim().Length == 0)
+                {
+                    Toasts.Error(L.T($"{f.Name} tidak berisi teks.", $"{f.Name} has no text in it."));
+                    continue;
+                }
+                var title = Path.GetFileNameWithoutExtension(f.Name);
+                var heading = text.Replace("\r", "").Split('\n').FirstOrDefault(l => l.StartsWith("# "));
+                if (heading is not null) title = heading[2..].Trim();
+                var doc = Knowledge.Add(title, text);
+                Open(doc.Id, -1);
+                Toasts.Success(L.T($"{title}: {Knowledge.ChunkCount(doc.Id)} bagian siap dicari.", $"{title}: {Knowledge.ChunkCount(doc.Id)} passages ready to search."));
+            }
+            catch (Exception e)
+            {
+                Toasts.Error(L.T($"{f.Name} tidak bisa dibaca: ", $"Could not read {f.Name}: ") + e.Message);
+            }
+        }
+        _busy = "";
+        Desk.Notify();
+        StateHasChanged();
+    }
+
+    private void Remove(Doc doc)
+    {
+        Knowledge.Remove(doc);
+        if (_openId == doc.Id) _openId = Knowledge.Docs.FirstOrDefault()?.Id;
+        Toasts.Success(L.T($"{doc.Title} dihapus dari arsip.", $"Removed {doc.Title} from the archive."));
+        Desk.Notify();
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose()
+    {
+        L.Changed -= Redraw;
+        Nav.LocationChanged -= OnLocation;
+        _drop?.Dispose();
+    }
+}

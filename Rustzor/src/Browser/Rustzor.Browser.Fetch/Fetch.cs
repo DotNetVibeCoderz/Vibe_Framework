@@ -139,12 +139,20 @@ public sealed class FetchClient
     /// Streams a response body as it arrives, line by line or chunk by chunk —
     /// what a server-sent events or LLM token stream needs.
     /// </summary>
-    public Task StreamAsync(FetchRequest request, Action<string> onChunk)
+    public Task StreamAsync(FetchRequest request, Action<string> onChunk) => StreamAsync(request, onChunk, default);
+
+    /// <summary>
+    /// Streams a response body; cancelling <paramref name="cancellationToken"/> aborts the
+    /// request in the browser and fails the task with <see cref="OperationCanceledException"/>.
+    /// </summary>
+    public Task StreamAsync(FetchRequest request, Action<string> onChunk, CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<bool>();
         var id = 0;
+        var finished = false;
         id = Callbacks.Register(msg =>
         {
+            if (finished) return;
             switch (msg["kind"].AsString())
             {
                 case "chunk":
@@ -172,6 +180,17 @@ public sealed class FetchClient
         w.Prop("body", request.Body);
         w.EndObject();
         Js.InvokeVoid("fetch.stream", w.ToString());
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationToken.Register(() =>
+            {
+                if (finished || tcs.Task.IsCompleted) return;
+                finished = true;
+                Callbacks.Unregister(id);
+                Js.Send("fetch.abort", Js.Args("id", id));
+                tcs.TrySetException(new OperationCanceledException("The request was cancelled."));
+            });
+        }
         return tcs.Task;
     }
 

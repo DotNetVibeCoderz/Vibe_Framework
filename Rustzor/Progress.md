@@ -2,6 +2,70 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-22: Loket AI assistant sample
+
+- `samples/Loket`: a bilingual (Indonesian first, English on a toggle) front-desk assistant
+  for Kelurahan Kemuning Raya, an invented neighbourhood office, answering from its own
+  procedures with citations. Routes `/` and `/c/{id}` (the counter), `/dokumen` (the
+  document archive), `/catatan` (staff notes), `/pengaturan` (provider, key, persona).
+  Service-counter look: a queue board with the ticket number in marigold, conversations as
+  numbered queue tickets, citations as red rubber stamps, tool calls as filled-in slips;
+  Big Shoulders Display, Plus Jakarta Sans and Spline Sans Mono; light and dark; a drawer
+  on phones.
+- Chat: streaming with Stop (the HTTP request is aborted in the browser), Markdown that
+  escapes everything before adding its own tags (tables, lists, code blocks with Copy,
+  http/https/mailto links only), conversations with search, rename and delete in
+  localStorage, export to Markdown and JSON, a persona editor with three presets, token and
+  cost counters, images for vision models, voice input (Web Speech API) and spoken replies
+  where the browser has them.
+- Providers: an offline demo model (no key or network; it picks the same tools a real model
+  would and streams word by word), Azure OpenAI, OpenAI, Anthropic, any OpenAI-compatible
+  endpoint; a connection test. Tools: an exact decimal calculator that reads Indonesian
+  number formats, the office clock in WIB with opening hours, document search, and a staff
+  note. Documents: five seeded SOPs plus dropped or picked `.md`/`.txt`/`.pdf` (pdf.js),
+  chunked per section and searched with BM25 and a light Indonesian stemmer; a citation
+  opens its passage, and the archive opens on it highlighted.
+- `Rustzor.AI`: tool calling. `ChatTool`, `ToolCall`, `ChatTurn` (with `StopReason`),
+  `IToolChatModel.StreamTurnAsync` on `OpenAiChat` and `ClaudeChat` (tool definitions,
+  streamed argument assembly, tool-result messages in each API's shape, usage from the
+  stream), and `ToolAgent`, the run-tools-and-reply loop. `ChatMessage` gained
+  `ToolCalls`/`ToolCallId`; existing signatures are unchanged.
+- `Rustzor.Browser.Fetch`: `StreamAsync(request, onChunk, CancellationToken)` aborts the
+  browser fetch (`fetch.abort`) and fails with `OperationCanceledException`.
+- Verified: `tools/e2e/loket.mjs` passes all 22 offline checks three times in a row:
+  streaming in pieces, Stop, Markdown, the calculator card (`15% * 2.400.000 = 360000`), a
+  note, `<script>`/`<img onerror>` shown as text and never run, a dropped document found and
+  cited with its passage opened, token counts, persistence across a reload, delete, and the
+  OpenAI-compatible provider over HTTP against a mock that streams a tool call in pieces.
+  Live with Azure OpenAI gpt-5-mini (key from an env var, never printed or stored in the
+  repo): a real calculator call (`(3250000 * 17) / 100 = 552500`), 432 streamed content
+  events in one answer, a cited document search, the provider's token counts; all passed.
+  Every route renders with no console errors; the solution builds with no warnings; the
+  other samples' pages render and the Meet, Rupa, Kamar Gelap, Siaga and Tilik checks pass.
+  Screenshots looked at and fixed (drawer button on desktop, source sheet covering the
+  answer, the demo quoting an unrelated procedure, number grouping, passage scrolling).
+- Found while building it: gpt-5-mini spends hidden reasoning tokens against
+  `max_completion_tokens`, so a long answer at 1200 came back empty with
+  `finish_reason: "length"`; Loket now asks for 4096 and says so when a reply is cut off.
+- Runtime (RustNetRuntime, local, not committed; Rustzor still pins 55de031, so the rev has
+  to move before Loket runs from a clean checkout):
+  - `crates/rustclr-core/src/loader.rs`: an explicit interface implementation on a
+    constructed generic type (`EventCallback<T>`'s `IEventCallbackLike.Untyped`, reached
+    by any `@onclick` on a `NavLink`) was not found; `MethodImpl` lookup now falls back to
+    the open definition. `ExplicitGenericChecks`.
+  - `crates/rustclr-bcl/src/extras.rs`: `String.IndexOf(string, int, StringComparison)`,
+    `IndexOf(string, int, int, StringComparison)`, and an exact `IndexOf(char, int, int)`
+    (without it the arity fallback read the count as a comparison, which broke Tilik's edge
+    measurement until caught by its e2e). `StringSearchChecks`.
+  - `crates/rustclr-core/src/interp.rs`: delegate `Invoke` roots the delegate's targets and
+    arguments for the whole invocation list, so a handler that unsubscribes a later one no
+    longer lets a collection free its receiver (a `MissingFieldException` on a page leaving
+    during `LocationChanged`). `GcEventChecks`, also under constant collection in
+    `crates/rustclr-bcl/tests/gc_natives.rs`.
+  - Conformance 486 checks, 0 failures on .NET and on RustCLR; `cargo test --workspace`
+    473 passed; `tests/embedded.sh` all targets build without std. Each check fails
+    without its fix.
+
 ## 2026-10-22: Tilik CAD viewer sample
 
 - `samples/Tilik`: a design-review viewer for the RW-63 two-stage gear reducer of a

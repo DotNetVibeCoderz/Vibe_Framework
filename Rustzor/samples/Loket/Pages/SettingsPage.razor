@@ -1,0 +1,188 @@
+@page "/pengaturan"
+@implements IDisposable
+
+<section class="lk-page">
+    <header class="lk-page-head">
+        <p class="lk-eyebrow">@L.T("Pengaturan loket", "Desk settings")</p>
+        <h1>@L.T("Model, kunci, dan kepribadian asisten", "Model, key and the assistant's persona")</h1>
+    </header>
+
+    <form class="lk-form" @onsubmit="Save" @onsubmit:preventDefault="true">
+        <fieldset>
+            <legend>@L.T("Penyedia model", "Model provider")</legend>
+            <div class="lk-providers" role="radiogroup">
+                @foreach (var p in Providers.All)
+                {
+                    <label class="lk-provider @(_s.Provider == p.Id ? "on" : "")">
+                        <input type="radio" name="provider" value="@p.Id" checked="@(_s.Provider == p.Id)" @onchange="() => Pick(p.Id)" />
+                        <b>@p.Name</b>
+                        <small>@p.Hint</small>
+                    </label>
+                }
+            </div>
+        </fieldset>
+
+        @if (_s.Provider != "demo")
+        {
+            <fieldset>
+                <legend>@L.T("Sambungan", "Connection")</legend>
+                @if (_s.Provider is "azure" or "compatible")
+                {
+                    <label class="lk-field"><span>Endpoint</span>
+                        <input value="@_s.Endpoint" @oninput="e => _s.Endpoint = e.Value?.ToString() ?? string.Empty" placeholder="@(_s.Provider == "azure" ? "https://<resource>.openai.azure.com" : "http://localhost:11434/v1")" autocomplete="off" spellcheck="false" />
+                    </label>
+                }
+                <label class="lk-field"><span>@L.T("Kunci API", "API key")</span>
+                    <input type="password" value="@_s.ApiKey" @oninput="e => _s.ApiKey = e.Value?.ToString() ?? string.Empty" autocomplete="off" spellcheck="false" data-testid="api-key" placeholder="@(_s.ApiKey.Length > 0 ? "" : L.T("tempel kunci di sini", "paste the key here"))" />
+                    <small>@L.T("Disimpan hanya di localStorage browser ini dan dikirim hanya ke penyedia yang dipilih. Untuk aplikasi publik, pakai proxy agar kunci tetap di server.", "Kept only in this browser's localStorage and sent only to the chosen provider. For a public app, use a proxy so the key stays on a server.")</small>
+                </label>
+                <label class="lk-field"><span>@(_s.Provider == "azure" ? L.T("Deployment (model)", "Deployment (model)") : L.T("Model", "Model"))</span>
+                    <input value="@_s.Model" @oninput="e => _s.Model = e.Value?.ToString() ?? string.Empty" placeholder="@Providers.All.First(p => p.Id == _s.Provider).DefaultModel" spellcheck="false" />
+                </label>
+                @if (_s.Provider == "anthropic")
+                {
+                    <label class="lk-field"><span>Workspace ID</span>
+                        <input value="@_s.WorkspaceId" @oninput="e => _s.WorkspaceId = e.Value?.ToString() ?? string.Empty" placeholder="@L.T("opsional", "optional")" spellcheck="false" />
+                    </label>
+                }
+                <div class="lk-field-row">
+                    <label class="lk-field"><span>@L.T("Harga masuk, $ per 1 juta token", "Input price, $ per million tokens")</span>
+                        <input type="number" step="0.01" min="0" value="@_s.PriceIn.ToString(System.Globalization.CultureInfo.InvariantCulture)" @oninput="e => _s.PriceIn = Num(e.Value)" />
+                    </label>
+                    <label class="lk-field"><span>@L.T("Harga keluar, $ per 1 juta token", "Output price, $ per million tokens")</span>
+                        <input type="number" step="0.01" min="0" value="@_s.PriceOut.ToString(System.Globalization.CultureInfo.InvariantCulture)" @oninput="e => _s.PriceOut = Num(e.Value)" />
+                    </label>
+                </div>
+                <div class="lk-test">
+                    <button type="button" class="lk-btn" @onclick="TestAsync" disabled="@_testing">@(_testing ? L.T("Menguji…", "Testing…") : L.T("Uji sambungan", "Test the connection"))</button>
+                    @if (_test.Length > 0)
+                    {
+                        <span class="@(_testOk ? "ok" : "bad")" data-testid="test-result">@_test</span>
+                    }
+                </div>
+            </fieldset>
+        }
+
+        <fieldset>
+            <legend>@L.T("Kepribadian (system prompt)", "Persona (system prompt)")</legend>
+            <div class="lk-presets">
+                <button type="button" class="lk-chip" @onclick="() => _s.Persona = Personas.Desk">@L.T("Petugas loket", "Front desk")</button>
+                <button type="button" class="lk-chip" @onclick="() => _s.Persona = Personas.Concise">@L.T("Singkat", "Brief")</button>
+                <button type="button" class="lk-chip" @onclick="() => _s.Persona = Personas.Guide">@L.T("Pemandu berbahasa Inggris", "English guide")</button>
+            </div>
+            <textarea class="lk-persona" rows="10" value="@_s.Persona" @oninput="e => _s.Persona = e.Value?.ToString() ?? string.Empty" aria-label="System prompt" spellcheck="false"></textarea>
+            <small>@L.T("Model demo tidak membaca teks ini; penyedia sungguhan memakainya di setiap jawaban.", "The demo model does not read this; real providers use it on every answer.")</small>
+        </fieldset>
+
+        <div class="lk-form-actions">
+            <button type="submit" class="lk-btn primary" data-testid="save-settings">@L.T("Simpan pengaturan", "Save settings")</button>
+            <button type="button" class="lk-btn danger ghost" @onclick="() => _confirmReset = true">@L.T("Hapus semua percakapan dan catatan", "Delete all conversations and notes")</button>
+        </div>
+    </form>
+</section>
+
+@if (_confirmReset)
+{
+    <div class="lk-dialog-scrim" @onclick="() => _confirmReset = false">
+        <div class="lk-dialog" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <h2>@L.T("Mulai dari awal?", "Start over?")</h2>
+            <p>@L.T("Semua percakapan, catatan, dan dokumen tambahan di browser ini dihapus. Pengaturan dan kunci tetap.", "Every conversation, note and added document in this browser is deleted. Settings and the key stay.")</p>
+            <div class="lk-dialog-actions">
+                <button class="lk-btn" @onclick="() => _confirmReset = false">@L.T("Batal", "Cancel")</button>
+                <button class="lk-btn danger" @onclick="Reset">@L.T("Hapus semuanya", "Delete everything")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private Settings _s = new();
+    private bool _testing;
+    private string _test = "";
+    private bool _testOk;
+    private bool _confirmReset;
+
+    protected override void OnInitialized()
+    {
+        Desk.Load();
+        L.Changed += Redraw;
+        var d = Desk.Settings;
+        _s = new Settings
+        {
+            Provider = d.Provider, Endpoint = d.Endpoint, ApiKey = d.ApiKey, Model = d.Model, WorkspaceId = d.WorkspaceId,
+            PriceIn = d.PriceIn, PriceOut = d.PriceOut, Persona = d.Persona, Speak = d.Speak,
+        };
+    }
+
+    private void Pick(string id)
+    {
+        if (_s.Provider == id) return;
+        _s.Provider = id;
+        _s.Model = "";
+        // Starting values for the cost counter, per million tokens; set them from your provider's price list.
+        (_s.PriceIn, _s.PriceOut) = id switch
+        {
+            "azure" or "openai" => (0.25, 2.0),
+            "anthropic" => (3.0, 15.0),
+            _ => (0.0, 0.0),
+        };
+        _test = "";
+    }
+
+    private static double Num(object? v) =>
+        double.TryParse(v?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) && d >= 0 ? d : 0;
+
+    private void Apply()
+    {
+        var d = Desk.Settings;
+        d.Provider = _s.Provider;
+        d.Endpoint = _s.Endpoint.Trim();
+        d.ApiKey = _s.ApiKey.Trim();
+        d.Model = _s.Model.Trim();
+        d.WorkspaceId = _s.WorkspaceId.Trim();
+        d.PriceIn = _s.PriceIn;
+        d.PriceOut = _s.PriceOut;
+        d.Persona = _s.Persona.Trim().Length == 0 ? Personas.Desk : _s.Persona;
+        Desk.SaveSettings();
+    }
+
+    private void Save()
+    {
+        Apply();
+        Toasts.Success(L.T($"Tersimpan. Loket kini memakai {Providers.NameOf(_s.Provider)}.", $"Saved. The desk now uses {Providers.NameOf(_s.Provider)}."));
+    }
+
+    private async Task TestAsync()
+    {
+        _testing = true;
+        _test = "";
+        StateHasChanged();
+        try
+        {
+            var model = Providers.Create(_s);
+            var started = Environment.TickCount64;
+            var reply = await model.CompleteAsync(new[] { ChatMessage.User("Reply with the single word: siap") }, new ChatOptions { MaxTokens = 400 });
+            _testOk = reply.Text.Trim().Length > 0;
+            _test = _testOk
+                ? L.T($"Tersambung ke {model.Model} dalam {Environment.TickCount64 - started} ms.", $"Connected to {model.Model} in {Environment.TickCount64 - started} ms.")
+                : L.T("Tersambung, tetapi jawabannya kosong.", "Connected, but the reply was empty.");
+        }
+        catch (Exception e)
+        {
+            _testOk = false;
+            _test = Counter.Describe(e);
+        }
+        _testing = false;
+    }
+
+    private void Reset()
+    {
+        Desk.ResetData();
+        _confirmReset = false;
+        Toasts.Success(L.T("Antrean, catatan, dan dokumen tambahan dikosongkan.", "Cleared the queue, notes and added documents."));
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => L.Changed -= Redraw;
+}

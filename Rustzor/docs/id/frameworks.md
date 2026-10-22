@@ -101,6 +101,7 @@ Language model langsung dari browser.
 | `IChatModel` | `CompleteAsync(messages, options)` dan `StreamAsync` |
 | `OpenAiChat` | OpenAI dan endpoint yang kompatibel; `OpenAiChat.Azure(...)`, `OpenAiChat.Ollama(...)`; `EmbedAsync` |
 | `ClaudeChat` | Messages API dari Anthropic |
+| `IToolChatModel`, `ChatTool`, `ToolCall`, `ToolAgent` | Tool calling: alat sebagai JSON Schema, panggilan yang di-stream lalu dirangkai, dan perulangan yang menjalankannya; bisa dibatalkan |
 | `BuiltInChat` | Model bawaan browser, jika tersedia |
 | `Conversation` | Percakapan dengan riwayat dan system prompt; `SendAsync(text, onPiece)` melakukan streaming |
 | `RagPipeline` | Jawaban dengan retrieval-augmented generation: `IndexAsync(id, text)`, `AskAsync(question)` beserta sumbernya |
@@ -114,6 +115,22 @@ IChatModel model = new ClaudeChat(apiKey, "claude-sonnet-5-5");
 var chat = new Conversation(model, "You answer in one short sentence.");
 await chat.SendAsync("Name the capital of Indonesia.", piece => { reply += piece; StateHasChanged(); });
 ```
+
+Tool calling: `IToolChatModel` (`OpenAiChat`, `ClaudeChat`) melakukan streaming satu giliran dengan `StreamTurnAsync(messages, tools, onText, options, cancellationToken)` dan mengembalikan teks, tool call (argumennya dirangkai dari potongan yang di-stream), pemakaian token, dan alasan berhenti. `ToolAgent` menjalankan perulangannya: memanggil alat yang Anda daftarkan, mengirim hasilnya kembali, dan berhenti saat model menjawab dengan teks. Membatalkan token membatalkan permintaan di browser.
+
+```csharp
+var agent = new ToolAgent(OpenAiChat.Azure(endpoint, key, "gpt-5-mini"))
+{
+    OnText = piece => { reply += piece; StateHasChanged(); },
+    OnToolCall = call => Console.WriteLine($"{call.Name} {call.Arguments}"),
+};
+agent.Register(new ChatTool("calculator", "Evaluate an arithmetic expression.",
+    """{"type":"object","properties":{"expression":{"type":"string"}},"required":["expression"]}"""),
+    call => Calc.Evaluate(call.Args["expression"].AsString()).ToString());
+var turn = await agent.RunAsync(messages, new ChatOptions { MaxTokens = 4096 }, stop.Token);
+```
+
+[Sample Loket](samples.md#loket-meja-layanan) memakai semuanya, dengan model demo luring di balik antarmuka yang sama.
 
 API key yang dipakai di browser bisa dilihat oleh siapa pun yang membuka halaman tersebut. Untuk aplikasi publik, panggil model dari server Anda ([API Playground](samples.md#api-playground) menunjukkan server yang berdampingan dengan client Rustzor) atau gunakan proxy yang menyimpan key-nya; simpan key di browser hanya untuk tool pribadi dan demo.
 

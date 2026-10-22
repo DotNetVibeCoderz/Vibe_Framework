@@ -18,10 +18,18 @@ export function install({ ops, dispatch }) {
       if (timer) clearTimeout(timer);
     }
   };
+  // Streams in flight, by callback id, so fetch.abort can stop one.
+  const streams = new Map();
+  ops["fetch.abort"] = ({ id }) => {
+    streams.get(id)?.abort();
+    streams.delete(id);
+  };
   ops["fetch.stream"] = ({ id, url, method, headers, body }) => {
+    const controller = new AbortController();
+    streams.set(id, controller);
     (async () => {
       try {
-        const res = await fetch(url, { method, headers, body: body ?? undefined });
+        const res = await fetch(url, { method, headers, body: body ?? undefined, signal: controller.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}: ${(await res.text()).slice(0, 2000)}`);
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -32,7 +40,9 @@ export function install({ ops, dispatch }) {
         }
         dispatch(id, { kind: "done" });
       } catch (e) {
-        dispatch(id, { kind: "error", error: String(e?.message ?? e) });
+        if (!controller.signal.aborted) dispatch(id, { kind: "error", error: String(e?.message ?? e) });
+      } finally {
+        streams.delete(id);
       }
     })();
   };

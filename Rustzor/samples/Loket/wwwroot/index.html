@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <base href="/" />
+  <title>Loket · Kelurahan Kemuning Raya · Rustzor sample</title>
+  <meta name="description" content="A bilingual front-desk assistant that answers from the office's own documents, with tools and citations, built with Rustzor by Gravicode Studios, led by Kang Fadhil." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%230b5d45%27/%3E%3Cpath d=%27M11 8v16h11%27 fill=%27none%27 stroke=%27%23f4b400%27 stroke-width=%274%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="loket.css" />
+</head>
+<body>
+  <div id="app"><div class="lk-boot app-loading"><b>A-···</b><span>Membuka loket…</span></div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='lk-boot-error app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+      console.error(e);
+    });
+  </script>
+</body>
+</html>

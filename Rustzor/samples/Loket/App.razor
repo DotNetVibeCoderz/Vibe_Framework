@@ -1,0 +1,14 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(DeskLayout)" />
+    </Found>
+    <NotFound>
+        <div class="lk-lost">
+            <p class="lk-lost-num">404</p>
+            <h1>@L.T("Loket ini tidak ada", "There is no such counter")</h1>
+            <p>@L.T("Kembali ke antrean untuk bertanya.", "Go back to the queue to ask a question.")</p>
+            <a class="lk-btn primary" href="">@L.T("Ke antrean", "To the queue")</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

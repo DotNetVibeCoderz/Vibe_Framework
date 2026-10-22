@@ -4,12 +4,21 @@ using Rustzor.Interop;
 
 namespace Rustzor.AI;
 
-/// <summary>A chat turn. <see cref="ImageDataUrl"/> attaches an image (data:image/png;base64,...) for vision models.</summary>
-public sealed record ChatMessage(string Role, string Content, string? ImageDataUrl = null)
+/// <summary>
+/// A chat turn. <see cref="ImageDataUrl"/> attaches an image (data:image/png;base64,...) for vision
+/// models; <see cref="ToolCalls"/> are the calls an assistant turn made, and a "tool" message
+/// answers one of them by <see cref="ToolCallId"/>.
+/// </summary>
+public sealed record ChatMessage(string Role, string Content, string? ImageDataUrl = null,
+    IReadOnlyList<ToolCall>? ToolCalls = null, string? ToolCallId = null)
 {
     public static ChatMessage System(string text) => new("system", text);
     public static ChatMessage User(string text, string? imageDataUrl = null) => new("user", text, imageDataUrl);
     public static ChatMessage Assistant(string text) => new("assistant", text);
+    /// <summary>An assistant turn that called tools (with whatever text came before the calls).</summary>
+    public static ChatMessage AssistantCalls(string text, IReadOnlyList<ToolCall> calls) => new("assistant", text, null, calls);
+    /// <summary>The result of a tool call, sent back to the model.</summary>
+    public static ChatMessage Tool(string toolCallId, string result) => new("tool", result, null, null, toolCallId);
 }
 
 public sealed class ChatOptions
@@ -43,7 +52,7 @@ public interface IChatModel
 /// small proxy in front of the provider and point <c>endpoint</c> at it.
 /// </para>
 /// </summary>
-public sealed class OpenAiChat : IChatModel
+public sealed class OpenAiChat : IToolChatModel
 {
     private readonly FetchClient _http = new();
     private readonly string _endpoint;
@@ -68,7 +77,7 @@ public sealed class OpenAiChat : IChatModel
 
     public static OpenAiChat Ollama(string model = "llama3.2", string endpoint = "http://localhost:11434/v1") => new(endpoint, null, model);
 
-    private string Body(IReadOnlyList<ChatMessage> messages, ChatOptions o, bool stream)
+    private string Body(IReadOnlyList<ChatMessage> messages, ChatOptions o, bool stream, IReadOnlyList<ChatTool>? tools = null)
     {
         var w = new JsonWriter().BeginObject().Prop("model", Model).Prop("stream", stream);
         if (o.Temperature is { } temperature) w.Prop("temperature", temperature);
@@ -77,11 +86,38 @@ public sealed class OpenAiChat : IChatModel
         w.Prop("max_completion_tokens", o.MaxTokens);
         if (o.JsonMode) w.Name("response_format").BeginObject().Prop("type", "json_object").EndObject();
         if (stream) w.Name("stream_options").BeginObject().Prop("include_usage", true).EndObject();
+        if (tools is { Count: > 0 })
+        {
+            w.Name("tools").BeginArray();
+            foreach (var t in tools)
+            {
+                w.BeginObject().Prop("type", "function").Name("function").BeginObject()
+                    .Prop("name", t.Name).Prop("description", t.Description)
+                    .Name("parameters").Any(JsonValue.Parse(t.ParametersSchema))
+                    .EndObject().EndObject();
+            }
+            w.EndArray();
+        }
         w.Name("messages").BeginArray();
         foreach (var m in messages)
         {
             w.BeginObject().Prop("role", m.Role);
-            if (m.ImageDataUrl is null) w.Prop("content", m.Content);
+            if (m.Role == "tool")
+            {
+                w.Prop("tool_call_id", m.ToolCallId ?? "").Prop("content", m.Content);
+            }
+            else if (m.ToolCalls is { Count: > 0 } calls)
+            {
+                w.Prop("content", m.Content);
+                w.Name("tool_calls").BeginArray();
+                foreach (var c in calls)
+                {
+                    w.BeginObject().Prop("id", c.Id).Prop("type", "function").Name("function").BeginObject()
+                        .Prop("name", c.Name).Prop("arguments", c.Arguments).EndObject().EndObject();
+                }
+                w.EndArray();
+            }
+            else if (m.ImageDataUrl is null) w.Prop("content", m.Content);
             else
             {
                 w.Name("content").BeginArray()
@@ -104,22 +140,44 @@ public sealed class OpenAiChat : IChatModel
             usage.IsNull ? null : new ChatUsage(usage["prompt_tokens"].AsInt(), usage["completion_tokens"].AsInt()));
     }
 
-    public async Task<string> StreamAsync(IReadOnlyList<ChatMessage> messages, Action<string> onText, ChatOptions? options = null)
+    public async Task<string> StreamAsync(IReadOnlyList<ChatMessage> messages, Action<string> onText, ChatOptions? options = null) =>
+        (await StreamTurnAsync(messages, Array.Empty<ChatTool>(), onText, options)).Text;
+
+    public async Task<ChatTurn> StreamTurnAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ChatTool> tools,
+        Action<string> onText, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         var all = new StringBuilder();
+        var calls = new Dictionary<int, ToolCallBuilder>();
+        ChatUsage? usage = null;
+        string? stop = null;
         var sse = new SseReader(data =>
         {
             if (data == "[DONE]") return;
             var v = JsonValue.Parse(data);
-            var piece = v["choices"][0]["delta"]["content"].AsStringOrNull();
+            // The last chunk, with include_usage, has no choices and the token counts.
+            var u = v["usage"];
+            if (!u.IsNull && u.Kind == JsonKind.Object) usage = new ChatUsage(u["prompt_tokens"].AsInt(), u["completion_tokens"].AsInt());
+            if (v["choices"][0]["finish_reason"].AsStringOrNull() is { Length: > 0 } reason) stop = reason;
+            var delta = v["choices"][0]["delta"];
+            if (delta.IsNull) return;
+            foreach (var tc in delta["tool_calls"].Items)
+            {
+                var index = tc["index"].IsNull ? calls.Count : tc["index"].AsInt();
+                if (!calls.TryGetValue(index, out var b)) calls[index] = b = new ToolCallBuilder();
+                if (tc["id"].AsStringOrNull() is { Length: > 0 } id) b.Id = id;
+                var fn = tc["function"];
+                if (fn["name"].AsStringOrNull() is { Length: > 0 } name) b.Name += name;
+                if (fn["arguments"].AsStringOrNull() is { } args) b.Arguments.Append(args);
+            }
+            var piece = delta["content"].AsStringOrNull();
             if (string.IsNullOrEmpty(piece)) return;
             all.Append(piece);
             onText(piece);
         });
-        var request = new FetchRequest(_endpoint + "/chat/completions", "POST") { Body = Body(messages, options ?? new(), true) }
+        var request = new FetchRequest(_endpoint + "/chat/completions", "POST") { Body = Body(messages, options ?? new(), true, tools) }
             .WithHeader("Content-Type", "application/json");
-        await _http.StreamAsync(request, sse.Push);
-        return all.ToString();
+        await _http.StreamAsync(request, sse.Push, cancellationToken);
+        return new ChatTurn(all.ToString(), calls.OrderBy(kv => kv.Key).Select(kv => kv.Value.Build(kv.Key)).ToList(), usage) { StopReason = stop };
     }
 
     /// <summary>Embeddings from /embeddings, e.g. text-embedding-3-small.</summary>
@@ -137,7 +195,7 @@ public sealed class OpenAiChat : IChatModel
 /// <c>anthropic-dangerous-direct-browser-access</c> header; prefer a proxy
 /// for public apps so the key stays on a server.
 /// </summary>
-public sealed class ClaudeChat : IChatModel
+public sealed class ClaudeChat : IToolChatModel
 {
     private readonly FetchClient _http = new();
     private readonly string _endpoint;
@@ -155,15 +213,34 @@ public sealed class ClaudeChat : IChatModel
 
     public string Model { get; }
 
-    private string Body(IReadOnlyList<ChatMessage> messages, ChatOptions o, bool stream)
+    private string Body(IReadOnlyList<ChatMessage> messages, ChatOptions o, bool stream, IReadOnlyList<ChatTool>? tools = null)
     {
         var w = new JsonWriter().BeginObject().Prop("model", Model).Prop("max_tokens", o.MaxTokens).Prop("stream", stream);
         if (o.Temperature is { } temperature) w.Prop("temperature", temperature);
         var system = string.Join("\n\n", messages.Where(m => m.Role == "system").Select(m => m.Content));
         if (system.Length > 0) w.Prop("system", system);
-        w.Name("messages").BeginArray();
-        foreach (var m in messages.Where(m => m.Role != "system"))
+        if (tools is { Count: > 0 })
         {
+            w.Name("tools").BeginArray();
+            foreach (var t in tools)
+                w.BeginObject().Prop("name", t.Name).Prop("description", t.Description).Name("input_schema").Any(JsonValue.Parse(t.ParametersSchema)).EndObject();
+            w.EndArray();
+        }
+        w.Name("messages").BeginArray();
+        var list = messages.Where(m => m.Role != "system").ToList();
+        for (var i = 0; i < list.Count; i++)
+        {
+            var m = list[i];
+            if (m.Role == "tool")
+            {
+                // Consecutive tool results travel together in one user turn.
+                w.BeginObject().Prop("role", "user").Name("content").BeginArray();
+                for (; i < list.Count && list[i].Role == "tool"; i++)
+                    w.BeginObject().Prop("type", "tool_result").Prop("tool_use_id", list[i].ToolCallId ?? "").Prop("content", list[i].Content).EndObject();
+                i--;
+                w.EndArray().EndObject();
+                continue;
+            }
             w.BeginObject().Prop("role", m.Role).Name("content").BeginArray();
             if (m.ImageDataUrl is { } url && url.StartsWith("data:"))
             {
@@ -173,7 +250,10 @@ public sealed class ClaudeChat : IChatModel
                     .Prop("type", "base64").Prop("media_type", mediaType).Prop("data", url[(comma + 1)..])
                     .EndObject().EndObject();
             }
-            w.BeginObject().Prop("type", "text").Prop("text", m.Content).EndObject();
+            if (m.Content.Length > 0 || m.ToolCalls is not { Count: > 0 })
+                w.BeginObject().Prop("type", "text").Prop("text", m.Content).EndObject();
+            foreach (var c in m.ToolCalls ?? Array.Empty<ToolCall>())
+                w.BeginObject().Prop("type", "tool_use").Prop("id", c.Id).Prop("name", c.Name).Name("input").Any(c.Args).EndObject();
             w.EndArray().EndObject();
         }
         return w.EndArray().EndObject().ToString();
@@ -188,22 +268,52 @@ public sealed class ClaudeChat : IChatModel
         return new ChatReply(text, new ChatUsage(r["usage"]["input_tokens"].AsInt(), r["usage"]["output_tokens"].AsInt()));
     }
 
-    public async Task<string> StreamAsync(IReadOnlyList<ChatMessage> messages, Action<string> onText, ChatOptions? options = null)
+    public async Task<string> StreamAsync(IReadOnlyList<ChatMessage> messages, Action<string> onText, ChatOptions? options = null) =>
+        (await StreamTurnAsync(messages, Array.Empty<ChatTool>(), onText, options)).Text;
+
+    public async Task<ChatTurn> StreamTurnAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ChatTool> tools,
+        Action<string> onText, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         var all = new StringBuilder();
+        var calls = new Dictionary<int, ToolCallBuilder>();
+        var input = 0;
+        var output = 0;
+        string? stop = null;
         var sse = new SseReader(data =>
         {
             var v = JsonValue.Parse(data);
-            if (v["type"].AsString() != "content_block_delta") return;
-            var piece = v["delta"]["text"].AsStringOrNull();
-            if (string.IsNullOrEmpty(piece)) return;
-            all.Append(piece);
-            onText(piece);
+            switch (v["type"].AsStringOrNull())
+            {
+                case "message_start":
+                    input = v["message"]["usage"]["input_tokens"].AsInt();
+                    break;
+                case "message_delta":
+                    if (!v["usage"]["output_tokens"].IsNull) output = v["usage"]["output_tokens"].AsInt();
+                    if (v["delta"]["stop_reason"].AsStringOrNull() is { Length: > 0 } reason) stop = reason;
+                    break;
+                case "content_block_start":
+                    var block = v["content_block"];
+                    if (block["type"].AsStringOrNull() == "tool_use")
+                        calls[v["index"].AsInt()] = new ToolCallBuilder { Id = block["id"].AsString(), Name = block["name"].AsString() };
+                    break;
+                case "content_block_delta":
+                    var delta = v["delta"];
+                    if (delta["type"].AsStringOrNull() == "input_json_delta")
+                    {
+                        if (calls.TryGetValue(v["index"].AsInt(), out var b)) b.Arguments.Append(delta["partial_json"].AsStringOrNull() ?? "");
+                        break;
+                    }
+                    var piece = delta["text"].AsStringOrNull();
+                    if (string.IsNullOrEmpty(piece)) break;
+                    all.Append(piece);
+                    onText(piece);
+                    break;
+            }
         });
-        var request = new FetchRequest(_endpoint + "/v1/messages", "POST") { Body = Body(messages, options ?? new(), true) }
+        var request = new FetchRequest(_endpoint + "/v1/messages", "POST") { Body = Body(messages, options ?? new(), true, tools) }
             .WithHeader("Content-Type", "application/json");
-        await _http.StreamAsync(request, sse.Push);
-        return all.ToString();
+        await _http.StreamAsync(request, sse.Push, cancellationToken);
+        return new ChatTurn(all.ToString(), calls.OrderBy(kv => kv.Key).Select(kv => kv.Value.Build(kv.Key)).ToList(), new ChatUsage(input, output)) { StopReason = stop };
     }
 }
 

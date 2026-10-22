@@ -101,6 +101,7 @@ Language models from the browser.
 | `IChatModel` | `CompleteAsync(messages, options)` and `StreamAsync` |
 | `OpenAiChat` | OpenAI and compatible endpoints; `OpenAiChat.Azure(...)`, `OpenAiChat.Ollama(...)`; `EmbedAsync` |
 | `ClaudeChat` | Anthropic's Messages API |
+| `IToolChatModel`, `ChatTool`, `ToolCall`, `ToolAgent` | Tool calling: tools as JSON Schema, calls streamed and assembled, a loop that runs them; cancellable |
 | `BuiltInChat` | The browser's built-in model, where available |
 | `Conversation` | A chat with history and a system prompt; `SendAsync(text, onPiece)` streams |
 | `RagPipeline` | Retrieval-augmented answers: `IndexAsync(id, text)`, `AskAsync(question)` with sources |
@@ -114,6 +115,22 @@ IChatModel model = new ClaudeChat(apiKey, "claude-sonnet-5-5");
 var chat = new Conversation(model, "You answer in one short sentence.");
 await chat.SendAsync("Name the capital of Indonesia.", piece => { reply += piece; StateHasChanged(); });
 ```
+
+Tool calling: an `IToolChatModel` (`OpenAiChat`, `ClaudeChat`) streams one turn with `StreamTurnAsync(messages, tools, onText, options, cancellationToken)` and returns the text, the tool calls (arguments assembled from their streamed pieces), the usage and the stop reason. `ToolAgent` runs the loop: it calls the tools you register, sends their results back, and stops when the model answers in text. Cancelling the token aborts the request in the browser.
+
+```csharp
+var agent = new ToolAgent(OpenAiChat.Azure(endpoint, key, "gpt-5-mini"))
+{
+    OnText = piece => { reply += piece; StateHasChanged(); },
+    OnToolCall = call => Console.WriteLine($"{call.Name} {call.Arguments}"),
+};
+agent.Register(new ChatTool("calculator", "Evaluate an arithmetic expression.",
+    """{"type":"object","properties":{"expression":{"type":"string"}},"required":["expression"]}"""),
+    call => Calc.Evaluate(call.Args["expression"].AsString()).ToString());
+var turn = await agent.RunAsync(messages, new ChatOptions { MaxTokens = 4096 }, stop.Token);
+```
+
+The [Loket sample](samples.md#loket-front-desk) uses all of it, with an offline demo model behind the same interface.
 
 An API key used in a browser is visible to anyone who opens the page. For a public app, call the model from your server (the [API Playground](samples.md#api-playground) shows a server next to a Rustzor client) or use a proxy that holds the key; keep keys in the browser for personal tools and demos.
 
