@@ -1,0 +1,150 @@
+@* The 3D view. The engine draws into two canvases it adds to the host (the model, and the
+   dimensions and pins over it) and turns the view cube itself, so orbiting never re-renders
+   anything here; C# hears about picks, measurements, note places and section drags. *@
+@implements IDisposable
+
+<section class="tk-vp" @ref="_host" tabindex="0" data-tool="@Review.Tool" aria-label="3D view of the model. Drag to orbit, right-drag or shift-drag to pan, scroll to zoom.">
+    <div class="tk-cube-wrap" data-ui>
+        <div class="tk-cube" @ref="_cube">
+            <button class="tk-face front" @onclick='() => Review.View("front")'>Front</button>
+            <button class="tk-face back" @onclick='() => Review.View("back")'>Back</button>
+            <button class="tk-face right" @onclick='() => Review.View("right")'>Right</button>
+            <button class="tk-face left" @onclick='() => Review.View("left")'>Left</button>
+            <button class="tk-face top" @onclick='() => Review.View("top")'>Top</button>
+            <button class="tk-face bottom" @onclick='() => Review.View("bottom")'>Bottom</button>
+        </div>
+        <div class="tk-cube-btns">
+            <button class="tk-ibtn" title="Isometric view" aria-label="Isometric view" @onclick='() => Review.View("iso")'><Glyph Name="cube" Size="16" /></button>
+            <button class="tk-ibtn" title="Fit everything shown (F)" aria-label="Fit everything shown" @onclick="Review.Fit"><Glyph Name="fit" Size="16" /></button>
+            <button class="tk-ibtn @(Review.Ortho ? "on" : "")" title="@(Review.Ortho ? "Orthographic: switch to perspective" : "Perspective: switch to orthographic")" aria-pressed="@(Review.Ortho ? "true" : "false")" @onclick="() => Review.SetOrtho(!Review.Ortho)"><Glyph Name="@(Review.Ortho ? "ortho" : "persp")" Size="16" /></button>
+        </div>
+    </div>
+
+    @if (Review.SectionOn)
+    {
+        <div class="tk-sectionbar" data-ui role="group" aria-label="Section plane">
+            <span class="tk-eyebrow">Section</span>
+            <div class="tk-seg small">
+                @foreach (var a in new[] { "x", "y", "z" })
+                {
+                    <button class="@(Review.Axis == a ? "on" : "")" aria-pressed="@((Review.Axis == a) ? "true" : "false")" @onclick="() => Review.SetSection(axis: a)">@a.ToUpperInvariant()</button>
+                }
+            </div>
+            <input class="tk-range" type="range" min="0" max="1000" value="@((int)(Review.Offset * 1000))" aria-label="Section position" @oninput="OnOffset" />
+            <span class="tk-mono tk-sec-at">@SectionAt()</span>
+            <button class="tk-ibtn" title="Keep the other side" aria-label="Keep the other side" @onclick="() => Review.SetSection(flip: !Review.Flip)"><Glyph Name="flip" Size="16" /></button>
+            <button class="tk-ibtn" title="Remove the section" aria-label="Remove the section" @onclick="() => Review.SetSection(on: false)"><Glyph Name="close" Size="16" /></button>
+        </div>
+    }
+
+    <div class="tk-dock" data-ui>
+        <div class="tk-tools" role="toolbar" aria-label="Tools">
+            @foreach (var (id, icon, title) in Tools)
+            {
+                <button class="tk-tool @(Review.Tool == id ? "on" : "")" data-tool-id="@id" title="@title" aria-label="@title" aria-pressed="@((Review.Tool == id) ? "true" : "false")" @onclick="() => Review.SetTool(id)"><Glyph Name="@icon" /></button>
+            }
+        </div>
+        <div class="tk-tools" role="toolbar" aria-label="Display">
+            @foreach (var (id, icon, title) in Modes)
+            {
+                <button class="tk-tool @(Review.Mode == id ? "on" : "")" data-mode="@id" title="@title" aria-label="@title" aria-pressed="@((Review.Mode == id) ? "true" : "false")" @onclick="() => Review.SetMode(id)"><Glyph Name="@icon" /></button>
+            }
+        </div>
+        <label class="tk-explode" title="Exploded view">
+            <Glyph Name="explode" />
+            <input class="tk-range" type="range" min="0" max="100" value="@((int)(Review.Explode * 100))" aria-label="Exploded view" @oninput="OnExplode" />
+        </label>
+        <button class="tk-tool" title="Save a picture of the view (PNG)" aria-label="Save a picture of the view" @onclick="ShotAsync"><Glyph Name="camera" /></button>
+    </div>
+
+    @if (Hint() is { } hint)
+    {
+        <div class="tk-hint" data-ui role="status">@hint</div>
+    }
+
+    @if (Review.Error is { } err)
+    {
+        <div class="tk-vp-msg error" data-ui role="alert">
+            <b>The model did not open</b>
+            <span>@err</span>
+            <button class="tk-btn" @onclick='() => Js.Send("tk.open")'>Open another file</button>
+        </div>
+    }
+    else if (!Review.Ready)
+    {
+        <div class="tk-vp-msg" data-ui><span class="tk-spin"></span>Reading the assembly: 36 parts, 45 000 triangles…</div>
+    }
+    <div class="tk-dropzone" aria-hidden="true">Drop a .glb or .stl to open it</div>
+</section>
+
+@code {
+    private ElementReference _host, _cube;
+    private int _callback;
+    private long _handle;
+
+    private static readonly (string, string, string)[] Tools =
+    {
+        ("select", "select", "Select parts (click, shift-click to add)"),
+        ("measure-distance", "distance", "Measure the distance between two points"),
+        ("measure-edge", "edge", "Measure the length of an edge"),
+        ("measure-angle", "angle", "Measure an angle through three points"),
+        ("section", "section", "Section: drag in the view to move the cut"),
+        ("note", "note", "Pin a note on the model"),
+    };
+
+    private static readonly (string, string, string)[] Modes =
+    {
+        ("shaded", "shaded", "Shaded"),
+        ("edges", "edges", "Shaded with edges"),
+        ("wireframe", "wireframe", "Wireframe"),
+        ("xray", "xray", "X-ray"),
+    };
+
+    protected override void OnInitialized() => Review.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser) return;
+        _callback = Callbacks.Register(Review.OnMessage);
+        _handle = Js.Call("tk.attach", Js.Args("host", _host.Id, "cube", _cube.Id, "id", _callback)).AsLong();
+        Review.Attached = true;
+        Js.Send("tk.tool", Js.Args("tool", Review.Tool == "measure-distance" ? "measure-dist" : Review.Tool));
+        await Js.CallAsync("tk.load", Js.Args("url", Review.ModelUrl));
+    }
+
+    private string? Hint() => Review.Tool switch
+    {
+        "measure-distance" => Review.MeasureStep == 0 ? "Click the first point. Points snap to the nearest corner." : "Click the second point. Esc starts over.",
+        "measure-edge" => "Click an edge to measure its length.",
+        "measure-angle" => Review.MeasureStep switch { 0 => "Click a point on the first arm.", 1 => "Click the corner of the angle.", _ => "Click a point on the second arm." },
+        "section" => "Drag up and down in the view to move the cut.",
+        "note" => Review.PendingNote is null ? "Click where the note belongs." : "Write the note in the panel on the right.",
+        _ => null,
+    };
+
+    private string SectionAt()
+    {
+        var size = Review.Axis switch { "x" => Review.Size[0], "y" => Review.Size[1], _ => Review.Size[2] };
+        return (Review.Offset * size * 1000).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " mm";
+    }
+
+    private void OnOffset(ChangeEventArgs e) => Review.SetSection(offset: double.Parse(e.Value?.ToString() ?? "500", System.Globalization.CultureInfo.InvariantCulture) / 1000);
+
+    private void OnExplode(ChangeEventArgs e) => Review.SetExplode(double.Parse(e.Value?.ToString() ?? "0", System.Globalization.CultureInfo.InvariantCulture) / 100);
+
+    private async Task ShotAsync()
+    {
+        var r = await Js.CallAsync("tk.screenshot", Js.Args("name", $"tilik-{Review.File.Replace(".glb", "").Replace(".stl", "")}-{DateTime.Now:yyyyMMdd-HHmm}.png"));
+        Toasts.Success($"Saved a {r["width"].AsInt()} × {r["height"].AsInt()} picture of the view.");
+    }
+
+    public void Dispose()
+    {
+        Review.Changed -= Redraw;
+        Review.Attached = false;
+        if (_handle != 0) Js.Send("tk.detach", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

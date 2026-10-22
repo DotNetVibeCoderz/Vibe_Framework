@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- A Rustzor sample app: a design-review viewer for a gear reducer assembly. Built by Gravicode Studios, led by Kang Fadhil. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Tilik</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The viewer engine: glTF/STL loading, WebGL2 drawing, section caps, picking, dimensions. -->
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" />
+    <None Remove="assets-src\**" />
+    <ProjectReference Include="..\..\src\Rustzor.UI\Rustzor.UI.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.Storage\Rustzor.Browser.Storage.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.FileSystem\Rustzor.Browser.FileSystem.csproj" />
+  </ItemGroup>
+</Project>

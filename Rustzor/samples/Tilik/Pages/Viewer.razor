@@ -1,0 +1,22 @@
+@page "/"
+@* The review itself: the assembly tree, the 3D view and the details panel. On a phone the
+   view takes the screen and the two panels slide over it. *@
+
+<div class="tk-review @(_drawer is null ? "" : "drawer-" + _drawer)">
+    <PartTree Open="@(_drawer == "tree")" />
+    <Viewport />
+    <Inspector Open="@(_drawer == "details")" />
+    <nav class="tk-phonebar" aria-label="Panels">
+        <button class="@(_drawer == "tree" ? "on" : "")" @onclick='() => Toggle("tree")'><Glyph Name="list" Size="16" /> Parts</button>
+        <button class="@(_drawer == "details" ? "on" : "")" @onclick='() => Toggle("details")'><Glyph Name="info" Size="16" /> Details</button>
+    </nav>
+    @if (_drawer is not null)
+    {
+        <button class="tk-scrim" aria-label="Close the panel" @onclick="() => _drawer = null"></button>
+    }
+</div>
+
+@code {
+    private string? _drawer;
+    private void Toggle(string which) => _drawer = _drawer == which ? null : which;
+}

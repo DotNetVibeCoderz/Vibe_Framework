@@ -1,0 +1,91 @@
+@page "/bom"
+@implements IDisposable
+@using System.Globalization
+@* The bill of materials, rolled up by part number from the model's own part data. *@
+
+<div class="tk-bom">
+    <header class="tk-bom-head">
+        <div>
+            <div class="tk-eyebrow">Bill of materials</div>
+            <h1>@(Review.Product == "" ? "Loading…" : Review.Product)</h1>
+            <p class="tk-desc">
+                @if (Review.Ready)
+                {
+                    <span>@Lines.Count lines · @Lines.Sum(l => l.Qty) parts · @Review.Kg(Review.TotalMass()) by volume and density</span>
+                    @if (Review.Revision != "")
+                    {
+                        <span> · Revision @Review.Revision</span>
+                    }
+                }
+            </p>
+        </div>
+        <div class="tk-actions">
+            <button class="tk-btn primary" disabled="@(!Review.Ready)" @onclick="DownloadAsync"><Glyph Name="download" Size="16" /> Download CSV</button>
+            <a class="tk-btn" href=""><Glyph Name="cube" Size="16" /> Back to the model</a>
+        </div>
+    </header>
+
+    @if (Review.Error is { } err)
+    {
+        <p class="tk-empty">@err</p>
+    }
+    else if (!Review.Ready)
+    {
+        <p class="tk-empty"><span class="tk-spin"></span> Reading the parts…</p>
+    }
+    else
+    {
+        <div class="tk-table-wrap">
+            <table class="tk-table">
+                <thead>
+                    <tr><th class="num">Item</th><th>Part number</th><th>Description</th><th>Material</th><th>Make/buy</th><th class="num">Qty</th><th class="num">Unit mass</th><th class="num">Total</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in Lines.GroupBy(l => l.Group))
+                    {
+                        <tr class="tk-group-row"><th colspan="8">@group.Key</th></tr>
+                        @foreach (var l in group)
+                        {
+                            <tr>
+                                <td class="num tk-mono">@l.Item</td>
+                                <td class="tk-mono">@l.PartNo</td>
+                                <td>@l.Description</td>
+                                <td>@l.Material</td>
+                                <td><span class="tk-mb @l.MakeBuy">@(l.MakeBuy == "buy" ? "Buy" : l.MakeBuy == "make" ? "Make" : "—")</span></td>
+                                <td class="num tk-mono">@l.Qty</td>
+                                <td class="num tk-mono">@Review.Kg(l.UnitMass)</td>
+                                <td class="num tk-mono">@Review.Kg(l.UnitMass * l.Qty)</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+                <tfoot>
+                    <tr><th colspan="5">Total</th><td class="num tk-mono">@Lines.Sum(l => l.Qty)</td><td></td><td class="num tk-mono">@Review.Kg(Review.TotalMass())</td></tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="tk-fine">Masses come from each part's closed mesh and the density stored with it; bought-in parts (bearings, seals, fasteners) are modelled as envelopes, so their masses are estimates. Built by Gravicode Studios, led by Kang Fadhil.</p>
+    }
+</div>
+
+@code {
+    private List<Review.BomLine> Lines => Review.Bom();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Review.Changed += Redraw;
+        if (Js.IsBrowser) await Review.EnsureLoadedAsync();
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private async Task DownloadAsync()
+    {
+        var name = (Review.File == "rw63.glb" ? "rw63" : Review.File.Split('.')[0]) + "-bom" + (Review.Revision == "" ? "" : "-rev" + Review.Revision.ToLowerInvariant()) + ".csv";
+        Js.Send("tk.download", Js.Args("name", name, "text", Review.BomCsv(), "mime", "text/csv"));
+        await Task.CompletedTask;
+        Toasts.Success("Downloaded the bill of materials.");
+    }
+
+    public void Dispose() => Review.Changed -= Redraw;
+}

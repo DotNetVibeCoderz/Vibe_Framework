@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <base href="/" />
+  <title>Tilik · RW-63 design review · Rustzor sample</title>
+  <meta name="description" content="A browser CAD viewer for reviewing a gear reducer assembly, built with Rustzor by Gravicode Studios, led by Kang Fadhil." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%233b2f8f%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%278%27 fill=%27none%27 stroke=%27%23f2b705%27 stroke-width=%273%27/%3E%3Cpath d=%27M16 3v6M16 23v6M3 16h6M23 16h6%27 stroke=%27%23f4f3fb%27 stroke-width=%272.4%27/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Martian+Mono:wdth,wght@87.5,400;87.5,500;87.5,600&display=swap" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="tilik.css" />
+</head>
+<body>
+  <div id="app"><div class="tk-boot app-loading"><b>Tilik</b><span>Opening the review…</span></div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='tk-boot-error app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+      console.error(e);
+    });
+  </script>
+</body>
+</html>

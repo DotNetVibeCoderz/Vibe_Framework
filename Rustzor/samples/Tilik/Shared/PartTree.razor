@@ -1,0 +1,75 @@
+@* The assembly as the model has it: groups and parts, each with an eye to hide it and a
+   target to isolate it. Picking in the 3D view opens the branch and marks the row. *@
+@implements IDisposable
+
+<aside class="tk-tree @(Open ? "open" : "")" aria-label="Assembly tree">
+    <header class="tk-panel-head">
+        <span class="tk-eyebrow">Assembly</span>
+        <span class="tk-count">@Review.PartCount @(Review.PartCount == 1 ? "part" : "parts")</span>
+        @if (Review.Hidden.Count > 0 || Review.Isolated is not null)
+        {
+            <button class="tk-link" @onclick="Review.ShowAll">Show all</button>
+        }
+    </header>
+    <div class="tk-tree-body" role="tree">
+        @foreach (var root in Review.Roots)
+        {
+            @Row(root, 0)
+        }
+    </div>
+    <footer class="tk-tree-foot">
+        <button class="tk-btn" @onclick='() => Js.Send("tk.open")'><Glyph Name="open" Size="16" /> Open .glb or .stl</button>
+        <p class="tk-credit">Built by Gravicode Studios, led by Kang Fadhil.</p>
+    </footer>
+</aside>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+
+    protected override void OnInitialized() => Review.Changed += Redraw;
+    private void Redraw() => StateHasChanged();
+    public void Dispose() => Review.Changed -= Redraw;
+
+    private RenderFragment Row(Node n, int depth) => __builder =>
+    {
+        var hidden = Review.IsHidden(n);
+        var selected = n.IsPart ? Review.Selected.Contains(n.Part) : Review.Focus == n;
+        var dim = n.IsPart && !Review.IsShown(n.Part);
+        var open = Review.Expanded.Contains(n.Id);
+        <div class="tk-row @(selected ? "sel" : "") @(dim ? "dim" : "") @(n.IsPart ? "part" : "group")" role="treeitem" aria-selected="@(selected ? "true" : "false")" aria-expanded="@(n.IsPart ? null : open ? "true" : "false")"
+             style="--depth:@depth" data-node="@n.Name">
+            @if (n.Children.Count > 0)
+            {
+                <button class="tk-caret @(open ? "open" : "")" aria-label="@(open ? "Collapse" : "Expand") @n.Name" @onclick="() => Review.Toggle(n)"><Glyph Name="caret" Size="14" /></button>
+            }
+            else
+            {
+                <span class="tk-caret-gap"></span>
+            }
+            <button class="tk-row-main" @onclick="e => Review.Select(n, e.ShiftKey || e.CtrlKey)" @ondblclick="() => Review.FocusOn(n)">
+                @if (n.IsPart)
+                {
+                    <span class="tk-swatch" style="background:@n.Color"></span>
+                }
+                else
+                {
+                    <Glyph Name="group" Size="14" />
+                }
+                <span class="tk-row-name">@n.Name</span>
+                @if (n.PartNo != "")
+                {
+                    <span class="tk-row-no">@n.PartNo</span>
+                }
+            </button>
+            <button class="tk-row-act" title="@(hidden ? "Show" : "Hide") @n.Name" aria-label="@(hidden ? "Show" : "Hide") @n.Name" aria-pressed="@(hidden ? "true" : "false")" @onclick="() => Review.ToggleHidden(n)"><Glyph Name="@(hidden ? "eye-off" : "eye")" Size="15" /></button>
+            <button class="tk-row-act iso" title="Isolate @n.Name" aria-label="Isolate @n.Name" @onclick="() => Review.Isolate(n)"><Glyph Name="isolate" Size="15" /></button>
+        </div>
+        @if (open)
+        {
+            foreach (var c in n.Children)
+            {
+                @Row(c, depth + 1)
+            }
+        }
+    };
+}

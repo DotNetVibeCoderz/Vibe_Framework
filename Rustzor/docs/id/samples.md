@@ -165,6 +165,31 @@ Menunjukkan: C# memegang layer, gaya, atribut, fitur buatan pengguna, serta seti
 
 `node tools/e2e/siaga.mjs http://localhost:5330` menjalankannya di Chrome headless dan mencocokkan jawabannya dengan angka yang dihitung sendiri dari file GeoJSON yang sama: proyeksi terhadap rumus EPSG:3857 dan bolak-baliknya, geser dan zoom, identifikasi pada koordinat pos duga air, tabel dan peta yang saling memilih, luas geodesik dan keliling Haversine sebuah persegi yang digambar (selisih di bawah 1%), buffer 3 km dan pilih-dengan-area terhadap uji jarak dan point-in-polygon miliknya sendiri, GeoJSON yang ditempel lalu diekspor kembali tanpa berubah, suntingan verteks, gambar dan impor yang tetap ada setelah reload, reset, dan lokasi tanpa izin. Menggeser dan zoom di atas 46.000 titik menggambar satu frame dalam sekitar 4 ms (p95 7 ms). `node tools/e2e/siaga-shots.mjs` mengambil screenshot di atas; `node samples/Siaga/data/make-data.mjs` membuat ulang datanya.
 
+## Tilik, tinjauan desain
+
+`samples/Tilik` · `Rustzor.UI`, `Rustzor.Browser.Storage`, dan modul browser miliknya sendiri (`rustzor.module.js`): mesin viewer-nya
+
+Seorang product engineer di produsen mesin pertanian di Surabaya meninjau revisi C RW-63, gear reducer dua tingkat, sebelum dilepas ke bengkel. Tampilannya tampilan bengkel mesin: netral baja dengan semburat ungu, ungu tinta layout masinis untuk struktur, kuning peringatan hanya untuk yang dipilih atau disematkan. Ciri khasnya konvensi gambar teknik: potongan mengisi setiap part yang terpotong dengan arsiran (part yang bersebelahan diarsir berlawanan arah, baja lebih rapat daripada besi tuang), dan pengukuran digambar sebagai garis dimensi dengan panah dan nilainya di dalam kotak feature control.
+
+- Modelnya rakitan sungguhan: 36 part dalam lima grup (housing bawah dan atas dengan delapan baut; rakitan poros input, perantara, dan output dengan roda gigi, bearing, tutup, seal, dan pasaknya; breather, sumbat buang, dan kaca intip oli), 45.000 segitiga dalam glTF biner 1,15 MB. Dimodelkan di Blender dengan skrip, `samples/Tilik/assets-src/make_rw63.py`: roda gigi lurus involut (z14/z34 modul 2,5, z15/z38 modul 3, jadi 6,15 : 1), housing belah yang dibangun dengan boolean eksak dan di-bevel seperti coran, serta nomor part, material, massa jenis, dan buat/beli setiap part ditulis ke extras glTF. Jalankan skrip itu di Blender untuk membuat ulang filenya; skrip bekerja di scene-nya sendiri dan membiarkan file yang terbuka seperti semula.
+- Mesin sendiri dengan WebGL2: GLB (dan STL) di-parse di browser, tiap part di buffer-nya sendiri; orbit dengan inersia, geser, zoom ke arah pointer, pinch; fit, tampilan standar, dan view cube yang ikut berputar bersama kamera; perspektif atau ortografis.
+- Shaded, shaded dengan tepi (tepi fitur di tempat dua bidang bertemu lebih dari 35°), wireframe, dan x-ray.
+- Pohon rakitan: sembunyikan, isolasi, pilih; klik di tampilan memilih part di bawah pointer dan membuka cabangnya. Panel detail memberi material, massa jenis, volume (dari mesh tertutup), massa, dimensi luar, dan jumlah segitiga.
+- Potongan pada X, Y, atau Z, digeser dengan slider atau dengan menyeret di tampilan, dan setiap potongan ditutup dan diarsir: satu lintasan stencil per part menghitung di mana bidang berada di dalam benda.
+- Ukur titik ke titik, panjang utuh sebuah tepi (segmen segaris digabung), dan sudut melalui tiga titik; titik menempel ke sudut terdekat pada part di bawah pointer, yaitu yang paling dekat dengan permukaan yang diklik.
+- Catatan yang disematkan di model, bernomor, bisa ditandai selesai, disimpan di browser; pin di balik model memudar. Tampilan tersimpan menyimpan kamera, mode tampilan, potongan, explode, dan apa yang disembunyikan.
+- Tampilan explode dengan slider; PNG dari tampilan beserta dimensi dan pinnya; buka `.glb` atau `.stl` apa saja lewat tombol atau dengan menjatuhkannya ke tampilan.
+- `/bom`, daftar material (bill of materials) yang digabung per nomor part (delapan baut, empat bearing 6204), dengan massa dari volume dan massa jenis, serta unduhan CSV.
+
+| | |
+| --- | --- |
+| ![Tutup dilepas, roda gigi output dipilih, satu dimensi dan dua catatan](../images/sample-tilik.png) | ![Potongan melalui tingkat kedua, diarsir](../images/sample-tilik-section.png) |
+| ![Rakitan yang di-explode](../images/sample-tilik-exploded.png) | ![Tema gelap, x-ray, dengan catatan](../images/sample-tilik-dark.png) |
+
+Memperlihatkan: C# memegang tinjauannya (pohon, apa yang tampil, pilihan, pengukuran, catatan, tampilan tersimpan, daftar material) sementara modul browser memegang semua yang dibutuhkan satu frame: parsing, menggambar, tutup potongan, picking dengan ray cast dan snapping, serta dimensi di overlay 2D. Orbit tidak pernah menyeberang ke C#; pick, pengukuran, dan tempat catatan kembali ke C#.
+
+`node tools/e2e/tilik.mjs http://localhost:5340` menjalankannya di Chrome headless dan mencocokkannya dengan GLB itu sendiri: jumlah part, klik pada breather yang memilihnya di tampilan dan di pohon, menyembunyikan tutup (hilang dari daftar gambar dan dari piksel) dan mengisolasi rakitan output (8 part-nya), potongan Y yang tidak menyisakan apa pun di atas bidang dan bergeser saat diseret, jarak hasil snap antara dua kepala baut (140,00 mm, sama dengan di file), tepi (36,00 mm) dan sudut (90,0°) pada pasak input, slider explode, catatan dan tampilan tersimpan yang tetap ada setelah reload, CSV daftar material (23 baris, 36 part), kubus STL 8 cm³, screenshot PNG, dan waktu frame. Model terbuka dalam sekitar 0,45 detik; orbit menggambar satu frame dalam 0,6 ms (p95 0,9 ms) dan mengikuti 60 fps layar. `node tools/e2e/tilik-shots.mjs` mengambil screenshot di atas.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -193,4 +218,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Empat sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: CAD viewer, asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Tiga sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: asisten AI, game multiplayer, dan digital twin.

@@ -2,3 +2,5 @@
 *.yml text eol=lf
 *.png binary
 *.wasm binary
+*.glb binary
+*.stl binary

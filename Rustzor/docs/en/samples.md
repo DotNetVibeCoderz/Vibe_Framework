@@ -165,6 +165,31 @@ Shows: C# owning the layers, styles, attributes, the user's features and every m
 
 `node tools/e2e/siaga.mjs http://localhost:5330` drives it in headless Chrome and checks the answers against numbers it works out from the same GeoJSON files: the projection against the EPSG:3857 formula and its round trip, panning and zooming, identify at a gauge's coordinates, the table and the map selecting each other, a drawn square's geodesic area and Haversine perimeter (within 1%), a 3 km buffer and a select-by-area against its own distance and point-in-polygon tests, pasted GeoJSON exported back unchanged, a vertex edit, drawings and imports surviving a reload, reset, and location without permission. Panning and zooming over all 46,000 vertices draws a frame in about 4 ms (p95 7 ms). `node tools/e2e/siaga-shots.mjs` takes the screenshots above; `node samples/Siaga/data/make-data.mjs` regenerates the data.
 
+## Tilik design review
+
+`samples/Tilik` · `Rustzor.UI`, `Rustzor.Browser.Storage`, and a browser module of its own (`rustzor.module.js`): the viewer engine
+
+A product engineer at a Surabaya maker of farm machinery reviews revision C of the RW-63, a two-stage gear reducer, before it is released to the shop. The look is the machine shop's: brushed-steel neutrals with a violet cast, machinist's layout-dye violet for structure, caution yellow only for what is selected or pinned. The signature is drafting convention: a section fills every cut part with crosshatch (neighbouring parts hatched the other way, steel finer than cast iron), and a measurement is drawn as a dimension line with arrowheads and its value in a feature-control frame.
+
+- The model is a real assembly: 36 parts in five groups (housing base and cover with eight bolts; input, intermediate and output shaft assemblies with their gears, bearings, caps, seals and keys; breather, drain plug and sight glass), 45,000 triangles in a 1.15 MB glTF binary. It was modelled in Blender by a script, `samples/Tilik/assets-src/make_rw63.py`: involute spur gears (z14/z34 at module 2.5, z15/z38 at module 3, so 6.15 : 1), a split housing built with exact booleans and bevelled like a casting, and each part's number, material, density and make/buy written into the glTF extras. Run the script in Blender to rebuild the file; it works in its own scene and leaves the open file as it was.
+- Its own engine, in WebGL2: the GLB (and STL) parsed in the browser, each part in its own buffers; orbit with inertia, pan, zoom to the pointer, pinch; fit, standard views and a view cube that turns with the camera; perspective or orthographic.
+- Shaded, shaded with edges (feature edges found where faces meet at more than 35°), wireframe and x-ray.
+- The assembly tree: hide, isolate, select; a click in the view selects the part under the pointer and opens its branch. The details panel gives material, density, volume (from the closed mesh), mass, envelope and triangle count.
+- A section on X, Y or Z, moved with a slider or by dragging in the view, with every cut capped and hatched: a stencil pass per part counts where the plane is inside the solid.
+- Measure point to point, an edge's whole length (collinear segments joined) and an angle through three points; points snap to the nearest corner of the part under the pointer, the one nearest the surface you clicked.
+- Notes pinned to the model, numbered, resolvable, kept in the browser; pins behind the model fade. Saved views keep the camera, display mode, section, explode and what is hidden.
+- An exploded view on a slider; a PNG of the view with its dimensions and pins; open any `.glb` or `.stl` by button or by dropping it on the view.
+- `/bom`, the bill of materials rolled up by part number (eight bolts, four 6204 bearings), with masses from volume and density, and a CSV download.
+
+| | |
+| --- | --- |
+| ![The cover off, the output gear selected, a dimension and two notes](../images/sample-tilik.png) | ![A section through the second stage, hatched](../images/sample-tilik-section.png) |
+| ![The exploded assembly](../images/sample-tilik-exploded.png) | ![Dark theme, x-ray, with the notes](../images/sample-tilik-dark.png) |
+
+Shows: C# owning the review (the tree, what is shown, selection, measurements, notes, saved views, the bill of materials) while a browser module owns everything a frame needs: parsing, drawing, the section caps, ray-cast picking and snapping, and the dimensions on a 2D overlay. Orbiting never crosses into C#; picks, measurements and note places come back to it.
+
+`node tools/e2e/tilik.mjs http://localhost:5340` drives it in headless Chrome and checks it against the GLB itself: the part count, a click on the breather selecting it in the view and the tree, hiding the cover (out of the draw list and the pixels) and isolating the output assembly (its 8 parts), a Y section that leaves nothing above the plane and moves when dragged, a snapped distance between two bolt heads (140.00 mm, as in the file), an edge (36.00 mm) and an angle (90.0°) on the input key, the explode slider, a note and a saved view surviving a reload, the BOM CSV (23 lines, 36 parts), an STL cube's 8 cm³, a PNG screenshot, and frame times. The model opens in about 0.45 s; orbiting it draws a frame in 0.6 ms (p95 0.9 ms) and keeps the display's 60 fps. `node tools/e2e/tilik-shots.mjs` takes the screenshots above.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -193,4 +218,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Four more samples from the [roadmap](../../PLAN.md) are on the way: a CAD viewer, an AI assistant, a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Three more samples from the [roadmap](../../PLAN.md) are on the way: an AI assistant, a multiplayer game and a digital twin.

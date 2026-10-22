@@ -2,6 +2,40 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-22: Tilik CAD viewer sample
+
+- `samples/Tilik`: a design-review viewer for the RW-63 two-stage gear reducer of a
+  (fictional) Surabaya farm-machinery maker. Routes `/` (the model: assembly tree, 3D view,
+  details) and `/bom` (the bill of materials, CSV download). Machine-shop look: steel
+  neutrals, layout-dye violet, caution yellow for selection and pins; section cuts hatched
+  per part and measurements drawn as dimension lines with feature-control frames.
+- The model: 36 named parts in five groups, 45,000 triangles, 1.15 MB GLB with part number,
+  material, density and make/buy in the glTF extras. Made in the user's Blender 5.2 through
+  the Blender MCP server by `samples/Tilik/assets-src/make_rw63.py`: bmesh solids of
+  revolution, involute spur gears (z14/z34 m2.5, z15/z38 m3, 6.15 : 1, meshing at 60 and
+  79.5 mm centres), a split housing from exact booleans with a casting bevel. The script
+  works in its own scene and removes it afterwards. No generated (Rodin) models were needed:
+  a CAD review wants exact geometry.
+- The engine (`rustzor.module.js`, WebGL2): GLB and STL parsing, per-part buffers, feature
+  edges and wireframe from welded vertices, shaded/edges/wireframe/x-ray, section caps by a
+  stencil pass per part with drafting hatch, ray-cast picking (including the caps),
+  vertex snapping that prefers the corner nearest the hit surface, edge chaining, angle,
+  orbit with inertia, pinch, view cube, orthographic, explode, note pins that fade when
+  hidden, PNG export of the view with its overlay. C# owns the tree, visibility, selection,
+  measurements, notes and saved views (localStorage), and the BOM.
+- Verified: `tools/e2e/tilik.mjs` passes all 28 checks against the GLB itself (picking,
+  hide and isolate in the draw list and pixels, the Y section, 140.00 mm between two bolt
+  heads, a 36.00 mm edge and a 90.0° angle on the input key, explode, a note and a saved
+  view across a reload, the CSV's 23 lines and 36 parts, an STL cube's 8 cm³, a PNG, no
+  console errors). The model opens in about 0.45 s; orbiting draws a frame in 0.6 ms
+  (p95 0.9 ms) and holds 60 fps in headless Chrome. Both routes render with no console
+  errors in light, dark and at 400 px; the screenshots were looked at and fixed (view cube
+  pitch, dim x-ray in dark, phone fit, tree part numbers, pins behind the model).
+- Bugs found and fixed while building it: a new canvas kept its predecessor's size after
+  coming back from another page; `Files.SaveTextAsync` opens the native save picker in
+  Chrome, so the CSV uses a plain download.
+- No runtime or library changes.
+
 ## 2026-10-22: Siaga Citarum GIS sample
 
 - `samples/Siaga`: a flood map for a BPBD flood desk in the Bandung basin, styled as a

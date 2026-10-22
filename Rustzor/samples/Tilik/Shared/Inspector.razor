@@ -1,0 +1,249 @@
+@* The right-hand panel: the part in focus, the measurements taken, the notes pinned on the
+   model and the saved views. *@
+@implements IDisposable
+@using System.Globalization
+
+<aside class="tk-insp @(Open ? "open" : "")" aria-label="Details">
+    <div class="tk-tabs" role="tablist">
+        @foreach (var (id, label, count) in TabList())
+        {
+            <button role="tab" class="@(Review.Panel == id ? "on" : "")" aria-selected="@(Review.Panel == id ? "true" : "false")" data-tab="@id" @onclick="() => { Review.Panel = id; Review.Notify(); }">
+                @label
+                @if (count > 0)
+                {
+                    <span class="tk-badge">@count</span>
+                }
+            </button>
+        }
+    </div>
+
+    <div class="tk-insp-body">
+        @switch (Review.Panel)
+        {
+            case "measure":
+                @Measures()
+                break;
+            case "notes":
+                @NotesPanel()
+                break;
+            case "views":
+                @ViewsPanel()
+                break;
+            default:
+                @PartPanel()
+                break;
+        }
+    </div>
+</aside>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+
+    private string _note = "";
+    private string _view = "";
+
+    protected override void OnInitialized() => Review.Changed += Redraw;
+    private void Redraw() => StateHasChanged();
+    public void Dispose() => Review.Changed -= Redraw;
+
+    private static IEnumerable<(string, string, int)> TabList()
+    {
+        yield return ("part", "Part", 0);
+        yield return ("measure", "Measure", Review.Measures.Count);
+        yield return ("notes", "Notes", Review.Notes.Count(n => !n.Resolved));
+        yield return ("views", "Views", Review.Views.Count);
+    }
+
+    private static string F(double v, string fmt = "0.0") => v.ToString(fmt, CultureInfo.InvariantCulture);
+
+    private RenderFragment PartPanel() => __builder =>
+    {
+        if (Review.Focus is { } n)
+        {
+            <div class="tk-card">
+                <div class="tk-eyebrow">@(n.IsPart ? (n.MakeBuy == "buy" ? "Bought-in part" : "Made part") : "Assembly group")</div>
+                <h2 class="tk-part-name">@n.Name</h2>
+                @if (n.PartNo != "")
+                {
+                    <div class="tk-partno">@n.PartNo</div>
+                }
+                @if (n.Description != "")
+                {
+                    <p class="tk-desc">@n.Description</p>
+                }
+                <div class="tk-actions">
+                    <button class="tk-btn" @onclick="() => Review.ToggleHidden(n)"><Glyph Name="@(Review.IsHidden(n) ? "eye" : "eye-off")" Size="16" /> @(Review.IsHidden(n) ? "Show" : "Hide")</button>
+                    <button class="tk-btn" @onclick="() => Review.Isolate(n)"><Glyph Name="isolate" Size="16" /> Isolate</button>
+                    @if (n.IsPart)
+                    {
+                        <button class="tk-btn" @onclick="() => Review.FocusOn(n)"><Glyph Name="fit" Size="16" /> Zoom to</button>
+                    }
+                </div>
+            </div>
+            if (n.IsPart)
+            {
+                <dl class="tk-props">
+                    <div><dt>Material</dt><dd><span class="tk-swatch" style="background:@n.Color"></span>@n.Material</dd></div>
+                    <div><dt>Density</dt><dd class="tk-mono">@(n.Density > 0 ? F(n.Density, "0") + " kg/m³" : "not given")</dd></div>
+                    <div><dt>Volume</dt><dd class="tk-mono">@F(n.Volume * 1e6, "0.00") cm³</dd></div>
+                    <div><dt>Mass</dt><dd class="tk-mono">@(n.Mass > 0 ? Review.Kg(n.Mass) : "—")</dd></div>
+                    @if (n.Box is { } b)
+                    {
+                        <div><dt>Envelope</dt><dd class="tk-mono">@Review.Mm(b[0]) × @Review.Mm(b[1]) × @Review.Mm(b[2]) mm</dd></div>
+                    }
+                    @if (n.Stage != "")
+                    {
+                        <div><dt>Gear stage</dt><dd>@n.Stage</dd></div>
+                    }
+                    <div><dt>Triangles</dt><dd class="tk-mono">@n.Triangles.ToString("N0", CultureInfo.InvariantCulture)</dd></div>
+                </dl>
+                <p class="tk-fine">Mass is the closed mesh's volume times the material's density.</p>
+            }
+            else
+            {
+                var parts = Review.PartsUnder(n).ToList();
+                var mass = parts.Sum(p => Review.ByPart[p].Mass);
+                <dl class="tk-props">
+                    <div><dt>Parts</dt><dd class="tk-mono">@parts.Count</dd></div>
+                    <div><dt>Mass</dt><dd class="tk-mono">@Review.Kg(mass)</dd></div>
+                </dl>
+            }
+        }
+        else
+        {
+            <div class="tk-card">
+                <div class="tk-eyebrow">Under review</div>
+                <h2 class="tk-part-name">@Review.Product</h2>
+                @if (Review.Revision != "")
+                {
+                    <div class="tk-partno">Revision @Review.Revision · @Review.File</div>
+                }
+                <p class="tk-desc">Click a part in the view or the tree to see what it is made of and what it weighs.</p>
+            </div>
+            <dl class="tk-props">
+                <div><dt>Parts</dt><dd class="tk-mono">@Review.PartCount</dd></div>
+                <div><dt>Mass</dt><dd class="tk-mono">@Review.Kg(Review.TotalMass())</dd></div>
+                <div><dt>Envelope</dt><dd class="tk-mono">@Review.Mm(Review.Size[0]) × @Review.Mm(Review.Size[1]) × @Review.Mm(Review.Size[2]) mm</dd></div>
+                @if (Review.Ratio != "")
+                {
+                    <div><dt>Ratio</dt><dd class="tk-mono">@Review.Ratio</dd></div>
+                }
+                @if (Review.Maker != "")
+                {
+                    <div><dt>Maker</dt><dd>@Review.Maker</dd></div>
+                }
+                <div><dt>Opened in</dt><dd class="tk-mono">@Review.LoadMs ms</dd></div>
+            </dl>
+            <p class="tk-fine">Drag to orbit, right-drag or shift-drag to pan, scroll to zoom. Drop a .glb or .stl on the view to review another model.</p>
+        }
+    };
+
+    private RenderFragment Measures() => __builder =>
+    {
+        <div class="tk-card">
+            <div class="tk-eyebrow">Measure</div>
+            <div class="tk-seg">
+                <button class="@(Review.Tool == "measure-distance" ? "on" : "")" @onclick='() => Review.SetTool("measure-distance")'>Distance</button>
+                <button class="@(Review.Tool == "measure-edge" ? "on" : "")" @onclick='() => Review.SetTool("measure-edge")'>Edge</button>
+                <button class="@(Review.Tool == "measure-angle" ? "on" : "")" @onclick='() => Review.SetTool("measure-angle")'>Angle</button>
+            </div>
+            <p class="tk-fine">Points snap to the nearest corner of the part under the pointer.</p>
+        </div>
+        if (Review.Measures.Count == 0)
+        {
+            <p class="tk-empty">No measurements yet. Pick a tool above, then click on the model.</p>
+        }
+        else
+        {
+            <ol class="tk-mlist">
+                @foreach (var m in Review.Measures)
+                {
+                    <li data-measure="@m.Id">
+                        <span class="tk-fcf"><span>@(m.Kind == "angle" ? "∠" : m.Kind == "edge" ? "⟷" : "↔")</span><b>@m.Label</b></span>
+                        <span class="tk-mkind">@(m.Kind == "edge" ? (m.PartName ?? "Edge") : m.Kind == "angle" ? "Angle" : "Point to point")</span>
+                        <button class="tk-row-act" title="Remove" aria-label="Remove this measurement" @onclick="() => Review.RemoveMeasure(m.Id)"><Glyph Name="trash" Size="15" /></button>
+                    </li>
+                }
+            </ol>
+            <button class="tk-link" @onclick="Review.ClearMeasures">Clear all</button>
+        }
+    };
+
+    private RenderFragment NotesPanel() => __builder =>
+    {
+        if (Review.PendingNote is { } pn)
+        {
+            <div class="tk-card tk-noteform">
+                <div class="tk-eyebrow">New note on @(Review.ByPart.TryGetValue(pn.Part, out var pp) ? pp.Name : "the model")</div>
+                <textarea rows="4" placeholder="What should change, and why?" value="@_note" @oninput='e => _note = e.Value?.ToString() ?? ""' aria-label="Note text"></textarea>
+                <div class="tk-actions">
+                    <button class="tk-btn primary" disabled="@string.IsNullOrWhiteSpace(_note)" @onclick='() => { Review.AddNote(_note); _note = ""; }'><Glyph Name="note" Size="16" /> Pin note</button>
+                    <button class="tk-btn" @onclick='() => { Review.CancelNote(); _note = ""; }'>Cancel</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="tk-card">
+                <div class="tk-eyebrow">Notes</div>
+                <p class="tk-fine">Notes stay in this browser with the model. @Review.Reviewer is reviewing.</p>
+                <button class="tk-btn" @onclick='() => Review.SetTool("note")'><Glyph Name="note" Size="16" /> Pin a note</button>
+            </div>
+        }
+        if (Review.Notes.Count == 0)
+        {
+            <p class="tk-empty">No notes on this model.</p>
+        }
+        foreach (var n in Review.Notes.OrderBy(x => x.Resolved).ThenBy(x => x.N))
+        {
+            <article class="tk-note @(n.Resolved ? "done" : "") @(Review.ActiveNote == n.Id ? "on" : "")" data-note="@n.N">
+                <button class="tk-note-pin" aria-label="Show note @n.N on the model" @onclick="() => Review.ShowNote(n)">@n.N</button>
+                <div class="tk-note-body">
+                    <p>@n.Text</p>
+                    <div class="tk-note-meta">@n.Author · @n.When @(n.PartName != "" ? "· " + n.PartName : "")</div>
+                </div>
+                <div class="tk-note-acts">
+                    <button class="tk-row-act" title="@(n.Resolved ? "Reopen" : "Mark resolved")" aria-label="@(n.Resolved ? "Reopen" : "Mark resolved")" @onclick="() => Review.ToggleResolved(n)"><Glyph Name="check" Size="15" /></button>
+                    <button class="tk-row-act" title="Delete" aria-label="Delete note @n.N" @onclick="() => Review.DeleteNote(n)"><Glyph Name="trash" Size="15" /></button>
+                </div>
+            </article>
+        }
+    };
+
+    private RenderFragment ViewsPanel() => __builder =>
+    {
+        <div class="tk-card">
+            <div class="tk-eyebrow">Save this view</div>
+            <div class="tk-inline">
+                <input placeholder="e.g. Output seal, cut at Z" value="@_view" @oninput='e => _view = e.Value?.ToString() ?? ""' @onkeydown='e => { if (e.Key == "Enter") SaveView(); }' aria-label="View name" />
+                <button class="tk-btn primary" disabled="@string.IsNullOrWhiteSpace(_view)" @onclick="SaveView">Save</button>
+            </div>
+            <p class="tk-fine">A view keeps the camera, display mode, section, explode and what is hidden.</p>
+        </div>
+        <div class="tk-presets">
+            @foreach (var p in new[] { "front", "top", "right", "iso" })
+            {
+                <button class="tk-btn" @onclick="() => Review.View(p)">@(char.ToUpperInvariant(p[0]) + p[1..])</button>
+            }
+        </div>
+        if (Review.Views.Count == 0)
+        {
+            <p class="tk-empty">No saved views yet.</p>
+        }
+        foreach (var v in Review.Views)
+        {
+            <div class="tk-viewrow" data-view="@v.Name">
+                <button class="tk-row-main" @onclick="() => Review.RestoreView(v)"><Glyph Name="views" Size="15" /> <span class="tk-row-name">@v.Name</span><span class="tk-row-no">@v.Mode@(v.Section ? " · cut " + v.Axis.ToUpperInvariant() : "")</span></button>
+                <button class="tk-row-act" title="Delete" aria-label="Delete view @v.Name" @onclick="() => Review.DeleteView(v)"><Glyph Name="trash" Size="15" /></button>
+            </div>
+        }
+    };
+
+    private void SaveView()
+    {
+        if (string.IsNullOrWhiteSpace(_view)) return;
+        Review.SaveView(_view);
+        Toasts.Success($"Saved the view \"{_view.Trim()}\".");
+        _view = "";
+    }
+}
