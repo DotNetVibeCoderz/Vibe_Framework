@@ -3,7 +3,7 @@
 `Rustzor.UI` is Rustzor's own component kit: an app shell, cards, a data grid, SVG charts, forms, modals, tabs and toasts, in light and dark themes. Its stylesheet is linked automatically when you reference the package.
 
 ```xml
-<PackageReference Include="Rustzor.UI" Version="0.1.0-preview.2" />
+<PackageReference Include="Rustzor.UI" Version="0.1.0-preview.3" />
 ```
 
 ```razor

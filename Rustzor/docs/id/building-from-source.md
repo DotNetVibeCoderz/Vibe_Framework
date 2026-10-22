@@ -36,8 +36,8 @@ node tools/dev/serve.mjs samples/Pos/bin/Debug/net10.0/wwwroot 5241
 | Setiap route aplikasi ter-render tanpa error di console, dan screenshot untuk masing-masing | `node tools/e2e/pages.mjs http://localhost:5240/ out "" deals companies` |
 | Mengendalikan aplikasi langkah demi langkah (click, fill, type, press, drag, eval, screenshot) | `node tools/e2e/probe.mjs <url> [shot.png] '<steps json>'` |
 | Setiap template AppGen berhasil di-generate, di-build, dan dijalankan | `bash tools/RustzorAppGen/scripts/test-templates.sh` |
-| Aplikasi yang di-build dari package hasil pack bisa berjalan | `bash scripts/package-smoke.sh 0.1.0-preview.2` |
-| CLI dan template dari package hasil pack: new, add, info, publish, lalu dijalankan | `bash scripts/tooling-smoke.sh 0.1.0-preview.2` |
+| Aplikasi yang di-build dari package hasil pack bisa berjalan | `bash scripts/package-smoke.sh 0.1.0-preview.3` |
+| CLI dan template dari package hasil pack: new, add, info, publish, lalu dijalankan | `bash scripts/tooling-smoke.sh 0.1.0-preview.3` |
 | Extension VS Code aktif dan mendaftarkan command-nya, di dalam VS Code | `code --extensionDevelopmentPath=tools/vscode-rustzor --extensionTestsPath=tools/vscode-rustzor/test/suite.js <a Rustzor app folder>`, dengan `RUSTZOR_EXT_REPORT=<file>` untuk hasilnya |
 | Runtime: unit test, conformance terhadap .NET, lintas assembly, target no_std | di repository Vibe_Runtime: `cargo test --workspace`, `bash tests/embedded.sh` |
 

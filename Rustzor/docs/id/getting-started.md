@@ -25,9 +25,9 @@ Perintah di atas membuat aplikasi yang dibahas di bawah (dengan beberapa halaman
 Buat folder `HelloRustzor` dan isi `HelloRustzor.csproj` dengan:
 
 ```xml
-<Project Sdk="Rustzor.Sdk/0.1.0-preview.2">
+<Project Sdk="Rustzor.Sdk/0.1.0-preview.3">
   <ItemGroup>
-    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.2" />
+    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.3" />
   </ItemGroup>
 </Project>
 ```

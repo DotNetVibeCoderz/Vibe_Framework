@@ -2,6 +2,15 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-23: release 0.1.0-preview.3
+
+- All 45 packages at `0.1.0-preview.3`, the first release since all thirteen
+  sample apps were done. New since preview.2: tool calling in `Rustzor.AI`
+  (`ChatTool`, `ToolAgent`, `StreamTurnAsync`), cancellable streaming in
+  `Rustzor.Browser.Fetch`, `BroadcastChannel.PostRaw`/`OnJson` and
+  `NetSession.SendJson`, and the runtime pinned at RustNetRuntime `462c069`.
+  Docs, READMEs and the catalog point at the new version.
+
 ## 2026-10-23: Bening digital twin sample (13 of 13)
 
 - `samples/Bening`: a digital twin of IPA Leuwi Bening, a fictional 400 L/s conventional

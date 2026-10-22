@@ -25,9 +25,9 @@ That creates the app below (with a few more pages), builds it, serves it on `htt
 Make a folder `HelloRustzor` and put this in `HelloRustzor.csproj`:
 
 ```xml
-<Project Sdk="Rustzor.Sdk/0.1.0-preview.2">
+<Project Sdk="Rustzor.Sdk/0.1.0-preview.3">
   <ItemGroup>
-    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.2" />
+    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.3" />
   </ItemGroup>
 </Project>
 ```

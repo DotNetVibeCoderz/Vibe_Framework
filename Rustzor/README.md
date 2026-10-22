@@ -10,7 +10,7 @@ Rustzor is a web platform for C#. You write Razor components and ordinary C#; `d
 
 The programming model is Blazor's: `.razor` files, `@code`, `@bind`, `EventCallback`, routing, layouts, dependency injection and forms. Around it sit a component kit, a C# library for each browser API, frameworks for data, games, graphics and AI, integrations with popular JavaScript UI and chart libraries, and clients for SignalR and gRPC-Web.
 
-> **Preview.** This is `0.1.0-preview.2`. The core works and is tested app by app (six sample apps and twenty-one generated templates run in Chrome), but APIs may change before 1.0. See [what is not supported yet](docs/en/limitations.md).
+> **Preview.** This is `0.1.0-preview.3`. The core works and is tested app by app (six sample apps and twenty-one generated templates run in Chrome), but APIs may change before 1.0. See [what is not supported yet](docs/en/limitations.md).
 
 ## Start an app
 
@@ -27,9 +27,9 @@ Or by hand:
 
 ```xml
 <!-- HelloRustzor.csproj -->
-<Project Sdk="Rustzor.Sdk/0.1.0-preview.2">
+<Project Sdk="Rustzor.Sdk/0.1.0-preview.3">
   <ItemGroup>
-    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.2" />
+    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.3" />
   </ItemGroup>
 </Project>
 ```

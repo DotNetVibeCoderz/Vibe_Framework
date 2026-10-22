@@ -10,9 +10,9 @@ This package is one of a family: the SDK, the component model, a UI kit, a libra
 
 ```xml
 <!-- MyApp.csproj -->
-<Project Sdk="Rustzor.Sdk/0.1.0-preview.2">
+<Project Sdk="Rustzor.Sdk/0.1.0-preview.3">
   <ItemGroup>
-    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.2" />
+    <PackageReference Include="Rustzor.UI" Version="0.1.0-preview.3" />
   </ItemGroup>
 </Project>
 ```
@@ -44,6 +44,6 @@ This is a preview. The APIs may change before 1.0.
 
 ---
 
-**Bahasa Indonesia.** Rustzor adalah platform web untuk C#: komponen Razor dan C# biasa dijalankan di browser oleh RustNetRuntime, runtime .NET yang ditulis dengan Rust dan dikompilasi ke WebAssembly. Mulai dengan `<Project Sdk="Rustzor.Sdk/0.1.0-preview.2">`, lalu `dotnet build`. Dokumentasi lengkap ada di tautan di atas.
+**Bahasa Indonesia.** Rustzor adalah platform web untuk C#: komponen Razor dan C# biasa dijalankan di browser oleh RustNetRuntime, runtime .NET yang ditulis dengan Rust dan dikompilasi ke WebAssembly. Mulai dengan `<Project Sdk="Rustzor.Sdk/0.1.0-preview.3">`, lalu `dotnet build`. Dokumentasi lengkap ada di tautan di atas.
 
 Built by Gravicode Studios, led by Kang Fadhil. *Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.*

@@ -21,7 +21,7 @@
     <DebugType>portable</DebugType>
 
     <!-- CI passes -p:Version=<tag>; this is the version local packs get. -->
-    <Version>0.1.0-preview.2</Version>
+    <Version>0.1.0-preview.3</Version>
     <Authors>Gravicode Studios</Authors>
     <Company>Gravicode Studios</Company>
     <Product>Rustzor</Product>
