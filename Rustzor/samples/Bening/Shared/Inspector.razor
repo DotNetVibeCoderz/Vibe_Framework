@@ -1,0 +1,228 @@
+@implements IDisposable
+@* The selected equipment: what it is, how it is doing (with two hours of each reading), what
+   may be done to it, and the operator's notes on it. With nothing selected, the whole plant
+   as a roll call. *@
+
+@if (Twin.Selected is { } id && Plant.AssetById.TryGetValue(id, out var a))
+{
+    var alarms = Twin.Alarms.Where(x => x.Def.Asset == a.Id && (x.Active || !x.Acked)).OrderBy(x => x.Def.Priority).ToList();
+    <article class="bn-insp" data-asset="@a.Id">
+        <header class="bn-insp-head">
+            <div>
+                <span class="bn-tag bn-mono">@a.Id</span>
+                <h2>@a.Name</h2>
+                <p class="bn-muted">@a.Role</p>
+            </div>
+            <button class="bn-ibtn" title="@L.T("Tutup", "Close")" aria-label="@L.T("Tutup", "Close")" @onclick="() => Twin.Select(null, false)"><Glyph Name="close" Size="16" /></button>
+        </header>
+        @if (a.HasState)
+        {
+            var st = Twin.V($"{a.Id}.state");
+            <div class="bn-state s@(st)" data-state="@st"><i></i>@Twin.StateText(a.Id)
+                @if (a.Kind is Kind.Pump or Kind.Distribution)
+                {
+                    <span class="bn-muted">· @(Auto(a.Id) ? L.T("otomatis", "automatic") : L.T("manual", "manual"))</span>
+                }
+                @if (a.Kind == Kind.Filter)
+                {
+                    <span class="bn-muted">· @(Auto(a.Id) ? L.T("backwash otomatis", "auto backwash") : L.T("backwash manual", "manual backwash"))</span>
+                }
+            </div>
+        }
+        @foreach (var al in alarms)
+        {
+            <div class="bn-insp-alarm p@(al.Def.Priority) @(al.Acked ? "acked" : "")" data-alarm="@al.Def.Id">
+                <Glyph Name="bell" Size="15" />
+                <span>@al.Def.Text <small class="bn-mono">@Twin.Clock(al.Raised)</small></span>
+                @if (!al.Acked)
+                {
+                    <button class="bn-btn small" @onclick="() => Twin.Ack(al)">@L.T("Akui", "Acknowledge")</button>
+                }
+            </div>
+        }
+
+        <table class="bn-readings">
+            <tbody>
+                @foreach (var r in a.Readings)
+                {
+                    var info = Plant.TagById[r.Tag];
+                    var v = Twin.V(r.Tag) * r.Factor;
+                    var over = r.Limit is { } lim && (r.Tag is "res.level" or "cl.res" or "dist.press" or "pac.tank" ? v < lim : v > lim);
+                    <tr class="@(over ? "over" : "")" data-tag="@r.Tag">
+                        <th scope="row">@(r.LabelId is null ? info.Name : L.T(r.LabelId, r.LabelEn!))</th>
+                        <td class="bn-mono bn-val">@Twin.Fmt(v, info.Decimals)<small>@info.Unit</small></td>
+                        <td class="bn-spark-cell"><canvas data-spark="@r.Tag" data-limit="@(r.Limit is { } l ? (l / r.Factor).ToString(System.Globalization.CultureInfo.InvariantCulture) : null)" aria-hidden="true"></canvas></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="bn-fine">@L.T("Garis: dua jam terakhir. Putus-putus: batas alarm.", "Lines: the last two hours. Dashed: the alarm limit.")</p>
+
+        <section class="bn-actions" aria-label="@L.T("Perintah", "Controls")">
+            <h3 class="bn-eyebrow">@L.T("Perintah", "Controls")</h3>
+            @switch (a.Kind)
+            {
+                case Kind.Pump:
+                case Kind.Distribution:
+                    var st = Twin.V($"{a.Id}.state");
+                    <div class="bn-btnrow">
+                        <button class="bn-btn" disabled="@(st != 0)" data-cmd="start" @onclick='() => Twin.Command("start", a.Id)'><Glyph Name="play" Size="14" /> @L.T("Jalankan", "Start")</button>
+                        <button class="bn-btn" disabled="@(st != 1)" data-cmd="stop" @onclick='() => Twin.Command("stop", a.Id)'><Glyph Name="stop" Size="14" /> @L.T("Hentikan", "Stop")</button>
+                        <button class="bn-btn" disabled="@(st != 2)" data-cmd="reset" @onclick='() => Twin.Command("reset", a.Id)'><Glyph Name="reset" Size="14" /> @L.T("Reset trip", "Reset trip")</button>
+                        <button class="bn-btn" data-cmd="auto" @onclick="() => ToggleAuto(a.Id)"><Glyph Name="auto" Size="14" /> @(Auto(a.Id) ? L.T("Ke manual", "To manual") : L.T("Ke otomatis", "To automatic"))</button>
+                    </div>
+                    <div class="bn-whatif">
+                        <span>@L.T("Uji skenario:", "What-if:")</span>
+                        <button class="bn-btn danger small" disabled="@(st != 1)" data-cmd="trip" @onclick='() => Twin.Command("trip", a.Id)'><Glyph Name="bolt" Size="14" /> @L.T("Trip pompa ini", "Trip this pump")</button>
+                    </div>
+                    break;
+                case Kind.Filter:
+                    var fs = Twin.V($"{a.Id}.state");
+                    <div class="bn-btnrow">
+                        <button class="bn-btn primary" disabled="@(fs != 0)" data-cmd="backwash" @onclick='() => Twin.Command("backwash", a.Id)'><Glyph Name="wash" Size="14" /> @L.T("Backwash sekarang", "Backwash now")</button>
+                        @if (fs == 2)
+                        {
+                            <button class="bn-btn" data-cmd="online" @onclick='() => Twin.Command("online", a.Id)'>@L.T("Masukkan ke operasi", "Put in service")</button>
+                        }
+                        else
+                        {
+                            <button class="bn-btn" disabled="@(fs != 0)" data-cmd="offline" @onclick='() => Twin.Command("offline", a.Id)'>@L.T("Keluarkan dari operasi", "Take out of service")</button>
+                        }
+                        <button class="bn-btn" data-cmd="auto" @onclick="() => ToggleAuto(a.Id)"><Glyph Name="auto" Size="14" /> @(Auto(a.Id) ? L.T("Backwash manual", "Manual backwash") : L.T("Backwash otomatis", "Auto backwash"))</button>
+                    </div>
+                    break;
+                case Kind.Intake:
+                    <Setpoint Kind="flow" Target="INTAKE" Tag="flow.sp" Min="0" Max="600" Step="10" Decimals="0" Unit="L/s" LabelId="Setpoin debit air baku" LabelEn="Raw water flow setpoint" />
+                    break;
+                case Kind.Dosing when a.Id == "PAC":
+                    <Setpoint Kind="pac" Target="PAC" Tag="pac.dose" Min="0" Max="80" Step="1" Decimals="0" Unit="mg/L" LabelId="Dosis PAC" LabelEn="PAC dose" />
+                    <div class="bn-btnrow"><button class="bn-btn" data-cmd="refill" @onclick='() => Twin.Command("refill", "PAC", 92)'>@L.T("Isi ulang tangki", "Refill the tanks")</button></div>
+                    break;
+                case Kind.Dosing:
+                    <Setpoint Kind="cl" Target="CL-1" Tag="cl.dose" Min="0" Max="3" Step="0.05" Decimals="2" Unit="mg/L" LabelId="Dosis klor" LabelEn="Chlorine dose" />
+                    break;
+                case Kind.River:
+                    <div class="bn-whatif">
+                        <span>@L.T("Uji skenario:", "What-if:")</span>
+                        <button class="bn-btn small" data-cmd="rain" @onclick='() => Twin.Command("rain", "RIVER", 300)'><Glyph Name="rain" Size="14" /> @L.T("Hujan lebat di hulu", "Heavy rain upstream")</button>
+                    </div>
+                    break;
+                default:
+                    <p class="bn-muted">@L.T("Bagian ini mengikuti debit dan dosis. Aturlah lewat intake, PAC atau klorinator.", "This stage follows the flow and the doses. Set those at the intake, the PAC tanks or the chlorinator.")</p>
+                    break;
+            }
+            <div class="bn-btnrow">
+                <button class="bn-btn ghost" data-cmd="order" @onclick="() => Order(a)"><Glyph Name="wrench" Size="14" /> @L.T("Buat perintah kerja", "Raise a work order")</button>
+            </div>
+        </section>
+
+        <section class="bn-notes" aria-label="@L.T("Catatan", "Notes")">
+            <h3 class="bn-eyebrow">@L.T("Catatan operator", "Operator notes")</h3>
+            @foreach (var n in Twin.Notes.Where(n => n.Asset == a.Id))
+            {
+                <div class="bn-note" data-note="@n.Id">
+                    <p>@n.Text</p>
+                    <span class="bn-muted bn-mono">@n.Author · @Twin.Clock(n.T)</span>
+                    <button class="bn-ibtn tiny" title="@L.T("Hapus catatan", "Delete the note")" aria-label="@L.T("Hapus catatan", "Delete the note")" @onclick="() => Twin.DeleteNote(n)"><Glyph Name="trash" Size="13" /></button>
+                </div>
+            }
+            <form class="bn-inline" @onsubmit="() => AddNote(a.Id)" @onsubmit:preventDefault="true">
+                <input class="bn-input" placeholder="@L.T("Tulis catatan untuk shift berikutnya…", "A note for the next shift…")" value="@_note" @oninput="OnNote" aria-label="@L.T("Catatan baru", "New note")" />
+                <button class="bn-btn" type="submit" disabled="@(_note.Trim() == "")"><Glyph Name="note" Size="14" /> @L.T("Simpan", "Save")</button>
+            </form>
+        </section>
+    </article>
+}
+else
+{
+    <div class="bn-roll">
+        <h2>@L.T("Semua peralatan", "All equipment")</h2>
+        <p class="bn-muted">@L.T("Klik peralatan di tampilan 3D atau di daftar ini.", "Click equipment in the 3D view or in this list.")</p>
+        <ul>
+            @foreach (var x in Plant.Assets)
+            {
+                var al = Twin.Alarms.Where(e => e.Def.Asset == x.Id && e.Active).OrderBy(e => e.Def.Priority).FirstOrDefault();
+                <li>
+                    <button class="bn-rollrow" data-asset="@x.Id" @onclick="() => Twin.Select(x.Id)">
+                        <span class="bn-tag bn-mono">@x.Id</span>
+                        <span class="bn-rollname">@x.Name</span>
+                        @if (al is not null)
+                        {
+                            <span class="bn-dot p@(al.Def.Priority)" title="@al.Def.Text"></span>
+                        }
+                        @if (x.HasState)
+                        {
+                            <span class="bn-state mini s@(Twin.V($"{x.Id}.state"))"><i></i>@Twin.StateText(x.Id)</span>
+                        }
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    private string _note = "";
+    private string _sig = "";
+    private static readonly HashSet<string> Manual = new();
+
+    public static bool Auto(string id) => !Manual.Contains(id);
+
+    private void ToggleAuto(string id)
+    {
+        var on = !Auto(id);
+        if (Twin.Command("auto", id, on ? 1 : 0))
+        {
+            if (on) Manual.Remove(id); else Manual.Add(id);
+        }
+    }
+
+    private void Order(Asset a)
+    {
+        var alarm = Twin.Alarms.Where(x => x.Def.Asset == a.Id && x.Active).OrderBy(x => x.Def.Priority).FirstOrDefault();
+        var kind = a.Kind is Kind.Pump or Kind.Distribution ? "repair" : a.Kind == Kind.Filter ? "clean" : "inspect";
+        var title = alarm is not null ? L.T($"Tindak lanjut: {alarm.Def.Text}", $"Follow up: {alarm.Def.Text}") : L.T($"Periksa {a.Name}", $"Inspect {a.Name}");
+        Twin.NewOrder(a.Id, title, alarm?.Def.Priority ?? 3, kind, alarm?.Key);
+        Twin.Panel = "orders";
+        Twin.Notify();
+    }
+
+    private void OnNote(ChangeEventArgs e) => _note = e.Value?.ToString() ?? "";
+
+    private void AddNote(string asset)
+    {
+        Twin.AddNote(asset, _note);
+        _note = "";
+    }
+
+    protected override void OnInitialized()
+    {
+        Twin.Ticked += OnTick;
+        Twin.Changed += Redraw;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private void OnTick()
+    {
+        // re-render when a shown value changes at its shown precision
+        if (Twin.Selected is not { } id || !Plant.AssetById.TryGetValue(id, out var a))
+        {
+            var states = string.Concat(Plant.Assets.Where(x => x.HasState).Select(x => Twin.V($"{x.Id}.state")));
+            if (states == _sig) return;
+            _sig = states;
+            StateHasChanged();
+            return;
+        }
+        var sig = id + Twin.V($"{id}.state") + string.Join("|", a.Readings.Select(r => Twin.Fmt(Twin.V(r.Tag) * r.Factor, Plant.TagById[r.Tag].Decimals)));
+        if (sig == _sig) return;
+        _sig = sig;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Twin.Ticked -= OnTick;
+        Twin.Changed -= Redraw;
+    }
+}

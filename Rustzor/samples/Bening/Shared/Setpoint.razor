@@ -1,0 +1,38 @@
+@* A setpoint: the value in force, a slider to pick a new one, and Apply. Nothing changes in
+   the plant until Apply, so a drag through the range does not send a dozen commands. *@
+
+<div class="bn-sp" data-setpoint="@Kind">
+    <label for="sp-@Kind">@L.T(LabelId, LabelEn)</label>
+    <div class="bn-sp-now"><span class="bn-muted">@L.T("berlaku", "in force")</span> <b class="bn-mono">@Twin.Fmt(Twin.V(Tag), Decimals) @Unit</b></div>
+    <div class="bn-sp-row">
+        <input id="sp-@Kind" class="bn-range" type="range" min="@N(Min)" max="@N(Max)" step="@N(Step)" value="@N(Value)" @oninput="OnInput" />
+        <output class="bn-mono" for="sp-@Kind">@Twin.Fmt(Value, Decimals)</output>
+        <button class="bn-btn primary small" data-apply="@Kind" disabled="@(Math.Abs(Value - Twin.V(Tag)) < Step / 2)" @onclick="Apply">@L.T("Terapkan", "Apply")</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Kind { get; set; } = "";
+    [Parameter, EditorRequired] public string Target { get; set; } = "";
+    [Parameter, EditorRequired] public string Tag { get; set; } = "";
+    [Parameter] public double Min { get; set; }
+    [Parameter] public double Max { get; set; } = 100;
+    [Parameter] public double Step { get; set; } = 1;
+    [Parameter] public int Decimals { get; set; }
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public string LabelId { get; set; } = "";
+    [Parameter] public string LabelEn { get; set; } = "";
+
+    private double? _picked;
+    private double Value => _picked ?? Twin.V(Tag);
+
+    private static string N(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private void OnInput(ChangeEventArgs e) =>
+        _picked = double.Parse(e.Value?.ToString() ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+
+    private void Apply()
+    {
+        if (Twin.Command(Kind, Target, Math.Clamp(Value, Min, Max))) _picked = null;
+    }
+}

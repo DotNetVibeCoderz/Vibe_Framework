@@ -237,6 +237,72 @@ Shows: `Rustzor.Game`'s `NetSession` between tabs with host election and hand-ov
 
 `node tools/e2e/galasin.mjs http://localhost:5392` plays it in headless Chrome with two tabs: both sign up, a match without bots starts in both, the arrow keys move a player and the other tab draws the move where it ended, a guard cannot leave the line, a guard within reach of an attacker behind the home line does not tag, a touch on the court swaps the teams in both tabs, half a trip scores nothing and a round trip scores one (shown in turus), coming home twice does not score twice, the first to the target wins, and the winner cheers while the loser hangs their head. A second match with bots checks that both tabs hold every bot in the same place, that snapshots arrive 20 times a second, frame and referee tick times, that a third tab watches, that the match goes on when the referee's tab closes (with a bot for the player who left), the language toggle, the rules page and the phone layout. `node tools/e2e/galasin-shots.mjs` takes the screenshots above.
 
+## Bening water plant twin
+
+`samples/Bening` · `Rustzor.UI`, `Rustzor.Browser.Storage`, and a simulator and 3D engine of its own (`rustzor.module.js`)
+
+A digital twin of IPA Leuwi Bening, a 400 L/s conventional water treatment plant on the Ci Sangga river. The plant is fictional, and so is its utility, Perumda Air Minum Tirta Sangga. The river comes in through three raw water pumps and is dosed with PAC in a flash mixer. It is then flocculated, settled, filtered through four rapid sand filters, chlorinated, stored in a 4,000 m³ reservoir and pumped to the city. The morning shift opens at 06.00, after a night of heavy rain upstream. The night operator's dose changes are in the log, RW-2's bearing has been running hot for days, and filter F-3 is due a backwash. Indonesian first, English in one tap.
+
+- **The jar row.** The jar test every plant runs, laid out as the plant: one beaker per stage, filled with the water as it leaves that stage, from the river's brown to the reservoir's clear blue. The 3D water surfaces are tinted the same way, so a stage that stops working shows in both places.
+- **A seeded, deterministic simulation** of the whole plant, in JavaScript, taking a sample every 10 simulated seconds. It models:
+  - river turbidity and rain events
+  - pumps on duty and standby, with bearing wear and protection trips
+  - PAC demand from the turbidity: dose too little and the floc does not form
+  - settling, and filter head loss with automatic backwash
+  - chlorine demand and residual
+  - the reservoir, between production and the city's daily demand curve
+  - distribution pressure
+
+  The same seed and the same commands give the same day, sample for sample. So every viewer starts from the same night, and a reload rebuilds the run exactly.
+- **Alarms as ISA-18.2 describes them.** C# defines the 27 rules: limit, deadband, delay, priority and the equipment each belongs to. The engine judges every sample against them. Standing and unacknowledged alarms come first, by priority. Beacons pulse over the equipment in 3D until someone acknowledges them. The night shift's alarms that came and went are already acknowledged.
+- **What-if, within the plant's rules.** You can start, stop, trip and reset pumps, backwash a filter or take it out of service, move the flow, PAC and chlorine setpoints, or bring rain down the river. Then speed the clock up (1× to 300×) and watch the change travel from the intake to the reservoir. C# refuses what an operator may not do:
+  - reset a trip before its alarm is acknowledged
+  - stop the last running pump
+  - backwash two filters at once, or leave fewer than three in service
+  - sign off a repair on a running pump
+  - command anything while replaying
+- **Replay.** The day is on a strip showing raw turbidity, reservoir level and a mark for each alarm. Drag it to go back, and the 3D view, the jars, the readings and the alarm beacons all show that moment. "See it happen" on an alarm replays from a minute before it.
+- **Work orders, notes and views.** Raise a work order from an alarm or from any equipment, assign it, start it and close it; closing a repair puts the pump back as new. Notes on equipment, saved camera views, acknowledgements and the run itself are kept in the browser across reloads.
+- **The daily log sheet** (`/laporan`) shows:
+  - today's production, energy, specific energy, PAC used, and OEE (availability × performance × quality)
+  - hourly means, with out-of-limit cells marked
+  - the alarm record and the shift log
+
+  It exports four CSV files: the history by minute, the hourly log, the alarm log and the work orders.
+- **The 3D model** is procedural. `samples/Bening/assets-src/make_ipa.py` builds it in Blender through Blender's MCP server: basins, pumps, motors, pipes, the chemical house, and the reservoir with its level gauge. That is 8,200 faces merged into 137 meshes (812 KB). Custom properties tell the engine which nodes are equipment, which parts turn (motor fans, couplings, the mixer, the flocculator paddles), which surfaces are water and which bar is the gauge. The engine draws the model in WebGL2 with a shadow map, picks with a GPU id buffer, and tints equipment by its state.
+
+| | |
+| --- | --- |
+| ![RW-2 selected, its bearing alarm standing](../images/sample-bening.png) | ![03.36, replaying the night's rain](../images/sample-bening-replay.png) |
+| ![Night shift: RW-1 tripped, the what-if panel](../images/sample-bening-dark.png) | ![The daily log sheet](../images/sample-bening-report.png) |
+
+![On a phone](../images/sample-bening-phone.png)
+
+Shows:
+- a simulation that runs every sample in JavaScript, while C# owns the model, the rules and the record
+- values crossing to C# twice a second as one string of numbers, parsed straight from slices (`double.Parse` over a `ReadOnlySpan<char>`)
+- components that re-render only when what they show changes at the precision they show it
+- per-viewer state that survives a reload, by replaying a seeded run
+
+`node tools/e2e/bening.mjs http://localhost:5361` drives the sample in headless Chrome and checks that:
+- every mesh of the GLB is drawn, and every piece of equipment C# knows about is in it
+- the same seed gives the same eight hours twice and another seed does not, and the live run matches one made separately
+- the alarms standing that morning are there, with the night shift's acknowledgements
+- clicking RW-2 in 3D opens its inspector, with the engine's values and sparklines drawn from the history
+- an acknowledgement reaches the engine
+- tripping RW-1 stops it, raises a P1 alarm, brings RW-3 on 30 seconds later, and returns the flow to the setpoint
+- the reset is refused until the trip is acknowledged
+- underdosing PAC clouds the settled water and its jar two hours later
+- dragging the timeline to 03.30 shows the rain and locks the controls, and "See it happen" and "Back to now" work
+- a work order raised from an alarm is refused while the pump runs and goes through once it is stopped
+- a saved view, a note, the acknowledgements and the run itself survive a reload
+- the history, hourly and alarm CSVs match the engine
+- the language toggle works
+- frames stay fast while orbiting with the clock at 60×
+- the phone layout has no sideways scroll
+
+`node tools/e2e/bening-shots.mjs` takes the screenshots above.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -265,4 +331,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. One more sample from the [roadmap](../../PLAN.md) is on the way: a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too.

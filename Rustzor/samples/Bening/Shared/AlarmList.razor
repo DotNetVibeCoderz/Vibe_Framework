@@ -1,0 +1,84 @@
+@implements IDisposable
+@* The alarm list, as ISA-18.2 has it: what stands and what has not been acknowledged first,
+   by priority, then the day's record. "See it" replays the plant from a minute before the
+   alarm came in. *@
+
+<section class="bn-alarms">
+    <header class="bn-list-head">
+        <div class="bn-seg small" role="group" aria-label="@L.T("Tampilkan", "Show")">
+            <button class="@(_all ? "" : "on")" aria-pressed="@(_all ? "false" : "true")" data-filter="active" @onclick="() => _all = false">@L.T("Perlu perhatian", "Needs attention")</button>
+            <button class="@(_all ? "on" : "")" aria-pressed="@(_all ? "true" : "false")" data-filter="all" @onclick="() => _all = true">@L.T("Semua hari ini", "All today") (@Twin.Alarms.Count)</button>
+        </div>
+        <div class="bn-btnrow tight">
+            <button class="bn-btn small" disabled="@(!Twin.Alarms.Any(a => !a.Acked))" data-ackall @onclick="Twin.AckAll"><Glyph Name="check" Size="14" /> @L.T("Akui semua", "Acknowledge all")</button>
+            <button class="bn-ibtn" title="@L.T("Ekspor log alarm (CSV)", "Export the alarm log (CSV)")" aria-label="@L.T("Ekspor log alarm (CSV)", "Export the alarm log (CSV)")" data-export="alarms" @onclick="Twin.ExportAlarms"><Glyph Name="download" Size="16" /></button>
+        </div>
+    </header>
+    @{
+        var list = (_all ? Twin.Alarms.OrderByDescending(a => a.Raised) : Twin.Alarms.Where(a => a.Active || !a.Acked).OrderBy(a => a.Acked).ThenBy(a => a.Def.Priority).ThenByDescending(a => a.Raised)).ToList();
+    }
+    @if (list.Count == 0)
+    {
+        <div class="bn-empty">
+            <Glyph Name="check" Size="22" />
+            <p>@L.T("Tidak ada alarm yang berdiri. Semua sudah diakui.", "No alarm is standing, and every one has been acknowledged.")</p>
+            <button class="bn-link" @onclick="() => _all = true">@L.T("Lihat catatan alarm hari ini", "See today's alarm record")</button>
+        </div>
+    }
+    <ol class="bn-alarm-list">
+        @foreach (var a in list)
+        {
+            <li class="bn-alarm p@(a.Def.Priority) @(a.Active ? "active" : "cleared") @(a.Acked ? "acked" : "unacked")" data-key="@a.Key" data-def="@a.Def.Id">
+                <span class="bn-prio bn-mono" title="@L.T("Prioritas", "Priority") @a.Def.Priority">P@(a.Def.Priority)</span>
+                <div class="bn-alarm-body">
+                    <div class="bn-alarm-top">
+                        <button class="bn-tag bn-mono" @onclick="() => Twin.Select(a.Def.Asset)">@a.Def.Asset</button>
+                        <span class="bn-mono bn-muted">@Twin.Clock(a.Raised)@(a.Cleared >= 0 ? "–" + Twin.Clock(a.Cleared) : "")</span>
+                        <span class="bn-alarm-state">@State(a)</span>
+                    </div>
+                    <p>@a.Def.Text</p>
+                    @if (a.Acked)
+                    {
+                        <span class="bn-fine">@L.T("Diakui", "Acknowledged") @a.AckBy · @Twin.Clock(a.AckAt)</span>
+                    }
+                    <div class="bn-btnrow tight">
+                        @if (!a.Acked)
+                        {
+                            <button class="bn-btn small primary" data-ack @onclick="() => Twin.Ack(a)">@L.T("Akui", "Acknowledge")</button>
+                        }
+                        <button class="bn-btn small ghost" data-jump @onclick="() => Twin.JumpTo(a)"><Glyph Name="jump" Size="14" /> @L.T("Lihat saat itu", "See it happen")</button>
+                        @if (a.Active && !Twin.Orders.Any(o => o.Alarm == a.Key))
+                        {
+                            <button class="bn-btn small ghost" data-order @onclick="() => Order(a)"><Glyph Name="wrench" Size="14" /> @L.T("Perintah kerja", "Work order")</button>
+                        }
+                    </div>
+                </div>
+            </li>
+        }
+    </ol>
+</section>
+
+@code {
+    private bool _all;
+
+    private static string State(AlarmEntry a) => (a.Active, a.Acked) switch
+    {
+        (true, false) => L.T("berdiri · belum diakui", "standing · unacknowledged"),
+        (true, true) => L.T("berdiri · diakui", "standing · acknowledged"),
+        (false, false) => L.T("sudah normal · belum diakui", "back to normal · unacknowledged"),
+        _ => L.T("selesai", "closed"),
+    };
+
+    private static void Order(AlarmEntry a)
+    {
+        var asset = a.Def.Asset;
+        var kind = asset.StartsWith("RW-") || asset.StartsWith("DS-") ? "repair" : asset.StartsWith("F-") ? "clean" : "inspect";
+        Twin.NewOrder(asset, L.T($"Tindak lanjut: {a.Def.Text}", $"Follow up: {a.Def.Text}"), a.Def.Priority, kind, a.Key);
+    }
+
+    protected override void OnInitialized() => Twin.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Twin.Changed -= Redraw;
+}

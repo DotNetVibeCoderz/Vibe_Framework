@@ -1,0 +1,97 @@
+@implements IDisposable
+@* What-if for the whole plant: the three setpoints an operator really has, the events an
+   operator fears, and a clean restart. Each takes effect at the present simulated time and
+   is written into the shift log, so the replay shows cause and effect. *@
+
+<section class="bn-scen">
+    <h2>@L.T("Skenario", "What-if")</h2>
+    <p class="bn-muted">@L.T("Ubah sesuatu lalu percepat waktu untuk melihat akibatnya menjalar dari intake sampai reservoir.", "Change something, then speed up time to watch it travel from the intake to the reservoir.")</p>
+
+    <div class="bn-card">
+        <h3 class="bn-eyebrow">@L.T("Setpoin", "Setpoints")</h3>
+        <Setpoint Kind="flow" Target="INTAKE" Tag="flow.sp" Min="0" Max="600" Step="10" Decimals="0" Unit="L/s" LabelId="Debit air baku" LabelEn="Raw water flow" />
+        <Setpoint Kind="pac" Target="PAC" Tag="pac.dose" Min="0" Max="80" Step="1" Decimals="0" Unit="mg/L" LabelId="Dosis PAC" LabelEn="PAC dose" />
+        <p class="bn-fine">@L.T($"Uji jar saat ini meminta {Twin.Fmt("pac.demand")} mg/L untuk air sekeruh {Twin.Fmt("raw.turb")} NTU.", $"Today's jar test asks for {Twin.Fmt("pac.demand")} mg/L for water at {Twin.Fmt("raw.turb")} NTU.")</p>
+        <Setpoint Kind="cl" Target="CL-1" Tag="cl.dose" Min="0" Max="3" Step="0.05" Decimals="2" Unit="mg/L" LabelId="Dosis klor" LabelEn="Chlorine dose" />
+    </div>
+
+    <div class="bn-card">
+        <h3 class="bn-eyebrow">@L.T("Kejadian", "Events")</h3>
+        <ul class="bn-events">
+            <li>
+                <div><b>@L.T("Hujan lebat di hulu", "Heavy rain upstream")</b><span class="bn-fine">@L.T("Air baku naik ke ±330 NTU dalam 45 menit.", "Raw water climbs to about 330 NTU over 45 minutes.")</span></div>
+                <button class="bn-btn small" data-scenario="rain" @onclick='() => Twin.Command("rain", "RIVER", 300)'><Glyph Name="rain" Size="14" /> @L.T("Jalankan", "Run")</button>
+            </li>
+            <li>
+                <div><b>@L.T("Pompa air baku trip", "A raw water pump trips")</b><span class="bn-fine">@L.T("RW-1 berhenti; pompa cadangan otomatis menyala 30 detik kemudian.", "RW-1 stops; the standby starts itself 30 seconds later.")</span></div>
+                <button class="bn-btn small danger" data-scenario="trip" @onclick='() => Twin.Command("trip", "RW-1")'><Glyph Name="bolt" Size="14" /> @L.T("Jalankan", "Run")</button>
+            </li>
+            <li>
+                <div><b>@L.T("Pompa distribusi trip", "A distribution pump trips")</b><span class="bn-fine">@L.T("DS-1 berhenti; tekanan kota turun sampai cadangan menyala.", "DS-1 stops; city pressure dips until the standby starts.")</span></div>
+                <button class="bn-btn small danger" data-scenario="trip-ds" @onclick='() => Twin.Command("trip", "DS-1")'><Glyph Name="bolt" Size="14" /> @L.T("Jalankan", "Run")</button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="bn-card">
+        <h3 class="bn-eyebrow">@L.T("Simulasi", "Simulation")</h3>
+        <p class="bn-fine">@L.T($"Benih {Plant.Seed}: benih dan perintah yang sama selalu menghasilkan hari yang sama, sampel demi sampel. Sidik riwayat {Twin.Hash}.", $"Seed {Plant.Seed}: the same seed and the same commands always give the same day, sample for sample. History fingerprint {Twin.Hash}.")</p>
+        @if (_confirm)
+        {
+            <div class="bn-confirm" role="alertdialog" aria-label="@L.T("Mulai ulang?", "Restart?")">
+                <span>@L.T("Semua perintah hari ini dan pengakuan alarm akan hilang. Catatan, tampilan dan perintah kerja tetap.", "Today's commands and acknowledgements will be lost. Notes, views and work orders stay.")</span>
+                <div class="bn-btnrow tight">
+                    <button class="bn-btn small danger" data-reset-confirm @onclick="Reset">@L.T("Mulai ulang", "Restart")</button>
+                    <button class="bn-btn small" @onclick="() => _confirm = false">@L.T("Batal", "Cancel")</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <button class="bn-btn" data-reset @onclick="() => _confirm = true"><Glyph Name="reset" Size="14" /> @L.T("Mulai ulang dari 06.00", "Restart from 06:00")</button>
+        }
+    </div>
+
+    <div class="bn-card">
+        <h3 class="bn-eyebrow">@L.T("Log shift", "Shift log")</h3>
+        <ol class="bn-log">
+            @foreach (var e in Twin.Log.OrderByDescending(e => e.T).Take(12))
+            {
+                <li><span class="bn-mono">@Twin.Clock(e.T)</span><span>@e.Text</span><span class="bn-muted">@e.Who</span></li>
+            }
+        </ol>
+    </div>
+</section>
+
+@code {
+    private bool _confirm;
+    private string _sig = "";
+
+    private void Reset()
+    {
+        _confirm = false;
+        Twin.Reset();
+    }
+
+    protected override void OnInitialized()
+    {
+        Twin.Changed += Redraw;
+        Twin.Ticked += OnTick;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private void OnTick()
+    {
+        var sig = Twin.Fmt("flow.sp") + Twin.Fmt("pac.dose") + Twin.Fmt("cl.dose") + Twin.Fmt("pac.demand") + Twin.Fmt("raw.turb");
+        if (sig == _sig) return;
+        _sig = sig;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Twin.Changed -= Redraw;
+        Twin.Ticked -= OnTick;
+    }
+}

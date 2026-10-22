@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(TwinLayout)" />
+    </Found>
+    <NotFound>
+        <div class="bn-lost">
+            <h1>@L.T("Halaman ini tidak ada", "No such page")</h1>
+            <p>@L.T("Bening punya dua halaman: ruang kendali dan laporan harian.", "Bening has two pages: the control room and the daily report.")</p>
+            <a class="bn-btn primary" href="">@L.T("Buka ruang kendali", "Open the control room")</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

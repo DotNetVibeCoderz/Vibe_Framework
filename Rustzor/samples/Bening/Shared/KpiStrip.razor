@@ -1,0 +1,46 @@
+@implements IDisposable
+@* Today's numbers so far, over the top of the view. OEE for a water plant: availability (the
+   intake ran), performance (production against the 400 L/s design) and quality (water within
+   1 NTU and 0.3–1.5 mg/L chlorine), multiplied. *@
+
+<dl class="bn-kpis" data-ui>
+    <div class="bn-kpi lead" title="@L.T($"Ketersediaan {Pct(Twin.Kpi[4])} × kinerja {Pct(Twin.Kpi[5])} × mutu {Pct(Twin.Kpi[6])}", $"Availability {Pct(Twin.Kpi[4])} × performance {Pct(Twin.Kpi[5])} × quality {Pct(Twin.Kpi[6])}")">
+        <dt>OEE</dt>
+        <dd class="bn-mono" data-kpi="oee">@Pct(Twin.Kpi[3])</dd>
+        <span class="bn-kpi-parts bn-mono">@Pct(Twin.Kpi[4]) · @Pct(Twin.Kpi[5]) · @Pct(Twin.Kpi[6])</span>
+    </div>
+    <div class="bn-kpi">
+        <dt>@L.T("Produksi", "Produced")</dt>
+        <dd class="bn-mono" data-kpi="prod">@Twin.Fmt(Twin.Kpi[0], 0)<small>m³</small></dd>
+    </div>
+    <div class="bn-kpi">
+        <dt>@L.T("Energi", "Energy")</dt>
+        <dd class="bn-mono" data-kpi="kwh">@Twin.Fmt(Twin.Kpi[1], 0)<small>kWh</small></dd>
+    </div>
+    <div class="bn-kpi">
+        <dt>@L.T("Energi spesifik", "Specific energy")</dt>
+        <dd class="bn-mono" data-kpi="spec">@Twin.Fmt(Twin.Kpi[2], 3)<small>kWh/m³</small></dd>
+    </div>
+    <div class="bn-kpi">
+        <dt>PAC</dt>
+        <dd class="bn-mono" data-kpi="pac">@Twin.Fmt(Twin.Kpi[7], 0)<small>kg</small></dd>
+    </div>
+</dl>
+
+@code {
+    private string _sig = "";
+
+    private static string Pct(double f) => Twin.Fmt(f * 100, 1) + " %";
+
+    protected override void OnInitialized() => Twin.Ticked += OnTick;
+
+    private void OnTick()
+    {
+        var sig = $"{Twin.Kpi[0]:0}|{Twin.Kpi[3]:0.000}|{Twin.Kpi[2]:0.000}|{Twin.Kpi[7]:0}|{L.English}";
+        if (sig == _sig) return;
+        _sig = sig;
+        StateHasChanged();
+    }
+
+    public void Dispose() => Twin.Ticked -= OnTick;
+}

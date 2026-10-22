@@ -1,0 +1,103 @@
+@implements IDisposable
+@* The 3D view. The engine draws into canvases it adds to the host and turns, tints and
+   pulses the plant itself every frame; this only hears about clicks. *@
+
+<section class="bn-vp" @ref="_host" tabindex="0" aria-label="@L.T("Tampilan 3D instalasi. Seret untuk memutar, klik kanan atau shift-seret untuk menggeser, gulir untuk zoom, klik peralatan untuk memilihnya.", "3D view of the plant. Drag to orbit, right-drag or shift-drag to pan, scroll to zoom, click equipment to select it.")">
+    <KpiStrip />
+    <div class="bn-vp-tools" data-ui>
+        <button class="bn-ibtn" title="@L.T("Tampilan awal", "Home view")" aria-label="@L.T("Tampilan awal", "Home view")" @onclick="Home"><Glyph Name="home" Size="16" /></button>
+        <div class="bn-views">
+            <button class="bn-ibtn @(_viewsOpen ? "on" : "")" title="@L.T("Tampilan tersimpan", "Saved views")" aria-label="@L.T("Tampilan tersimpan", "Saved views")" aria-expanded="@(_viewsOpen ? "true" : "false")" @onclick="() => _viewsOpen = !_viewsOpen"><Glyph Name="eye" Size="16" /></button>
+            @if (_viewsOpen)
+            {
+                <div class="bn-pop" role="dialog" aria-label="@L.T("Tampilan tersimpan", "Saved views")">
+                    <h3>@L.T("Tampilan tersimpan", "Saved views")</h3>
+                    @if (Twin.Views.Count == 0)
+                    {
+                        <p class="bn-muted">@L.T("Belum ada. Atur kamera, beri nama, lalu simpan.", "None yet. Frame the camera, name it, then save.")</p>
+                    }
+                    <ul class="bn-viewlist">
+                        @foreach (var v in Twin.Views)
+                        {
+                            <li>
+                                <button class="bn-link" data-view="@v.Name" @onclick="() => Twin.OpenView(v)">@v.Name</button>
+                                @if (v.Asset is not null)
+                                {
+                                    <span class="bn-chip">@v.Asset</span>
+                                }
+                                <button class="bn-ibtn tiny" title="@L.T("Hapus", "Delete")" aria-label="@L.T($"Hapus tampilan {v.Name}", $"Delete the view {v.Name}")" @onclick="() => Twin.DeleteView(v)"><Glyph Name="trash" Size="14" /></button>
+                            </li>
+                        }
+                    </ul>
+                    <form class="bn-inline" @onsubmit="SaveView" @onsubmit:preventDefault="true">
+                        <input class="bn-input" placeholder="@L.T("Nama tampilan, mis. Rumah pompa", "View name, e.g. Pump deck")" value="@_viewName" @oninput="OnName" aria-label="@L.T("Nama tampilan", "View name")" />
+                        <button class="bn-btn primary" type="submit" disabled="@(_viewName.Trim() == "")"><Glyph Name="save" Size="15" /> @L.T("Simpan", "Save")</button>
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+    @if (Twin.Error is null && !Twin.ViewReady)
+    {
+        <div class="bn-vp-msg" data-ui><span class="bn-spin"></span>@L.T("Memuat model instalasi: 24 peralatan, 8.000 bidang…", "Loading the plant: 24 pieces of equipment, 8,000 faces…")</div>
+    }
+    @if (_error is { } err)
+    {
+        <div class="bn-vp-msg error" data-ui role="alert"><b>@L.T("Model 3D tidak terbuka", "The 3D model did not open")</b><span>@err</span></div>
+    }
+    @if (!Twin.Live)
+    {
+        <div class="bn-replay" data-ui role="status">
+            <Glyph Name="reset" Size="15" />
+            <span>@L.T("Memutar ulang", "Replaying") <b class="bn-mono">@Twin.ClockSec(Twin.ViewT)</b> · @L.T("perintah dikunci", "controls locked")</span>
+            <button class="bn-btn small" @onclick="Twin.GoLive"><Glyph Name="live" Size="14" /> @L.T("Kembali ke sekarang", "Back to now")</button>
+        </div>
+    }
+</section>
+
+@code {
+    private ElementReference _host;
+    private long _handle;
+    private bool _viewsOpen;
+    private string _viewName = "";
+    private string? _error;
+
+    protected override void OnInitialized() => Twin.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser || Twin.Error is not null) return;
+        try
+        {
+            _handle = Js.Call("bn.attach", Js.Args("host", _host.Id, "timeline", Timeline.CanvasId)).AsLong();
+            var r = await Js.CallAsync("bn.load", Js.Args("url", "models/ipa.glb"));
+            Twin.LoadMs = r["loadMs"].AsInt();
+            Twin.ViewReady = true;
+            if (Twin.Selected is { } s) Js.Send("bn.select", Js.Args("asset", s, "focus", false));
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+        }
+        Twin.Notify();
+    }
+
+    private void Home() => Js.Send("bn.home");
+
+    private void OnName(ChangeEventArgs e) => _viewName = e.Value?.ToString() ?? "";
+
+    private void SaveView()
+    {
+        Twin.SaveView(_viewName);
+        _viewName = "";
+    }
+
+    public void Dispose()
+    {
+        Twin.Changed -= Redraw;
+        Twin.ViewReady = false;
+        if (_handle != 0) Js.Send("bn.detach");
+    }
+}

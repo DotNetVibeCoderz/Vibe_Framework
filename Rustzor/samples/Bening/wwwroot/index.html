@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <base href="/" />
+  <title>Bening · IPA Leuwi Bening digital twin · Rustzor sample</title>
+  <meta name="description" content="A digital twin of a water treatment plant: live 3D, alarms, replay and what-if, built with Rustzor by Gravicode Studios, led by Kang Fadhil." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%230f2a2c%27/%3E%3Cpath d=%27M16 5c4.5 6 7 9.6 7 13a7 7 0 0 1-14 0c0-3.4 2.5-7 7-13z%27 fill=%27%231d6fa3%27/%3E%3Cpath d=%27M11 19h10M12 22h8%27 stroke=%27%23e8edeb%27 stroke-width=%271.6%27 stroke-linecap=%27round%27/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;600&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Schibsted+Grotesk:wght@600;700;800&display=swap" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="bening.css" />
+</head>
+<body>
+  <div id="app"><div class="bn-boot app-loading"><b>Bening</b><span>Menyalakan ruang kendali…</span></div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='bn-boot-error app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+      console.error(e);
+    });
+  </script>
+</body>
+</html>

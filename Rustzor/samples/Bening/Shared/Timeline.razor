@@ -1,0 +1,29 @@
+@implements IDisposable
+@* The day on a strip. The engine draws it (raw turbidity in mud, the reservoir in blue, a mark
+   per alarm) and moves the replay head while it is dragged; this is its frame and legend. *@
+
+<div class="bn-tl">
+    <div class="bn-tl-head">
+        <span class="bn-eyebrow">@L.T("Hari ini", "Today") · 00.00–24.00</span>
+        <span class="bn-key mud">@L.T("kekeruhan air baku", "raw turbidity")</span>
+        <span class="bn-key clear">@L.T("level reservoir", "reservoir level")</span>
+        <span class="bn-key alarm">@L.T("alarm", "alarm")</span>
+        <span class="bn-tl-hint">@L.T("Seret di strip untuk memutar ulang", "Drag on the strip to replay")</span>
+        @if (!Twin.Live)
+        {
+            <button class="bn-btn small primary" @onclick="Twin.GoLive"><Glyph Name="live" Size="14" /> @L.T("Sekarang", "Now")</button>
+        }
+    </div>
+    <canvas id="@CanvasId" class="bn-tl-strip" role="slider" aria-label="@L.T("Waktu yang ditampilkan", "Time shown")"
+            aria-valuemin="0" aria-valuemax="86400" aria-valuenow="@(Twin.Live ? Twin.Now : Twin.ViewT)" aria-valuetext="@Twin.Clock(Twin.Live ? Twin.Now : Twin.ViewT)"></canvas>
+</div>
+
+@code {
+    public const string CanvasId = "bn-timeline";
+
+    protected override void OnInitialized() => Twin.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Twin.Changed -= Redraw;
+}

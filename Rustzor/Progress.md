@@ -2,6 +2,92 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-23: Bening digital twin sample (13 of 13)
+
+- `samples/Bening`: a digital twin of IPA Leuwi Bening, a fictional 400 L/s conventional
+  water treatment plant (Perumda Air Minum Tirta Sangga, on the Ci Sangga river). Routes
+  `/` (the control room) and `/laporan` (the daily log sheet).
+  - The look: tawas-grey neutrals, PDAM blue as the one accent, the river's brown only for
+    water that is not clean yet, and ISA-18.2 alarm colours. Type is Schibsted Grotesk with
+    Atkinson Hyperlegible Next and Mono.
+  - The signature is the jar row: a beaker per treatment stage, filled with that stage's
+    water.
+  - Indonesian first with English on a toggle, light and dark (night shift), and a phone
+    layout.
+- The simulator (in `rustzor.module.js`) is seeded and deterministic, with a sample every
+  10 simulated seconds. It models:
+  - the river and rain upstream
+  - three raw water pumps (duty and standby, bearing wear, protection trips, standby
+    auto-start)
+  - PAC demand from turbidity, settling, and four filters with head loss and auto
+    backwash
+  - chlorine residual
+  - a 4,000 m³ reservoir against the city's diurnal demand
+  - three distribution pumps and the network pressure
+
+  The scripted night (rain at 02.10 and the night operator's dose changes) is part of the
+  scenario. The app opens at 06.00 with RW-2's bearing and F-3's head loss in alarm and
+  settled water still cloudy.
+- C# owns the plant model:
+  - the equipment and tag names, and 27 alarm rules (limit, deadband, delay, priority),
+    which the engine judges on every sample
+  - the alarm log and its acknowledgements
+  - the operator's rules for commands: no reset before the trip is acknowledged, no
+    stopping the last running pump, one backwash at a time with at least three filters in
+    service, no repair on a running pump, no commands while replaying
+  - work orders, notes, saved views, the shift log, KPIs (production, kWh, kWh/m³, PAC,
+    OEE) and CSV exports (the history by minute, the hourly log, alarms, work orders)
+
+  The viewer's run, notes, views, orders and acknowledgements persist in localStorage. The
+  run is rebuilt on reload by replaying the seed and the commands.
+- The 3D model is procedural: `samples/Bening/assets-src/make_ipa.py` builds it in Blender
+  5.2 through the Blender MCP server.
+  - 8,212 faces, merged per piece of equipment and material into 137 meshes;
+    `ipa.glb` is 812 KB.
+  - Custom properties mark equipment (`asset`), turning parts (`spin`), water surfaces
+    (`water`) and the reservoir gauge (`level`).
+  - The script works in its own scene and removes everything it made. Rodin was not used,
+    because the equipment needs exact sizes.
+- The engine (WebGL2):
+  - a shadow map, water tinted by each stage's turbidity with a ripple, and equipment
+    tinted by state and alarm, with pulsing beacons until an alarm is acknowledged
+  - GPU id-buffer picking, orbit, pan and zoom
+  - the timeline strip with replay, and sparklines drawn from the history
+  - a night exposure for the dark theme
+- Runtime fix (RustNetRuntime, local checkout, not committed): `double.Parse` and
+  `double.TryParse` over a `ReadOnlySpan<char>` bound to the string overload's natives and
+  threw ArgumentNullException. They now read the span's characters. Conformance check
+  `SpanParseChecks` fails without the fix. Conformance passes 488/488 on .NET and on
+  RustCLR, `cargo test --workspace` passes 473, and `tests/embedded.sh` passes.
+- Verified: `tools/e2e/bening.mjs` passes all 48 checks three runs in a row. They cover:
+  - the GLB fully drawn
+  - determinism (same seed, same hash; another seed differs; live equals a separate run)
+  - the morning's alarms and the night shift's acknowledgements
+  - a 3D pick of RW-2 with the engine's values and sparklines
+  - acknowledgement reaching the engine
+  - a manual trip of RW-1 bringing RW-3 on after 30 s, and the reset refused until
+    acknowledged
+  - underdosed PAC clouding the settled water and its jar
+  - timeline replay to 03.30 locking the controls, and "See it happen" and "Back to now"
+  - a work order refused on a running pump and done once it is stopped
+  - a view, a note, acknowledgements and the run itself surviving a reload (same history
+    hash)
+  - the history, hourly and alarm CSVs against the engine
+  - language, phone layout and no console errors
+
+  Measurements:
+  - Frames take 1.8 ms of CPU at p50 and 2.7 ms at p95 while orbiting with the clock at
+    60×.
+  - The room is ready in about 1.8 s; the model loads in about 0.15 s.
+  - The solution builds with no warnings.
+  - Every Bening route renders without console errors, and the Meet, Rupa, Kamar Gelap,
+    Siaga, Tilik, Loket and Galasin checks pass on the new runtime.
+
+  Screenshots looked at and fixed: the yard and ground fighting for depth, the night view
+  too bright, the selected tag over the alarm tag, the log sheet clipped by its grid, and
+  the phone KPI strip.
+- All thirteen sample apps of `solution-design.md` are now done.
+
 ## 2026-10-22: Galasin multiplayer game sample
 
 - `samples/Galasin`: gobak sodor (galasin, hadang) in 3D for up to eight players, one per

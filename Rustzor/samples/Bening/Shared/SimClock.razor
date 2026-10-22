@@ -1,0 +1,52 @@
+@implements IDisposable
+@* The simulation clock and its speed. It re-renders on every tick, so it stays small. *@
+
+<div class="bn-clock" aria-live="off">
+    <div class="bn-clock-time">
+        <b class="bn-mono" data-clock>@Twin.Clock(Twin.Live ? Twin.Now : Twin.ViewT)</b>
+        <span>@(Twin.Live ? "WIB" : L.T("rekaman", "replay"))</span>
+    </div>
+    <span class="bn-clock-day">@Twin.Day(Twin.Now)</span>
+    <div class="bn-seg small bn-speed" role="group" aria-label="@L.T("Kecepatan simulasi", "Simulation speed")">
+        @foreach (var (s, label) in Speeds)
+        {
+            <button class="@(Twin.Speed == s ? "on" : "")" aria-pressed="@(Twin.Speed == s ? "true" : "false")" data-speed="@s"
+                    title="@(s == 0 ? L.T("Jeda", "Pause") : L.T($"1 detik = {Label(s)}", $"1 second = {LabelEn(s)}"))" @onclick="() => Twin.SetSpeed(s)">
+                @if (s == 0)
+                {
+                    <Glyph Name="pause" Size="14" />
+                }
+                else
+                {
+                    @label
+                }
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly (int, string)[] Speeds = { (0, ""), (1, "1×"), (10, "10×"), (60, "60×"), (300, "300×") };
+
+    private static string Label(int s) => s switch { 1 => "1 detik", 10 => "10 detik", 60 => "1 menit", _ => "5 menit" };
+    private static string LabelEn(int s) => s switch { 1 => "1 second", 10 => "10 seconds", 60 => "1 minute", _ => "5 minutes" };
+
+    private long _shown = -1;
+    private int _speed = -1;
+    private bool _live = true;
+
+    protected override void OnInitialized() => Twin.Ticked += OnTick;
+
+    private void OnTick()
+    {
+        // the clock only shows minutes: re-render when the minute, the speed or live/replay changes
+        var t = (Twin.Live ? Twin.Now : Twin.ViewT) / 60;
+        if (t == _shown && _speed == Twin.Speed && _live == Twin.Live) return;
+        _shown = t;
+        _speed = Twin.Speed;
+        _live = Twin.Live;
+        StateHasChanged();
+    }
+
+    public void Dispose() => Twin.Ticked -= OnTick;
+}

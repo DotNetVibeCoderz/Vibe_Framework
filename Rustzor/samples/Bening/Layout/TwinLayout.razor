@@ -1,0 +1,72 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@* The control room's top bar: which plant, which page, what time it is in the simulation and
+   how fast it runs. The simulation itself starts here, so both pages share one run. *@
+
+<div class="bn-app" data-live="@(Twin.Live ? "1" : "0")">
+    <header class="bn-head">
+        <a class="bn-brand" href="" aria-label="@L.T("Bening, ruang kendali", "Bening, the control room")">
+            <svg class="bn-mark" viewBox="0 0 32 32" aria-hidden="true">
+                <rect x="1" y="1" width="30" height="30" rx="7" class="bn-mark-bg" />
+                <path d="M16 5c4.5 6 7 9.6 7 13a7 7 0 0 1-14 0c0-3.4 2.5-7 7-13z" class="bn-mark-drop" />
+                <path d="M11 19h10M12 22h8" class="bn-mark-lines" />
+            </svg>
+            <span class="bn-brand-text"><b>Bening</b><small>@L.T("kembaran digital", "digital twin")</small></span>
+        </a>
+        <div class="bn-plant">
+            <span class="bn-plant-name">@Plant.Name</span>
+            <span class="bn-plant-owner">@Plant.Owner · @L.T("kapasitas 400 L/s", "400 L/s capacity")</span>
+        </div>
+        <nav class="bn-nav" aria-label="@L.T("Halaman", "Pages")">
+            <NavLink href="" Match="NavLinkMatch.All"><Glyph Name="plant" Size="16" /> <span>@L.T("Ruang kendali", "Control room")</span></NavLink>
+            <NavLink href="laporan"><Glyph Name="report" Size="16" /> <span>@L.T("Laporan harian", "Daily report")</span></NavLink>
+        </nav>
+        <SimClock />
+        <div class="bn-tools">
+            <div class="bn-seg small" role="group" aria-label="@L.T("Bahasa", "Language")">
+                <button class="@(L.English ? "" : "on")" aria-pressed="@(L.English ? "false" : "true")" @onclick="() => L.Set(false)">ID</button>
+                <button class="@(L.English ? "on" : "")" aria-pressed="@(L.English ? "true" : "false")" @onclick="() => L.Set(true)">EN</button>
+            </div>
+            <ThemeToggle />
+        </div>
+    </header>
+    <main class="bn-main">
+        @if (Twin.Error is { } err)
+        {
+            <div class="bn-fatal" role="alert"><b>@L.T("Simulasi tidak bisa dimulai", "The simulation could not start")</b><span>@err</span></div>
+        }
+        else
+        {
+            @Body
+        }
+    </main>
+    <footer class="bn-foot">
+        <span>@L.T("Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil", "Built by Gravicode Studios, led by Kang Fadhil") · Rustzor</span>
+        <span>@L.T("Instalasi, perusahaan dan data dalam contoh ini fiktif.", "The plant, the utility and the data in this sample are fictional.")</span>
+    </footer>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.Load();
+        try { Twin.Boot(); }
+        catch (Exception e) { Twin.Error = e.Message; }
+        Twin.Changed += Redraw;
+        L.Changed += OnLang;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private void OnLang()
+    {
+        Twin.SendNames();
+        Twin.Notify();
+    }
+
+    public void Dispose()
+    {
+        Twin.Changed -= Redraw;
+        L.Changed -= OnLang;
+    }
+}

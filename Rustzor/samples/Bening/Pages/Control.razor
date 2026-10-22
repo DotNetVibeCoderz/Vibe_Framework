@@ -1,0 +1,14 @@
+@page "/"
+@* The control room: the plant in 3D, the water stage by stage under it, the day on a strip,
+   and on the right whatever the operator is working on. *@
+
+<div class="bn-room">
+    <div class="bn-stage">
+        <Viewport />
+        <section class="bn-under" aria-label="@L.T("Proses dan waktu", "Process and time")">
+            <JarRow />
+            <Timeline />
+        </section>
+    </div>
+    <SidePanel />
+</div>

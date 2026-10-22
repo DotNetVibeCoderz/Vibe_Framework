@@ -237,6 +237,72 @@ Menunjukkan: `NetSession` dari `Rustzor.Game` antar-tab dengan pemilihan host da
 
 `node tools/e2e/galasin.mjs http://localhost:5392` memainkannya di Chrome headless dengan dua tab: keduanya mendaftar, pertandingan tanpa bot dimulai di keduanya, tombol panah menggerakkan pemain dan tab lain menggambar gerakan itu di tempat berakhirnya, penjaga tidak bisa keluar dari garisnya, penjaga yang menjangkau penyerang di belakang garis rumah tidak menangkap, sentuhan di lapangan menukar tim di kedua tab, setengah perjalanan tidak bernilai dan bolak-balik bernilai satu (tampil dalam turus), pulang dua kali tidak dihitung dua kali, yang lebih dulu mencapai target menang, dan pemenang bersorak sementara yang kalah tertunduk. Pertandingan kedua dengan bot memeriksa bahwa kedua tab menaruh setiap bot di tempat yang sama, snapshot datang 20 kali sedetik, waktu frame dan tick wasit, tab ketiga menonton, pertandingan berlanjut ketika tab wasit ditutup (dengan bot untuk pemain yang pergi), tombol bahasa, halaman aturan, dan tata letak ponsel. `node tools/e2e/galasin-shots.mjs` mengambil tangkapan layar di atas.
 
+## Bening, kembaran digital IPA
+
+`samples/Bening` · `Rustzor.UI`, `Rustzor.Browser.Storage`, serta simulator dan mesin 3D sendiri (`rustzor.module.js`)
+
+Kembaran digital IPA Leuwi Bening, instalasi pengolahan air konvensional 400 L/s di tepi Sungai Ci Sangga. Instalasinya fiktif, begitu pula perusahaannya, Perumda Air Minum Tirta Sangga. Air sungai masuk lewat tiga pompa air baku, lalu diberi PAC di pengaduk cepat. Setelah itu air diflokulasi, diendapkan, disaring di empat saringan pasir cepat, diklorinasi, ditampung di reservoir 4.000 m³ dan dipompa ke kota. Shift pagi dibuka pukul 06.00, setelah semalam hujan lebat di hulu. Perubahan dosis oleh operator malam sudah tercatat di log, bantalan RW-2 sudah beberapa hari panas, dan saringan F-3 sudah waktunya dicuci (backwash). Bahasa Indonesia lebih dulu, bahasa Inggris sekali ketuk.
+
+- **Deretan gelas.** Uji jar yang dijalankan setiap IPA, disusun seperti instalasinya: satu gelas per tahap, berisi air saat keluar dari tahap itu, dari cokelat sungai sampai biru jernih reservoir. Permukaan air di tampilan 3D diwarnai dengan cara yang sama, jadi tahap yang berhenti bekerja terlihat di kedua tempat.
+- **Simulasi berbenih yang deterministik** untuk seluruh instalasi, di JavaScript, dengan satu sampel setiap 10 detik simulasi. Yang dimodelkan:
+  - kekeruhan sungai dan hujan
+  - pompa tugas dan cadangan, dengan keausan bantalan dan trip proteksi
+  - kebutuhan PAC menurut kekeruhan: dosis yang kurang membuat flok tidak terbentuk
+  - pengendapan, serta kehilangan tekanan saringan dengan backwash otomatis
+  - kebutuhan dan sisa klor
+  - reservoir, di antara produksi dan kurva pemakaian harian kota
+  - tekanan distribusi
+
+  Benih dan perintah yang sama menghasilkan hari yang sama, sampel demi sampel. Jadi setiap penonton mulai dari malam yang sama, dan memuat ulang halaman membangun kembali jalannya simulasi dengan tepat.
+- **Alarm seperti yang digambarkan ISA-18.2.** C# mendefinisikan 27 aturan: batas, deadband, tunda, prioritas dan peralatan pemilik tiap aturan. Mesin menilai setiap sampel terhadap aturan itu. Alarm yang berdiri dan belum diakui tampil lebih dulu, menurut prioritas. Suar berdenyut di atas peralatan di tampilan 3D sampai ada yang mengakuinya. Alarm shift malam yang sudah datang dan pergi sudah diakui.
+- **Skenario, dalam batas aturan instalasi.** Anda bisa menjalankan, menghentikan, men-trip dan me-reset pompa, mencuci saringan atau mengeluarkannya dari operasi, mengubah setpoin debit, PAC dan klor, atau mendatangkan hujan dari hulu. Lalu percepat jam (1× sampai 300×) dan lihat akibatnya menjalar dari intake sampai reservoir. C# menolak yang tidak boleh dilakukan operator:
+  - me-reset trip sebelum alarmnya diakui
+  - menghentikan pompa terakhir yang berjalan
+  - mencuci dua saringan sekaligus, atau menyisakan kurang dari tiga saringan yang beroperasi
+  - menutup perbaikan pada pompa yang masih berjalan
+  - memberi perintah apa pun saat memutar ulang
+- **Putar ulang.** Hari ini tampil dalam satu strip: kekeruhan air baku, level reservoir dan tanda untuk setiap alarm. Seret strip untuk mundur, dan tampilan 3D, gelas, pembacaan serta suar alarm menunjukkan saat itu. "Lihat saat itu" pada sebuah alarm memutar ulang dari semenit sebelum alarm muncul.
+- **Perintah kerja, catatan dan tampilan.** Buat perintah kerja dari alarm atau dari peralatan mana pun, tugaskan, mulai dan tutup; menutup perbaikan membuat pompa seperti baru. Catatan pada peralatan, tampilan kamera tersimpan, pengakuan alarm dan jalannya simulasi itu sendiri disimpan di browser, dan tetap ada setelah halaman dimuat ulang.
+- **Lembar log harian** (`/laporan`) menampilkan:
+  - produksi, energi, energi spesifik, PAC terpakai dan OEE (ketersediaan × kinerja × mutu) hari ini
+  - rata-rata per jam, dengan sel di luar batas ditandai
+  - catatan alarm dan log shift
+
+  Halaman ini mengekspor empat berkas CSV: riwayat per menit, log per jam, log alarm dan perintah kerja.
+- **Model 3D** dibuat secara prosedural. `samples/Bening/assets-src/make_ipa.py` membangunnya di Blender lewat server MCP Blender: bak, pompa, motor, pipa, rumah bahan kimia, dan reservoir dengan alat ukur levelnya. Totalnya 8.200 bidang yang digabung menjadi 137 mesh (812 KB). Properti khusus memberi tahu mesin node mana yang merupakan peralatan, bagian mana yang berputar (kipas motor, kopling, pengaduk, roda flokulator), permukaan mana yang air, dan batang mana alat ukurnya. Mesin menggambar model dengan WebGL2 dan peta bayangan, memilih peralatan lewat buffer id di GPU, dan mewarnai peralatan menurut statusnya.
+
+| | |
+| --- | --- |
+| ![RW-2 dipilih, alarm bantalannya berdiri](../images/sample-bening.png) | ![03.36, memutar ulang hujan semalam](../images/sample-bening-replay.png) |
+| ![Shift malam: RW-1 trip, panel skenario](../images/sample-bening-dark.png) | ![Lembar log harian](../images/sample-bening-report.png) |
+
+![Di ponsel](../images/sample-bening-phone.png)
+
+Menunjukkan:
+- simulasi yang berjalan di setiap sampel di JavaScript, sementara C# memegang model, aturan dan catatannya
+- nilai yang menyeberang ke C# dua kali sedetik sebagai satu string angka, yang langsung diurai dari potongannya (`double.Parse` atas `ReadOnlySpan<char>`)
+- komponen yang hanya dirender ulang ketika yang ditampilkannya berubah pada presisi tampilannya
+- state per penonton yang tetap ada setelah halaman dimuat ulang, dengan memutar ulang simulasi berbenih
+
+`node tools/e2e/bening.mjs http://localhost:5361` menjalankan sample ini di Chrome headless dan memeriksa bahwa:
+- setiap mesh GLB tergambar, dan setiap peralatan yang dikenal C# ada di dalamnya
+- benih yang sama menghasilkan delapan jam yang sama dua kali dan benih lain tidak, dan jalannya simulasi live sama dengan yang dibuat terpisah
+- alarm yang berdiri pagi itu ada, beserta pengakuan shift malam
+- klik RW-2 di tampilan 3D membuka inspektornya, dengan nilai dari mesin dan sparkline yang digambar dari riwayat
+- pengakuan alarm sampai ke mesin
+- trip RW-1 menghentikannya, memunculkan alarm P1, menyalakan RW-3 30 detik kemudian, dan mengembalikan debit ke setpoin
+- reset ditolak sampai trip-nya diakui
+- PAC yang kurang membuat air endapan dan gelasnya keruh dua jam kemudian
+- menyeret timeline ke 03.30 menunjukkan hujan dan mengunci perintah, dan "Lihat saat itu" serta "Kembali ke sekarang" bekerja
+- perintah kerja dari alarm ditolak selama pompa berjalan, dan bisa diselesaikan setelah pompa dihentikan
+- tampilan tersimpan, catatan, pengakuan dan jalannya simulasi tetap ada setelah halaman dimuat ulang
+- CSV riwayat, per jam dan alarm sama dengan data mesin
+- tombol bahasa bekerja
+- frame tetap ringan saat memutar kamera dengan jam 60×
+- tata letak ponsel tidak bergeser ke samping
+
+`node tools/e2e/bening-shots.mjs` mengambil screenshot di atas.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -265,4 +331,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Satu sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap.

@@ -1,0 +1,58 @@
+@implements IDisposable
+@* The signature: the jar test every treatment plant runs, laid out as the plant itself. One
+   beaker per stage, filled with the water as it leaves that stage, so the eye sees the river
+   come in brown and leave clear. A jar goes cloudy the moment a stage stops doing its job. *@
+
+<ol class="bn-jars" aria-label="@L.T("Kekeruhan per tahap", "Turbidity by stage")">
+    @foreach (var s in Plant.Stages)
+    {
+        var ntu = Twin.V(s.Tag) * s.Factor;
+        var (fill, floc) = Water(ntu);
+        <li class="bn-jar @(Twin.Selected == s.Asset ? "on" : "")" data-stage="@s.Id">
+            <button @onclick="() => Twin.Select(s.Asset)" aria-label="@($"{s.Name}: {Twin.Fmt(ntu, Dec(ntu))} NTU")">
+                <svg viewBox="0 0 40 52" class="bn-beaker" aria-hidden="true">
+                    <path d="M7 4h26M9 4v40a4 4 0 0 0 4 4h14a4 4 0 0 0 4-4V4" class="bn-beaker-glass" />
+                    <path d="M10.2 16h19.6v28a3 3 0 0 1-3 3H13.2a3 3 0 0 1-3-3z" style="fill:@fill" />
+                    @if (floc > 0)
+                    {
+                        @for (var i = 0; i < floc; i++)
+                        {
+                            <circle cx="@(13 + (i * 7) % 15)" cy="@(21 + (i * 11) % 23)" r="@(0.9 + (i % 3) * 0.4)" class="bn-floc" />
+                        }
+                    }
+                    <path d="M12 22h4M12 30h4M12 38h4" class="bn-beaker-ticks" />
+                </svg>
+                <span class="bn-jar-ntu bn-mono">@Twin.Fmt(ntu, Dec(ntu))<small>NTU</small></span>
+                <span class="bn-jar-name">@s.Name</span>
+            </button>
+        </li>
+    }
+</ol>
+
+@code {
+    private string _sig = "";
+
+    private static int Dec(double ntu) => ntu >= 10 ? 0 : ntu >= 1 ? 1 : 2;
+
+    /// <summary>Clear water is the plant's blue; above ~1 NTU it greys, above ~50 it turns the river's brown.</summary>
+    private static (string, int) Water(double ntu)
+    {
+        var f = Math.Clamp(Math.Log10(ntu + 1) / Math.Log10(300), 0, 1);
+        var mix = (int)Math.Round(f * 100);
+        var floc = ntu > 4 ? Math.Min(9, (int)(Math.Log10(ntu) * 3.2)) : 0;
+        return ($"color-mix(in oklab, var(--mud) {mix}%, var(--clear))", floc);
+    }
+
+    protected override void OnInitialized() => Twin.Ticked += OnTick;
+
+    private void OnTick()
+    {
+        // re-render only when a jar would look different
+        var sig = string.Join("|", Plant.Stages.Select(s => Twin.Fmt(Twin.V(s.Tag) * s.Factor, Dec(Twin.V(s.Tag) * s.Factor)))) + Twin.Selected;
+        if (sig == _sig) return;
+        _sig = sig;
+        StateHasChanged();
+    }
+
+    public void Dispose() => Twin.Ticked -= OnTick;
+}

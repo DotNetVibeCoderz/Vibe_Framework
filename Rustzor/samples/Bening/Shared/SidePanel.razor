@@ -1,0 +1,62 @@
+@implements IDisposable
+@* The operator's desk: the selected equipment, the alarm list, the work orders and the
+   what-if controls for the whole plant. *@
+
+<aside class="bn-side" aria-label="@L.T("Panel kerja", "Work panel")">
+    <div class="bn-tabs" role="tablist">
+        @foreach (var (id, icon, label) in Tabs())
+        {
+            <button role="tab" class="@(Twin.Panel == id ? "on" : "")" aria-selected="@(Twin.Panel == id ? "true" : "false")" data-tab="@id" @onclick="() => Open(id)">
+                <Glyph Name="@icon" Size="16" />
+                <span>@label</span>
+                @if (id == "alarms" && Twin.ActiveCount > 0)
+                {
+                    <b class="bn-count @(Twin.Alarms.Any(a => a.Active && !a.Acked) ? "hot" : "")" data-count>@Twin.ActiveCount</b>
+                }
+                @if (id == "orders" && Twin.Orders.Count(o => o.Status != "done") is var open && open > 0)
+                {
+                    <b class="bn-count">@open</b>
+                }
+            </button>
+        }
+    </div>
+    <div class="bn-side-body">
+        @switch (Twin.Panel)
+        {
+            case "alarms":
+                <AlarmList />
+                break;
+            case "orders":
+                <WorkOrders />
+                break;
+            case "scenario":
+                <Scenario />
+                break;
+            default:
+                <Inspector />
+                break;
+        }
+    </div>
+</aside>
+
+@code {
+    private static IEnumerable<(string, string, string)> Tabs()
+    {
+        yield return ("asset", "drop", L.T("Peralatan", "Equipment"));
+        yield return ("alarms", "bell", L.T("Alarm", "Alarms"));
+        yield return ("orders", "wrench", L.T("Perintah kerja", "Work orders"));
+        yield return ("scenario", "flask", L.T("Skenario", "What-if"));
+    }
+
+    private void Open(string id)
+    {
+        Twin.Panel = id;
+        Twin.Notify();
+    }
+
+    protected override void OnInitialized() => Twin.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Twin.Changed -= Redraw;
+}

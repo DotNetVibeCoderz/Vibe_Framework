@@ -1,0 +1,68 @@
+@implements IDisposable
+@* Work orders for the maintenance crew. Finishing a repair puts the pump back as new, but only
+   if it is stopped: nobody works on a running pump. *@
+
+<section class="bn-orders">
+    <header class="bn-list-head">
+        <h2>@L.T("Perintah kerja", "Work orders")</h2>
+        <button class="bn-ibtn" title="@L.T("Ekspor perintah kerja (CSV)", "Export the work orders (CSV)")" aria-label="@L.T("Ekspor perintah kerja (CSV)", "Export the work orders (CSV)")" data-export="orders" @onclick="Twin.ExportOrders"><Glyph Name="download" Size="16" /></button>
+    </header>
+    @foreach (var (status, title) in Columns())
+    {
+        var items = Twin.Orders.Where(o => o.Status == status).ToList();
+        <h3 class="bn-eyebrow">@title <span class="bn-mono">@items.Count</span></h3>
+        @if (items.Count == 0)
+        {
+            <p class="bn-fine">@L.T("Kosong.", "None.")</p>
+        }
+        <ul class="bn-order-list">
+            @foreach (var o in items)
+            {
+                <li class="bn-order p@(o.Priority) @o.Status" data-order="@o.No">
+                    <div class="bn-order-top">
+                        <span class="bn-mono">@o.No</span>
+                        <button class="bn-tag bn-mono" @onclick="() => Twin.Select(o.Asset)">@o.Asset</button>
+                        <span class="bn-prio bn-mono">P@(o.Priority)</span>
+                    </div>
+                    <p>@o.Title</p>
+                    <div class="bn-order-foot">
+                        <label class="bn-select-wrap">
+                            <span class="sr-only">@L.T("Teknisi", "Technician")</span>
+                            <select class="bn-select" value="@o.Assignee" disabled="@(o.Status == "done")" @onchange="e => Twin.Assign(o, e.Value?.ToString() ?? o.Assignee)">
+                                @foreach (var t in Plant.Technicians)
+                                {
+                                    <option value="@t" selected="@(t == o.Assignee)">@t</option>
+                                }
+                            </select>
+                        </label>
+                        @if (o.Status != "done")
+                        {
+                            <button class="bn-btn small @(o.Status == "doing" ? "primary" : "")" data-advance @onclick="() => Twin.Advance(o)">
+                                @(o.Status == "open" ? L.T("Mulai kerjakan", "Start work") : L.T("Tandai selesai", "Mark done"))
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="bn-fine"><Glyph Name="check" Size="13" /> @L.T("selesai", "done")</span>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private static IEnumerable<(string, string)> Columns()
+    {
+        yield return ("open", L.T("Baru", "New"));
+        yield return ("doing", L.T("Dikerjakan", "In progress"));
+        yield return ("done", L.T("Selesai", "Done"));
+    }
+
+    protected override void OnInitialized() => Twin.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Twin.Changed -= Redraw;
+}
