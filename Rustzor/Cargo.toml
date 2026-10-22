@@ -21,10 +21,10 @@ rust-version = "1.85"
 # To work on both at once, point Cargo at a local checkout without editing
 # this file: copy .cargo/config.local.toml.example to .cargo/config.toml.
 [workspace.dependencies]
-rustclr-core = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "bc82ec65027358c7d412e87a31bae26292e1f987", default-features = false }
-rustclr-bcl = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "bc82ec65027358c7d412e87a31bae26292e1f987", default-features = false, features = ["libm-math"] }
-rustclr-gc = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "bc82ec65027358c7d412e87a31bae26292e1f987", default-features = false }
-rustclr-metadata = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "bc82ec65027358c7d412e87a31bae26292e1f987", default-features = false }
+rustclr-core = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "462c06960a1dc0c02f816dfc8d172ed391560ed6", default-features = false }
+rustclr-bcl = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "462c06960a1dc0c02f816dfc8d172ed391560ed6", default-features = false, features = ["libm-math"] }
+rustclr-gc = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "462c06960a1dc0c02f816dfc8d172ed391560ed6", default-features = false }
+rustclr-metadata = { git = "https://github.com/DotNetVibeCoderz/Vibe_Runtime", rev = "462c06960a1dc0c02f816dfc8d172ed391560ed6", default-features = false }
 
 [profile.release]
 opt-level = 3
