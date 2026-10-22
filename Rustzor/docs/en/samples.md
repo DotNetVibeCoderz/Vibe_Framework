@@ -214,6 +214,29 @@ Shows: `Rustzor.AI` tool calling (`ChatTool`, `ToolAgent`, `IToolChatModel`) and
 
 `node tools/e2e/loket.mjs http://localhost:5360` drives it in headless Chrome against the demo model: a reply streaming in piece by piece, Stop ending one early with nothing arriving after, Markdown tables, lists and a code block with Copy, a calculator call whose card reads `15% * 2.400.000 = 360000`, a note on the staff list, a `<script>` and an `<img onerror>` shown as text and never run, a dropped Markdown file found by a question and cited (the citation opens its passage), token counts, conversations surviving a reload, and a deletion that stays deleted. It also runs the OpenAI-compatible provider over real HTTP against a local mock server that streams a tool call in pieces. With `LOKET_AZURE_ENDPOINT`, `LOKET_AZURE_KEY` and `LOKET_AZURE_MODEL` set it adds a live run: a real calculator call, a streamed answer, a cited document search, and the provider's token counts. `node tools/e2e/loket-shots.mjs` takes the screenshots above.
 
+## Galasin, gobak sodor
+
+`samples/Galasin` · `Rustzor.Game` (`NetSession`), `Rustzor.Browser.WebSocket` (`BroadcastChannel`), `Rustzor.Browser.Storage`, `Rustzor.UI`, and a 3D engine of its own (`rustzor.module.js`)
+
+Gobak sodor (also galasin or hadang), the chalk-line game of kampung yards, for up to eight players, one per browser tab, in 3D. One team keeps the lines: three guards slide along the cross lines and the sodor runs the centre line. The other team attacks from home, slips past every guard to the far side, and comes back. A guard's touch on the court swaps the teams; each round trip home scores a point. The yard is drawn at five in the afternoon: packed earth and lime chalk, a pos ronda, a mango tree, an onthel bicycle, a bamboo gapura and a flag that waves. The score is kept on a school chalkboard in turus (four strokes and a fifth across), the sign-up sheet is a page of an exercise book, and a tag gets a red stamp: GANTI! Indonesian first, English in one tap.
+
+- **Multiplayer with no server.** Open the court's link in more tabs or windows and each one joins the sign-up sheet. One tab referees: it runs the rules and the bots at 20 Hz and broadcasts a snapshot over a `BroadcastChannel`. The others send their own player's position and draw everyone else between snapshots. The referee is the on-screen player tab with the smallest id; if it closes or goes off screen, the next tab carries on from the last snapshot, and a bot plays for anyone who leaves (and hands the kid back if they return). A tab that opens mid-match watches.
+- **Controls that never wait for the network.** Each tab moves its own player itself, held to its role: a line guard cannot leave the line, the sodor stays on the centre line, attackers stay inside the sidelines. Arrow keys or WASD, Space to reach out (guards) or sprint (attackers), a touch stick and an action button on phones, and gamepads.
+- **The rules in C#:** reach (0.7 m, 1.15 m while lunging), the safe home and far boxes, round trips, the swap, the clock and the target score, and the bots. Bot attackers wait for a guard to be drawn to one side and slip through on the other; bot guards shadow the nearest attacker a beat late.
+- **The 3D models** were generated with Rodin (Hyper3D) from text and finished in Blender through its MCP server by `samples/Galasin/assets-src/make_galasin.py`: decimated to about 4,000 faces each, rigged with heat-map weights (19 bones), animated (Idle, Run, Tag, Cheer, Sad), given a vertex mask so one model wears either team's shirt, and exported as two GLB files of 1.1 MB together. The flag waves on four bones of its own.
+- **The engine** (WebGL2): glTF loading, GPU skinning with cross-faded clips, a 2048² shadow map from the low sun, a procedural dirt-and-chalk court, sky, fog, name tags, and the referee's whistle and the kentongan synthesised with Web Audio.
+
+| | |
+| --- | --- |
+| ![A match with bots, from an attacker's tab](../images/sample-galasin.png) | ![The sign-up sheet](../images/sample-galasin-lobby.png) |
+| ![A tag: the teams swap](../images/sample-galasin-tag.png) | ![The rules page](../images/sample-galasin-rules.png) |
+
+![On a phone, with the touch stick](../images/sample-galasin-phone.png)
+
+Shows: `Rustzor.Game`'s `NetSession` between tabs with host election and hand-over; C# keeping the state and the rules at 20 Hz while JavaScript draws at 60 fps; snapshots as compact strings of whole numbers (formatting JSON numbers is the expensive part in the interpreter); and `BroadcastChannel.PostRaw`, which sends JSON as an object, so it is neither escaped on the way out nor parsed twice on the way in.
+
+`node tools/e2e/galasin.mjs http://localhost:5392` plays it in headless Chrome with two tabs: both sign up, a match without bots starts in both, the arrow keys move a player and the other tab draws the move where it ended, a guard cannot leave the line, a guard within reach of an attacker behind the home line does not tag, a touch on the court swaps the teams in both tabs, half a trip scores nothing and a round trip scores one (shown in turus), coming home twice does not score twice, the first to the target wins, and the winner cheers while the loser hangs their head. A second match with bots checks that both tabs hold every bot in the same place, that snapshots arrive 20 times a second, frame and referee tick times, that a third tab watches, that the match goes on when the referee's tab closes (with a bot for the player who left), the language toggle, the rules page and the phone layout. `node tools/e2e/galasin-shots.mjs` takes the screenshots above.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -242,4 +265,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Two more samples from the [roadmap](../../PLAN.md) are on the way: a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. One more sample from the [roadmap](../../PLAN.md) is on the way: a digital twin.

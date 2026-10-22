@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(YardLayout)" />
+    </Found>
+    <NotFound>
+        <div class="gl-lost">
+            <h1>@L.T("Lapangannya bukan di sini", "The court is not here")</h1>
+            <p>@L.T("Galasin punya dua halaman: lapangan dan aturan main.", "Galasin has two pages: the court and the rules.")</p>
+            <a class="gl-btn primary" href="">@L.T("Ke lapangan", "To the court")</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

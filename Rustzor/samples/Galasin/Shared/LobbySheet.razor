@@ -1,0 +1,121 @@
+@* The sign-up sheet taped to the pos ronda: who is playing, on which side, and how long. *@
+@implements IDisposable
+<aside class="gl-sheet" aria-label="@L.T("Daftar pemain", "Sign-up sheet")">
+    <span class="gl-tape" aria-hidden="true"></span>
+    <p class="gl-eyebrow">@L.T("Lapangan", "Court") · <span class="gl-mono">@Match.Room</span></p>
+    <h1 class="gl-title">Galasin</h1>
+    <p class="gl-lede">@L.T("Gobak sodor sore ini. Satu tim jaga garis, satu tim menyerang: lewati semua penjaga sampai ujung, lalu pulang lagi tanpa tersentuh.",
+        "Gobak sodor, this afternoon. One team keeps the lines, the other attacks: get past every guard to the far side, then home again without being touched.")</p>
+
+    <label class="gl-field">
+        <span>@L.T("Namamu", "Your name")</span>
+        <input id="gl-name" class="gl-input" maxlength="14" value="@Match.Me.Name" @onchange="Rename" autocomplete="nickname" />
+    </label>
+
+    <div class="gl-field">
+        <span id="gl-team-label">@L.T("Timmu", "Your team")</span>
+        <div class="gl-arms" role="radiogroup" aria-labelledby="gl-team-label">
+            @foreach (var t in new[] { 'm', 'p' })
+            {
+                var n = Match.People().Count(p => p.Team == t);
+                <button class="gl-arm @t @(Match.Me.Team == t ? "on" : "")" role="radio" aria-checked="@(Match.Me.Team == t ? "true" : "false")" data-team="@t" @onclick="() => Match.SetProfile(team: t)">
+                    <b>@L.Team(t)</b><small>@L.T($"{n} orang", n == 1 ? "1 person" : $"{n} people")</small>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="gl-roll-head">
+        <h2>@L.T("Daftar pemain", "Players")</h2>
+        <span class="gl-count" data-people="@Match.People().Count">@Match.People().Count / 8</span>
+    </div>
+    <ol class="gl-roll">
+        @foreach (var p in Match.People())
+        {
+            <li class="@p.Team" data-id="@p.Id">
+                <span class="gl-roll-dot" aria-hidden="true"></span>
+                <span class="gl-roll-name">@p.Name</span>
+                @if (p.Id == Match.MeId)
+                {
+                    <em>@L.T("kamu", "you")</em>
+                }
+                @if (p.Id == Match.HostId)
+                {
+                    <span class="gl-roll-host" title="@L.T("Tab ini menjalankan aturan dan bot", "This tab runs the rules and the bots")"><Glyph Name="host" Size="13" /> @L.T("wasit", "referee")</span>
+                }
+            </li>
+        }
+        @if (Match.FillWithBots)
+        {
+            var bots = Math.Max(0, 8 - Match.People().Count);
+            if (bots > 0)
+            {
+                <li class="bots"><Glyph Name="bot" Size="14" /> @L.T($"+ {bots} bot mengisi tempat kosong", $"+ {bots} bots fill the empty places")</li>
+            }
+        }
+    </ol>
+
+    <div class="gl-options">
+        <div class="gl-opt" role="group" aria-label="@L.T("Lama main", "Length")">
+            <span>@L.T("Lama", "Length")</span>
+            @foreach (var m in new[] { 2, 3, 5 })
+            {
+                <button class="@(Match.Minutes == m ? "on" : "")" aria-pressed="@(Match.Minutes == m ? "true" : "false")" data-minutes="@m" @onclick="() => Match.SetOptions(minutes: m)">@m @L.T("mnt", "min")</button>
+            }
+        </div>
+        <div class="gl-opt" role="group" aria-label="@L.T("Target poin", "Points to win")">
+            <span>@L.T("Target", "First to")</span>
+            @foreach (var t in new[] { 3, 5, 7 })
+            {
+                <button class="@(Match.Target == t ? "on" : "")" aria-pressed="@(Match.Target == t ? "true" : "false")" data-target="@t" @onclick="() => Match.SetOptions(target: t)">@t</button>
+            }
+        </div>
+        <label class="gl-check">
+            <input type="checkbox" id="gl-bots" checked="@Match.FillWithBots" @onchange="ToggleBots" />
+            <span>@L.T("Isi tempat kosong dengan bot", "Fill empty places with bots")</span>
+        </label>
+    </div>
+
+    <button id="gl-start" class="gl-btn primary big" disabled="@(!Match.EngineReady)" @onclick="Match.RequestStart">
+        <Glyph Name="whistle" Size="20" /> @L.T("Tiup peluit, mulai!", "Blow the whistle, start!")
+    </button>
+
+    <div class="gl-invite">
+        <p>@L.T("Ajak main: buka tautan ini di tab atau jendela lain di peramban ini.", "Bring a friend: open this link in another tab or window of this browser.")</p>
+        <div class="gl-invite-row">
+            <code class="gl-mono" id="gl-link">@Link</code>
+            <button class="gl-btn small" @onclick="CopyAsync"><Glyph Name="copy" Size="15" /> @L.T("Salin", "Copy")</button>
+        </div>
+    </div>
+    <p class="gl-credit">@L.T("Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil", "Built by Gravicode Studios, led by Kang Fadhil") · Rustzor</p>
+</aside>
+
+@code {
+    // a child of the page: it listens for changes itself, as its parameters rarely change
+    protected override void OnInitialized()
+    {
+        Match.Changed += Redraw;
+        L.Changed += Redraw;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Match.Changed -= Redraw;
+        L.Changed -= Redraw;
+    }
+
+    [Parameter] public string Link { get; set; } = "";
+
+    private void Rename(ChangeEventArgs e) => Match.SetProfile(name: e.Value?.ToString() ?? "");
+
+    private void ToggleBots(ChangeEventArgs e) => Match.SetOptions(bots: e.Value is bool b ? b : e.Value?.ToString() == "true");
+
+    private async Task CopyAsync()
+    {
+        var ok = (await Js.CallAsync("gs.copy", Js.Args("text", Link))).AsBool();
+        if (ok) Toasts.Success(L.T("Tautan disalin. Tempel di tab baru.", "Link copied. Paste it in a new tab."));
+        else Toasts.Show(L.T("Tidak bisa menyalin; pilih tautannya lalu salin sendiri.", "Could not copy; select the link and copy it yourself."), "warn");
+    }
+}

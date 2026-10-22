@@ -66,6 +66,7 @@
     <Project Path="samples/Siaga/Siaga.csproj" />
     <Project Path="samples/Tilik/Tilik.csproj" />
     <Project Path="samples/Loket/Loket.csproj" />
+    <Project Path="samples/Galasin/Galasin.csproj" />
     <Project Path="samples/Meet/Meet.csproj" />
     <Project Path="samples/Rupa/Rupa.csproj" />
     <Project Path="samples/Pos/Pos.csproj" />

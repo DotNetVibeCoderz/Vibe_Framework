@@ -1,0 +1,27 @@
+@* Points kept the kampung way, as turus: four strokes, and the fifth struck across them.
+   Each stroke leans a little differently, as chalk does in a hurry. *@
+<svg class="gl-tally" viewBox="0 0 @Width 30" width="@(Width * 0.95)" height="28" role="img" aria-label="@Count">
+    @for (var i = 0; i < Count; i++)
+    {
+        <path d="@Stroke(i)" />
+    }
+</svg>
+
+@code {
+    [Parameter] public int Count { get; set; }
+
+    private int Width => Math.Max(14, 8 + ((Count + 4) / 5) * 34);
+
+    private static double Lean(int i) => (((i * 7919) % 13) / 13.0 - 0.5) * 1.8;
+
+    private static string Stroke(int i)
+    {
+        var x0 = 4 + i / 5 * 34;
+        var k = i % 5;
+        if (k == 4) return $"M{F(x0 - 3)} 20 L{F(x0 + 24)} 8";
+        var x = x0 + k * 6.5;
+        return $"M{F(x + Lean(i))} 3.5 L{F(x - Lean(i + 7))} 26.5";
+    }
+
+    private static string F(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+}

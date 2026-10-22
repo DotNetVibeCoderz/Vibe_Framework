@@ -32,7 +32,8 @@ export function install({ ops, dispatch, addHandle, getHandle, releaseHandle }) 
   };
   ops["bc.open"] = ({ name, id }) => {
     const ch = new BroadcastChannel(name);
-    ch.onmessage = (e) => dispatch(id, typeof e.data === "string" ? e.data : JSON.stringify(e.data));
+    // text stays text; an object (posted with PostRaw) goes to C# as JSON, parsed there once
+    ch.onmessage = (e) => dispatch(id, e.data);
     return addHandle(ch);
   };
   ops["bc.post"] = ({ h, data }) => getHandle(h)?.postMessage(data);

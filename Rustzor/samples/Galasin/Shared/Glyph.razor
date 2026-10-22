@@ -1,0 +1,22 @@
+@* Icons for Galasin: 24-unit grid, round ends, a little looser than a ruler — chalk, not ink. *@
+<svg class="gl-glyph" width="@Size" height="@Size" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@((MarkupString)Path(Name))</svg>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter] public int Size { get; set; } = 18;
+
+    public static string Path(string name) => name switch
+    {
+        "sound" => "<path d='M4 9.5h3.5L12 5v14l-4.5-4.5H4z' /><path d='M15.5 9a4.5 4.5 0 0 1 0 6M18.2 6.5a8 8 0 0 1 0 11' />",
+        "mute" => "<path d='M4 9.5h3.5L12 5v14l-4.5-4.5H4z' /><path d='M16 9.5l5 5M21 9.5l-5 5' />",
+        "rules" => "<path d='M5 4h11l3 3v13H5z' /><path d='M8.5 10h7M8.5 13.5h7M8.5 17h4' />",
+        "copy" => "<rect x='8.5' y='8.5' width='11' height='11' rx='2' /><path d='M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5' />",
+        "flag" => "<path d='M6 21V4' /><path d='M6 4.5h11l-2.2 3.2L17 11H6' />",
+        "back" => "<path d='M15 5l-7 7 7 7' />",
+        "whistle" => "<circle cx='9' cy='14' r='5' /><path d='M12.5 10.5L20 6v4l-5.5 2.5' />",
+        "bot" => "<rect x='5' y='8' width='14' height='11' rx='3' /><path d='M12 4v4M9.5 13h.01M14.5 13h.01' />",
+        "host" => "<path d='M3 11l9-7 9 7' /><path d='M6 9.5V20h12V9.5' />",
+        "play" => "<path d='M8 5l11 7-11 7z' />",
+        _ => "",
+    };
+}

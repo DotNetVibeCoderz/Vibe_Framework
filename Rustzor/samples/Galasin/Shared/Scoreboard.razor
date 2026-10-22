@@ -1,0 +1,48 @@
+@* The papan skor: a school chalkboard hung on the pos ronda, the score in turus and the clock in chalk. *@
+@implements IDisposable
+<div class="gl-board" role="status" aria-live="polite" aria-label="@Label()">
+    <div class="gl-board-team m @(Match.Attack == 'm' ? "attacking" : "")">
+        <span class="gl-board-name">@L.Team('m')</span>
+        <span class="gl-board-pts"><Tally Count="Match.ScoreOf('m')" /><b data-score="m">@Match.ScoreOf('m')</b></span>
+    </div>
+    <div class="gl-board-mid">
+        <span class="gl-board-clock" data-clock>@Clock()</span>
+        <span class="gl-board-turn">@Turn()</span>
+    </div>
+    <div class="gl-board-team p @(Match.Attack == 'p' ? "attacking" : "")">
+        <span class="gl-board-name">@L.Team('p')</span>
+        <span class="gl-board-pts"><b data-score="p">@Match.ScoreOf('p')</b><Tally Count="Match.ScoreOf('p')" /></span>
+    </div>
+</div>
+
+@code {
+    // a child of the page: it listens for changes itself, as its parameters rarely change
+    protected override void OnInitialized()
+    {
+        Match.Changed += Redraw;
+        L.Changed += Redraw;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Match.Changed -= Redraw;
+        L.Changed -= Redraw;
+    }
+
+    private static string Clock()
+    {
+        var s = (int)Math.Ceiling(Match.TimeLeft);
+        return $"{s / 60}:{s % 60:00}";
+    }
+
+    private static string Turn() => Match.Phase switch
+    {
+        Phase.End => L.T("selesai", "full time"),
+        _ => L.T($"{L.Team(Match.Attack)} menyerang · target {Match.Target}", $"{L.Team(Match.Attack)} attacking · first to {Match.Target}"),
+    };
+
+    private static string Label() =>
+        L.T($"Merah {Match.ScoreOf('m')}, Putih {Match.ScoreOf('p')}, sisa waktu {Clock()}", $"Red {Match.ScoreOf('m')}, White {Match.ScoreOf('p')}, {Clock()} left");
+}

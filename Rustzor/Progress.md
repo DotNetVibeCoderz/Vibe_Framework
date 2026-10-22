@@ -2,6 +2,56 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-22: Galasin multiplayer game sample
+
+- `samples/Galasin`: gobak sodor (galasin, hadang) in 3D for up to eight players, one per
+  browser tab, with no server. Routes `/` and `/r/{room}` (the court) and `/aturan` (the
+  rules, with a plan of the court). A kampung yard at golden hour: the papan skor is a
+  chalkboard with the score in turus, the sign-up sheet a buku tulis page, a tag a red
+  GANTI! stamp; Bowlby One, Familjen Grotesk, Kalam and DM Mono; Indonesian first,
+  English on a toggle; one deliberate look in either OS theme; touch stick on phones.
+- Multiplayer over `Rustzor.Game`'s `NetSession` (BroadcastChannel). The referee (the
+  on-screen player tab with the smallest id) runs the rules and the bots at 20 Hz and
+  broadcasts snapshots; the others send their own position and interpolate the rest
+  110 ms behind. Each tab moves its own player in the engine, held to its role. The match
+  survives the referee closing (the next player tab carries on from the last snapshot), a
+  hidden referee hands over to a visible tab, a player who goes quiet is played by a bot
+  until they come back, and a tab that opens mid-match watches. Rules in C#: reach 0.7 m
+  (1.15 m lunging), safe home and far boxes, round trips, the swap, clock and target.
+- Assets: five models generated with the Rodin MCP server (a kid in a T-pose, a pos ronda,
+  a mango tree, a gapura, an onthel), finished in Blender 5.2 through the Blender MCP
+  server by `samples/Galasin/assets-src/make_galasin.py` (decimation to about 4,000 faces,
+  a 19-bone rig with heat-map weights, Idle/Run/Tag/Cheer/Sad, a vertex mask for the team
+  shirt, a procedural flagpole whose flag waves on four bones, 512-1024 px JPEG colour
+  maps). `anak.glb` 363 KB, `kampung.glb` 752 KB. The script works in its own scene and
+  removes everything it made. The raw Rodin downloads (7-9 MB each) are git-ignored; their
+  prompts are in the script.
+- The engine (`rustzor.module.js`, WebGL2): GLB parsing, GPU skinning with cross-faded
+  clips, a 2048² shadow map, procedural dirt, grass and chalk lines, sky and fog, name
+  tags on an overlay, the local player's ring and glowing line, keyboard, gamepad and
+  touch, a synthesised whistle and kentongan.
+- Library changes: `NetSession.SendJson(type, json)` sends a payload that is already JSON;
+  `BroadcastChannel.PostRaw(json)` posts JSON as an object and `OnJson` receives it
+  parsed once, and `NetSession.Local` uses both. Between tabs this cut the referee's
+  broadcast from about 2.4 ms to 0.5 ms and a client's receive from about 3 ms to under
+  1 ms (string escaping and the second parse were the cost). Snapshots and positions travel
+  as strings of whole numbers (centimetres, centiradians) for the same reason.
+- Verified: `tools/e2e/galasin.mjs` passes all 38 checks three runs in a row (two tabs:
+  sign-up, start from either tab, keyboard movement seen in the other tab, the line
+  constraint, the safe home box, a tag that swaps the teams in both tabs, half trips and
+  repeated homecomings scoring nothing, a round trip scoring one in turus, a win with
+  Cheer and Sad; then eight kids with bots held at the same place in both tabs, 20
+  snapshots a second, a watcher tab, the referee's tab closing mid-match with a bot taking
+  the player over and the clock running on, the language toggle, the rules page, the
+  phone layout, no console errors). Frames take 1.3-1.6 ms of CPU (p95 under 3 ms) at
+  60 fps; the referee's C# tick 3-6 ms with two tabs sharing headless Chrome, about 2 ms
+  alone. Every route of every sample renders with no console errors and the Meet, Rupa,
+  Kamar Gelap, Siaga, Tilik and Loket checks pass; the solution builds with no warnings.
+  Screenshots looked at and fixed (lobby camera hiding the players behind the sheet, the
+  flagpole in front of the camera, the brand on a light sky, the role strip under the
+  thumbs on phones, labels on the court plan).
+- No runtime changes were needed.
+
 ## 2026-10-22: Loket AI assistant sample
 
 - `samples/Loket`: a bilingual (Indonesian first, English on a toggle) front-desk assistant

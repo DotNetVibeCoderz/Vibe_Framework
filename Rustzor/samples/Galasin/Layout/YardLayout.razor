@@ -1,0 +1,16 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@* No chrome of its own: the court fills the window, and each page lays its own bars over it. *@
+<div class="gl-app" lang="@(L.English ? "en" : "id")">@Body</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.Load();
+        L.Changed += Redraw;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => L.Changed -= Redraw;
+}

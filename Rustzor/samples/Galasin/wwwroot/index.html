@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <base href="/" />
+  <title>Galasin · gobak sodor · Rustzor sample</title>
+  <meta name="description" content="Gobak sodor (galasin) for several players across browser tabs, in 3D, built with Rustzor by Gravicode Studios, led by Kang Fadhil." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23b97a43%27/%3E%3Cpath d=%27M7 9h18M7 16h18M7 23h18M16 9v14%27 stroke=%27%23f6f1e4%27 stroke-width=%272.4%27 stroke-linecap=%27round%27/%3E%3Ccircle cx=%2721%27 cy=%2712.5%27 r=%272.6%27 fill=%27%23c8102e%27/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Familjen+Grotesk:wght@400;500;600;700&family=Kalam:wght@400;700&family=DM+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="galasin.css" />
+</head>
+<body>
+  <div id="app"><div class="gl-boot app-loading"><b>Galasin</b><span>Menggaris lapangan…</span></div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='gl-boot-error app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+      console.error(e);
+    });
+  </script>
+</body>
+</html>

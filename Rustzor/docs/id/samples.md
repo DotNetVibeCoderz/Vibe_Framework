@@ -214,6 +214,29 @@ Menunjukkan: tool calling `Rustzor.AI` (`ChatTool`, `ToolAgent`, `IToolChatModel
 
 `node tools/e2e/loket.mjs http://localhost:5360` menjalankannya di Chrome headless dengan model demo: jawaban yang mengalir sepotong demi sepotong, Hentikan yang mengakhiri jawaban lebih awal tanpa ada teks yang datang sesudahnya, tabel, daftar, dan blok kode Markdown dengan Salin, pemanggilan kalkulator yang kartunya berbunyi `15% * 2.400.000 = 360000`, catatan di daftar petugas, `<script>` dan `<img onerror>` yang tampil sebagai teks dan tidak pernah berjalan, berkas Markdown yang dijatuhkan lalu ditemukan oleh pertanyaan dan dikutip (kutipannya membuka bagian itu), hitungan token, percakapan yang bertahan setelah reload, dan penghapusan yang tetap terhapus. Skrip ini juga menjalankan penyedia yang kompatibel dengan OpenAI lewat HTTP sungguhan ke server tiruan lokal yang mengirim tool call sepotong-sepotong. Bila `LOKET_AZURE_ENDPOINT`, `LOKET_AZURE_KEY`, dan `LOKET_AZURE_MODEL` diisi, ditambah uji langsung: pemanggilan kalkulator sungguhan, jawaban yang mengalir, pencarian dokumen dengan kutipan, dan hitungan token dari penyedia. `node tools/e2e/loket-shots.mjs` mengambil tangkapan layar di atas.
 
+## Galasin, gobak sodor
+
+`samples/Galasin` · `Rustzor.Game` (`NetSession`), `Rustzor.Browser.WebSocket` (`BroadcastChannel`), `Rustzor.Browser.Storage`, `Rustzor.UI`, dan mesin 3D sendiri (`rustzor.module.js`)
+
+Gobak sodor (juga galasin atau hadang), permainan garis kapur di halaman kampung, untuk sampai delapan pemain, satu per tab browser, dalam 3D. Satu tim menjaga garis: tiga penjaga bergeser di garis melintang dan sodor berlari di garis tengah. Tim lain menyerang dari rumah, menyelinap melewati semua penjaga sampai ujung, lalu pulang. Sentuhan penjaga di lapangan membuat tim bertukar; setiap bolak-balik sampai rumah bernilai satu poin. Halamannya digambar pukul lima sore: tanah padat dan garis kapur, pos ronda, pohon mangga, sepeda onthel, gapura bambu, dan bendera yang berkibar. Skor dicatat di papan tulis sekolah dalam turus (empat garis dan garis kelima melintang), daftar pemain adalah selembar buku tulis, dan tangkapan diberi cap merah: GANTI! Bahasa Indonesia lebih dulu, bahasa Inggris dengan satu ketukan.
+
+- **Multipemain tanpa server.** Buka tautan lapangan di tab atau jendela lain dan masing-masing masuk ke daftar pemain. Satu tab menjadi wasit: ia menjalankan aturan dan bot pada 20 Hz dan menyiarkan snapshot lewat `BroadcastChannel`. Tab lain mengirim posisi pemainnya sendiri dan menggambar yang lain di antara snapshot. Wasitnya adalah tab pemain yang tampil di layar dengan id terkecil; kalau tab itu ditutup atau tersembunyi, tab berikutnya meneruskan dari snapshot terakhir, dan bot memainkan siapa pun yang pergi (lalu mengembalikan anaknya kalau ia kembali). Tab yang dibuka di tengah pertandingan menonton.
+- **Kendali yang tidak menunggu jaringan.** Setiap tab menggerakkan pemainnya sendiri, dalam batas perannya: penjaga garis tidak bisa keluar dari garisnya, sodor tetap di garis tengah, penyerang tetap di dalam garis samping. Tombol panah atau WASD, Spasi untuk menjangkau (penjaga) atau lari cepat (penyerang), stik sentuh dan tombol aksi di ponsel, dan gamepad.
+- **Aturan di C#:** jangkauan (0,7 m, 1,15 m saat menjangkau), kotak rumah dan ujung yang aman, bolak-balik, pertukaran tim, jam dan target poin, serta bot. Penyerang bot menunggu penjaga tertarik ke satu sisi lalu menerobos di sisi lain; penjaga bot membayangi penyerang terdekat dengan sedikit terlambat.
+- **Model 3D** dibuat dengan Rodin (Hyper3D) dari teks lalu diselesaikan di Blender lewat server MCP-nya oleh `samples/Galasin/assets-src/make_galasin.py`: dikurangi menjadi sekitar 4.000 face masing-masing, diberi rangka dengan bobot heat-map (19 tulang), dianimasikan (Idle, Run, Tag, Cheer, Sad), diberi masker verteks supaya satu model bisa memakai kaus tim mana pun, dan diekspor sebagai dua berkas GLB yang bersama-sama 1,1 MB. Benderanya berkibar dengan empat tulangnya sendiri.
+- **Mesinnya** (WebGL2): pemuatan glTF, skinning di GPU dengan klip yang di-cross-fade, shadow map 2048² dari matahari yang rendah, lapangan tanah-dan-kapur prosedural, langit, kabut, label nama, serta peluit wasit dan kentongan yang disintesis dengan Web Audio.
+
+| | |
+| --- | --- |
+| ![Pertandingan dengan bot, dari tab penyerang](../images/sample-galasin.png) | ![Daftar pemain](../images/sample-galasin-lobby.png) |
+| ![Tangkapan: tim bertukar](../images/sample-galasin-tag.png) | ![Halaman aturan](../images/sample-galasin-rules.png) |
+
+![Di ponsel, dengan stik sentuh](../images/sample-galasin-phone.png)
+
+Menunjukkan: `NetSession` dari `Rustzor.Game` antar-tab dengan pemilihan host dan serah terima; C# memegang keadaan dan aturan pada 20 Hz sementara JavaScript menggambar pada 60 fps; snapshot sebagai string ringkas berisi bilangan bulat (memformat angka JSON adalah bagian yang mahal di interpreter); dan `BroadcastChannel.PostRaw`, yang mengirim JSON sebagai objek sehingga tidak di-escape saat keluar dan tidak di-parse dua kali saat masuk.
+
+`node tools/e2e/galasin.mjs http://localhost:5392` memainkannya di Chrome headless dengan dua tab: keduanya mendaftar, pertandingan tanpa bot dimulai di keduanya, tombol panah menggerakkan pemain dan tab lain menggambar gerakan itu di tempat berakhirnya, penjaga tidak bisa keluar dari garisnya, penjaga yang menjangkau penyerang di belakang garis rumah tidak menangkap, sentuhan di lapangan menukar tim di kedua tab, setengah perjalanan tidak bernilai dan bolak-balik bernilai satu (tampil dalam turus), pulang dua kali tidak dihitung dua kali, yang lebih dulu mencapai target menang, dan pemenang bersorak sementara yang kalah tertunduk. Pertandingan kedua dengan bot memeriksa bahwa kedua tab menaruh setiap bot di tempat yang sama, snapshot datang 20 kali sedetik, waktu frame dan tick wasit, tab ketiga menonton, pertandingan berlanjut ketika tab wasit ditutup (dengan bot untuk pemain yang pergi), tombol bahasa, halaman aturan, dan tata letak ponsel. `node tools/e2e/galasin-shots.mjs` mengambil tangkapan layar di atas.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -242,4 +265,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Dua sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: game multiplayer dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Satu sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: digital twin.

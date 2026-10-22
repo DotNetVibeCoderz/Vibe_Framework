@@ -90,13 +90,38 @@ public sealed class BroadcastChannel : IDisposable
 
     public BroadcastChannel(string name)
     {
-        _callback = Callbacks.Register(v => OnMessage?.Invoke(v.AsString()));
+        _callback = Callbacks.Register(Receive);
         _handle = Js.Call("bc.open", Js.Args("name", name, "id", _callback)).AsInt();
     }
 
+    /// <summary>Every message, as text (a message posted with <see cref="PostRaw"/> arrives as its JSON).</summary>
     public event Action<string>? OnMessage;
 
+    /// <summary>
+    /// Messages posted with <see cref="PostRaw"/>, already parsed. They cross as objects
+    /// (structured clone), so a receiver that subscribes here parses each message once.
+    /// </summary>
+    public event Action<JsonValue>? OnJson;
+
     public void Post(string message) => Js.Send("bc.post", Js.Args("h", _handle, "data", message));
+
+    /// <summary>
+    /// Posts a JSON object or array as an object rather than as text. Nothing is escaped
+    /// on the way out or unescaped on the way in, which matters for messages sent many
+    /// times a second, such as game snapshots. <paramref name="json"/> must be valid JSON.
+    /// </summary>
+    public void PostRaw(string json) => Js.Send("bc.post", new JsArgs("{\"h\":" + _handle + ",\"data\":" + json + "}"));
+
+    private void Receive(JsonValue v)
+    {
+        if (v.IsString)
+        {
+            OnMessage?.Invoke(v.AsString());
+            return;
+        }
+        OnJson?.Invoke(v);
+        OnMessage?.Invoke(v.ToJson());
+    }
 
     public void PostJson(object? value) => Post(Json.Serialize(value));
 

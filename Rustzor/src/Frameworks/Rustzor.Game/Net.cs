@@ -30,7 +30,8 @@ public sealed class NetSession : IDisposable
         PlayerId = Guid.NewGuid().ToString("N")[..8];
         _channel = channel;
         _socket = socket;
-        if (channel is not null) channel.OnMessage += Receive;
+        // between tabs, envelopes cross as objects: no escaping out, one parse in
+        if (channel is not null) channel.OnJson += Receive;
         if (socket is not null) socket.OnMessage += Receive;
     }
 
@@ -68,17 +69,24 @@ public sealed class NetSession : IDisposable
         return this;
     }
 
-    public void Send(string type, object? data = null)
+    public void Send(string type, object? data = null) => Post(Envelope(type).Name("data").Any(data));
+
+    /// <summary>
+    /// Sends a payload that is already JSON, such as a snapshot written with
+    /// <see cref="JsonWriter"/>, without building or walking a value tree for it.
+    /// </summary>
+    public void SendJson(string type, string json) => Post(Envelope(type).Name("data").Raw(json));
+
+    private JsonWriter Envelope(string type) => new JsonWriter()
+        .BeginObject()
+        .Prop("room", Room)
+        .Prop("from", PlayerId)
+        .Prop("type", type);
+
+    private void Post(JsonWriter w)
     {
-        var json = new JsonWriter()
-            .BeginObject()
-            .Prop("room", Room)
-            .Prop("from", PlayerId)
-            .Prop("type", type)
-            .Name("data").Any(data)
-            .EndObject()
-            .ToString();
-        _channel?.Post(json);
+        var json = w.EndObject().ToString();
+        _channel?.PostRaw(json);
         _socket?.Send(json);
     }
 
@@ -102,7 +110,12 @@ public sealed class NetSession : IDisposable
         JsonValue v;
         try { v = JsonValue.Parse(raw); }
         catch { return; }
-        if (v["room"].AsString() != Room) return;
+        Receive(v);
+    }
+
+    private void Receive(JsonValue v)
+    {
+        if (!v.IsObject || v["room"].AsString() != Room) return;
         var from = v["from"].AsString();
         if (from == PlayerId) return;
         var type = v["type"].AsString();

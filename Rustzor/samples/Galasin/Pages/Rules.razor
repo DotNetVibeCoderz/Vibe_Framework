@@ -1,0 +1,86 @@
+@page "/aturan"
+@* How the game goes, as the kids in the yard would explain it, with the court drawn from above. *@
+
+<div class="gl-rules">
+    <header class="gl-rules-head">
+        <a class="gl-btn small" href=""><Glyph Name="back" Size="16" /> @L.T("Ke lapangan", "To the court")</a>
+        <div class="gl-lang" role="group" aria-label="@L.T("Bahasa", "Language")">
+            <button class="@(L.English ? "" : "on")" aria-pressed="@(L.English ? "false" : "true")" @onclick="() => L.Set(false)">ID</button>
+            <button class="@(L.English ? "on" : "")" aria-pressed="@(L.English ? "true" : "false")" @onclick="() => L.Set(true)">EN</button>
+        </div>
+    </header>
+
+    <article class="gl-rules-body">
+        <p class="gl-eyebrow">@L.T("Aturan main", "How to play")</p>
+        <h1 class="gl-title">Galasin</h1>
+        <p class="gl-lede">@L.T("Galasin, gobak sodor, atau hadang: permainan garis kapur yang dimainkan di halaman dan lapangan kampung, paling ramai menjelang 17 Agustus. Di sini dua tim berisi empat anak, dan setiap tab peramban adalah satu pemain.",
+            "Galasin, gobak sodor or hadang: a chalk-line game played in kampung yards and fields, busiest in the run-up to 17 August. Here two teams of four play, and every browser tab is one player.")</p>
+
+        <figure class="gl-court" aria-labelledby="court-cap">
+            <svg viewBox="-70 -50 340 470" role="img" aria-label="@L.T("Denah lapangan", "Court plan")">
+                <rect x="-60" y="-40" width="320" height="450" rx="18" class="dirt" />
+                <rect x="20" y="300" width="160" height="56" class="zone" />
+                <rect x="20" y="-4" width="160" height="56" class="zone" />
+                <text x="100" y="350" class="zone-label">@L.T("RUMAH", "HOME")</text>
+                <text x="100" y="29" class="zone-label">@L.T("UJUNG", "FAR SIDE")</text>
+                <rect x="20" y="60" width="160" height="232" class="court" />
+                <line x1="20" y1="176" x2="180" y2="176" class="chalk" />
+                <line x1="100" y1="60" x2="100" y2="292" class="chalk" />
+                <line x1="20" y1="292" x2="180" y2="292" class="guard-line" />
+                <line x1="20" y1="176" x2="180" y2="176" class="guard-line" />
+                <line x1="20" y1="60" x2="180" y2="60" class="guard-line" />
+                <line x1="100" y1="60" x2="100" y2="292" class="sodor-line" />
+                <g class="guard"><circle cx="62" cy="292" r="9" /><circle cx="128" cy="176" r="9" /><circle cx="80" cy="60" r="9" /><circle cx="100" cy="232" r="9" /></g>
+                <g class="attacker"><circle cx="44" cy="318" r="8" /><circle cx="84" cy="324" r="8" /><circle cx="122" cy="319" r="8" /><circle cx="158" cy="325" r="8" /></g>
+                <path d="M158 312 C 168 260, 150 210, 160 120 S 150 40, 150 20" class="trip" />
+                <path d="M150 20 C 40 30, 50 120, 40 200 S 50 290, 44 316" class="trip back" />
+                <text x="196" y="296" class="tag">@L.T("garis 1", "line 1")</text>
+                <text x="196" y="180" class="tag">@L.T("garis 2", "line 2")</text>
+                <text x="196" y="64" class="tag">@L.T("garis 3", "line 3")</text>
+                <text x="106" y="252" class="tag small">sodor</text>
+                <text x="-52" y="390" class="tag small">9 m × 12 m</text>
+            </svg>
+            <figcaption id="court-cap">@L.T("Merah berjaga: tiga anak di garis melintang, satu sodor di garis tengah. Putih menyerang dari rumah, ke ujung, lalu pulang.",
+                "Red guards: three on the cross lines, one sodor on the centre line. White attacks from home to the far side and back.")</figcaption>
+        </figure>
+
+        <section>
+            <h2>@L.T("Jalannya permainan", "How a match goes")</h2>
+            <ol class="gl-steps">
+                <li>@L.T("Satu tim menyerang, satu tim berjaga. Penjaga garis hanya boleh bergeser kiri-kanan di garisnya; sodor hanya naik-turun di garis tengah.",
+                    "One team attacks, one guards. A line guard can only slide left and right along their line; the sodor only up and down the centre line.")</li>
+                <li>@L.T("Penyerang berangkat dari rumah, melewati ketiga garis sampai ujung, lalu pulang lagi. Setiap anak yang bolak-balik tanpa tersentuh memberi satu poin.",
+                    "Attackers set off from home, cross all three lines to the far side, then come back. Every kid who makes the round trip untouched scores a point.")</li>
+                <li>@L.T("Kalau satu penyerang saja tersentuh penjaga, peluit berbunyi: ganti! Tim penjaga sekarang menyerang.",
+                    "If a guard touches any attacker, the whistle goes: swap! The guarding team attacks now.")</li>
+                <li>@L.T("Rumah dan ujung adalah tempat aman. Di lapangan, tangan penjaga menjangkau 0,7 m, dan 1,15 m saat menjangkau dengan Spasi.",
+                    "Home and the far side are safe. On the court a guard's hand reaches 0.7 m, and 1.15 m while reaching out with Space.")</li>
+                <li>@L.T("Tim yang lebih dulu mencapai target poin menang. Kalau waktu habis, yang poinnya lebih banyak menang; sama banyak berarti seri.",
+                    "The first team to the target wins. If time runs out, the higher score wins; level means a draw.")</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>@L.T("Main bersama", "Playing together")</h2>
+            <p>@L.T("Setiap tab yang membuka tautan lapangan yang sama masuk ke daftar pemain. Satu tab menjadi wasit: ia menjalankan aturan dan bot, lalu mengirim keadaan permainan ke tab lain dua puluh kali sedetik lewat BroadcastChannel, tanpa server. Kalau tab wasit ditutup, tab berikutnya meneruskan dari keadaan terakhir.",
+                "Every tab that opens the same court link joins the sign-up sheet. One tab is the referee: it runs the rules and the bots and sends the state of play to the others twenty times a second over a BroadcastChannel, with no server. If the referee's tab closes, the next one carries on from the last state.")</p>
+            <p>@L.T("Tempat yang kosong diisi bot. Penyerang bot menunggu penjaga tertarik ke satu sisi lalu menerobos di sisi lain; penjaga bot selalu sedikit terlambat.",
+                "Empty places are filled by bots. A bot attacker waits for the guard to be drawn to one side and slips through on the other; a bot guard is always a beat late.")</p>
+        </section>
+
+        <section>
+            <h2>@L.T("Tombol", "Controls")</h2>
+            <table class="gl-keys">
+                <tbody>
+                    <tr><th scope="row"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> / <kbd>WASD</kbd></th><td>@L.T("lari, atau bergeser di garis", "run, or slide along your line")</td></tr>
+                    <tr><th scope="row"><kbd>@L.T("Spasi", "Space")</kbd> / <kbd>J</kbd></th><td>@L.T("penjaga: menjangkau · penyerang: lari cepat", "guard: reach out · attacker: sprint")</td></tr>
+                    <tr><th scope="row">@L.T("Layar sentuh", "Touch")</th><td>@L.T("stik di kiri bawah, tombol aksi di kanan bawah", "stick bottom left, action button bottom right")</td></tr>
+                    <tr><th scope="row">Gamepad</th><td>@L.T("stik kiri dan tombol A", "left stick and the A button")</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <p class="gl-credit">@L.T("Model 3D dibuat dengan Rodin dan dirangka serta dianimasikan di Blender. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil, dengan Rustzor: C# di WebAssembly lewat RustNetRuntime.",
+            "3D models made with Rodin, rigged and animated in Blender. Built by Gravicode Studios, led by Kang Fadhil, with Rustzor: C# in WebAssembly on RustNetRuntime.")</p>
+    </article>
+</div>

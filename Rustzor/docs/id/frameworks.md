@@ -69,6 +69,19 @@ Framework game 2D: loop dengan langkah tetap (fixed-step), input, fisika rigid-b
 
 ![Sebuah scene fisika di Rustzor.Game](../images/fw-game.png)
 
+### Multipemain
+
+`NetSession` menggabungkan pemain ke dalam satu ruang: `NetSession.Local(room)` antar-tab dalam satu browser lewat `BroadcastChannel`, atau `await NetSession.Connect("wss://…", room)` lewat relay WebSocket. Setiap pesan adalah amplop kecil `{from, type, data}`; peer mengumumkan dirinya dan mengirim heartbeat, sehingga `Peers`, `OnPeerJoined`, dan `OnPeerLeft` mencatat siapa yang ada.
+
+```csharp
+var net = NetSession.Local("rt05");
+net.On("move", m => Move(m.From, m.Data["x"].AsDouble(), m.Data["y"].AsDouble()));
+net.Send("move", new { x = 3.5, y = 1.2 });
+net.SendJson("snap", snapshotJson);   // sudah JSON: ditulis sekali, tidak ditelusuri lagi
+```
+
+Untuk keadaan yang dikirim berkali-kali per detik, tulis sekali dengan `JsonWriter` dan kirim dengan `SendJson`; antar-tab ia lalu menyeberang sebagai objek (`BroadcastChannel.PostRaw`), tanpa ada yang di-escape atau di-parse dua kali. [Sample Galasin](samples.md#galasin-gobak-sodor) menjalankan pertandingan 3D untuk delapan pemain antar-tab dengan cara ini: satu tab menjadi wasit pada 20 Hz dan menyerahkan tugasnya ketika ditutup.
+
 ## Rustzor.Graphics
 
 Scene graph untuk editor dan viewer.

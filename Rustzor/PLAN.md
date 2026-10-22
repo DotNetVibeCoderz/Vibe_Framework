@@ -87,7 +87,7 @@ assistant, **Jack - The Code Bender**, generates Rustzor apps from a prompt.
 CRM, ERP, POS, Dashboard, Chat, Video Conference, Figma clone, Photoshop clone,
 GIS, CAD viewer, AI Assistant, Multiplayer game, Digital Twin. Each uses
 `Rustzor.UI` (or one of the UI integrations) and has a screenshot in the docs.
-Done: CRM, ERP, POS, Dashboard, Chat, Video Conference, Figma clone (Rupa), Photoshop clone (Kamar Gelap), GIS (Siaga Citarum), CAD viewer (Tilik), AI Assistant (Loket). Added beyond the list: API Playground (REST,
+Done: CRM, ERP, POS, Dashboard, Chat, Video Conference, Figma clone (Rupa), Photoshop clone (Kamar Gelap), GIS (Siaga Citarum), CAD viewer (Tilik), AI Assistant (Loket), Multiplayer game (Galasin). Added beyond the list: API Playground (REST,
 WebSocket, SignalR and gRPC-Web against an ASP.NET Core server).
 
 ## Documentation and release

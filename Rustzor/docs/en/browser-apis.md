@@ -125,4 +125,6 @@ channel.OnMessage += json => Apply(Json.Deserialize<Message>(json));
 channel.PostJson(message);
 ```
 
+For messages sent many times a second, `channel.PostRaw(json)` posts JSON as an object instead of text, and `channel.OnJson` receives it already parsed: nothing is escaped on the way out or parsed twice on the way in.
+
 The [Serambi chat sample](samples.md#serambi-chat) is built on this.

@@ -1,0 +1,196 @@
+@page "/"
+@page "/r/{Room}"
+@implements IDisposable
+@inject NavigationManager Nav
+@* The court. The engine draws the yard into the stage; everything else here is laid over it:
+   the sign-up sheet before a match, the papan skor and the role strip during one. *@
+
+<div class="gl-yard" data-phase="@PhaseName" data-host="@(Match.IsHost ? "1" : "0")" data-attack="@Match.Attack" data-me="@Match.MeId" data-gen="@Match.Gen" data-role="@Match.MyRole.Mode">
+    <section class="gl-stage" @ref="_stage" tabindex="-1" aria-label="@L.T("Lapangan galasin, dilihat dari belakang garis rumah", "The galasin court, seen from behind the home line")"></section>
+
+    <header class="gl-top">
+        <a class="gl-brand" href="aturan" title="@L.T("Aturan main", "How to play")">
+            <svg class="gl-mark" viewBox="0 0 32 32" aria-hidden="true">
+                <rect x="1.5" y="1.5" width="29" height="29" rx="7" class="gl-mark-bg" />
+                <path d="M7 9h18M7 16h18M7 23h18M16 9v14" class="gl-mark-chalk" />
+                <circle cx="21" cy="12.5" r="2.4" class="gl-mark-kid" />
+            </svg>
+            <span class="gl-brand-text"><b>Galasin</b><small>@L.T("gobak sodor", "gobak sodor")</small></span>
+        </a>
+        @if (Match.Phase != Phase.Lobby)
+        {
+            <Scoreboard />
+        }
+        <div class="gl-tools">
+            <div class="gl-lang" role="group" aria-label="@L.T("Bahasa", "Language")">
+                <button class="@(L.English ? "" : "on")" aria-pressed="@(L.English ? "false" : "true")" @onclick="() => L.Set(false)">ID</button>
+                <button class="@(L.English ? "on" : "")" aria-pressed="@(L.English ? "true" : "false")" @onclick="() => L.Set(true)">EN</button>
+            </div>
+            <button class="gl-icon" title="@(Match.Sound ? L.T("Matikan suara", "Mute") : L.T("Nyalakan suara", "Unmute"))" aria-label="@(Match.Sound ? L.T("Matikan suara", "Mute") : L.T("Nyalakan suara", "Unmute"))" @onclick="() => Match.SetSound(!Match.Sound)">
+                <Glyph Name="@(Match.Sound ? "sound" : "mute")" />
+            </button>
+            <a class="gl-icon" href="aturan" title="@L.T("Aturan main", "How to play")" aria-label="@L.T("Aturan main", "How to play")"><Glyph Name="rules" /></a>
+        </div>
+    </header>
+
+    @if (Match.Phase == Phase.Lobby)
+    {
+        <LobbySheet Link="@Link" />
+        <aside class="gl-howto" aria-label="@L.T("Tombol", "Controls")">
+            <h2>@L.T("Tombol", "Controls")</h2>
+            <dl>
+                <dt><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> <span class="gl-or">@L.T("atau", "or")</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
+                <dd>@L.T("Lari. Penjaga hanya bisa bergeser di garisnya.", "Run. Guards can only slide along their line.")</dd>
+                <dt><kbd class="wide">@L.T("Spasi", "Space")</kbd></dt>
+                <dd>@L.T("Penjaga: menjangkau untuk menangkap. Penyerang: lari cepat sebentar.", "Guards: reach out to tag. Attackers: a short burst of speed.")</dd>
+                <dt><span class="gl-touchkey">◎</span></dt>
+                <dd>@L.T("Di ponsel: stik di kiri, tombol aksi di kanan. Gamepad juga bisa.", "On a phone: the stick on the left, the action button on the right. A gamepad works too.")</dd>
+            </dl>
+            <a href="aturan" class="gl-more">@L.T("Aturan lengkap", "All the rules") →</a>
+        </aside>
+    }
+    else
+    {
+        <div class="gl-strip @RoleClass" role="status" data-strip>
+            <span class="gl-strip-role">@RoleTitle()</span>
+            <span class="gl-strip-hint">@RoleHint()</span>
+        </div>
+        <ol class="gl-teams" aria-label="@L.T("Pemain", "Players")">
+            @foreach (var p in Match.Roster.OrderBy(p => p.Team).ThenBy(p => p.Slot))
+            {
+                <li class="@p.Team @(p.Team == Match.Attack ? "atk" : "grd") @(p.Id == Match.MeId ? "me" : "")" data-player="@p.Id">
+                    <span class="gl-teams-name">@p.Name</span>
+                    <span class="gl-teams-role">@RoleShort(p)</span>
+                    @if (p.Bot)
+                    {
+                        <span class="gl-teams-bot" title="bot"><Glyph Name="bot" Size="12" /></span>
+                    }
+                    @if (p.Reached && p.Team == Match.Attack)
+                    {
+                        <span class="gl-teams-flag" title="@L.T("sudah sampai ujung", "reached the far side")"><Glyph Name="flag" Size="12" /></span>
+                    }
+                </li>
+            }
+        </ol>
+        @if (Match.MePlayer is null)
+        {
+            <div class="gl-watch" role="status">@L.T("Kamu menonton. Ikut main di pertandingan berikutnya.", "You are watching. Join in at the next match.")</div>
+        }
+    }
+
+    @if (_banner is { } b && b.Until > Js.Now())
+    {
+        <div class="gl-banner @b.Kind @(b.Team == ' ' ? "" : "team-" + b.Team)" role="alert" data-banner="@b.Kind" @key="b">
+            <b>@b.Title</b>
+            @if (b.Sub != "")
+            {
+                <span>@b.Sub</span>
+            }
+            @if (b.Kind == "start" || Match.Phase == Phase.Count)
+            {
+                <i class="gl-count-down">@Math.Max(1, (int)Math.Ceiling(Match.PhaseTime))</i>
+            }
+        </div>
+    }
+
+    @if (Match.EngineError is { } err)
+    {
+        <div class="gl-error" role="alert">
+            <b>@L.T("Lapangan tidak bisa digambar", "The court could not be drawn")</b>
+            <span>@err</span>
+            <span>@L.T("Galasin perlu WebGL2. Coba peramban lain atau nyalakan akselerasi grafis.", "Galasin needs WebGL2. Try another browser or turn on graphics acceleration.")</span>
+        </div>
+    }
+    else if (!Match.EngineReady)
+    {
+        <div class="gl-loading" role="status"><span class="gl-spin"></span>@L.T("Menyiapkan lapangan…", "Getting the court ready…")</div>
+    }
+    <footer class="gl-foot">
+        <span>@L.T("Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil", "Built by Gravicode Studios, led by Kang Fadhil")</span>
+        <span class="gl-mono gl-perf" data-tick="@Match.TickCost.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)">@(Match.IsHost ? L.T("wasit", "referee") : L.T("pemain", "player")) · C# @Match.TickCost.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ms</span>
+    </footer>
+</div>
+
+@code {
+    [Parameter] public string? Room { get; set; }
+
+    private ElementReference _stage;
+    private int _callback;
+    private Banner? _banner;
+    private int _bannerTimer;
+
+    private string RoomName => string.IsNullOrWhiteSpace(Room) ? "rt05" : new string(Room.ToLowerInvariant().Where(c => char.IsLetterOrDigit(c) || c == '-').Take(24).ToArray());
+    private string Link => Nav.BaseUri + "r/" + RoomName;
+    private string PhaseName => Match.Phase.ToString().ToLowerInvariant();
+    private string RoleClass => Match.MyRole.Kind.ToString().ToLowerInvariant();
+
+    protected override void OnInitialized()
+    {
+        Match.Changed += Redraw;
+        Match.Announced += Announce;
+        L.Changed += Redraw;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser) return;
+        Match.Open(RoomName);
+        _callback = Callbacks.Register(Match.OnEngine);
+        await Js.CallAsync("gs.attach", Js.Args("host", _stage.Id, "id", _callback, "base", ""));
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private void Announce(Banner b)
+    {
+        _banner = b;
+        if (_bannerTimer != 0) Scheduler.Clear(_bannerTimer);
+        var wait = (int)Math.Max(100, b.Until - Js.Now() + 30);
+        _bannerTimer = Scheduler.SetTimeout(() => { _bannerTimer = 0; StateHasChanged(); }, wait);
+        StateHasChanged();
+    }
+
+    private static string RoleTitle() => Match.MyRole.Kind switch
+    {
+        RoleKind.Attacker => L.T("Kamu menyerang", "You are attacking"),
+        RoleKind.LineGuard => L.T($"Kamu jaga garis {Match.MyRole.Line + 1}", $"You guard line {Match.MyRole.Line + 1}"),
+        RoleKind.Sodor => L.T("Kamu sodor: jaga garis tengah", "You are the sodor: the centre line"),
+        _ => L.T("Menonton", "Watching"),
+    };
+
+    private static string RoleHint()
+    {
+        var me = Match.MePlayer;
+        return Match.MyRole.Kind switch
+        {
+            RoleKind.Attacker when me?.Reached == true => L.T("Sudah sampai ujung. Sekarang pulang ke rumah tanpa tersentuh!", "You reached the far side. Now get home without being touched!"),
+            RoleKind.Attacker => L.T("Lewati semua garis sampai ujung, lalu pulang. Spasi: lari cepat.", "Cross every line to the far side, then come home. Space: sprint."),
+            RoleKind.LineGuard => L.T("Geser kiri-kanan di garismu. Spasi: jangkau dan tangkap.", "Slide left and right on your line. Space: reach and tag."),
+            RoleKind.Sodor => L.T("Naik-turun di garis tengah. Spasi: jangkau dan tangkap.", "Up and down the centre line. Space: reach and tag."),
+            _ => L.T($"{L.Team(Match.Attack)} sedang menyerang.", $"{L.Team(Match.Attack)} are attacking."),
+        };
+    }
+
+    private static string RoleShort(Player p)
+    {
+        var r = p.RoleWhen(Match.Attack);
+        return r.Kind switch
+        {
+            RoleKind.Attacker => L.T("serang", "attack"),
+            RoleKind.LineGuard => L.T($"garis {r.Line + 1}", $"line {r.Line + 1}"),
+            RoleKind.Sodor => "sodor",
+            _ => "",
+        };
+    }
+
+    public void Dispose()
+    {
+        Match.Changed -= Redraw;
+        Match.Announced -= Announce;
+        L.Changed -= Redraw;
+        if (_bannerTimer != 0) Scheduler.Clear(_bannerTimer);
+        Js.Send("gs.detach");
+        Match.Close();
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

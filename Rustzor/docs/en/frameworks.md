@@ -69,6 +69,19 @@ A 2D game framework: a fixed-step loop, input, rigid-body physics, an entity-com
 
 ![A physics scene in Rustzor.Game](../images/fw-game.png)
 
+### Multiplayer
+
+`NetSession` joins players into a room: `NetSession.Local(room)` between tabs of one browser over a `BroadcastChannel`, or `await NetSession.Connect("wss://…", room)` through a WebSocket relay. Every message is a small envelope `{from, type, data}`; peers announce themselves and send heartbeats, so `Peers`, `OnPeerJoined` and `OnPeerLeft` track who is there.
+
+```csharp
+var net = NetSession.Local("rt05");
+net.On("move", m => Move(m.From, m.Data["x"].AsDouble(), m.Data["y"].AsDouble()));
+net.Send("move", new { x = 3.5, y = 1.2 });
+net.SendJson("snap", snapshotJson);   // already JSON: written once, never walked again
+```
+
+For state sent many times a second, write it once with `JsonWriter` and send it with `SendJson`; between tabs it then crosses as an object (`BroadcastChannel.PostRaw`), with nothing escaped or parsed twice. The [Galasin sample](samples.md#galasin-gobak-sodor) runs a 3D match for eight across tabs this way: one tab referees at 20 Hz and hands over when it closes.
+
 ## Rustzor.Graphics
 
 Scene graphs for editors and viewers.
