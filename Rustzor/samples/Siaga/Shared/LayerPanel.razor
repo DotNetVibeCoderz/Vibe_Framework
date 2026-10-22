@@ -1,0 +1,160 @@
+@* Layers top to bottom as they stack on the map, each with its legend. Open one to
+   change its style: one colour, categories, or graduated classes of a number. *@
+@implements IDisposable
+
+<section class="sg-layers" aria-label="Layers">
+    <header class="sg-panel-head">
+        <h2>Layers</h2>
+        <span class="sg-count">@Atlas.Layers.Count(l => l.Visible) of @Atlas.Layers.Count shown</span>
+    </header>
+    @foreach (var group in Groups())
+    {
+        <div class="sg-lgroup">
+            <h3>@group.Key</h3>
+            @foreach (var l in group)
+            {
+                var open = _open == l.Id;
+                <div class="@("sg-layer" + (l.Visible ? "" : " off") + (open ? " open" : ""))" data-layer="@l.Id">
+                    <div class="sg-layer-row">
+                        <button class="sg-eye" aria-label="@((l.Visible ? "Hide " : "Show ") + l.Name)" aria-pressed="@(l.Visible ? "true" : "false")" @onclick="() => Atlas.SetVisible(l, !l.Visible)">
+                            <Glyph Name="@(l.Visible ? "eye" : "eye-off")" Size="16" />
+                        </button>
+                        <Swatch Layer="l" Color="@SingleColor(l)" />
+                        <button class="sg-layer-name" @onclick="() => _open = open ? null : l.Id" aria-expanded="@(open ? "true" : "false")">
+                            <span>@l.Name</span>
+                            <small>@Describe(l)</small>
+                        </button>
+                        <Glyph Name="chevron" Size="14" Class="sg-chev" />
+                    </div>
+                    @if (l.Visible && l.Style.Mode is "categorized" or "graduated" or "heat")
+                    {
+                        <ul class="sg-legend">
+                            @foreach (var (color, label) in Atlas.Legend(l))
+                            {
+                                <li>
+                                    @if (color == "heat")
+                                    {
+                                        <span class="sg-heat-ramp"></span>
+                                    }
+                                    else
+                                    {
+                                        <Swatch Layer="l" Color="@color" />
+                                    }
+                                    <span>@label</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    @if (open)
+                    {
+                        <StyleEditor Layer="l" />
+                    }
+                </div>
+            }
+        </div>
+    }
+    <div class="sg-lgroup sg-extra">
+        <label class="sg-switch">
+            <input type="checkbox" checked="@Atlas.Tiles" @onchange="e => Atlas.SetTiles(e.Value is true)" />
+            <span><Glyph Name="globe" Size="16" /> OpenStreetMap background <small>needs a connection</small></span>
+        </label>
+        <div class="sg-import">
+            <button class="sg-btn" @onclick="PickAsync"><Glyph Name="upload" Size="16" /> Import GeoJSON or CSV</button>
+            <button class="sg-btn ghost" @onclick="() => _paste = true">Paste</button>
+        </div>
+        <p class="sg-fine">Or drop a file on the map. CSV needs <code>lat</code> and <code>lon</code> columns.</p>
+    </div>
+</section>
+
+<Modal Open="_paste" OpenChanged="v => _paste = v" Title="Paste GeoJSON">
+    <textarea class="sg-paste" placeholder='{"type":"FeatureCollection","features":[…]}' @bind="_pasted" @bind:event="oninput" aria-label="GeoJSON text"></textarea>
+    <label class="sg-field"><span>Layer name</span><input @bind="_pasteName" @bind:event="oninput" /></label>
+    @if (_error is not null)
+    {
+        <p class="sg-error">@_error</p>
+    }
+    <div class="sg-modal-actions">
+        <button class="sg-btn ghost" @onclick="() => _paste = false">Cancel</button>
+        <button class="sg-btn primary" data-import @onclick="ImportPastedAsync">Add layer</button>
+    </div>
+</Modal>
+
+@code {
+    private string? _open;
+    private bool _paste;
+    private string _pasted = "";
+    private string _pasteName = "Pasted features";
+    private string? _error;
+
+    private static readonly string[] Order = { "Lapisan saya", "Situasi", "Penanganan", "Hidrologi", "Wilayah", "Peta dasar" };
+    private static readonly Dictionary<string, string> GroupTitle = new()
+    {
+        ["Lapisan saya"] = "My layers", ["Situasi"] = "Situation", ["Penanganan"] = "Response",
+        ["Hidrologi"] = "Water", ["Wilayah"] = "Areas", ["Peta dasar"] = "Base map",
+    };
+
+    private IEnumerable<IGrouping<string, MapLayer>> Groups() =>
+        Atlas.Layers.AsEnumerable().Reverse()
+            .GroupBy(l => GroupTitle.TryGetValue(l.Group, out var t) ? t : l.Group)
+            .OrderBy(g => Array.IndexOf(Order, GroupTitle.FirstOrDefault(kv => kv.Value == g.Key).Key));
+
+    private static string SingleColor(MapLayer l) =>
+        l.Style.Mode switch
+        {
+            "categorized" => l.Style.Cats.Values.FirstOrDefault() ?? l.Style.Fill ?? "",
+            "graduated" => l.Style.Colors.LastOrDefault() ?? "",
+            "heat" => "var(--lvl-siaga)",
+            _ => l.Kind == "line" ? l.Style.Stroke ?? "" : l.Style.Fill ?? l.Style.Stroke ?? "",
+        };
+
+    private static string Describe(MapLayer l)
+    {
+        if (!l.Loaded && !l.User) return "loading…";
+        if (l.Background) return Fmt.N(l.Vertices) + " vertices";
+        var n = l.Features.Count;
+        var kind = l.Kind switch { "polygon" => "areas", "line" => "lines", "point" => "points", _ => "features" };
+        return Fmt.N(n) + " " + kind + (l.Style.Mode == "heat" ? " · heat map" : l.Style.Mode == "graduated" ? " · by " + Catalog.Column(l.Style.Field ?? "").ToLowerInvariant() : "");
+    }
+
+    private async Task PickAsync()
+    {
+        var files = await Files.PickAsync(".geojson,.json,.csv,.txt");
+        foreach (var f in files) await ImportFileAsync(f);
+    }
+
+    public static async Task ImportFileAsync(PickedFile f)
+    {
+        try
+        {
+            var layer = await Atlas.ImportAsync(f.Name, await f.ReadTextAsync());
+            Toasts.Success($"Added {layer.Name}: {layer.Features.Count} features");
+        }
+        catch (Exception e)
+        {
+            Toasts.Error($"{f.Name} could not be read: {e.Message}");
+        }
+    }
+
+    private async Task ImportPastedAsync()
+    {
+        try
+        {
+            var name = string.IsNullOrWhiteSpace(_pasteName) ? "Pasted features" : _pasteName.Trim();
+            var layer = await Atlas.ImportAsync(name + ".geojson", _pasted);
+            _paste = false;
+            _pasted = "";
+            _error = null;
+            Toasts.Success($"Added {layer.Name}: {layer.Features.Count} features");
+        }
+        catch (Exception e)
+        {
+            _error = "This is not GeoJSON the map can read: " + e.Message;
+        }
+    }
+
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+}

@@ -1,0 +1,191 @@
+@* The right-hand panel answers whatever was last asked: a feature's attributes, a
+   measurement, the features a query found, or, with nothing asked, what needs eyes. *@
+@implements IDisposable
+
+<section class="sg-inspect-body" aria-live="polite">
+    @if (Atlas.Tool == "buffer")
+    {
+        <div class="sg-card sg-buffer">
+            <h2><Glyph Name="buffer" Size="18" /> Buffer</h2>
+            @if (Atlas.Inspected is { } b)
+            {
+                <p>Everything within a distance of <b>@b.Layer.Title(b.Feature)</b>.</p>
+            }
+            else
+            {
+                <p>Click a river, a gauge, a road or anything you drew. Then choose how far.</p>
+            }
+            <label class="sg-field row">
+                <span>Distance</span>
+                <input type="range" min="100" max="5000" step="100" value="@Atlas.BufferMeters.ToString(Fmt.Id)" @oninput="SetDistance" aria-label="Buffer distance in metres" />
+                <output>@Geo.FormatLength(Atlas.BufferMeters)</output>
+            </label>
+            <div class="sg-chips">
+                @foreach (var meters in new[] { 250, 500, 1000, 1500, 3000 })
+                {
+                    <button class="@(Math.Abs(Atlas.BufferMeters - meters) < 1 ? "on" : "")" @onclick="() => SetDistanceTo(meters)">@Geo.FormatLength(meters)</button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Atlas.Measure is { } m)
+    {
+        <div class="sg-card sg-measure" data-measure-kind="@m.Kind" data-length-m="@m.Length.ToString("0.###", Fmt.Id)" data-area-m2="@m.Area.ToString("0.###", Fmt.Id)">
+            <h2><Glyph Name="@(m.Kind == "measure-area" ? "area" : "ruler")" Size="18" /> @(m.Kind == "measure-area" ? "Area" : "Distance")</h2>
+            @if (m.Kind == "measure-area")
+            {
+                <div class="sg-big">@Geo.FormatArea(m.Area)</div>
+                <dl class="sg-kv">
+                    <div><dt>Square metres</dt><dd>@Fmt.N(m.Area)</dd></div>
+                    <div><dt>Perimeter</dt><dd>@Geo.FormatLength(m.Length)</dd></div>
+                    <div><dt>Corners</dt><dd>@m.Points.Count</dd></div>
+                </dl>
+            }
+            else
+            {
+                <div class="sg-big">@Geo.FormatLength(m.Length)</div>
+                <dl class="sg-kv">
+                    <div><dt>Segments</dt><dd>@Math.Max(0, m.Points.Count - 1)</dd></div>
+                    <div><dt>Straight line</dt><dd>@(m.Points.Count > 1 ? Geo.FormatLength(Geo.Distance(m.Points[0], m.Points[^1])) : "—")</dd></div>
+                </dl>
+            }
+            <p class="sg-fine">On the ellipsoid's sphere: Haversine for distance, spherical excess for area. @(m.Done ? "" : "Still drawing.")</p>
+        </div>
+    }
+
+    @if (Atlas.Query is { } q)
+    {
+        <div class="sg-card sg-query" data-hits="@q.Hits.Count">
+            <h2>@q.Title</h2>
+            <p class="sg-sub">@q.Detail</p>
+            @foreach (var g in q.Hits.GroupBy(h => h.Layer))
+            {
+                <h3>@g.Key.Name <span>@g.Count()</span></h3>
+                <ul class="sg-hits">
+                    @foreach (var h in g.Take(12))
+                    {
+                        <li>
+                            <button @onclick="() => Show(h)">
+                                <span>@h.Layer.Title(h.Feature)</span>
+                                @if (h.Meters > 0)
+                                {
+                                    <small>@Geo.FormatLength(h.Meters)</small>
+                                }
+                            </button>
+                        </li>
+                    }
+                    @if (g.Count() > 12)
+                    {
+                        <li class="more">and @(g.Count() - 12) more in the table</li>
+                    }
+                </ul>
+            }
+            <button class="sg-link" @onclick="Atlas.ClearSelection">Clear</button>
+        </div>
+    }
+
+    @if (Atlas.Inspected is { } ins && Atlas.Tool != "buffer")
+    {
+        var l = ins.Layer;
+        var f = ins.Feature;
+        <div class="sg-card sg-feature" data-feature="@(l.Id + "/" + f.Id)">
+            <div class="sg-kicker"><Swatch Layer="l" Color="@ColorOf(l, f)" /> @l.Name</div>
+            <h2 class="sg-title">@l.Title(f)</h2>
+            @if (l.Id == "pda")
+            {
+                <GaugeCard Feature="f" />
+            }
+            @if (l.Id == "posko")
+            {
+                var cap = f.Number("capacity");
+                var occ = f.Number("occupied");
+                <div class="sg-occupancy">
+                    <div class="bar"><span style="@($"width:{Math.Min(100, occ / cap * 100).ToString("0.#", Fmt.Id)}%")"></span></div>
+                    <p><b>@Fmt.N(occ)</b> of @Fmt.N(cap) places taken · <b>@Fmt.N(Math.Max(0, cap - occ))</b> free</p>
+                </div>
+            }
+            @if (l.User)
+            {
+                <label class="sg-field"><span>Name</span><input value='@f.Text("name")' @onchange='e => Atlas.UpdatePropsAsync(l, f, "name", e.Value?.ToString() ?? string.Empty)' /></label>
+                <label class="sg-field"><span>Note</span><textarea rows="2" @onchange='e => Atlas.UpdatePropsAsync(l, f, "note", e.Value?.ToString() ?? string.Empty)'>@f.Text("note")</textarea></label>
+            }
+            <dl class="sg-attrs">
+                @foreach (var key in f.Props.Keys.Where(k => !l.User || (k != "name" && k != "note")))
+                {
+                    <div><dt>@Catalog.Column(key)</dt><dd>@f.Text(key)</dd></div>
+                }
+                @if (Measures(l, f) is { } mm)
+                {
+                    @if (mm.Area > 0)
+                    {
+                        <div class="calc"><dt>Area</dt><dd data-area-m2="@mm.Area.ToString("0.#", Fmt.Id)">@Geo.FormatArea(mm.Area)</dd></div>
+                    }
+                    @if (mm.Length > 0)
+                    {
+                        <div class="calc"><dt>@(mm.Area > 0 ? "Perimeter" : "Length")</dt><dd>@Geo.FormatLength(mm.Length)</dd></div>
+                    }
+                }
+                <div class="calc"><dt>@(l.Kind == "point" ? "Position" : "Centre")</dt><dd class="mono">@Geo.Dms(f.Center)</dd></div>
+            </dl>
+            <div class="sg-actions">
+                <button class="sg-btn" @onclick="() => Atlas.ZoomTo(l, f)"><Glyph Name="target" Size="15" /> Zoom to</button>
+                <button class="sg-btn" @onclick='() => Atlas.SetTool("buffer")'><Glyph Name="buffer" Size="15" /> Buffer</button>
+                @if (l.User)
+                {
+                    <button class="@("sg-btn" + (Atlas.Tool == "edit" ? " on" : ""))" @onclick='() => Atlas.SetTool(Atlas.Tool == "edit" ? "identify" : "edit")'><Glyph Name="edit" Size="15" /> @(Atlas.Tool == "edit" ? "Done editing" : "Edit vertices")</button>
+                    <button class="sg-btn danger" @onclick="() => Atlas.DeleteFeatureAsync(l, f)"><Glyph Name="trash" Size="15" /> Delete</button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Atlas.Inspected is null && Atlas.Measure is null && Atlas.Query is null && Atlas.Tool != "buffer")
+    {
+        <Overview />
+    }
+</section>
+
+@code {
+    private static (double Area, double Length)? Measures(MapLayer l, Feat f)
+    {
+        if (l.Kind == "point" || f.Shape?.Kind == ShapeKind.Point) return null;
+        var shape = Atlas.ShapeOf(l, f);
+        if (shape is null) return null;
+        return (shape.Area, shape.Length);
+    }
+
+    private static string ColorOf(MapLayer l, Feat f)
+    {
+        var s = l.Style;
+        if (s.Mode == "categorized" && s.Field is not null && s.Cats.TryGetValue(f.Text(s.Field), out var c)) return c;
+        if (s.Mode == "graduated" && s.Field is not null && s.Colors.Count > 0)
+        {
+            var v = f.Number(s.Field);
+            var k = s.Breaks.Count(b => v > b);
+            return s.Colors[Math.Min(k, s.Colors.Count - 1)];
+        }
+        return l.Kind == "line" ? s.Stroke ?? "" : s.Fill ?? s.Stroke ?? "";
+    }
+
+    private static void Show(Hit h)
+    {
+        Atlas.Inspect(h.Layer.Id, h.Feature.Id, select: false);
+        Atlas.ZoomTo(h.Layer, h.Feature);
+    }
+
+    private static void SetDistance(ChangeEventArgs e) => SetDistanceTo(double.Parse(e.Value?.ToString() ?? "1000", Fmt.Id));
+
+    private static void SetDistanceTo(double m)
+    {
+        Atlas.BufferMeters = m;
+        if (Atlas.Inspected is not null) _ = Atlas.BufferAsync();
+        else Atlas.Notify();
+    }
+
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+}

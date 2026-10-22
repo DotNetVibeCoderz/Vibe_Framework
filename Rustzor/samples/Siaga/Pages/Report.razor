@@ -1,0 +1,141 @@
+@page "/laporan"
+@implements IDisposable
+@inject NavigationManager Nav
+
+<article class="sg-report">
+    @if (!Atlas.Ready)
+    {
+        <p class="sg-loading-inline"><span class="sg-loading-ring"></span>Reading the layers…</p>
+    }
+    else
+    {
+        var gauges = Layer("pda").OrderByDescending(f => f.Number("level_cm") / f.Number("awas_cm")).ToList();
+        var floods = Atlas.Layer("genangan")!;
+        var kec = Layer("kecamatan").OrderByDescending(f => f.Number("affected_hh")).ToList();
+        var shelters = Layer("posko").OrderByDescending(f => f.Number("occupied") / f.Number("capacity")).ToList();
+        var reports = Layer("laporan");
+        var flooded = floods.Features.Select(f => (F: f, Area: Atlas.ShapeOf(floods, f)?.Area ?? 0)).OrderByDescending(x => x.Area).ToList();
+        var totalArea = flooded.Sum(x => x.Area);
+        var affected = kec.Sum(f => f.Number("affected_hh"));
+        var cap = shelters.Sum(f => f.Number("capacity"));
+        var occ = shelters.Sum(f => f.Number("occupied"));
+
+        <header class="sg-report-head">
+            <p class="sg-kicker">Laporan situasi · Pusdalops BPBD Kabupaten Bandung</p>
+            <h1>Citarum flood, Bandung basin</h1>
+            <p class="sg-report-meta">Situation at 22 October 2026, 05.40 WIB · Report no. 03 · Prepared from the map's layers</p>
+            <div class="sg-report-actions">
+                <button class="sg-btn" @onclick='() => Nav.NavigateTo("")'><Glyph Name="map" Size="15" /> Open the map</button>
+                <button class="sg-btn primary" @onclick='() => JsObject.Eval("print()")'><Glyph Name="report" Size="15" /> Print</button>
+            </div>
+        </header>
+
+        <section class="sg-figures" aria-label="Key figures">
+            <div><b data-figure="flooded-ha">@Fmt.Num(totalArea / 10_000, 1)</b><span>hectares under water</span></div>
+            <div><b>@Fmt.N(affected)</b><span>households affected</span></div>
+            <div><b>@Fmt.N(occ)</b><span>people in @shelters.Count posko</span></div>
+            <div><b>@gauges.Count(g => g.Text("status") == "Awas")</b><span>gauges at Awas</span></div>
+        </section>
+
+        <section class="sg-rsec">
+            <h2><span>1</span> River gauges</h2>
+            <table class="sg-rtable">
+                <thead><tr><th>Gauge</th><th>River</th><th class="num">Level</th><th class="num">Waspada</th><th class="num">Siaga</th><th class="num">Awas</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var g in gauges)
+                    {
+                        <tr>
+                            <td>@g.Text("name").Replace("Pos Duga Air ", "")</td>
+                            <td>@g.Text("river")</td>
+                            <td class="num"><b>@g.Text("level_cm")</b> cm</td>
+                            <td class="num">@g.Text("waspada_cm")</td>
+                            <td class="num">@g.Text("siaga_cm")</td>
+                            <td class="num">@g.Text("awas_cm")</td>
+                            <td><span class="@("sg-level " + Catalog.AlertClass(g.Text("status")))">@g.Text("status")</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section class="sg-rsec">
+            <h2><span>2</span> Flooded areas</h2>
+            <p class="sg-rnote">Areas measured geodesically from the mapped extents.</p>
+            <table class="sg-rtable">
+                <thead><tr><th>Area</th><th class="num">Hectares</th><th class="num">Max depth</th><th>Since</th></tr></thead>
+                <tbody>
+                    @foreach (var (f, area) in flooded)
+                    {
+                        <tr><td>@f.Text("name")</td><td class="num">@Fmt.Num(area / 10_000, 1)</td><td class="num">@f.Text("max_depth_cm") cm</td><td>@f.Text("since")</td></tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section class="sg-rsec">
+            <h2><span>3</span> Households affected by kecamatan</h2>
+            <ol class="sg-rbars">
+                @foreach (var f in kec.Where(f => f.Number("affected_hh") > 0).Take(12))
+                {
+                    <li>
+                        <span class="name">@f.Text("name") <small>@f.Text("kabupaten")</small></span>
+                        <span class="bar"><i class="@("risk-" + f.Text("risk").Replace(" ", "-").ToLowerInvariant())" style="@($"width:{(f.Number("affected_hh") / kec[0].Number("affected_hh") * 100).ToString("0.#", Fmt.Id)}%")"></i></span>
+                        <span class="num">@Fmt.N(f.Number("affected_hh"))</span>
+                    </li>
+                }
+            </ol>
+        </section>
+
+        <section class="sg-rsec">
+            <h2><span>4</span> Posko pengungsian</h2>
+            <p class="sg-rnote">@Fmt.N(occ) of @Fmt.N(cap) places taken; @shelters.Count(s => s.Text("status") == "Penuh") posko are full.</p>
+            <table class="sg-rtable">
+                <thead><tr><th>Posko</th><th class="num">Capacity</th><th class="num">Occupied</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var s in shelters)
+                    {
+                        <tr><td>@s.Text("name")</td><td class="num">@s.Text("capacity")</td><td class="num">@s.Text("occupied")</td><td><span class="@("sg-level " + ShelterClass(s.Text("status")))">@s.Text("status")</span></td></tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section class="sg-rsec">
+            <h2><span>5</span> Reports overnight</h2>
+            @{
+                var byHour = Enumerable.Range(0, 12).Select(i => (Hour: (18 + i) % 24, Count: reports.Count(r => Hour(r.Text("time")) == (18 + i) % 24))).ToList();
+                var max = Math.Max(1, byHour.Max(h => h.Count));
+            }
+            <p class="sg-rnote">@reports.Count reports of water depth from residents, volunteers and Linmas, by the hour they came in.</p>
+            <div class="sg-hours" role="img" aria-label="Reports per hour from 18.00 to 05.00">
+                @foreach (var (hour, count) in byHour)
+                {
+                    <div><i style="@($"height:{(count * 100.0 / max).ToString("0.#", Fmt.Id)}%")"></i><b>@count</b><span>@hour.ToString("00")</span></div>
+                }
+            </div>
+        </section>
+
+        <footer class="sg-report-foot">
+            <p>Siaga Citarum is a Rustzor sample: the places are real, every shape, reading and report is generated for the demonstration.</p>
+            <p>Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil · Built by Gravicode Studios, led by Kang Fadhil.</p>
+        </footer>
+    }
+</article>
+
+@code {
+    private static List<Feat> Layer(string id) => Atlas.Layer(id)?.Features ?? new();
+
+    private static int Hour(string time) => time.Length >= 13 && int.TryParse(time.Substring(11, 2), out var h) ? h : -1;
+
+    private static string ShelterClass(string status) => status switch { "Penuh" => "awas", "Hampir penuh" => "waspada", _ => "normal" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Atlas.Changed += Redraw;
+        await Atlas.ReadyAsync();
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+}

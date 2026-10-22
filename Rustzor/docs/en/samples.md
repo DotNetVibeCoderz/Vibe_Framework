@@ -141,6 +141,30 @@ Shows: C# owning the document (layers, adjustments, selection, history order) an
 
 `node tools/e2e/kamargelap.mjs http://localhost:5320` drives it in headless Chrome and reads the pixels back after each step: a brush stroke, a multiply layer filled inside a selection (the composite equals the base times the fill colour inside it and is unchanged outside), a black & white layer switched on and off (every value comes back), a Gaussian blur (the variance of the terraces halves), undo and redo, a crop to 1000 × 700, a PNG export decoded at that size, and the autosave after a reload. On the 2000 × 1500 sample with five layers, with the GPU waited on, a brush frame takes about 2 ms (p95 2.5 ms), a 20 px Gaussian blur about 50 ms, sharpen about 35 ms and noise about 25 ms (Intel UHD 620). `node tools/e2e/kamargelap-shots.mjs` takes the screenshots above.
 
+## Siaga Citarum flood map
+
+`samples/Siaga` · `Rustzor.UI`, `Rustzor.Data` (IndexedDB), `Rustzor.Browser.FileSystem`, `Rustzor.Browser.Location`, and a browser module of its own (`rustzor.module.js`): the map engine
+
+The flood desk of a BPBD (the regional disaster agency) during a Citarum flood in the Bandung basin, drawn like a topographic map sheet: a title block with the sheet, the situation time and the datum; contours in sienna, water in blue with its names in italic serif, kecamatan boundaries in dash-dot purple; a collar of graticule ticks in degrees and minutes that follows the view; the area outside the sheet shaded behind a neatline. The only loud colours are the four Indonesian alert levels (Normal, Waspada, Siaga, Awas), on the river-gauge board across the top of the map. The places are real; every shape, reading and report is generated.
+
+- Its own map engine, offline: Web Mercator, pan with inertia, zoom to the pointer with the wheel or a pinch, labels that make room for each other, a scale bar, the scale as a ratio and the pointer's coordinates in degrees, minutes and seconds. An OpenStreetMap background can be switched on when online, with its attribution; offline it says so and turns itself off.
+- Eleven layers in about 1 MB of GeoJSON (46,000 vertices): contours every 25 m, kecamatan, rivers, the Saguling reservoir, flood extents, roads, citizen reports, pumps and retention ponds, health facilities, posko (shelters) and river gauges.
+- A layer panel with visibility, order, opacity and style: one colour, by category, graduated classes of any number field (quantile or equal interval, four colour ramps), or a heat map, each with its legend.
+- Identify (Shift adds to the selection); an attribute table that filters, sorts and stays in step with the map; search by name or by coordinates.
+- Draw points, lines and areas, edit their vertices (drag, add at a midpoint, Alt-click to remove), name and annotate them; they stay in this browser.
+- Measure distance (Haversine) and area (geodesic, on the sphere); select everything inside a drawn area; buffer any feature (a river, a gauge, a road, your own drawing) and list what lies within the distance, nearest first.
+- Import GeoJSON or a CSV with lat and lon columns (pick, drop or paste), export your layers as GeoJSON; "my location" through the Geolocation API, explaining itself when permission is denied.
+- `/laporan`, a printable situation report from the same layers: gauges against their marks, flooded areas measured geodesically, households affected by kecamatan, posko occupancy and the night's reports by the hour.
+
+| | |
+| --- | --- |
+| ![Kecamatan coloured by affected households, Bojongsoang inspected](../images/sample-siaga.png) | ![A 1 km buffer round the Citarum and the posko it finds](../images/sample-siaga-buffer.png) |
+| ![Night shift: the dark sheet at Dayeuhkolot](../images/sample-siaga-dark.png) | ![The situation report](../images/sample-siaga-report.png) |
+
+Shows: C# owning the layers, styles, attributes, the user's features and every measurement and query, while a browser module draws: the GeoJSON is projected once into metres and kept as `Path2D` objects, so a frame is one transform and a few fills and strokes, and panning never crosses into C#. Hit testing, the sketch rubber band and vertex handles answer within the frame in the module; clicks, finished sketches and edits come back to C#.
+
+`node tools/e2e/siaga.mjs http://localhost:5330` drives it in headless Chrome and checks the answers against numbers it works out from the same GeoJSON files: the projection against the EPSG:3857 formula and its round trip, panning and zooming, identify at a gauge's coordinates, the table and the map selecting each other, a drawn square's geodesic area and Haversine perimeter (within 1%), a 3 km buffer and a select-by-area against its own distance and point-in-polygon tests, pasted GeoJSON exported back unchanged, a vertex edit, drawings and imports surviving a reload, reset, and location without permission. Panning and zooming over all 46,000 vertices draws a frame in about 4 ms (p95 7 ms). `node tools/e2e/siaga-shots.mjs` takes the screenshots above; `node samples/Siaga/data/make-data.mjs` regenerates the data.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -169,4 +193,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Five more samples from the [roadmap](../../PLAN.md) are on the way: GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Four more samples from the [roadmap](../../PLAN.md) are on the way: a CAD viewer, an AI assistant, a multiplayer game and a digital twin.

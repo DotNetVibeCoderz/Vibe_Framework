@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- A Rustzor sample app: a flood-response map of the Citarum basin. Built by Gravicode Studios, led by Kang Fadhil. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Siaga</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The map engine: projection, Path2D layers, labels, hit testing, sketching. -->
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" />
+    <None Remove="data\**" />
+    <ProjectReference Include="..\..\src\Rustzor.UI\Rustzor.UI.csproj" />
+    <ProjectReference Include="..\..\src\Frameworks\Rustzor.Data\Rustzor.Data.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.FileSystem\Rustzor.Browser.FileSystem.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.Location\Rustzor.Browser.Location.csproj" />
+  </ItemGroup>
+</Project>

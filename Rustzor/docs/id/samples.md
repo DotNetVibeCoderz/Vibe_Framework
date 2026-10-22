@@ -141,6 +141,30 @@ Menunjukkan: C# memegang dokumen (layer, adjustment, seleksi, urutan riwayat) da
 
 `node tools/e2e/kamargelap.mjs http://localhost:5320` menjalankannya di Chrome headless dan membaca piksel kembali setelah setiap langkah: goresan brush, layer multiply yang diisi di dalam seleksi (hasil gabungan sama dengan dasar dikali warna isian di dalamnya dan tidak berubah di luarnya), layer black & white yang dinyalakan lalu dimatikan (setiap nilai kembali), Gaussian blur (varians terasering turun separuh), undo dan redo, crop ke 1000 × 700, ekspor PNG yang didekode pada ukuran itu, dan simpan otomatis setelah reload. Pada sample 2000 × 1500 dengan lima layer, dengan menunggu GPU selesai, satu frame brush sekitar 2 ms (p95 2,5 ms), Gaussian blur 20 px sekitar 50 ms, sharpen sekitar 35 ms, dan noise sekitar 25 ms (Intel UHD 620). `node tools/e2e/kamargelap-shots.mjs` mengambil screenshot di atas.
 
+## Siaga Citarum, peta banjir
+
+`samples/Siaga` · `Rustzor.UI`, `Rustzor.Data` (IndexedDB), `Rustzor.Browser.FileSystem`, `Rustzor.Browser.Location`, dan modul browser miliknya sendiri (`rustzor.module.js`): mesin petanya
+
+Meja pusdalops BPBD saat banjir Citarum di Cekungan Bandung, digambar seperti lembar peta topografi: blok judul dengan nama lembar, waktu situasi, dan datum; kontur cokelat, perairan biru dengan nama bercetak miring, batas kecamatan garis-titik ungu; tepi peta berisi graticule derajat dan menit yang mengikuti tampilan; wilayah di luar lembar diarsir di balik garis tepi. Satu-satunya warna mencolok adalah empat status siaga (Normal, Waspada, Siaga, Awas) pada papan pos duga air di atas peta. Nama tempatnya nyata; semua bentuk, bacaan, dan laporan dibuat oleh generator.
+
+- Mesin peta sendiri, tanpa internet: Web Mercator, geser dengan inersia, zoom ke arah pointer dengan scroll atau cubit, label yang saling memberi tempat, skala batang, skala angka, dan koordinat pointer dalam derajat, menit, detik. Latar OpenStreetMap bisa dinyalakan saat online, lengkap dengan atribusinya; saat offline aplikasi memberi tahu dan mematikannya.
+- Sebelas layer dalam sekitar 1 MB GeoJSON (46.000 titik): kontur tiap 25 m, kecamatan, sungai, Waduk Saguling, genangan banjir, jalan, laporan warga, pompa dan kolam retensi, fasilitas kesehatan, posko pengungsian, dan pos duga air.
+- Panel layer dengan visibilitas, urutan, opasitas, dan gaya: satu warna, per kategori, kelas bergradasi dari kolom angka mana pun (kuantil atau interval sama, empat ramp warna), atau heat map, masing-masing dengan legendanya.
+- Identifikasi (Shift menambah seleksi); tabel atribut yang bisa difilter, diurutkan, dan selalu selaras dengan peta; pencarian nama atau koordinat.
+- Gambar titik, garis, dan area, sunting verteksnya (seret, tambah di titik tengah, Alt-klik untuk menghapus), beri nama dan catatan; semuanya tersimpan di browser ini.
+- Ukur jarak (Haversine) dan luas (geodesik, di atas bola); pilih semua yang ada di dalam area yang digambar; buffer fitur apa pun (sungai, pos duga air, jalan, gambar Anda) dan daftar apa saja yang ada dalam jarak itu, dari yang terdekat.
+- Impor GeoJSON atau CSV dengan kolom lat dan lon (pilih, seret, atau tempel), ekspor layer Anda sebagai GeoJSON; "lokasi saya" lewat Geolocation API, dengan penjelasan bila izin ditolak.
+- `/laporan`, laporan situasi yang bisa dicetak dari layer yang sama: pos duga air terhadap batas siaganya, luas genangan yang diukur geodesik, KK terdampak per kecamatan, keterisian posko, dan laporan semalam per jam.
+
+| | |
+| --- | --- |
+| ![Kecamatan diwarnai menurut KK terdampak, Bojongsoang diperiksa](../images/sample-siaga.png) | ![Buffer 1 km di sekitar Citarum dan posko yang ditemukannya](../images/sample-siaga-buffer.png) |
+| ![Shift malam: lembar gelap di Dayeuhkolot](../images/sample-siaga-dark.png) | ![Laporan situasi](../images/sample-siaga-report.png) |
+
+Menunjukkan: C# memegang layer, gaya, atribut, fitur buatan pengguna, serta setiap pengukuran dan kueri, sementara modul browser yang menggambar: GeoJSON diproyeksikan sekali ke meter dan disimpan sebagai objek `Path2D`, sehingga satu frame hanyalah satu transformasi dan beberapa fill dan stroke, dan menggeser peta tidak pernah masuk ke C#. Hit test, garis bantu saat menggambar, dan pegangan verteks dijawab di modul dalam frame yang sama; klik, sketsa yang selesai, dan suntingan dikirim kembali ke C#.
+
+`node tools/e2e/siaga.mjs http://localhost:5330` menjalankannya di Chrome headless dan mencocokkan jawabannya dengan angka yang dihitung sendiri dari file GeoJSON yang sama: proyeksi terhadap rumus EPSG:3857 dan bolak-baliknya, geser dan zoom, identifikasi pada koordinat pos duga air, tabel dan peta yang saling memilih, luas geodesik dan keliling Haversine sebuah persegi yang digambar (selisih di bawah 1%), buffer 3 km dan pilih-dengan-area terhadap uji jarak dan point-in-polygon miliknya sendiri, GeoJSON yang ditempel lalu diekspor kembali tanpa berubah, suntingan verteks, gambar dan impor yang tetap ada setelah reload, reset, dan lokasi tanpa izin. Menggeser dan zoom di atas 46.000 titik menggambar satu frame dalam sekitar 4 ms (p95 7 ms). `node tools/e2e/siaga-shots.mjs` mengambil screenshot di atas; `node samples/Siaga/data/make-data.mjs` membuat ulang datanya.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -169,4 +193,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Lima sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Empat sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: CAD viewer, asisten AI, game multiplayer, dan digital twin.

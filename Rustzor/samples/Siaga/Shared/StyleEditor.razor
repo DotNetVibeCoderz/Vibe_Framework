@@ -1,0 +1,184 @@
+@* A layer's settings: opacity, order, and how its features are coloured. *@
+
+<div class="sg-style">
+    <label class="sg-field row">
+        <span>Opacity</span>
+        <input type="range" min="0" max="1" step="0.05" value="@Layer.Opacity.ToString(Fmt.Id)" @oninput="e => Atlas.SetOpacity(Layer, D(e.Value))" aria-label="Opacity" />
+        <output>@Math.Round(Layer.Opacity * 100)%</output>
+    </label>
+    @if (!Layer.Background)
+    {
+        <label class="sg-field row">
+            <span>Colour</span>
+            <select value="@Layer.Style.Mode" @onchange="e => SetMode((string)e.Value!)" aria-label="Colour by">
+                <option value="single">One colour</option>
+                <option value="categorized">By category</option>
+                @if (NumericFields.Count > 0)
+                {
+                    <option value="graduated">Graduated</option>
+                }
+                @if (Layer.Kind == "point")
+                {
+                    <option value="heat">Heat map</option>
+                }
+            </select>
+        </label>
+        @if (Layer.Style.Mode is "categorized")
+        {
+            <label class="sg-field row">
+                <span>Field</span>
+                <select value="@Layer.Style.Field" @onchange="e => SetCategoryField((string)e.Value!)" aria-label="Category field">
+                    @foreach (var f in Layer.FieldNames())
+                    {
+                        <option value="@f">@Catalog.Column(f)</option>
+                    }
+                </select>
+            </label>
+        }
+        @if (Layer.Style.Mode is "graduated" or "heat")
+        {
+            <label class="sg-field row">
+                <span>@(Layer.Style.Mode == "heat" ? "Weight" : "Field")</span>
+                <select value="@Layer.Style.Field" @onchange="e => Atlas.SetStyle(Layer, s => SetField(s, (string)e.Value!))" aria-label="Number field">
+                    @foreach (var f in NumericFields)
+                    {
+                        <option value="@f">@Catalog.Column(f)</option>
+                    }
+                </select>
+            </label>
+        }
+        @if (Layer.Style.Mode == "graduated")
+        {
+            <div class="sg-field row">
+                <span>Classes</span>
+                <div class="sg-seg" role="group" aria-label="Class breaks">
+                    <button class="@(Layer.Style.Classify == "quantile" ? "on" : "")" @onclick='() => Atlas.SetStyle(Layer, s => s.Classify = "quantile")'>Quantile</button>
+                    <button class="@(Layer.Style.Classify == "equal" ? "on" : "")" @onclick='() => Atlas.SetStyle(Layer, s => s.Classify = "equal")'>Equal</button>
+                </div>
+            </div>
+            <div class="sg-field row">
+                <span>Ramp</span>
+                <div class="sg-ramps" role="group" aria-label="Colour ramp">
+                    @foreach (var (name, ramp) in Palettes.Ramps)
+                    {
+                        <button class="@(Layer.Style.Palette == name ? "on" : "")" title="@name" aria-label="@name ramp" @onclick="() => Atlas.SetStyle(Layer, s => s.Palette = name)">
+                            @foreach (var c in ramp)
+                            {
+                                <i style="@("background:" + c)"></i>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        @if (Layer.Style.Mode == "single")
+        {
+            <div class="sg-field row">
+                <span>@(Layer.Kind == "line" ? "Line" : "Fill")</span>
+                <input type="color" value="@Hex(Layer.Kind == "line" ? Layer.Style.Stroke : Layer.Style.Fill)" aria-label="Colour"
+                       @onchange="e => SetColor((string)e.Value!)" />
+                @if (Layer.Kind is "polygon" or "mixed")
+                {
+                    <span class="sub">Edge</span>
+                    <input type="color" value="@Hex(Layer.Style.Stroke)" aria-label="Edge colour" @onchange="e => Atlas.SetStyle(Layer, s => s.Stroke = (string)e.Value!)" />
+                }
+            </div>
+        }
+        @if (Layer.Kind is "point" && Layer.Style.Mode != "heat")
+        {
+            <label class="sg-field row">
+                <span>Size</span>
+                <input type="range" min="4" max="22" step="1" value="@Layer.Style.Size.ToString(Fmt.Id)" @onchange="e => Atlas.SetStyle(Layer, s => s.Size = D(e.Value))" aria-label="Symbol size" />
+                <output>@Layer.Style.Size px</output>
+            </label>
+        }
+        else if (Layer.Kind is "line" or "polygon" or "mixed")
+        {
+            <label class="sg-field row">
+                <span>Width</span>
+                <input type="range" min="0.5" max="6" step="0.5" value="@Layer.Style.Width.ToString(Fmt.Id)" @onchange="e => Atlas.SetStyle(Layer, s => s.Width = D(e.Value))" aria-label="Line width" />
+                <output>@Layer.Style.Width px</output>
+            </label>
+        }
+    }
+    <p class="sg-note">@Layer.Note</p>
+    <div class="sg-style-actions">
+        <button class="sg-icon" title="Move up" aria-label="Move up" @onclick="() => Atlas.Move(Layer, 1)"><Glyph Name="up" Size="16" /></button>
+        <button class="sg-icon" title="Move down" aria-label="Move down" @onclick="() => Atlas.Move(Layer, -1)"><Glyph Name="down" Size="16" /></button>
+        @if (!Layer.Background)
+        {
+            <button class="sg-icon" title="Zoom to layer" aria-label="Zoom to layer" @onclick="() => Atlas.ZoomTo(Layer)"><Glyph Name="target" Size="16" /></button>
+            <button class="sg-icon" title="Open its table" aria-label="Open its attribute table" @onclick="OpenTable"><Glyph Name="table" Size="16" /></button>
+        }
+        @if (Layer.User)
+        {
+            <button class="sg-icon" title="Export GeoJSON" aria-label="Export GeoJSON" @onclick="() => Atlas.SaveExportAsync(Layer)"><Glyph Name="download" Size="16" /></button>
+            @if (Layer.Id != Atlas.NotesId)
+            {
+                <button class="sg-icon danger" title="Remove layer" aria-label="Remove layer" @onclick="() => Atlas.DeleteLayerAsync(Layer)"><Glyph Name="trash" Size="16" /></button>
+            }
+        }
+        else
+        {
+            <button class="sg-link" @onclick="() => Atlas.ResetStyle(Layer)">Reset style</button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public MapLayer Layer { get; set; } = null!;
+
+    private List<string> NumericFields => Layer.NumericFields();
+
+    private static double D(object? v) => double.Parse(v?.ToString() ?? "0", Fmt.Id);
+
+    private void SetMode(string mode) => Atlas.SetStyle(Layer, s =>
+    {
+        s.Mode = mode;
+        s.Cats = new();
+        if (mode is "graduated" or "heat")
+        {
+            if (s.Field is null || !NumericFields.Contains(s.Field)) s.Field = NumericFields.FirstOrDefault();
+            if (mode == "heat") SetField(s, s.Field ?? "");
+        }
+        else if (mode == "categorized" && (s.Field is null || !Layer.FieldNames().Contains(s.Field)))
+            s.Field = Layer.FieldNames().FirstOrDefault(f => f != "name") ?? Layer.FieldNames().FirstOrDefault();
+        if (mode == "single")
+        {
+            s.Fill ??= Layer.Default.Fill ?? "#2f6fb5";
+            s.Stroke ??= Layer.Default.Stroke;
+        }
+    });
+
+    private void SetCategoryField(string field) => Atlas.SetStyle(Layer, s =>
+    {
+        s.Field = field;
+        s.Cats = new();
+    });
+
+    private void SetColor(string color) => Atlas.SetStyle(Layer, s =>
+    {
+        if (Layer.Kind == "line") s.Stroke = color;
+        else s.Fill = Layer.Kind == "point" ? color : color + "88";
+    });
+
+    private void SetField(LayerStyle s, string field)
+    {
+        s.Field = field;
+        if (s.Mode == "heat")
+        {
+            var values = Layer.Features.Select(f => f.Number(field)).Where(v => !double.IsNaN(v)).ToList();
+            s.Max = values.Count == 0 ? 1 : Math.Max(1, values.Max());
+        }
+    }
+
+    private void OpenTable()
+    {
+        Atlas.TableLayer = Layer.Id;
+        MapPage.ShowTable?.Invoke();
+        Atlas.Notify();
+    }
+
+    /// <summary>A colour input needs #rrggbb; a theme colour shows as a neutral starting point.</summary>
+    private static string Hex(string? c) => c is { Length: >= 7 } && c[0] == '#' ? c.Substring(0, 7) : "#2f6fb5";
+}

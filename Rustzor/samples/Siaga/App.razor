@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(SheetLayout)" />
+    </Found>
+    <NotFound>
+        <div class="sg-lost">
+            <h1>Off the sheet</h1>
+            <p>This place is not on the map. The map and the situation report are.</p>
+            <a class="sg-btn primary" href="">Back to the map</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

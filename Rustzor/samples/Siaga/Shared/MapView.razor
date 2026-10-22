@@ -1,0 +1,73 @@
+@* The map. The browser module draws into a canvas it adds to the host and writes the
+   coordinates and scale straight into the elements below, so moving the pointer never
+   re-renders anything here; C# hears about clicks, sketches and edits. *@
+@implements IDisposable
+
+<div class="sg-map" @ref="_host" tabindex="0" aria-label="Map of the Citarum basin. Drag to pan, scroll to zoom." data-tool="@Atlas.Tool" @onkeydown="OnKey">
+    <GaugeStrip />
+    <div class="sg-map-tools" data-ui>
+        <button class="sg-mbtn" title="Zoom in (+)" aria-label="Zoom in" @onclick="() => Zoom(1.6)"><Glyph Name="plus" /></button>
+        <button class="sg-mbtn" title="Zoom out (−)" aria-label="Zoom out" @onclick="() => Zoom(1 / 1.6)"><Glyph Name="minus" /></button>
+        <button class="sg-mbtn" title="Whole basin" aria-label="Show the whole basin" @onclick="Atlas.Home"><Glyph Name="home" /></button>
+        <button class="sg-mbtn" title="My location" aria-label="Show my location" @onclick="Atlas.LocateAsync"><Glyph Name="locate" /></button>
+    </div>
+    <div class="sg-readout" data-ui>
+        <div class="sg-scale" @ref="_scale"><span class="sg-scale-bar" data-bar></span><span data-text>—</span></div>
+        <span class="sg-ratio" @ref="_ratio">1 : —</span>
+        <span class="sg-zoom" @ref="_zoom">z —</span>
+        <span class="sg-coords" @ref="_coords">Move over the map for coordinates</span>
+    </div>
+    @if (Atlas.Tool != "identify" && !(Atlas.Tool == "buffer" && Atlas.Inspected is not null))
+    {
+        <div class="sg-toolhint" data-ui role="status">
+            <b>@ToolRail.Title(Atlas.Tool)</b> @ToolRail.Hint(Atlas.Tool)
+            <button class="sg-link" @onclick='() => Atlas.SetTool("identify")'>Done</button>
+        </div>
+    }
+    @if (Atlas.Tiles)
+    {
+        <div class="sg-osm" data-ui>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+    }
+    @if (!Atlas.Ready)
+    {
+        <div class="sg-loading" data-ui><span class="sg-loading-ring"></span>Plotting the sheet: contours, rivers, kecamatan…</div>
+    }
+</div>
+
+@code {
+    /// <summary>Keys pressed while the map has focus (tool shortcuts); typing in a field never reaches it.</summary>
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKey { get; set; }
+
+    private ElementReference _host, _scale, _ratio, _zoom, _coords;
+    private int _callback;
+    private long _handle;
+
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser) return;
+        _callback = Callbacks.Register(Atlas.OnMessage);
+        _handle = Js.Call("sg.attach", Js.Args("host", _host.Id, "coords", _coords.Id, "scale", _scale.Id, "ratio", _ratio.Id, "zoom", _zoom.Id, "id", _callback)).AsLong();
+        Atlas.Attached = true;
+        var wasReady = Atlas.Ready;
+        await Atlas.ReadyAsync();
+        if (wasReady) Atlas.Push();
+        Js.Send("sg.tool", Js.Args("mode", Atlas.Tool));
+        if (Atlas.LastView is { } v) Js.Send("sg.view", Js.Args("lon", v.Lon, "lat", v.Lat, "zoom", Atlas.LastZoom));
+        else Atlas.Home();
+        Atlas.Notify();
+    }
+
+    private static void Zoom(double factor) => Js.Send("sg.zoomBy", Js.Args("factor", factor));
+
+    public void Dispose()
+    {
+        Atlas.Changed -= Redraw;
+        Atlas.Attached = false;
+        if (_handle != 0) Js.Send("sg.detach", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

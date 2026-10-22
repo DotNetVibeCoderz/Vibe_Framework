@@ -1,0 +1,55 @@
+@* The river gauges across the top of the map, worst first: the level against the
+   Waspada, Siaga and Awas marks, the way the Pusdalops board shows them. *@
+@implements IDisposable
+
+@if (Gauges.Count > 0)
+{
+    <div class="sg-gauges" data-ui role="list" aria-label="River gauges">
+        @foreach (var f in Gauges)
+        {
+            var status = f.Text("status");
+            var level = f.Number("level_cm");
+            var awas = f.Number("awas_cm");
+            var top = Math.Max(level, awas) * 1.12;
+            <button class="@("sg-gauge " + Catalog.AlertClass(status) + (Atlas.IsSelected("pda", f.Id) ? " on" : ""))" role="listitem"
+                    title="@(f.Text("name") + ": " + level + " cm, " + status)" @onclick="() => Show(f)">
+                <span class="sg-gauge-meter" aria-hidden="true">
+                    <span class="fill" style="@($"height:{Pct(level, top)}%")"></span>
+                    <span class="mark w" style="@($"bottom:{Pct(f.Number("waspada_cm"), top)}%")"></span>
+                    <span class="mark s" style="@($"bottom:{Pct(f.Number("siaga_cm"), top)}%")"></span>
+                    <span class="mark a" style="@($"bottom:{Pct(awas, top)}%")"></span>
+                </span>
+                <span class="sg-gauge-text">
+                    <span class="name">@Short(f.Text("name"))</span>
+                    <span class="lvl"><b>@level</b> cm</span>
+                </span>
+                <span class="sg-gauge-status">@status</span>
+            </button>
+        }
+    </div>
+}
+
+@code {
+    private static readonly string[] Severity = { "Awas", "Siaga", "Waspada", "Normal" };
+
+    private static List<Feat> Gauges => Atlas.Layer("pda")?.Features
+        .OrderBy(f => Array.IndexOf(Severity, f.Text("status")))
+        .ThenByDescending(f => f.Number("level_cm") / f.Number("awas_cm"))
+        .ToList() ?? new();
+
+    private static string Short(string name) => name.Replace("Pos Duga Air ", "");
+
+    private static string Pct(double v, double top) => Math.Clamp(v / top * 100, 0, 100).ToString("0.#", Fmt.Id);
+
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    private static void Show(Feat f)
+    {
+        Atlas.Inspect("pda", f.Id, select: true);
+        Atlas.ZoomTo(Atlas.Layer("pda")!, f);
+    }
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+}

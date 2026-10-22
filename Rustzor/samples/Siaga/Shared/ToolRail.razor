@@ -1,0 +1,82 @@
+@* The tools, grouped the way a map desk uses them: look, draw, measure, ask. *@
+@implements IDisposable
+
+<nav class="sg-rail" aria-label="Map tools">
+    @foreach (var group in Groups)
+    {
+        <div class="sg-rail-group">
+            @foreach (var (id, glyph, key) in group)
+            {
+                var disabled = id == "edit" && Atlas.Inspected is not { Layer.User: true };
+                <button class="@("sg-tool" + (Atlas.Tool == id ? " on" : ""))" disabled="@disabled" aria-pressed="@(Atlas.Tool == id ? "true" : "false")"
+                        title="@Tip(id, key)" aria-label="@Title(id)" data-tool="@id" @onclick="() => Pick(id)">
+                    <Glyph Name="@glyph" Size="19" />
+                </button>
+            }
+        </div>
+    }
+    <div class="sg-rail-group end">
+        <button class="@("sg-tool" + (TableOpen ? " on" : ""))" title="Attribute table (T)" aria-label="Attribute table" aria-pressed="@(TableOpen ? "true" : "false")" @onclick="ToggleTable"><Glyph Name="table" Size="19" /></button>
+    </div>
+</nav>
+
+@code {
+    [Parameter] public bool TableOpen { get; set; }
+    [Parameter] public EventCallback ToggleTable { get; set; }
+
+    private static readonly (string Id, string Glyph, string Key)[][] Groups =
+    {
+        new[] { ("identify", "identify", "I") },
+        new[] { ("point", "point", "P"), ("line", "line", "L"), ("polygon", "polygon", "G"), ("edit", "edit", "E") },
+        new[] { ("measure-line", "ruler", "M"), ("measure-area", "area", "A") },
+        new[] { ("select-area", "lasso", "S"), ("buffer", "buffer", "B") },
+    };
+
+    private static void Pick(string id) => Atlas.SetTool(Atlas.Tool == id ? "identify" : id);
+
+    private static string Tip(string id, string key) => Title(id) + " (" + key + ")";
+
+    public static string Title(string tool) => tool switch
+    {
+        "identify" => "Identify",
+        "point" => "Draw a point",
+        "line" => "Draw a line",
+        "polygon" => "Draw an area",
+        "edit" => "Edit vertices",
+        "measure-line" => "Measure distance",
+        "measure-area" => "Measure area",
+        "select-area" => "Select by area",
+        "buffer" => "Buffer",
+        _ => tool,
+    };
+
+    public static string Hint(string tool) => tool switch
+    {
+        "point" => "Click where it is.",
+        "line" or "polygon" or "measure-line" or "measure-area" or "select-area" =>
+            "Click to add points; double-click or Enter to finish, Backspace removes the last, Esc cancels.",
+        "edit" => "Drag a vertex to move it, drag a hollow midpoint to add one, Alt-click a vertex to remove it.",
+        "buffer" => "Click a feature, then set the distance in the panel.",
+        _ => "",
+    };
+
+    public static string? ForKey(string key) => key.ToUpperInvariant() switch
+    {
+        "I" => "identify",
+        "P" => "point",
+        "L" => "line",
+        "G" => "polygon",
+        "E" => "edit",
+        "M" => "measure-line",
+        "A" => "measure-area",
+        "S" => "select-area",
+        "B" => "buffer",
+        _ => null,
+    };
+
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+}

@@ -1,0 +1,27 @@
+@inherits LayoutComponentBase
+@* The sheet's title block: who issues it, which sheet, the datum. Both pages sit under it. *@
+
+<div class="sg-app">
+    <header class="sg-head">
+        <a class="sg-brand" href="" aria-label="Siaga Citarum, the map">
+            <svg class="sg-mark" viewBox="0 0 32 32" aria-hidden="true">
+                <rect x="1.5" y="1.5" width="29" height="29" rx="3" class="sg-mark-frame" />
+                <path d="M5 12c3-3 6-3 9 0s6 3 9 0 4-2.4 4-2.4" class="sg-mark-c1" />
+                <path d="M5 18c3-3 6-3 9 0s6 3 9 0 4-2.4 4-2.4" class="sg-mark-c2" />
+                <path d="M16 6.5 22.5 25h-13z" class="sg-mark-tri" />
+            </svg>
+            <span class="sg-brand-text"><b>Siaga Citarum</b><small>BPBD Kabupaten Bandung · Pusdalops</small></span>
+        </a>
+        <dl class="sg-sheet">
+            <div><dt>Sheet</dt><dd>Cekungan Bandung</dd></div>
+            <div class="wide"><dt>Situation</dt><dd>22 Oct 2026, 05.40 WIB</dd></div>
+            <div class="wide"><dt>Datum</dt><dd>WGS 84 · Web Mercator</dd></div>
+        </dl>
+        <nav class="sg-nav" aria-label="Pages">
+            <NavLink href="" Match="NavLinkMatch.All"><Glyph Name="map" Size="16" /> Map</NavLink>
+            <NavLink href="laporan"><Glyph Name="report" Size="16" /> Situation report</NavLink>
+        </nav>
+        <ThemeToggle />
+    </header>
+    <main class="sg-main">@Body</main>
+</div>

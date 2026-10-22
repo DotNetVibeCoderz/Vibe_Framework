@@ -1,0 +1,157 @@
+@* A layer's attributes as a table, kept in step with the map: a selected feature is a
+   highlighted row, and a clicked row selects and shows the feature. *@
+@implements IDisposable
+
+<section class="sg-table" aria-label="Attribute table">
+    <header class="sg-table-head">
+        <select value="@Atlas.TableLayer" @onchange="e => Pick((string)e.Value!)" aria-label="Layer">
+            @foreach (var l in Atlas.Layers.Where(l => !l.Background).Reverse())
+            {
+                <option value="@l.Id">@l.Name</option>
+            }
+        </select>
+        <input type="search" placeholder="Filter rows" value="@_filter" @oninput="e => _filter = e.Value?.ToString() ?? string.Empty" aria-label="Filter rows" />
+        <label class="sg-check"><input type="checkbox" checked="@_onlySel" @onchange="e => _onlySel = e.Value is true" /> Selected only</label>
+        <span class="sg-count" data-rows="@Rows.Count">@Summary</span>
+        @if (Layer is { User: true } ul)
+        {
+            <button class="sg-btn" @onclick="() => _export = true"><Glyph Name="download" Size="15" /> GeoJSON</button>
+        }
+        <button class="sg-icon" aria-label="Close the table" title="Close" @onclick="Close"><Glyph Name="close" Size="16" /></button>
+    </header>
+    @if (Layer is { } layer)
+    {
+        var rows = Rows;
+        <div class="sg-table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        @foreach (var c in Columns(layer))
+                        {
+                            <th class="@(Numeric(layer, c) ? "num" : "")" aria-sort="@(_sort == c ? (_desc ? "descending" : "ascending") : "none")">
+                                <button @onclick="() => Sort(c)">@Catalog.Column(c)@(_sort == c ? (_desc ? " ↓" : " ↑") : "")</button>
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in rows.Take(Limit))
+                    {
+                        <tr class="@(Atlas.IsSelected(layer.Id, f.Id) ? "sel" : "")" data-id="@f.Id" @onclick="() => Show(layer, f)">
+                            @foreach (var c in Columns(layer))
+                            {
+                                <td class="@(Numeric(layer, c) ? "num" : "")">@Cell(layer, f, c)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (rows.Count > Limit)
+            {
+                <p class="sg-more">Showing the first @Limit of @rows.Count rows. Filter or sort to find others. <button class="sg-link" @onclick="() => Limit += 200">Show 200 more</button></p>
+            }
+            @if (rows.Count == 0)
+            {
+                <p class="sg-more">@(_onlySel ? "Nothing in this layer is selected. Click features on the map, or select by area." : "No rows match.")</p>
+            }
+        </div>
+    }
+</section>
+
+<Modal Open="_export" OpenChanged="v => _export = v" Title="Export GeoJSON">
+    @if (Layer is { User: true } el)
+    {
+        <p class="sg-fine">@el.Features.Count features from <b>@el.Name</b>, WGS 84 longitude and latitude.</p>
+        <textarea class="sg-paste" readonly data-export>@Atlas.Export(el)</textarea>
+        <div class="sg-modal-actions">
+            <button class="sg-btn ghost" @onclick="() => _export = false">Close</button>
+            <button class="sg-btn primary" @onclick="() => Atlas.SaveExportAsync(el)"><Glyph Name="download" Size="15" /> Save file</button>
+        </div>
+    }
+</Modal>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string _filter = "";
+    private bool _onlySel;
+    private string? _sort;
+    private bool _desc;
+    private bool _export;
+    private int Limit = 200;
+
+    private static MapLayer? Layer => Atlas.TableLayer is null ? null : Atlas.Layer(Atlas.TableLayer);
+
+    private static List<string> Columns(MapLayer l) => l.Columns.Count > 0 ? l.Columns : l.FieldNames().Take(6).ToList();
+
+    private static bool Numeric(MapLayer l, string c) => l.Features.Take(20).Any(f => f.Props[c].IsNumber);
+
+    private static string Cell(MapLayer l, Feat f, string c) => f.Text(c);
+
+    private List<Feat> Rows
+    {
+        get
+        {
+            if (Layer is not { } l) return new();
+            IEnumerable<Feat> rows = l.Features;
+            if (_onlySel) rows = rows.Where(f => Atlas.IsSelected(l.Id, f.Id));
+            var q = _filter.Trim();
+            if (q.Length > 0)
+            {
+                var cols = Columns(l);
+                rows = rows.Where(f => cols.Any(c => f.Text(c).Contains(q, StringComparison.OrdinalIgnoreCase)));
+            }
+            if (_sort is { } s)
+            {
+                var num = Numeric(l, s);
+                rows = num
+                    ? (_desc ? rows.OrderByDescending(f => f.Number(s)) : rows.OrderBy(f => f.Number(s)))
+                    : (_desc ? rows.OrderByDescending(f => f.Text(s)) : rows.OrderBy(f => f.Text(s)));
+            }
+            else rows = rows.OrderByDescending(f => Atlas.IsSelected(l.Id, f.Id) ? 1 : 0);
+            return rows.ToList();
+        }
+    }
+
+    private string Summary
+    {
+        get
+        {
+            if (Layer is not { } l) return "";
+            var sel = Atlas.Selection.TryGetValue(l.Id, out var s) ? s.Count : 0;
+            return Fmt.N(l.Features.Count) + " rows" + (sel > 0 ? " · " + sel + " selected" : "");
+        }
+    }
+
+    private void Pick(string id)
+    {
+        Atlas.TableLayer = id;
+        _sort = null;
+        _filter = "";
+        Limit = 200;
+    }
+
+    private void Sort(string c)
+    {
+        if (_sort == c) _desc = !_desc;
+        else
+        {
+            _sort = c;
+            _desc = Layer is { } l && Numeric(l, c);
+        }
+    }
+
+    private static void Show(MapLayer l, Feat f)
+    {
+        Atlas.Inspect(l.Id, f.Id, select: true);
+        Atlas.ZoomTo(l, f);
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+}

@@ -1,0 +1,55 @@
+@* With nothing selected: the situation in a few lines, and what to look at first. *@
+@implements IDisposable
+
+@{
+    var gauges = Atlas.Layer("pda")?.Features ?? new();
+    var shelters = Atlas.Layer("posko")?.Features ?? new();
+    var kec = Atlas.Layer("kecamatan")?.Features ?? new();
+    var reports = Atlas.Layer("laporan")?.Features ?? new();
+    var awas = gauges.Count(g => g.Text("status") == "Awas");
+    var siaga = gauges.Count(g => g.Text("status") == "Siaga");
+    var cap = shelters.Sum(f => f.Number("capacity"));
+    var occ = shelters.Sum(f => f.Number("occupied"));
+    var affected = kec.Sum(f => f.Number("affected_hh"));
+    var worst = kec.OrderByDescending(f => f.Number("affected_hh")).Take(4).ToList();
+}
+<div class="sg-card sg-overview">
+    <p class="sg-kicker">Situation, 22 October 05.40 WIB</p>
+    <h2 class="sg-title">Citarum above the Awas mark at @awas gauge@(awas == 1 ? "" : "s")</h2>
+    <p class="sg-lede">@siaga more at Siaga. About <b>@Fmt.N(affected)</b> households are in flooded areas; <b>@Fmt.N(occ)</b> people are in @shelters.Count posko with <b>@Fmt.N(Math.Max(0, cap - occ))</b> places left. @reports.Count reports came in overnight.</p>
+    <h3>Most affected kecamatan</h3>
+    <ol class="sg-rank">
+        @foreach (var f in worst)
+        {
+            var max = worst[0].Number("affected_hh");
+            <li>
+                <button @onclick='() => Show("kecamatan", f)'>
+                    <span class="name">@f.Text("name")</span>
+                    <span class="bar"><i style="@($"width:{(f.Number("affected_hh") / max * 100).ToString("0.#", Fmt.Id)}%")"></i></span>
+                    <span class="num">@Fmt.N(f.Number("affected_hh"))</span>
+                </button>
+            </li>
+        }
+    </ol>
+    <h3>On this map</h3>
+    <ul class="sg-tips">
+        <li>Click anything to see its attributes; Shift-click adds to the selection.</li>
+        <li>Draw points, lines and areas into <b>Catatan lapangan</b>; they stay in this browser.</li>
+        <li>Measure, select by area, or buffer a river to find the posko near it.</li>
+        <li>Open a layer to colour it by a category or a number.</li>
+    </ul>
+</div>
+
+@code {
+    protected override void OnInitialized() => Atlas.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    public void Dispose() => Atlas.Changed -= Redraw;
+
+    private static void Show(string layer, Feat f)
+    {
+        Atlas.Inspect(layer, f.Id, select: true);
+        Atlas.ZoomTo(Atlas.Layer(layer)!, f);
+    }
+}

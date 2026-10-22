@@ -1,0 +1,43 @@
+@* A gauge drawn like the staff on the river bank: the marks for each alert level and where the water is. *@
+
+@{
+    var level = Feature.Number("level_cm");
+    var w = Feature.Number("waspada_cm");
+    var s = Feature.Number("siaga_cm");
+    var a = Feature.Number("awas_cm");
+    var top = Math.Max(level, a) * 1.15;
+    var status = Feature.Text("status");
+}
+<div class="@("sg-staff " + Catalog.AlertClass(status))">
+    <div class="sg-staff-pole" aria-hidden="true">
+        <span class="band normal" style="@Band(0, w, top)"></span>
+        <span class="band waspada" style="@Band(w, s, top)"></span>
+        <span class="band siaga" style="@Band(s, a, top)"></span>
+        <span class="band awas" style="@Band(a, top, top)"></span>
+        <span class="water" style="@($"height:{P(level, top)}%")"></span>
+        <span class="now" style="@($"bottom:{P(level, top)}%")"><b>@level</b> cm</span>
+    </div>
+    <div class="sg-staff-text">
+        <p class="sg-staff-status">@status</p>
+        <p>@(status == "Normal" ? "Below the Waspada mark." : Above(level, status, w, s, a))</p>
+        <ul>
+            <li><i class="awas"></i>Awas from @a cm</li>
+            <li><i class="siaga"></i>Siaga from @s cm</li>
+            <li><i class="waspada"></i>Waspada from @w cm</li>
+        </ul>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Feat Feature { get; set; } = null!;
+
+    private static string P(double v, double top) => Math.Clamp(v / top * 100, 0, 100).ToString("0.#", Fmt.Id);
+
+    private static string Band(double lo, double hi, double top) => $"bottom:{P(lo, top)}%;height:{P(hi - lo, top)}%";
+
+    private static string Above(double level, string status, double w, double s, double a)
+    {
+        var mark = status == "Awas" ? a : status == "Siaga" ? s : w;
+        return Math.Round(level - mark) + " cm above the " + status + " mark.";
+    }
+}

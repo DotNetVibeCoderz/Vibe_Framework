@@ -1,0 +1,100 @@
+@page "/"
+@implements IDisposable
+
+<div class="@Classes" @ref="_root">
+    <ToolRail TableOpen="_table" ToggleTable="ToggleTable" />
+    <aside class="sg-side" aria-label="Search and layers">
+        <SearchBox />
+        <LayerPanel />
+        <footer class="sg-credit">
+            <p>Siaga Citarum is a Rustzor sample. Places are real; every shape, reading and report is generated.</p>
+            <p>Built by Gravicode Studios, led by Kang Fadhil.</p>
+            <button class="sg-link" @onclick="() => _reset = true"><Glyph Name="reset" Size="14" /> Reset this browser's data</button>
+        </footer>
+    </aside>
+    <section class="sg-mapcol">
+        <MapView OnKey="Key" />
+        @if (_table)
+        {
+            <AttrTable OnClose="ToggleTable" />
+        }
+    </section>
+    <aside class="sg-inspect" aria-label="Details">
+        <Inspector />
+    </aside>
+    <nav class="sg-phonebar" aria-label="Panels">
+        <button class="@(_phone == "side" ? "on" : "")" @onclick='() => Phone("side")'><Glyph Name="search" Size="17" /> Layers</button>
+        <button class="@(_phone == "map" ? "on" : "")" @onclick='() => Phone("map")'><Glyph Name="map" Size="17" /> Map</button>
+        <button class="@(_phone == "inspect" ? "on" : "")" @onclick='() => Phone("inspect")'><Glyph Name="identify" Size="17" /> Details</button>
+    </nav>
+</div>
+
+<Modal Open="_reset" OpenChanged="v => _reset = v" Title="Reset this browser's data?">
+    <p>Removes the features you drew, the layers you imported, your layer styles and the last view. The map's own data stays.</p>
+    <div class="sg-modal-actions">
+        <button class="sg-btn ghost" @onclick="() => _reset = false">Keep everything</button>
+        <button class="sg-btn danger" data-reset @onclick="Atlas.ResetAsync">Reset</button>
+    </div>
+</Modal>
+
+@code {
+    /// <summary>Lets a layer's settings open the table.</summary>
+    public static Action? ShowTable;
+
+    private ElementReference _root;
+    private IDisposable? _drop;
+    private bool _table;
+    private bool _reset;
+    private string _phone = "map";
+
+    private string Classes => "sg-work" + (_table ? " with-table" : "") + " phone-" + _phone;
+
+    protected override void OnInitialized()
+    {
+        ShowTable = () =>
+        {
+            _table = true;
+            _phone = "map";
+            StateHasChanged();
+        };
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser) return;
+        _drop = Files.OnDrop(_root, files =>
+        {
+            foreach (var f in files) _ = LayerPanel.ImportFileAsync(f);
+        });
+    }
+
+    private void ToggleTable()
+    {
+        _table = !_table;
+        if (_table && Atlas.Inspected is { } ins) Atlas.TableLayer = ins.Layer.Id;
+    }
+
+    private void Phone(string which) => _phone = which;
+
+    private void Key(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (e.Key is "t" or "T")
+        {
+            ToggleTable();
+            return;
+        }
+        if (e.Key == "Escape" && Atlas.Tool == "identify")
+        {
+            Atlas.ClearSelection();
+            return;
+        }
+        if (e.Key.Length == 1 && ToolRail.ForKey(e.Key) is { } tool) Atlas.SetTool(Atlas.Tool == tool ? "identify" : tool);
+    }
+
+    public void Dispose()
+    {
+        ShowTable = null;
+        _drop?.Dispose();
+    }
+}

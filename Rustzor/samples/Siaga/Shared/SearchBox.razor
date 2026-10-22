@@ -1,0 +1,64 @@
+@* Find a place by name in any layer, or go to coordinates ("-6.99, 107.62"). *@
+
+<div class="sg-search" role="search">
+    <Glyph Name="search" Size="16" Class="sg-search-icon" />
+    <input type="search" placeholder="Kecamatan, posko, river or -6.99, 107.62" aria-label="Search the map" value="@_q"
+           @oninput="e => _q = e.Value?.ToString() ?? string.Empty" @onkeydown="KeyAsync" />
+    @if (_q.Trim().Length >= 2)
+    {
+        var coord = Atlas.ParseCoordinate(_q);
+        var hits = coord is null ? Atlas.Search(_q) : new List<Hit>();
+        <ul class="sg-results" role="listbox">
+            @if (coord is { } c)
+            {
+                <li><button @onclick="() => GoTo(c)"><Glyph Name="target" Size="15" /> <span>Go to <b>@Geo.Dms(c)</b></span></button></li>
+            }
+            @foreach (var h in hits)
+            {
+                <li>
+                    <button @onclick="() => Pick(h)">
+                        <Swatch Layer="h.Layer" Color="@SwatchColor(h)" />
+                        <span><b>@h.Layer.Title(h.Feature)</b><small>@h.Layer.Name</small></span>
+                    </button>
+                </li>
+            }
+            @if (coord is null && hits.Count == 0)
+            {
+                <li class="none">Nothing on the map is called “@_q.Trim()”.</li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private string _q = "";
+
+    private static string SwatchColor(Hit h)
+    {
+        var s = h.Layer.Style;
+        if (s.Mode == "categorized" && s.Field is not null && s.Cats.TryGetValue(h.Feature.Text(s.Field), out var c)) return c;
+        return h.Layer.Kind == "line" ? s.Stroke ?? "" : s.Fill ?? s.Stroke ?? "";
+    }
+
+    private void Pick(Hit h)
+    {
+        _q = "";
+        Atlas.Inspect(h.Layer.Id, h.Feature.Id, select: true);
+        Atlas.ZoomTo(h.Layer, h.Feature);
+    }
+
+    private void GoTo(LonLat c)
+    {
+        _q = "";
+        Js.Send("sg.view", Js.Args("lon", c.Lon, "lat", c.Lat, "zoom", 15));
+        Js.Send("sg.locate", Js.Args("lon", c.Lon, "lat", c.Lat, "acc", 5));
+    }
+
+    private void KeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _q = "";
+        if (e.Key != "Enter") return;
+        if (Atlas.ParseCoordinate(_q) is { } c) GoTo(c);
+        else if (Atlas.Search(_q).FirstOrDefault() is { } h) Pick(h);
+    }
+}

@@ -1,0 +1,40 @@
+@* A legend symbol in the layer's own shape: a filled patch, a line, or the point marker. *@
+<svg class="sg-swatch" width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
+    @switch (Shape)
+    {
+        case "line":
+            <path d="M1 10c4-6 7 2 11-3s6-2 7-3" fill="none" stroke="@Color" stroke-width="@Math.Min(4, Math.Max(1.5, Layer.Style.Width))" stroke-linecap="round" />
+            break;
+        case "square":
+            <rect x="5" y="2" width="10" height="10" fill="@Color" stroke="var(--panel)" stroke-width="1.2" />
+            break;
+        case "diamond":
+            <path d="M10 0.8 16.2 7 10 13.2 3.8 7z" fill="@Color" stroke="var(--ink)" stroke-width="1" />
+            break;
+        case "triangle":
+            <path d="M10 1.5 16 12.5H4z" fill="@Color" stroke="var(--panel)" stroke-width="1" />
+            break;
+        case "cross":
+            <path d="M8 1.5h4v4h4v3h-4v4H8v-4H4v-3h4z" fill="@Color" />
+            break;
+        case "circle":
+            <circle cx="10" cy="7" r="5" fill="@Color" stroke="var(--panel)" stroke-width="1.2" />
+            break;
+        default:
+            <rect x="1.5" y="1.5" width="17" height="11" rx="1.5" fill="@Color" fill-opacity="@(Layer.Style.Mode == "single" ? "0.55" : "1")" stroke="@(Layer.Style.Stroke ?? Color)" stroke-width="1.2" stroke-dasharray="@(Layer.Style.Dash is null ? "" : "3 2")" />
+            break;
+    }
+</svg>
+
+@code {
+    [Parameter] public MapLayer Layer { get; set; } = null!;
+    [Parameter] public string Color { get; set; } = "";
+
+    private string Shape => Layer.Kind switch
+    {
+        "line" => "line",
+        "point" => Layer.Style.Shape,
+        "mixed" => "circle",
+        _ => "area",
+    };
+}
