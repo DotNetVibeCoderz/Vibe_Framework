@@ -1,0 +1,19 @@
+@* A labelled slider with its number, for the options bar. *@
+<label class="kg-num-field">
+    <span>@Label</span>
+    <input type="range" min="@Min" max="@Max" step="1" value="@F(Value)" style="@("--b:" + F((Value - Min) / Math.Max(1, Max - Min) * 100) + "%")" aria-label="@Label" @oninput="e => Set?.Invoke(Parse(e.Value))" />
+    <output>@F(Value)@Unit</output>
+</label>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public double Min { get; set; }
+    [Parameter] public double Max { get; set; } = 100;
+    [Parameter] public double Value { get; set; }
+    [Parameter] public Action<double>? Set { get; set; }
+
+    private static string F(double v) => Math.Round(v).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private double Parse(object? v) => double.TryParse(v?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? Math.Clamp(d, Min, Max) : Value;
+}

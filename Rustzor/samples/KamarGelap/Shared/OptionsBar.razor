@@ -1,0 +1,111 @@
+@* The active tool's settings, as Photoshop's options bar. *@
+@{
+    var ed = Session.Editor;
+    var t = ed.Tool;
+    var paint = t is Tool.Brush or Tool.Eraser or Tool.Clone;
+}
+<div class="kg-options" role="toolbar" aria-label="Tool options">
+    <span class="kg-opt-tool">@Name(t)</span>
+    @if (paint)
+    {
+        <Num Label="Size" Unit="px" Min="1" Max="800" Value="ed.Size" Set="v => { ed.Size = v; ed.ToolSettingsChanged(); }" />
+        <Num Label="Hardness" Unit="%" Min="0" Max="100" Value="ed.Hardness" Set="v => { ed.Hardness = v; ed.ToolSettingsChanged(); }" />
+        <Num Label="Opacity" Unit="%" Min="1" Max="100" Value="ed.Opacity" Set="v => { ed.Opacity = v; ed.ToolSettingsChanged(); }" />
+        <Num Label="Flow" Unit="%" Min="1" Max="100" Value="ed.Flow" Set="v => { ed.Flow = v; ed.ToolSettingsChanged(); }" />
+        @if (ed.Doc.ActiveLayer is { HasMask: true, Kind: not LayerKind.Adjust })
+        {
+            <div class="kg-seg" role="radiogroup" aria-label="Paint on">
+                <button role="radio" aria-checked="@(!ed.OnMask ? "true" : "false")" class="@(!ed.OnMask ? "on" : "")" @onclick="() => ed.SetPaintTarget(false)">Pixels</button>
+                <button role="radio" aria-checked="@(ed.OnMask ? "true" : "false")" class="@(ed.OnMask ? "on" : "")" @onclick="() => ed.SetPaintTarget(true)">Mask</button>
+            </div>
+        }
+        @if (t == Tool.Clone)
+        {
+            <span class="kg-opt-hint">@(ed.CloneSource is null ? "Alt-click to set the source" : "Source " + ed.CloneSource + " · Alt-click to move it")</span>
+        }
+        else
+        {
+            <span class="kg-opt-hint">[ and ] resize · 1–0 set opacity · pen pressure changes size</span>
+        }
+    }
+    else if (t == Tool.Gradient)
+    {
+        <div class="kg-seg" role="radiogroup" aria-label="Gradient">
+            @foreach (var (m, label) in new[] { ("linear", "Linear"), ("radial", "Radial"), ("fade", "To transparent") })
+            {
+                <button role="radio" aria-checked="@(ed.GradientMode == m ? "true" : "false")" class="@(ed.GradientMode == m ? "on" : "")" @onclick="() => { ed.GradientMode = m; ed.ToolSettingsChanged(); }">@label</button>
+            }
+        </div>
+        <Num Label="Opacity" Unit="%" Min="1" Max="100" Value="ed.Opacity" Set="v => { ed.Opacity = v; ed.ToolSettingsChanged(); }" />
+        <span class="kg-opt-hint">Drag from the foreground to the background colour · Shift keeps 45°</span>
+    }
+    else if (t == Tool.Bucket)
+    {
+        <Num Label="Tolerance" Unit="" Min="0" Max="255" Value="ed.Tolerance" Set="v => { ed.Tolerance = (int)v; ed.ToolSettingsChanged(); }" />
+        <Num Label="Opacity" Unit="%" Min="1" Max="100" Value="ed.Opacity" Set="v => { ed.Opacity = v; ed.ToolSettingsChanged(); }" />
+        <span class="kg-opt-hint">Fills the touching pixels of similar colour on this layer, inside the selection</span>
+    }
+    else if (t is Tool.Marquee or Tool.Ellipse or Tool.Lasso)
+    {
+        <button class="kg-btn small" @onclick="ed.SelectAll">Select all</button>
+        <button class="kg-btn small" disabled="@(ed.Doc.Sel is null)" @onclick="ed.Deselect">Deselect</button>
+        <button class="kg-btn small" disabled="@(ed.Doc.Sel is null)" @onclick="ed.InvertSelection">Inverse</button>
+        <button class="kg-btn small" disabled="@(ed.Doc.Sel is null)" @onclick="@(() => ed.Fill("fg"))">Fill</button>
+        <button class="kg-btn small" disabled="@(ed.Doc.Sel is null)" @onclick="ed.CropToSelection">Crop to it</button>
+        <span class="kg-opt-hint">@(t == Tool.Lasso ? "Drag around what you want" : "Shift draws a square · Alt draws from the centre")</span>
+    }
+    else if (t == Tool.Crop)
+    {
+        @if (ed.Crop is { } c)
+        {
+            <span class="kg-mono">@c.W × @c.H at @c.X, @c.Y</span>
+            <button class="kg-btn small primary" @onclick="ed.ApplyCrop"><Glyph Name="check" Size="14" /> Crop</button>
+            <button class="kg-btn small" @onclick="ed.CancelCrop">Cancel</button>
+            <span class="kg-opt-hint">Enter crops · Esc cancels</span>
+        }
+        else
+        {
+            <span class="kg-opt-hint">Drag the frame you want to keep · Shift keeps the proportions</span>
+        }
+    }
+    else if (t == Tool.Move)
+    {
+        <span class="kg-opt-hint">Drag to move the active layer · Shift locks the direction</span>
+    }
+    else if (t == Tool.Text)
+    {
+        <span class="kg-opt-hint">Click to add a caption, or click one to edit it in Properties</span>
+    }
+    else if (t == Tool.Eyedropper)
+    {
+        <span class="kg-opt-hint">Click to take the foreground colour from the picture · Alt-click for the background</span>
+    }
+    else
+    {
+        <button class="kg-btn small" @onclick="@(() => Js.Call("kg.view", Js.Args("what", "fit")))">Fit</button>
+        <button class="kg-btn small" @onclick="@(() => Js.Call("kg.view", Js.Args("what", "100")))">100%</button>
+        <span class="kg-opt-hint">Drag to pan · Ctrl and the wheel zoom · hold Space with any tool</span>
+    }
+</div>
+
+@code {
+    /// <summary>Changes whenever the editor does, so the panel draws again with the page.</summary>
+    [Parameter] public int Tick { get; set; }
+
+    private static string Name(Tool t) => t switch
+    {
+        Tool.Move => "Move",
+        Tool.Marquee => "Rectangular marquee",
+        Tool.Ellipse => "Elliptical marquee",
+        Tool.Lasso => "Lasso",
+        Tool.Crop => "Crop",
+        Tool.Brush => "Brush",
+        Tool.Eraser => "Eraser",
+        Tool.Clone => "Clone stamp",
+        Tool.Gradient => "Gradient",
+        Tool.Bucket => "Paint bucket",
+        Tool.Eyedropper => "Eyedropper",
+        Tool.Text => "Type",
+        _ => "Hand",
+    };
+}

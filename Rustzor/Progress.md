@@ -2,6 +2,44 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-22: Kamar Gelap photo-editor sample
+
+- `samples/KamarGelap`: a Photoshop-like layered photo editor, styled as a
+  darkroom (dark first; a contact-sheet light theme). Routes `/` (start: the
+  sample, open a photo or a `.kamar` project, continue the autosaved picture,
+  new canvas presets with a background) and `/edit` (the editor). The sample is
+  a 2000 × 1500 Merapi dawn painted by the app, with a hue/saturation layer, a
+  masked levels layer, a multiply vignette and a caption.
+- C# owns the document (layers, adjustment settings, selection geometry,
+  history order, tools); the app's `rustzor.module.js` owns the pixels: a 2D
+  canvas per layer and mask, a WebGL2 compositor (eight blend modes, opacity,
+  masks, layer offsets; adjustment layers as shaders), filters as shader
+  passes, brush, eraser, clone stamp and gradient strokes in the pointer
+  handler, flood fill, copy-on-write snapshots per history step, PNG/JPEG/WebP
+  export, project files and an IndexedDB autosave. Layers under the active one
+  are cached and a brush frame recomposites only the region it painted.
+- Why the GPU: the interpreter runs about 1.4 µs per simple loop iteration, so
+  one pass over 3 million pixels in C# would take about four seconds. Measured
+  on the sample (Intel UHD 620, the GPU waited on): a brush frame 1.9 ms median,
+  2.5 ms p95; Gaussian blur 20 px 50 ms (36 ms of it on the GPU, the rest the
+  readback into the layer); sharpen 33 ms; noise 25 ms.
+- Verified: `tools/e2e/kamargelap.mjs` passes 21 checks that read pixels back
+  (stroke, multiply inside a selection only, black & white on and off restores
+  every value, blur halves the terraces' variance, undo and redo, crop to
+  1000 × 700, PNG decoded at that size, autosave after a reload, no console
+  errors). Every route of every sample renders without console errors;
+  `meet.mjs` passes; `rupa.mjs` passes (its 300-shape drag check sits at the
+  16.7 ms frame budget on this laptop and missed once in six runs). The
+  solution builds without warnings.
+- RustNetRuntime (uncommitted, with the earlier rounds' changes):
+  `"text".AsSpan(...)` (the span helper only took arrays), `Span<char>.ToString()`
+  returning the text (registered with the full library, so the console tier's
+  footprint stays under `MINIMAL_BCL_BYTES`), `int/long.Parse` and `TryParse`
+  honouring `NumberStyles.HexNumber`, spans and providers, and
+  `char.IsAsciiHexDigit`, `IsAsciiHexDigitLower/Upper`, `IsAsciiLetterOrDigit`,
+  `Uri.IsHexDigit`. Conformance check `HexChecks.cs` (476 checks on .NET and on
+  RustCLR); `cargo test --workspace` and `tests/embedded.sh` pass.
+
 ## 2026-10-22: Rupa design-tool sample
 
 - `samples/Rupa`: a Figma-like vector design tool. Routes `/` (files kept in

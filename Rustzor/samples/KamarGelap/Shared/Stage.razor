@@ -1,0 +1,62 @@
+@* The light table. The browser module owns the picture's canvas and the sheet's
+   size and zoom (set as inline styles here, never rendered by C#); C# draws the
+   selection, crop and text outlines over it in document pixels. *@
+@implements IDisposable
+
+<div class="@("kg-stage tool-" + Editor.ToolSlug(Ed.Tool))" @ref="_stage" tabindex="0" aria-label="Picture">
+    <div class="kg-sheet" @ref="_sheet">
+        <div class="kg-film" aria-hidden="true">
+            <span class="kg-film-code top">KG 400 &#9656; @Frame &#9656; @Ed.Doc.W × @Ed.Doc.H</span>
+            <span class="kg-film-code bottom">@Ed.Doc.Name &#9656; @Ed.Doc.Layers.Count LAYERS &#9656; @Pct(Ed.Zoom)</span>
+        </div>
+        <div class="kg-gl" @ref="_gl"></div>
+        <Overlay />
+    </div>
+    <div class="kg-cursor" @ref="_cursor" aria-hidden="true"></div>
+    <div class="kg-pos" @ref="_pos" aria-hidden="true"></div>
+    <div class="kg-drop-hint" data-ui>Drop a photo to place it as a new layer</div>
+</div>
+
+@code {
+    [Parameter] public Action<JsonValue>? OnMessage { get; set; }
+
+    private ElementReference _stage, _sheet, _gl, _cursor, _pos;
+    private int _callback;
+    private long _handle;
+    private IDisposable? _drop;
+
+    private Editor Ed => Session.Editor;
+    private string Frame => (Ed.Index + 1).ToString("00") + (Ed.Index % 2 == 1 ? "A" : "");
+
+    public static string Pct(double z) => Math.Round(z * 100) + "%";
+
+    /// <summary>The stage element, for drag and drop.</summary>
+    public ElementReference Element => _stage;
+
+    protected override void OnInitialized() => Ed.Changed += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser) return;
+        _callback = Callbacks.Register(m => OnMessage?.Invoke(m));
+        _handle = Js.Call("kg.attach", Js.Args("stage", _stage.Id, "sheet", _sheet.Id, "gl", _gl.Id, "cursor", _cursor.Id, "pos", _pos.Id, "id", _callback)).AsLong();
+        _drop = Files.OnDrop(_stage, files =>
+        {
+            foreach (var f in files) Dropped?.Invoke(f);
+        });
+        if (Attached is not null) _ = Attached();
+    }
+
+    [Parameter] public Action<PickedFile>? Dropped { get; set; }
+    [Parameter] public Func<Task>? Attached { get; set; }
+
+    public void Dispose()
+    {
+        Ed.Changed -= Redraw;
+        _drop?.Dispose();
+        if (_handle != 0) Js.Send("kg.detach", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+}

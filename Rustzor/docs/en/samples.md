@@ -119,6 +119,28 @@ Shows: SVG drawn from Razor with one view per layer that renders only when its l
 
 `node tools/e2e/rupa.mjs http://localhost:5310` drives it in headless Chrome with the mouse and keyboard and checks the model after each step (drawing, snapping, resizing, grouping, undo and redo, a component change reaching six instances, overrides, text, the pen, SVG and PNG export, autosave across a reload) and times drags with 300 shapes on the page: about 12 ms of work per move and 56 frames a second (the frame rate headless Chrome runs at). `node tools/e2e/rupa-shots.mjs` takes the screenshots above.
 
+## Kamar Gelap photo editor
+
+`samples/KamarGelap` · `Rustzor.UI`, `Rustzor.Browser.FileSystem`, and a browser module of its own (`rustzor.module.js`) that does the pixel work in WebGL2
+
+A layered photo editor in the manner of Photoshop, kept like a darkroom: warm black chrome, safelight red for whatever is active, developer amber for numbers, and the picture held in a strip of film whose edge prints the frame number, size, layer count and zoom. It opens on *Merapi dari Kaliurang*, a 2000 × 1500 dawn over Merapi and the rice terraces, painted by the app itself (nothing downloaded, nothing licensed), with the edits a photographer would stack on it: a warmer sky, a masked Levels lift for the terraces, a multiply vignette and a caption.
+
+- Layers with opacity, eight blend modes (normal, multiply, screen, overlay, darken, lighten, soft light, difference), visibility, lock, rename, drag to reorder, and layer masks (reveal all, from the selection, enable, apply, delete; Q switches between painting the mask and the pixels). Real thumbnails for layers and masks.
+- Adjustment layers that never touch the pixels below: brightness and contrast, levels, hue and saturation, black and white with a tint. Each has its own mask.
+- Filters on a pixel layer, inside the selection, with a live preview: Gaussian blur, sharpen (unsharp mask), add noise.
+- Tools: move, rectangular and elliptical marquee, lasso (marching ants), crop (Shift keeps the proportions), brush and eraser with size, hardness, opacity, flow and pen pressure, clone stamp (Alt-click the source), gradient (linear, radial, to transparent), paint bucket with tolerance, eyedropper, type layers, hand. Photoshop's shortcuts: V M L C B E S G I T H, X, D, [ and ], 1–0, Ctrl+J, Ctrl+D, Alt+Backspace.
+- Fill and clear the selection, select all, inverse, crop to the selection; a history of the last 40 steps that you can click back through; zoom to the pointer, pan, fit, actual pixels; a live histogram; a colour picker with swatches.
+- Open a photo (or drop one to place it as a layer), export PNG, JPEG or WebP with a quality setting, save and open a `.kamar` project with every layer and mask, and an autosave in IndexedDB that the start page offers to continue.
+
+| | |
+| --- | --- |
+| ![Merapi at dawn, a masked Levels layer, an elliptical selection (dark)](../images/sample-kamargelap.png) | ![The start page](../images/sample-kamargelap-start.png) |
+| ![A black & white layer with a sepia tint, and the history (light)](../images/sample-kamargelap-light.png) | ![Phone](../images/sample-kamargelap-phone.png) |
+
+Shows: C# owning the document (layers, adjustments, selection, history order) and sending it to a browser module as JSON, while the pixels stay in the browser: one 2D canvas per layer and mask, a WebGL2 compositor that blends the stack with each layer's mode, opacity and mask and runs adjustment layers as shaders, filters as shader passes, and copy-on-write snapshots for the history. The layers under the active one are cached, so a brush frame recomposites only from there up, and only where it painted. Per-pixel work in interpreted C# would cost about 1.4 µs a pixel, roughly four seconds for one pass over this picture; on the GPU a whole frame takes about 2 ms.
+
+`node tools/e2e/kamargelap.mjs http://localhost:5320` drives it in headless Chrome and reads the pixels back after each step: a brush stroke, a multiply layer filled inside a selection (the composite equals the base times the fill colour inside it and is unchanged outside), a black & white layer switched on and off (every value comes back), a Gaussian blur (the variance of the terraces halves), undo and redo, a crop to 1000 × 700, a PNG export decoded at that size, and the autosave after a reload. On the 2000 × 1500 sample with five layers, with the GPU waited on, a brush frame takes about 2 ms (p95 2.5 ms), a 20 px Gaussian blur about 50 ms, sharpen about 35 ms and noise about 25 ms (Intel UHD 620). `node tools/e2e/kamargelap-shots.mjs` takes the screenshots above.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -147,4 +169,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Six more samples from the [roadmap](../../PLAN.md) are on the way: a Photoshop-like editor, GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Five more samples from the [roadmap](../../PLAN.md) are on the way: GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.

@@ -1,0 +1,60 @@
+@* Red, green and blue of the composite, sampled when the picture comes to rest. *@
+@implements IDisposable
+
+@{
+    var ed = Session.Editor;
+}
+<figure class="kg-histogram" aria-label="Histogram">
+    <svg viewBox="0 0 128 60" preserveAspectRatio="none" role="img" aria-label="@Label(ed)">
+        @if (ed.HistL is not null)
+        {
+            var max = Peak(ed);
+            <path class="h-l" d="@Area(ed.HistL, max)" />
+            <path class="h-r" d="@Area(ed.HistR!, max)" />
+            <path class="h-g" d="@Area(ed.HistG!, max)" />
+            <path class="h-b" d="@Area(ed.HistB!, max)" />
+        }
+    </svg>
+    <figcaption><span>Shadows</span><span>Midtones</span><span>Highlights</span></figcaption>
+</figure>
+
+@code {
+    protected override void OnInitialized() => Session.Editor.HistogramChanged += Redraw;
+
+    private void Redraw() => StateHasChanged();
+
+    // The tallest bin, ignoring pure black and white so a clipped edge does not flatten the rest.
+    private static double Peak(Editor ed)
+    {
+        var m = 1.0;
+        foreach (var a in new[] { ed.HistR!, ed.HistG!, ed.HistB! })
+            for (var i = 1; i < a.Length - 1; i++) m = Math.Max(m, a[i]);
+        return m;
+    }
+
+    private static string Area(int[] bins, double max)
+    {
+        var sb = new System.Text.StringBuilder("M0 60");
+        for (var i = 0; i < bins.Length; i++)
+        {
+            var y = 60 - Math.Min(60, bins[i] / max * 56);
+            sb.Append('L').Append(i).Append(' ').Append(Math.Round(y, 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        return sb.Append("L127 60Z").ToString();
+    }
+
+    private static string Label(Editor ed)
+    {
+        if (ed.HistL is null) return "Histogram, waiting for the picture";
+        long total = 0, weighted = 0;
+        for (var i = 0; i < ed.HistL.Length; i++)
+        {
+            total += ed.HistL[i];
+            weighted += ed.HistL[i] * (long)i;
+        }
+        var mean = total == 0 ? 0 : weighted * 2 / total;
+        return "Histogram, mean brightness " + mean + " of 255";
+    }
+
+    public void Dispose() => Session.Editor.HistogramChanged -= Redraw;
+}

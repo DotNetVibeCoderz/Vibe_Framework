@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- A Rustzor sample app: a layered photo editor. Built by Gravicode Studios, led by Kang Fadhil. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>KamarGelap</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The pixel engine: WebGL2 compositing, brushes, filters, history snapshots, files. -->
+    <EmbeddedResource Include="rustzor.module.js" LogicalName="rustzor.module.js" />
+    <ProjectReference Include="..\..\src\Rustzor.UI\Rustzor.UI.csproj" />
+    <ProjectReference Include="..\..\src\Browser\Rustzor.Browser.FileSystem\Rustzor.Browser.FileSystem.csproj" />
+  </ItemGroup>
+</Project>

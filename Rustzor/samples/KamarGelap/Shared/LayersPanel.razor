@@ -1,0 +1,150 @@
+@* The layer stack, top layer first, with real thumbnails drawn by the browser module. *@
+@{
+    var ed = Session.Editor;
+    var d = ed.Doc;
+    var active = d.ActiveLayer;
+}
+<section class="kg-layers" @ref="_root" aria-label="Layers">
+    <div class="kg-layer-mix">
+        <select class="kg-select" aria-label="Blend mode" disabled="@(active is null || active.Kind == LayerKind.Adjust)" @onchange="@(e => ed.SetBlend(e.Value?.ToString() ?? "normal"))">
+            @foreach (var b in Layer.Blends)
+            {
+                <option value="@b" selected="@(active?.Blend == b)">@Layer.BlendLabel(b)</option>
+            }
+        </select>
+        <label class="kg-opacity">
+            <span>Opacity</span>
+            <input type="range" min="0" max="100" step="1" value="@(active?.Opacity ?? 100)" style="@("--b:" + (active?.Opacity ?? 100) + "%")" aria-label="Layer opacity"
+                   @oninput="e => ed.SetOpacityLive(Num(e.Value))" @onchange="@(_ => ed.Commit("Opacity " + (active?.Opacity ?? 100) + "%"))" />
+            <output>@(active?.Opacity ?? 100)%</output>
+        </label>
+    </div>
+
+    <ol class="kg-layer-list" role="listbox" aria-label="Layer stack">
+        @for (var i = d.Layers.Count - 1; i >= 0; i--)
+        {
+            var l = d.Layers[i];
+            var isActive = l.Id == d.Active;
+            <li class="@("kg-layer" + (isActive ? " on" : "") + (l.Visible ? "" : " hidden-layer") + (_dragOver == l.Id ? " drop" : ""))"
+                role="option" aria-selected="@(isActive ? "true" : "false")" draggable="true"
+                @onclick="() => ed.Select(l.Id)"
+                @ondragstart="() => _drag = l.Id" @ondragover="() => _dragOver = l.Id" @ondragover:preventDefault="true"
+                @ondragleave="() => _dragOver = null" @ondrop="() => Drop(l.Id)" @ondrop:preventDefault="true">
+                <button class="kg-eye" title="@(l.Visible ? "Hide" : "Show")" aria-label="@((l.Visible ? "Hide " : "Show ") + l.Name)" @onclick="() => ed.ToggleVisible(l.Id)" @onclick:stopPropagation="true">
+                    <Glyph Name="@(l.Visible ? "eye" : "eye-off")" Size="16" />
+                </button>
+                <span class="@("kg-thumb" + (isActive && !ed.OnMask ? " target" : ""))" @onclick="() => Target(l, false)">
+                    @if (l.Kind == LayerKind.Adjust)
+                    {
+                        <Glyph Name="adjust" Size="18" />
+                    }
+                    else
+                    {
+                        <canvas width="44" height="33" data-thumb="@l.Id"></canvas>
+                        @if (l.Kind == LayerKind.Text)
+                        {
+                            <span class="kg-thumb-badge">T</span>
+                        }
+                    }
+                </span>
+                @if (l.HasMask)
+                {
+                    <span class="@("kg-thumb mask" + (isActive && ed.OnMask ? " target" : "") + (l.MaskOn ? "" : " off"))" title="Layer mask: click to paint on it" @onclick="() => Target(l, true)" @onclick:stopPropagation="true">
+                        <canvas width="44" height="33" data-thumb="@l.Id" data-mask="1"></canvas>
+                    </span>
+                }
+                @if (_renaming == l.Id)
+                {
+                    <input class="kg-rename" value="@l.Name" aria-label="Layer name" @onchange="e => Rename(l.Id, e.Value)" @onblur="() => _renaming = null" @onclick:stopPropagation="true" />
+                }
+                else
+                {
+                    <span class="kg-layer-name" @ondblclick="() => _renaming = l.Id">
+                        <span class="kg-layer-title">@l.Name</span>
+                        <span class="kg-layer-meta">@Meta(l)</span>
+                    </span>
+                }
+                <button class="@("kg-lock" + (l.Locked ? " on" : ""))" title="@(l.Locked ? "Unlock" : "Lock")" aria-label="@((l.Locked ? "Unlock " : "Lock ") + l.Name)" @onclick="() => ed.ToggleLock(l.Id)" @onclick:stopPropagation="true">
+                    <Glyph Name="lock" Size="14" />
+                </button>
+            </li>
+        }
+    </ol>
+
+    <div class="kg-layer-tools">
+        <button class="kg-icon-btn" title="New layer (Ctrl Shift N)" aria-label="New layer" @onclick="ed.NewLayer"><Glyph Name="plus" /></button>
+        <div class="kg-pop-wrap">
+            <button class="kg-icon-btn" title="New adjustment layer" aria-label="New adjustment layer" aria-expanded="@(_adjMenu ? "true" : "false")" @onclick="() => _adjMenu = !_adjMenu"><Glyph Name="adjust" /></button>
+            @if (_adjMenu)
+            {
+                <div class="kg-pop up" role="menu" @onclick="() => _adjMenu = false">
+                    @foreach (var k in new[] { AdjustKind.BrightnessContrast, AdjustKind.Levels, AdjustKind.HueSaturation, AdjustKind.BlackWhite })
+                    {
+                        <button role="menuitem" @onclick="() => ed.AddAdjustment(k)">@Layer.AdjustLabel(k)</button>
+                    }
+                </div>
+            }
+        </div>
+        <button class="kg-icon-btn" title="@(d.Sel is null ? "Add a layer mask" : "Add a mask from the selection")" aria-label="Add layer mask" disabled="@(active is null || active.HasMask)" @onclick="() => ed.AddMask(true)"><Glyph Name="mask" /></button>
+        <button class="kg-icon-btn" title="Duplicate (Ctrl J)" aria-label="Duplicate layer" @onclick="ed.Duplicate"><Glyph Name="copy" /></button>
+        <span class="kg-grow"></span>
+        <button class="kg-icon-btn" title="Bring forward (Ctrl ])" aria-label="Bring forward" @onclick="() => ed.MoveLayer(1)"><Glyph Name="up" /></button>
+        <button class="kg-icon-btn" title="Send backward (Ctrl [)" aria-label="Send backward" @onclick="() => ed.MoveLayer(-1)"><Glyph Name="down" /></button>
+        <button class="kg-icon-btn danger" title="Delete layer" aria-label="Delete layer" @onclick="ed.Delete"><Glyph Name="trash" /></button>
+    </div>
+</section>
+
+@code {
+    /// <summary>Changes whenever the editor does, so the panel draws again with the page.</summary>
+    [Parameter] public int Tick { get; set; }
+
+    private ElementReference _root;
+    private string? _renaming;
+    private string? _drag;
+    private string? _dragOver;
+    private bool _adjMenu;
+    private string _thumbKey = "";
+
+    private static double Num(object? v) => double.TryParse(v?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0;
+
+    private static string Meta(Layer l)
+    {
+        var kind = l.Kind == LayerKind.Adjust ? Layer.AdjustLabel(l.Adjust) : l.Kind == LayerKind.Text ? "Type" : "Pixels";
+        var mix = l.Kind == LayerKind.Adjust ? "" : " · " + Layer.BlendLabel(l.Blend);
+        return kind + mix + (l.Opacity < 100 ? " · " + l.Opacity + "%" : "");
+    }
+
+    private void Target(Layer l, bool mask)
+    {
+        Session.Editor.Select(l.Id);
+        Session.Editor.SetPaintTarget(mask);
+    }
+
+    private void Rename(string id, object? value)
+    {
+        _renaming = null;
+        Session.Editor.Rename(id, value?.ToString() ?? "");
+    }
+
+    private void Drop(string target)
+    {
+        var from = _drag;
+        _drag = null;
+        _dragOver = null;
+        if (from is not null && from != target) Session.Editor.Reorder(from, target);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!Js.IsBrowser) return;
+        var ed = Session.Editor;
+        // The thumbnails change only with a new step or a different stack.
+        var key = ed.Version + "|" + string.Join(",", ed.Doc.Layers.Select(l => l.Id + (l.HasMask ? "m" : "")));
+        if (key == _thumbKey) return;
+        _thumbKey = key;
+        Js.Send("kg.thumbs", Js.Args("el", _root.Id));
+    }
+
+    /// <summary>Draws the thumbnails again on the next render.</summary>
+    public void Invalidate() => _thumbKey = "";
+}

@@ -1,0 +1,25 @@
+@* The history as a strip of frames: click one to go back to it; later frames stay until a new edit. *@
+@{
+    var ed = Session.Editor;
+}
+<section class="kg-history" aria-label="History">
+    <ol class="kg-steps">
+        @for (var i = ed.Steps.Count - 1; i >= 0; i--)
+        {
+            var n = i;
+            var step = ed.Steps[i];
+            <li>
+                <button class="@("kg-step" + (n == ed.Index ? " on" : n > ed.Index ? " ahead" : ""))" aria-current="@(n == ed.Index ? "step" : null)" @onclick="() => ed.JumpTo(n)">
+                    <span class="kg-step-no">@((n + 1).ToString("00"))</span>
+                    <span class="kg-step-label">@step.Label</span>
+                </button>
+            </li>
+        }
+    </ol>
+    <p class="kg-hint">Keeps the last @Editor.MaxSteps steps. Ctrl Z steps back, Ctrl Shift Z forward.</p>
+</section>
+
+@code {
+    /// <summary>Changes whenever the editor does, so the panel draws again with the page.</summary>
+    [Parameter] public int Tick { get; set; }
+}

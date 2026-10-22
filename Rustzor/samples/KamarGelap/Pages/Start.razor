@@ -1,0 +1,172 @@
+@page "/"
+@inject NavigationManager Nav
+
+<div class="kg-start">
+    <header class="kg-start-bar">
+        <span class="kg-brand"><span class="kg-lamp" aria-hidden="true"></span><span class="kg-word">Kamar Gelap</span></span>
+        <span class="kg-grow"></span>
+        <ThemeToggle />
+    </header>
+
+    <main class="kg-start-main">
+        <section class="kg-start-intro">
+            <p class="kg-eyebrow">Darkroom · layered photo editor</p>
+            <h1>Bring the picture up slowly.</h1>
+            <p class="kg-lede">Layers with blend modes and masks, adjustment layers you can change later, brushes, selections, filters and a full history. The pixels are worked on your graphics card; nothing leaves this browser.</p>
+            <div class="kg-start-actions">
+                <button class="kg-btn primary" @onclick="OpenSample"><Glyph Name="image" /> Open the sample: Merapi at dawn</button>
+                <button class="kg-btn" @onclick="OpenPhoto"><Glyph Name="open" /> Open a photo…</button>
+                <button class="kg-btn ghost" @onclick="OpenProject"><Glyph Name="layers" /> Open a project…</button>
+            </div>
+        </section>
+
+        @if (_saved is { } s)
+        {
+            <section class="kg-continue" aria-label="Continue editing">
+                <button class="kg-continue-card" @onclick="Continue">
+                    <span class="kg-film-edge top" aria-hidden="true"><span>KG 400</span><span>▸ 1A</span></span>
+                    @if (s.Thumb.Length > 0)
+                    {
+                        <img src="@s.Thumb" alt="" />
+                    }
+                    <span class="kg-film-edge bottom" aria-hidden="true"><span>@s.W × @s.H</span><span>@s.Layers layers</span></span>
+                </button>
+                <div class="kg-continue-text">
+                    <p class="kg-eyebrow">Left on the bench</p>
+                    <h2>@s.Name</h2>
+                    <p class="kg-muted">Saved in this browser @Ago(s.Saved). Every layer and mask is kept.</p>
+                    <div class="kg-start-actions">
+                        <button class="kg-btn primary" @onclick="Continue">Continue editing</button>
+                        <button class="kg-btn ghost" @onclick="Forget">Forget it</button>
+                    </div>
+                </div>
+            </section>
+        }
+
+        <section class="kg-sheet-list" aria-label="New canvas">
+            <div class="kg-section-head">
+                <h2>New canvas</h2>
+                <div class="kg-seg" role="radiogroup" aria-label="Background">
+                    @foreach (var (value, label) in Backgrounds)
+                    {
+                        <button role="radio" aria-checked="@(_bg == value ? "true" : "false")" class="@(_bg == value ? "on" : "")" @onclick="() => _bg = value">@label</button>
+                    }
+                </div>
+            </div>
+            <div class="kg-frames">
+                @for (var i = 0; i < Presets.Length; i++)
+                {
+                    var p = Presets[i];
+                    var n = i + 1;
+                    <button class="kg-frame" @onclick="() => New(p.W, p.H, p.Name)">
+                        <span class="kg-frame-no">@(n.ToString("00"))</span>
+                        <span class="kg-frame-box"><span class="@("kg-frame-shape bg-" + BgClass)" style="@ShapeStyle(p.W, p.H)"></span></span>
+                        <span class="kg-frame-name">@p.Name</span>
+                        <span class="kg-frame-size">@p.W × @p.H</span>
+                    </button>
+                }
+            </div>
+        </section>
+    </main>
+
+    <footer class="kg-start-foot">
+        <span>A Rustzor sample · C# on RustNetRuntime, pixels in WebGL2</span>
+        <span>Built by Gravicode Studios, led by Kang Fadhil · Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil</span>
+    </footer>
+</div>
+
+@code {
+    private sealed record SavedPicture(string Name, int W, int H, string Thumb, DateTime Saved, int Layers);
+    private SavedPicture? _saved;
+    private string _bg = "#ffffff";
+
+    private static readonly (string Value, string Label)[] Backgrounds = { ("#ffffff", "White"), ("#14100e", "Black"), ("transparent", "Transparent") };
+    private static readonly (int W, int H, string Name)[] Presets =
+    {
+        (2000, 1500, "35 mm, 4 : 3"),
+        (1920, 1080, "Screen, 16 : 9"),
+        (1080, 1350, "Portrait post, 4 : 5"),
+        (2400, 2400, "Medium format, square"),
+        (1240, 1754, "A5 print, 150 dpi"),
+    };
+
+    private string BgClass => _bg == "transparent" ? "clear" : _bg == "#ffffff" ? "white" : "black";
+
+    private static string ShapeStyle(int w, int h)
+    {
+        var s = 64.0 / Math.Max(w, h);
+        return "width:" + Math.Round(w * s) + "px;height:" + Math.Round(h * s) + "px";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Js.IsBrowser) return;
+        try
+        {
+            var info = await Js.CallAsync("kg.savedInfo");
+            if (info.IsObject)
+            {
+                var meta = JsonValue.Parse(info["meta"].AsString());
+                _saved = new SavedPicture(meta["name"].AsStringOrNull() ?? "Untitled", info["w"].AsInt(), info["h"].AsInt(), info["thumb"].AsString(),
+                    DateTimeOffset.FromUnixTimeMilliseconds(info["saved"].AsLong()).UtcDateTime, meta["layers"].Count);
+                StateHasChanged();
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("No saved picture: " + e.Message);
+        }
+    }
+
+    private static string Ago(DateTime t)
+    {
+        var d = DateTime.UtcNow - t;
+        if (d.TotalSeconds < 60) return "a moment ago";
+        if (d.TotalMinutes < 60) return (int)d.TotalMinutes + " min ago";
+        if (d.TotalHours < 24) return (int)d.TotalHours + " h ago";
+        return "on " + t.ToLocalTime().ToString("d MMM yyyy");
+    }
+
+    private void Go(string pending)
+    {
+        Session.Pending = pending;
+        Nav.NavigateTo("edit");
+    }
+
+    private void OpenSample() => Go("sample");
+    private void Continue() => Go("continue");
+
+    private void New(int w, int h, string name)
+    {
+        Session.NewW = w;
+        Session.NewH = h;
+        Session.NewBackground = _bg;
+        Session.FileName = name;
+        Go("new");
+    }
+
+    private async Task OpenPhoto()
+    {
+        var picked = await Files.PickAsync("image/*");
+        if (picked.Count == 0) return;
+        Session.FileHandle = picked[0].Handle;
+        Session.FileName = picked[0].Name;
+        Go("image");
+    }
+
+    private async Task OpenProject()
+    {
+        var picked = await Files.PickAsync(".kamar,.json,application/json");
+        if (picked.Count == 0) return;
+        Session.FileHandle = picked[0].Handle;
+        Session.FileName = picked[0].Name;
+        Go("project");
+    }
+
+    private async Task Forget()
+    {
+        await Js.CallAsync("kg.forget");
+        _saved = null;
+        Toasts.Info("The saved picture is gone from this browser.");
+    }
+}

@@ -1,0 +1,162 @@
+@* What the active layer is made of: an adjustment's settings, a caption's type, a mask. *@
+@{
+    var ed = Session.Editor;
+    var l = ed.Doc.ActiveLayer;
+}
+<section class="kg-props" aria-label="Properties">
+    @if (l is null)
+    {
+        <p class="kg-muted">No layer is selected.</p>
+    }
+    else if (l.Kind == LayerKind.Adjust)
+    {
+        <header class="kg-props-head">
+            <Glyph Name="adjust" />
+            <h3>@Layer.AdjustLabel(l.Adjust)</h3>
+            <button class="kg-link" @onclick="ed.ResetAdjustment">Reset</button>
+        </header>
+        @foreach (var s in Sliders(l.Adjust))
+        {
+            var i = s.Index;
+            <label class="kg-slider">
+                <span class="kg-slider-label">@s.Label</span>
+                <input type="range" min="@F(s.Min)" max="@F(s.Max)" step="@F(s.Step)" value="@F(l.P[i])" style="@Track(s, l.P[i])"
+                       @oninput="e => ed.SetParamLive(i, Num(e.Value))" @onchange="@(_ => ed.Commit(Layer.AdjustLabel(l.Adjust) + ": " + s.Label.ToLowerInvariant()))" />
+                <output>@Show(s, l.P[i])</output>
+            </label>
+        }
+        <p class="kg-hint">The picture below is never changed: hide this layer, lower its opacity or paint its mask black to hold it back.</p>
+    }
+    else if (l.Kind == LayerKind.Text)
+    {
+        <header class="kg-props-head">
+            <Glyph Name="text" />
+            <h3>Type</h3>
+            <button class="kg-link" @onclick="ed.Rasterize">Rasterize</button>
+        </header>
+        <textarea class="kg-textarea" rows="2" @ref="_text" value="@l.Text" aria-label="Text" spellcheck="false"
+                  @onchange="@(e => ed.EditText(t => t.Text = e.Value?.ToString() ?? "", "Edit text"))"></textarea>
+        <div class="kg-row">
+            <select class="kg-select" aria-label="Typeface" @onchange="@(e => ed.EditText(t => t.Font = e.Value?.ToString() ?? "DM Serif Display", "Typeface"))">
+                @foreach (var f in Fonts)
+                {
+                    <option value="@f" selected="@(l.Font == f)">@f</option>
+                }
+            </select>
+            <input class="kg-num" type="number" min="6" max="800" value="@F(l.Size)" aria-label="Size in pixels"
+                   @onchange="@(e => ed.EditText(t => t.Size = Math.Clamp(Num(e.Value), 6, 800), "Type size"))" />
+        </div>
+        <div class="kg-row">
+            <div class="kg-seg" role="radiogroup" aria-label="Alignment">
+                @foreach (var a in new[] { "left", "center", "right" })
+                {
+                    <button role="radio" aria-checked="@(l.Align == a ? "true" : "false")" class="@(l.Align == a ? "on" : "")" @onclick="@(() => ed.EditText(t => t.Align = a, "Align " + a))">@(a == "center" ? "Centre" : char.ToUpperInvariant(a[0]) + a.Substring(1))</button>
+                }
+            </div>
+            <button class="@("kg-chip" + (l.Italic ? " on" : ""))" aria-pressed="@(l.Italic ? "true" : "false")" @onclick="@(() => ed.EditText(t => t.Italic = !t.Italic, "Italic"))"><em>Italic</em></button>
+        </div>
+        <div class="kg-row">
+            <span class="kg-swatch-sm" style="@("background:" + l.Color)"></span>
+            <span class="kg-mono">@l.Color</span>
+            <span class="kg-grow"></span>
+            <button class="kg-btn small" @onclick="@(() => ed.EditText(t => t.Color = ed.Fg, "Type colour"))">Use foreground</button>
+        </div>
+    }
+    else
+    {
+        <header class="kg-props-head">
+            <Glyph Name="image" />
+            <h3>Pixels</h3>
+            <span class="kg-mono kg-muted">@(l.X == 0 && l.Y == 0 ? "in place" : "moved " + l.X + ", " + l.Y)</span>
+        </header>
+        <div class="kg-quick">
+            <button class="kg-btn small" @onclick="@(() => OnFilter.InvokeAsync("blur"))" disabled="@(!ed.CanFilter)">Gaussian blur…</button>
+            <button class="kg-btn small" @onclick="@(() => OnFilter.InvokeAsync("sharpen"))" disabled="@(!ed.CanFilter)">Sharpen…</button>
+            <button class="kg-btn small" @onclick="@(() => OnFilter.InvokeAsync("noise"))" disabled="@(!ed.CanFilter)">Add noise…</button>
+        </div>
+    }
+
+    @if (l is not null)
+    {
+        <div class="kg-mask-box">
+            <header class="kg-props-head">
+                <Glyph Name="mask" />
+                <h3>Mask</h3>
+                @if (l.HasMask)
+                {
+                    <span class="@("kg-tag" + (ed.OnMask ? " live" : ""))">@(ed.OnMask ? "Painting the mask" : "Painting pixels")</span>
+                }
+            </header>
+            @if (l.HasMask)
+            {
+                <p class="kg-hint">Black hides, white shows, grey lets some through. Press Q to switch between the mask and the pixels.</p>
+                <div class="kg-quick">
+                    <button class="kg-btn small" @onclick="() => ed.SetPaintTarget(!ed.OnMask)" disabled="@(l.Kind == LayerKind.Adjust)">@(ed.OnMask ? "Paint pixels" : "Paint the mask")</button>
+                    <button class="kg-btn small" @onclick="ed.ToggleMask">@(l.MaskOn ? "Disable" : "Enable")</button>
+                    @if (l.Kind == LayerKind.Pixel)
+                    {
+                        <button class="kg-btn small" @onclick="() => ed.RemoveMask(true)">Apply</button>
+                    }
+                    <button class="kg-btn small" @onclick="() => ed.RemoveMask(false)">Delete</button>
+                </div>
+            }
+            else
+            {
+                <div class="kg-quick">
+                    <button class="kg-btn small" @onclick="() => ed.AddMask(false)">Reveal all</button>
+                    <button class="kg-btn small" @onclick="() => ed.AddMask(true)" disabled="@(ed.Doc.Sel is null)">From selection</button>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>Changes whenever the editor does, so the panel draws again with the page.</summary>
+    [Parameter] public int Tick { get; set; }
+
+    [Parameter] public EventCallback<string> OnFilter { get; set; }
+
+    private ElementReference _text;
+
+    private static readonly string[] Fonts = { "DM Serif Display", "Fraunces", "Manrope", "Martian Mono" };
+
+    private sealed record Slider(int Index, string Label, double Min, double Max, double Step, double Zero = 0, string Unit = "");
+
+    private static IEnumerable<Slider> Sliders(AdjustKind k) => k switch
+    {
+        AdjustKind.BrightnessContrast => new[] { new Slider(0, "Brightness", -100, 100, 1), new Slider(1, "Contrast", -100, 100, 1) },
+        AdjustKind.Levels => new[]
+        {
+            new Slider(0, "Input black", 0, 250, 1, -1), new Slider(1, "Input white", 5, 255, 1, -1), new Slider(2, "Midtones", 0.1, 3, 0.01, 1),
+            new Slider(3, "Output black", 0, 250, 1, -1), new Slider(4, "Output white", 5, 255, 1, -1),
+        },
+        AdjustKind.HueSaturation => new[] { new Slider(0, "Hue", -180, 180, 1, 0, "°"), new Slider(1, "Saturation", -100, 100, 1), new Slider(2, "Lightness", -100, 100, 1) },
+        _ => new[]
+        {
+            new Slider(0, "Reds", -50, 200, 1, -1, "%"), new Slider(1, "Greens", -50, 200, 1, -1, "%"), new Slider(2, "Blues", -50, 200, 1, -1, "%"),
+            new Slider(3, "Tint hue", 0, 360, 1, -1, "°"), new Slider(4, "Tint", 0, 100, 1, 0, "%"),
+        },
+    };
+
+    // A bipolar slider fills from its zero; the others from the left.
+    private static string Track(Slider s, double v)
+    {
+        var p = (v - s.Min) / (s.Max - s.Min) * 100;
+        if (s.Zero < 0 || s.Zero < s.Min) return "--a:0%;--b:" + F(p) + "%";
+        var z = (s.Zero - s.Min) / (s.Max - s.Min) * 100;
+        return "--a:" + F(Math.Min(z, p)) + "%;--b:" + F(Math.Max(z, p)) + "%";
+    }
+
+    private static string Show(Slider s, double v) => (s.Step < 1 ? v.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) : (v > 0 && s.Min < 0 ? "+" : "") + Math.Round(v)) + s.Unit;
+
+    private static string F(double v) => Math.Round(v, 3).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static double Num(object? v) => double.TryParse(v?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0;
+
+    public async Task FocusText()
+    {
+        await _text.FocusAsync();
+        Js.Send("dom.el", Js.Args("el", _text.Id, "call", "select"));
+    }
+}

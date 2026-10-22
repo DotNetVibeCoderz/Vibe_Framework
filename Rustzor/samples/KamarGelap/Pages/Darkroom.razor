@@ -1,0 +1,582 @@
+@page "/edit"
+@implements IDisposable
+@inject NavigationManager Nav
+
+@{
+    var ed = Session.Editor;
+    var d = ed.Doc;
+}
+<div class="@("kg-app" + (_sheet ? " sheet-open" : ""))">
+    <header class="kg-bar">
+        <a class="kg-brand" href="" title="Back to the start"><span class="kg-lamp" aria-hidden="true"></span><span class="kg-word">Kamar Gelap</span></a>
+        <nav class="kg-menus" aria-label="Menus">
+            @foreach (var menu in Menus)
+            {
+                <div class="kg-menu-wrap">
+                    <button class="@("kg-menu-btn" + (_menu == menu ? " on" : ""))" aria-expanded="@(_menu == menu ? "true" : "false")" @onclick="() => _menu = _menu == menu ? null : menu">@menu</button>
+                    @if (_menu == menu)
+                    {
+                        <div class="kg-pop" role="menu" @onclick="() => _menu = null">
+                            @foreach (var (label, key, action, enabled) in Items(menu))
+                            {
+                                if (label == "-")
+                                {
+                                    <hr />
+                                }
+                                else
+                                {
+                                    <button role="menuitem" disabled="@(!enabled)" @onclick="action">@label @if (key.Length > 0) { <kbd>@key</kbd> }</button>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </nav>
+        <div class="kg-doc-title">
+            <input class="kg-doc-name" value="@d.Name" aria-label="Picture name" spellcheck="false" @onchange="Rename" />
+            <span class="@("kg-save " + _saveState)">@SaveText</span>
+        </div>
+        <span class="kg-grow"></span>
+        <div class="kg-cluster">
+            <button class="kg-icon-btn" title="Undo (Ctrl Z)" aria-label="Undo" disabled="@(!ed.CanUndo)" @onclick="ed.Undo"><Glyph Name="undo" /></button>
+            <button class="kg-icon-btn" title="Redo (Ctrl Shift Z)" aria-label="Redo" disabled="@(!ed.CanRedo)" @onclick="ed.Redo"><Glyph Name="redo" /></button>
+        </div>
+        <div class="kg-cluster kg-zoom">
+            <button class="kg-icon-btn" title="Zoom out (Ctrl −)" aria-label="Zoom out" @onclick="@(() => View("out"))"><Glyph Name="minus" /></button>
+            <button class="kg-zoom-val" title="Fit on screen (Ctrl 0)" @onclick="@(() => View("fit"))">@Stage.Pct(ed.Zoom)</button>
+            <button class="kg-icon-btn" title="Zoom in (Ctrl +)" aria-label="Zoom in" @onclick="@(() => View("in"))"><Glyph Name="plus" /></button>
+        </div>
+        <button class="kg-btn small primary kg-export-btn" @onclick="OpenExport"><Glyph Name="export" Size="16" /> Export</button>
+        <ThemeToggle />
+    </header>
+
+    <OptionsBar Tick="_tick" />
+
+    <div class="kg-body">
+        <ToolRail Tick="_tick" OnColour="@(() => { _tab = "colour"; _sheet = true; })" />
+        <Stage OnMessage="OnMessage" Dropped="Dropped" Attached="Attached" />
+        <aside class="kg-side" aria-label="Panels">
+            <button class="kg-sheet-close" aria-label="Close panels" @onclick="() => _sheet = false"><Glyph Name="close" /></button>
+            <Histogram />
+            <div class="kg-tabs" role="tablist">
+                @foreach (var (key, label) in Tabs)
+                {
+                    <button role="tab" aria-selected="@(_tab == key ? "true" : "false")" class="@(_tab == key ? "on" : "")" @onclick="() => _tab = key">@label</button>
+                }
+            </div>
+            <div class="kg-tab-body">
+                @if (_tab == "props")
+                {
+                    <PropsPanel @ref="_props" Tick="_tick" OnFilter="OpenFilter" />
+                }
+                else if (_tab == "colour")
+                {
+                    <ColorPanel Tick="_tick" />
+                }
+                else
+                {
+                    <HistoryPanel Tick="_tick" />
+                }
+            </div>
+            <LayersPanel Tick="_tick" />
+        </aside>
+    </div>
+
+    <footer class="kg-status">
+        <span class="kg-mono">@d.W × @d.H px</span>
+        <span>@d.Layers.Count layers</span>
+        @if (d.Sel is { } s)
+        {
+            var b = s.Bounds();
+            <span class="kg-mono">selection @Math.Round(b.W) × @Math.Round(b.H)@(s.Inverted ? " inverted" : "")</span>
+        }
+        <span class="kg-grow"></span>
+        <button class="kg-sheet-toggle" @onclick="() => _sheet = !_sheet"><Glyph Name="layers" Size="16" /> Layers &amp; adjustments</button>
+        <span class="kg-credit">Built by Gravicode Studios, led by Kang Fadhil</span>
+    </footer>
+</div>
+
+<Modal Open="_filter is not null" OpenChanged="FilterClosed" Title="@FilterTitle">
+    <ChildContent>
+        @if (_filter == "noise")
+        {
+            <label class="kg-slider">
+                <span class="kg-slider-label">Amount</span>
+                <input type="range" min="1" max="100" step="1" value="@_amount" @oninput="e => { _amount = Num(e.Value); Preview(); }" />
+                <output>@_amount%</output>
+            </label>
+            <label class="kg-check"><input type="checkbox" checked="@_mono" @onchange="e => { _mono = e.Value is true; Preview(); }" /> Monochromatic, like film grain</label>
+        }
+        else
+        {
+            <label class="kg-slider">
+                <span class="kg-slider-label">Radius</span>
+                <input type="range" min="@(_filter == "sharpen" ? "0.5" : "0.5")" max="@(_filter == "sharpen" ? "12" : "120")" step="0.5" value="@F(_radius)" @oninput="e => { _radius = Num(e.Value); Preview(); }" />
+                <output>@F(_radius) px</output>
+            </label>
+            @if (_filter == "sharpen")
+            {
+                <label class="kg-slider">
+                    <span class="kg-slider-label">Amount</span>
+                    <input type="range" min="10" max="400" step="5" value="@_amount" @oninput="e => { _amount = Num(e.Value); Preview(); }" />
+                    <output>@_amount%</output>
+                </label>
+            }
+        }
+        <p class="kg-hint">
+            Works on “@(d.ActiveLayer?.Name)”@(d.Sel is null ? "" : ", inside the selection"). The preview is on the picture.
+            @if (_filterMs > 0)
+            {
+                <span class="kg-mono"> Last pass @(_filterMs) ms.</span>
+            }
+        </p>
+    </ChildContent>
+    <Footer>
+        <button class="kg-btn" @onclick="() => FilterClosed(false)">Cancel</button>
+        <button class="kg-btn primary" @onclick="ApplyFilter">Apply</button>
+    </Footer>
+</Modal>
+
+<Modal Open="_export" OpenChanged="v => _export = v" Title="Export the picture">
+    <ChildContent>
+        <label class="kg-field"><span>File name</span><input class="kg-input" value="@_exportName" @onchange="e => _exportName = e.Value?.ToString() ?? _exportName" /></label>
+        <div class="kg-seg" role="radiogroup" aria-label="Format">
+            @foreach (var (type, label) in Formats)
+            {
+                <button role="radio" aria-checked="@(_format == type ? "true" : "false")" class="@(_format == type ? "on" : "")" @onclick="() => _format = type">@label</button>
+            }
+        </div>
+        @if (_format != "image/png")
+        {
+            <label class="kg-slider">
+                <span class="kg-slider-label">Quality</span>
+                <input type="range" min="10" max="100" step="1" value="@_quality" style="@("--b:" + F((_quality - 10) / 0.9) + "%")" @oninput="e => _quality = Num(e.Value)" />
+                <output>@_quality</output>
+            </label>
+        }
+        <p class="kg-hint">@d.W × @d.H pixels, every visible layer flattened. @(_format == "image/png" ? "PNG keeps transparency." : "Transparent areas become white.")</p>
+    </ChildContent>
+    <Footer>
+        <button class="kg-btn" @onclick="() => _export = false">Cancel</button>
+        <button class="kg-btn primary" @onclick="Export"><Glyph Name="export" Size="16" /> Export @Ext</button>
+    </Footer>
+</Modal>
+
+@code {
+    private string? _menu;
+    private string _tab = "props";
+    private bool _sheet;
+    private PropsPanel? _props;
+    private string _saveState = "";
+    private int _saveTimer;
+
+    private static readonly string[] Menus = { "File", "Edit", "Image", "Layer", "Select", "Filter", "View" };
+    private static readonly (string, string)[] Tabs = { ("props", "Properties"), ("colour", "Colour"), ("history", "History") };
+    private static readonly (string, string)[] Formats = { ("image/png", "PNG"), ("image/jpeg", "JPEG"), ("image/webp", "WebP") };
+
+    private string SaveText => _saveState switch { "saving" => "Saving…", "saved" => "Saved in this browser", "failed" => "Not saved", _ => "" };
+
+    private IEnumerable<(string Label, string Key, Action Action, bool Enabled)> Items(string menu)
+    {
+        var ed = Session.Editor;
+        var sel = ed.Doc.Sel is not null;
+        var pixel = ed.Doc.ActiveLayer?.Kind == LayerKind.Pixel;
+        return menu switch
+        {
+            "File" => new (string, string, Action, bool)[]
+            {
+                ("New canvas…", "", () => Nav.NavigateTo(""), true),
+                ("Open a photo…", "Ctrl O", () => _ = OpenPhoto(), true),
+                ("Open a project…", "", () => _ = OpenProject(), true),
+                ("Place a photo as a layer…", "", () => _ = PlacePhoto(), true),
+                ("-", "", () => { }, true),
+                ("Save the project…", "Ctrl S", () => _ = SaveProject(), true),
+                ("Export…", "Ctrl Shift S", OpenExport, true),
+                ("-", "", () => { }, true),
+                ("Open the sample again", "", ResetSample, true),
+            },
+            "Edit" => new (string, string, Action, bool)[]
+            {
+                ("Undo " + (ed.CanUndo ? ed.Steps[ed.Index].Label.ToLowerInvariant() : ""), "Ctrl Z", ed.Undo, ed.CanUndo),
+                ("Redo", "Ctrl Shift Z", ed.Redo, ed.CanRedo),
+                ("-", "", () => { }, true),
+                ("Fill with foreground", "Alt ⌫", () => ed.Fill("fg"), pixel),
+                ("Fill with background", "Ctrl ⌫", () => ed.Fill("bg"), pixel),
+                ("Clear", "⌫", () => ed.Fill("clear"), pixel),
+            },
+            "Image" => new (string, string, Action, bool)[]
+            {
+                ("Crop to selection", "", ed.CropToSelection, sel),
+                ("Crop tool", "C", () => ed.SetTool(Tool.Crop), true),
+            },
+            "Layer" => new (string, string, Action, bool)[]
+            {
+                ("New layer", "Ctrl Shift N", ed.NewLayer, true),
+                ("New brightness / contrast", "", () => ed.AddAdjustment(AdjustKind.BrightnessContrast), true),
+                ("New levels", "", () => ed.AddAdjustment(AdjustKind.Levels), true),
+                ("New hue / saturation", "", () => ed.AddAdjustment(AdjustKind.HueSaturation), true),
+                ("New black & white", "", () => ed.AddAdjustment(AdjustKind.BlackWhite), true),
+                ("-", "", () => { }, true),
+                ("Duplicate", "Ctrl J", ed.Duplicate, true),
+                ("Delete", "", ed.Delete, true),
+                ("Add a mask", "", () => ed.AddMask(false), ed.Doc.ActiveLayer is { HasMask: false }),
+                ("Mask from selection", "", () => ed.AddMask(true), sel && ed.Doc.ActiveLayer is { HasMask: false }),
+                ("Rasterize type", "", ed.Rasterize, ed.Doc.ActiveLayer?.Kind == LayerKind.Text),
+            },
+            "Select" => new (string, string, Action, bool)[]
+            {
+                ("All", "Ctrl A", ed.SelectAll, true),
+                ("Deselect", "Ctrl D", ed.Deselect, sel),
+                ("Inverse", "Ctrl Shift I", ed.InvertSelection, sel),
+            },
+            "Filter" => new (string, string, Action, bool)[]
+            {
+                ("Gaussian blur…", "", () => OpenFilter("blur"), ed.CanFilter),
+                ("Sharpen (unsharp mask)…", "", () => OpenFilter("sharpen"), ed.CanFilter),
+                ("Add noise…", "", () => OpenFilter("noise"), ed.CanFilter),
+            },
+            _ => new (string, string, Action, bool)[]
+            {
+                ("Fit on screen", "Ctrl 0", () => View("fit"), true),
+                ("Actual pixels", "Ctrl 1", () => View("100"), true),
+                ("Zoom in", "Ctrl +", () => View("in"), true),
+                ("Zoom out", "Ctrl −", () => View("out"), true),
+            },
+        };
+    }
+
+    protected override void OnInitialized()
+    {
+        var ed = Session.Editor;
+        ed.Changed += Refresh;
+        ed.Edited += ScheduleSave;
+        ed.Command += OnCommand;
+        ed.EditTextRequested += FocusText;
+    }
+
+    private int _tick;
+
+    private void Refresh()
+    {
+        _tick++;
+        StateHasChanged();
+    }
+
+    private void OnMessage(JsonValue m) => Session.Editor.OnMessage(m);
+
+    /// <summary>Runs once the picture's canvas is on the page: opens what the start page asked for.</summary>
+    private async Task Attached()
+    {
+        var ed = Session.Editor;
+        var pending = Session.Pending;
+        Session.Pending = null;
+        try
+        {
+            switch (pending)
+            {
+                case "sample":
+                    Seed.Open(ed);
+                    break;
+                case "new":
+                    ed.NewDocument(Session.NewW, Session.NewH, Session.NewBackground, Session.FileName);
+                    break;
+                case "image":
+                    await OpenImageHandle(Session.FileHandle);
+                    break;
+                case "project":
+                    await LoadProject(Session.FileHandle, Session.FileName);
+                    break;
+                case "continue":
+                    if (!await LoadSaved()) Seed.Open(ed);
+                    break;
+                default:
+                    if (ed.Ready)
+                    {
+                        // Back from the start page: the pixels are still in the module.
+                        ed.SyncMeta();
+                        ed.SyncTool();
+                    }
+                    else if (!await LoadSaved()) Seed.Open(ed);
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Toasts.Error(e.Message);
+            if (!ed.Ready) Seed.Open(ed);
+        }
+        StateHasChanged();
+    }
+
+    private async Task<bool> LoadSaved()
+    {
+        var meta = await Js.CallAsync("kg.loadSaved");
+        if (meta.IsNull) return false;
+        Session.Editor.Load(Doc.FromJson(meta.AsString()), "Opened from this browser");
+        return true;
+    }
+
+    private async Task OpenImageHandle(int handle)
+    {
+        var r = await Js.CallAsync("kg.openImage", Js.Args("h", handle));
+        Session.Editor.FromImage(r["w"].AsInt(), r["h"].AsInt(), r["bitmap"].AsLong(), r["name"].AsString());
+    }
+
+    private async Task LoadProject(int handle, string name)
+    {
+        var meta = await Js.CallAsync("kg.loadProject", Js.Args("h", handle));
+        Session.Editor.Load(Doc.FromJson(meta.AsString()), "Opened " + name);
+    }
+
+    private async Task OpenPhoto()
+    {
+        var picked = await Files.PickAsync("image/*");
+        if (picked.Count == 0) return;
+        try
+        {
+            await OpenImageHandle(picked[0].Handle);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error("That photo could not be opened: " + e.Message);
+        }
+    }
+
+    private async Task OpenProject()
+    {
+        var picked = await Files.PickAsync(".kamar,.json,application/json");
+        if (picked.Count == 0) return;
+        try
+        {
+            await LoadProject(picked[0].Handle, picked[0].Name);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error(e.Message);
+        }
+    }
+
+    private async Task PlacePhoto()
+    {
+        var picked = await Files.PickAsync("image/*");
+        if (picked.Count > 0) await Place(picked[0]);
+    }
+
+    private void Dropped(PickedFile f)
+    {
+        if (f.Type.StartsWith("image/")) _ = Place(f);
+        else Toasts.Warning(f.Name + " is not a picture.");
+    }
+
+    private async Task Place(PickedFile f)
+    {
+        try
+        {
+            var r = await Js.CallAsync("kg.openImage", Js.Args("h", f.Handle));
+            Session.Editor.PlaceImage(r["bitmap"].AsLong(), f.Name);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error("That photo could not be placed: " + e.Message);
+        }
+    }
+
+    private async Task SaveProject()
+    {
+        var ed = Session.Editor;
+        var r = await Js.CallAsync("kg.saveProject", Js.Args("meta", ed.Doc.ToJson(), "name", Slug(ed.Doc.Name) + ".kamar"));
+        Toasts.Success("Saved " + Slug(ed.Doc.Name) + ".kamar · " + Size(r["bytes"].AsLong()));
+    }
+
+    private void ResetSample()
+    {
+        Seed.Open(Session.Editor);
+        Toasts.Info("The sample is back as it started.");
+    }
+
+    private void OnCommand(string c)
+    {
+        switch (c)
+        {
+            case "save": _ = SaveProject(); break;
+            case "open": _ = OpenPhoto(); break;
+            case "export": OpenExport(); break;
+        }
+    }
+
+    private void View(string what) => Js.Call("kg.view", Js.Args("what", what));
+
+    private void Rename(ChangeEventArgs e)
+    {
+        var name = (e.Value?.ToString() ?? "").Trim();
+        if (name.Length == 0 || name == Session.Editor.Doc.Name) return;
+        Session.Editor.Doc.Name = name;
+        Session.Editor.Commit("Rename picture");
+    }
+
+    private void FocusText()
+    {
+        _tab = "props";
+        StateHasChanged();
+        Scheduler.SetTimeout(() => { if (_props is not null) _ = _props.FocusText(); }, 30);
+    }
+
+    // ── autosave: a moment after each step ───────────────────────────────
+
+    private void ScheduleSave()
+    {
+        if (_saveTimer != 0) Scheduler.Clear(_saveTimer);
+        _saveTimer = Scheduler.SetTimeout(() => _ = Save(), 900);
+    }
+
+    private async Task Save()
+    {
+        _saveTimer = 0;
+        _saveState = "saving";
+        StateHasChanged();
+        try
+        {
+            var thumb = await Js.CallAsync("kg.thumb");
+            await Js.CallAsync("kg.autosave", Js.Args("meta", Session.Editor.Doc.ToJson(), "thumb", thumb.AsString()));
+            _saveState = "saved";
+        }
+        catch (Exception e)
+        {
+            _saveState = "failed";
+            Console.WriteLine("Autosave failed: " + e.Message);
+        }
+        StateHasChanged();
+    }
+
+    // ── filters ──────────────────────────────────────────────────────────
+
+    private string? _filter;
+    private double _radius = 6;
+    private double _amount = 12;
+    private bool _mono = true;
+    private int _previewTimer;
+    private long _filterMs;
+
+    private string FilterTitle => _filter switch { "blur" => "Gaussian blur", "sharpen" => "Sharpen", "noise" => "Add noise", _ => "" };
+
+    private void OpenFilter(string kind)
+    {
+        var ed = Session.Editor;
+        if (!ed.CanFilter)
+        {
+            Toasts.Warning("Filters work on a visible, unlocked pixel layer. Pick one in Layers.");
+            return;
+        }
+        _filter = kind;
+        (_radius, _amount) = kind switch { "blur" => (6.0, 0.0), "sharpen" => (2.0, 120.0), _ => (0.0, 12.0) };
+        Preview();
+    }
+
+    private void Preview()
+    {
+        if (_previewTimer != 0) Scheduler.Clear(_previewTimer);
+        _previewTimer = Scheduler.SetTimeout(() =>
+        {
+            _previewTimer = 0;
+            if (_filter is null) return;
+            try
+            {
+                var r = Session.Editor.PreviewFilter(_filter, _radius, _amount, _mono);
+                _filterMs = r["ms"].AsLong();
+            }
+            catch (Exception e)
+            {
+                Toasts.Error(e.Message);
+            }
+            StateHasChanged();
+        }, 90);
+    }
+
+    private void ApplyFilter()
+    {
+        if (_filter is null) return;
+        if (_previewTimer != 0)
+        {
+            Scheduler.Clear(_previewTimer);
+            _previewTimer = 0;
+            Session.Editor.PreviewFilter(_filter, _radius, _amount, _mono);
+        }
+        var label = _filter switch
+        {
+            "blur" => "Gaussian blur " + F(_radius) + " px",
+            "sharpen" => "Sharpen " + _amount + "%",
+            _ => "Add noise " + _amount + "%",
+        };
+        _filter = null;
+        Session.Editor.ApplyFilter(label);
+    }
+
+    private void FilterClosed(bool open)
+    {
+        if (open || _filter is null) return;
+        if (_previewTimer != 0) Scheduler.Clear(_previewTimer);
+        _previewTimer = 0;
+        _filter = null;
+        Session.Editor.CancelPreview();
+    }
+
+    // ── export ───────────────────────────────────────────────────────────
+
+    private bool _export;
+    private string _format = "image/png";
+    private double _quality = 90;
+    private string _exportName = "";
+
+    private string Ext => _format == "image/jpeg" ? "JPEG" : _format == "image/webp" ? "WebP" : "PNG";
+
+    private void OpenExport()
+    {
+        _exportName = Slug(Session.Editor.Doc.Name);
+        _export = true;
+    }
+
+    private async Task Export()
+    {
+        _export = false;
+        var ext = _format == "image/jpeg" ? ".jpg" : _format == "image/webp" ? ".webp" : ".png";
+        try
+        {
+            var r = await Js.CallAsync("kg.export", Js.Args("type", _format, "quality", _quality / 100, "name", Slug(_exportName) + ext));
+            Toasts.Success("Exported " + Slug(_exportName) + ext + " · " + r["w"].AsInt() + " × " + r["h"].AsInt() + " · " + Size(r["bytes"].AsLong()));
+        }
+        catch (Exception e)
+        {
+            Toasts.Error("The export failed: " + e.Message);
+        }
+    }
+
+    private static string Size(long bytes) => bytes >= 1048576 ? (bytes / 1048576.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " MB" : (bytes / 1024) + " KB";
+
+    private static string Slug(string name)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in name.Trim().ToLowerInvariant())
+            sb.Append(char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' ? ch : ch == ' ' ? '-' : '_');
+        var s = sb.ToString().Trim('-', '_');
+        return s.Length == 0 ? "picture" : s;
+    }
+
+    private static double Num(object? v) => double.TryParse(v?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0;
+
+    private static string F(double v) => Math.Round(v, 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    public void Dispose()
+    {
+        var ed = Session.Editor;
+        ed.Changed -= Refresh;
+        ed.Edited -= ScheduleSave;
+        ed.Command -= OnCommand;
+        ed.EditTextRequested -= FocusText;
+        if (_saveTimer != 0)
+        {
+            Scheduler.Clear(_saveTimer);
+            _ = Save();
+        }
+    }
+}

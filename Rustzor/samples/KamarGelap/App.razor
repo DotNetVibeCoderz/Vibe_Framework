@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <div class="kg-lost">
+            <h1>Nothing developed here</h1>
+            <p>Pictures open from the start page.</p>
+            <a class="kg-btn primary" href="">Back to the start</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

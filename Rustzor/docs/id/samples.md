@@ -119,6 +119,28 @@ Menunjukkan: SVG yang digambar dari Razor dengan satu view per layer yang hanya 
 
 `node tools/e2e/rupa.mjs http://localhost:5310` menjalankannya di Chrome headless dengan mouse dan keyboard, memeriksa model setelah setiap langkah (menggambar, snapping, mengubah ukuran, grup, undo dan redo, perubahan komponen yang sampai ke enam instans, override, teks, pena, ekspor SVG dan PNG, simpan otomatis setelah reload), dan mengukur seretan dengan 300 bentuk di halaman: sekitar 12 ms kerja per gerakan dan 56 frame per detik (laju frame Chrome headless). `node tools/e2e/rupa-shots.mjs` mengambil screenshot di atas.
 
+## Kamar Gelap, editor foto
+
+`samples/KamarGelap` · `Rustzor.UI`, `Rustzor.Browser.FileSystem`, dan modul browser miliknya sendiri (`rustzor.module.js`) yang mengerjakan piksel dengan WebGL2
+
+Editor foto berlapis ala Photoshop, bergaya kamar gelap: tampilan hitam hangat, merah *safelight* untuk apa pun yang sedang aktif, kuning developer untuk angka, dan gambar yang dipegang dalam potongan film yang tepinya mencetak nomor frame, ukuran, jumlah layer, dan zoom. Dibuka dengan *Merapi dari Kaliurang*, fajar 2000 × 1500 di atas Merapi dan sawah terasering yang dilukis oleh aplikasinya sendiri (tidak ada yang diunduh, tidak ada lisensi), lengkap dengan suntingan yang biasa ditumpuk fotografer: langit lebih hangat, Levels bermasker untuk mengangkat terasering, vignette multiply, dan keterangan foto.
+
+- Layer dengan opasitas, delapan blend mode (normal, multiply, screen, overlay, darken, lighten, soft light, difference), tampil/sembunyi, kunci, ganti nama, seret untuk mengubah urutan, dan masker layer (tampilkan semua, dari seleksi, aktif/nonaktif, terapkan, hapus; Q berpindah antara melukis masker dan piksel). Thumbnail asli untuk layer dan masker.
+- Adjustment layer yang tidak pernah mengubah piksel di bawahnya: brightness dan contrast, levels, hue dan saturation, black and white dengan tint. Masing-masing punya masker sendiri.
+- Filter pada layer piksel, di dalam seleksi, dengan pratinjau langsung: Gaussian blur, sharpen (unsharp mask), add noise.
+- Tool: move, marquee persegi dan elips, lasso (*marching ants*), crop (Shift menjaga proporsi), brush dan eraser dengan ukuran, kekerasan, opasitas, flow, dan tekanan pena, clone stamp (Alt-klik sumbernya), gradient (linear, radial, ke transparan), paint bucket dengan toleransi, eyedropper, layer teks, hand. Shortcut Photoshop: V M L C B E S G I T H, X, D, [ dan ], 1–0, Ctrl+J, Ctrl+D, Alt+Backspace.
+- Isi dan hapus seleksi, pilih semua, inverse, crop ke seleksi; riwayat 40 langkah terakhir yang bisa diklik untuk kembali; zoom ke arah penunjuk, geser, muat layar, ukuran asli; histogram langsung; pemilih warna dengan swatch.
+- Buka foto (atau seret-lepas untuk menaruhnya sebagai layer), ekspor PNG, JPEG, atau WebP dengan pengaturan kualitas, simpan dan buka proyek `.kamar` beserta semua layer dan maskernya, dan simpan otomatis di IndexedDB yang ditawarkan halaman awal untuk dilanjutkan.
+
+| | |
+| --- | --- |
+| ![Merapi saat fajar, layer Levels bermasker, seleksi elips (gelap)](../images/sample-kamargelap.png) | ![Halaman awal](../images/sample-kamargelap-start.png) |
+| ![Layer black & white dengan tint sepia, dan riwayat (terang)](../images/sample-kamargelap-light.png) | ![Ponsel](../images/sample-kamargelap-phone.png) |
+
+Menunjukkan: C# memegang dokumen (layer, adjustment, seleksi, urutan riwayat) dan mengirimkannya ke modul browser sebagai JSON, sementara piksel tetap di browser: satu kanvas 2D per layer dan masker, compositor WebGL2 yang memadukan tumpukan dengan mode, opasitas, dan masker setiap layer serta menjalankan adjustment layer sebagai shader, filter sebagai pass shader, dan snapshot *copy-on-write* untuk riwayat. Layer di bawah layer aktif di-cache, sehingga satu frame brush hanya menggabungkan ulang dari situ ke atas, dan hanya di area yang dilukis. Kerja per piksel di C# yang diinterpretasi akan memakan sekitar 1,4 µs per piksel, kira-kira empat detik untuk satu kali lewat gambar ini; di GPU satu frame utuh hanya sekitar 2 ms.
+
+`node tools/e2e/kamargelap.mjs http://localhost:5320` menjalankannya di Chrome headless dan membaca piksel kembali setelah setiap langkah: goresan brush, layer multiply yang diisi di dalam seleksi (hasil gabungan sama dengan dasar dikali warna isian di dalamnya dan tidak berubah di luarnya), layer black & white yang dinyalakan lalu dimatikan (setiap nilai kembali), Gaussian blur (varians terasering turun separuh), undo dan redo, crop ke 1000 × 700, ekspor PNG yang didekode pada ukuran itu, dan simpan otomatis setelah reload. Pada sample 2000 × 1500 dengan lima layer, dengan menunggu GPU selesai, satu frame brush sekitar 2 ms (p95 2,5 ms), Gaussian blur 20 px sekitar 50 ms, sharpen sekitar 35 ms, dan noise sekitar 25 ms (Intel UHD 620). `node tools/e2e/kamargelap-shots.mjs` mengambil screenshot di atas.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -147,4 +169,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Enam sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Lima sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.

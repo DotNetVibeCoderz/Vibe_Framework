@@ -1,0 +1,37 @@
+@* The tools, grouped as in Photoshop: select, crop, paint, retouch, type, view. *@
+@{
+    var ed = Session.Editor;
+}
+<nav class="kg-rail" aria-label="Tools">
+    @foreach (var group in Groups)
+    {
+        <div class="kg-rail-group">
+            @foreach (var (tool, icon, label, key) in group)
+            {
+                <button class="@("kg-tool" + (ed.Tool == tool ? " on" : ""))" title="@(label + " (" + key + ")")" aria-label="@label" aria-pressed="@(ed.Tool == tool ? "true" : "false")" @onclick="() => ed.SetTool(tool)">
+                    <Glyph Name="@icon" />
+                    <span class="kg-tool-key" aria-hidden="true">@key</span>
+                </button>
+            }
+        </div>
+    }
+    <div class="kg-rail-colours">
+        <button class="kg-rail-fg" style="@("background:" + ed.Fg)" title="Foreground @ed.Fg" aria-label="Foreground colour" @onclick="OnColour"></button>
+        <button class="kg-rail-bg" style="@("background:" + ed.Bg)" title="Background @ed.Bg" aria-label="Background colour" @onclick="OnColour"></button>
+        <button class="kg-rail-swap" title="Swap (X)" aria-label="Swap colours" @onclick="ed.SwapColors"><Glyph Name="swap" Size="12" /></button>
+    </div>
+</nav>
+
+@code {
+    /// <summary>Changes whenever the editor does, so the panel draws again with the page.</summary>
+    [Parameter] public int Tick { get; set; }
+
+    [Parameter] public EventCallback OnColour { get; set; }
+
+    private static readonly (Tool, string, string, string)[][] Groups =
+    {
+        new[] { (Tool.Move, "move", "Move", "V"), (Tool.Marquee, "marquee", "Rectangular marquee", "M"), (Tool.Ellipse, "ellipse", "Elliptical marquee", "⇧M"), (Tool.Lasso, "lasso", "Lasso", "L"), (Tool.Crop, "crop", "Crop", "C") },
+        new[] { (Tool.Brush, "brush", "Brush", "B"), (Tool.Eraser, "eraser", "Eraser", "E"), (Tool.Clone, "clone", "Clone stamp", "S"), (Tool.Gradient, "gradient", "Gradient", "G"), (Tool.Bucket, "bucket", "Paint bucket", "K") },
+        new[] { (Tool.Eyedropper, "eyedropper", "Eyedropper", "I"), (Tool.Text, "text", "Type", "T"), (Tool.Hand, "hand", "Hand", "H") },
+    };
+}

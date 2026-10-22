@@ -1,0 +1,117 @@
+@* Foreground and background, a saturation/value field, a hue strip and swatches. *@
+@{
+    var ed = Session.Editor;
+    var (h, s, v) = Hsv(_editingBg ? ed.Bg : ed.Fg);
+    if (_hue >= 0 && s < 0.01) h = _hue;
+}
+<section class="kg-colour" aria-label="Colour">
+    <div class="kg-chips">
+        <button class="@("kg-chip-fg" + (_editingBg ? "" : " on"))" style="@("background:" + ed.Fg)" title="Foreground" aria-label="Edit the foreground colour" @onclick="() => _editingBg = false"></button>
+        <button class="@("kg-chip-bg" + (_editingBg ? " on" : ""))" style="@("background:" + ed.Bg)" title="Background" aria-label="Edit the background colour" @onclick="() => _editingBg = true"></button>
+        <button class="kg-icon-btn" title="Swap (X)" aria-label="Swap colours" @onclick="ed.SwapColors"><Glyph Name="swap" Size="16" /></button>
+        <button class="kg-link" title="Black and white (D)" @onclick="ed.DefaultColors">Default</button>
+        <span class="kg-grow"></span>
+        <input class="kg-hex" value="@(_editingBg ? ed.Bg : ed.Fg)" aria-label="Hex colour" spellcheck="false" @onchange="e => SetHex(e.Value?.ToString())" />
+    </div>
+    <div class="kg-sv" style="@("--h:" + F(h * 360))" @onpointerdown="SvPick" @onpointermove="SvMove" role="slider" aria-label="Saturation and brightness" aria-valuetext="@(Math.Round(s * 100) + "% saturation, " + Math.Round(v * 100) + "% brightness")">
+        <span class="kg-sv-dot" style="@("left:" + F(s * 100) + "%;top:" + F((1 - v) * 100) + "%")"></span>
+    </div>
+    <div class="kg-hue" @onpointerdown="HuePick" @onpointermove="HueMove" role="slider" aria-label="Hue" aria-valuenow="@Math.Round(h * 360)">
+        <span class="kg-hue-dot" style="@("left:" + F(h * 100) + "%")"></span>
+    </div>
+    <div class="kg-swatches" role="list" aria-label="Swatches">
+        @foreach (var (hex, name) in Swatches)
+        {
+            <button role="listitem" class="kg-sw" style="@("background:" + hex)" title="@(name + " " + hex)" aria-label="@name" @onclick="() => SetHex(hex)"></button>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>Changes whenever the editor does, so the panel draws again with the page.</summary>
+    [Parameter] public int Tick { get; set; }
+
+    private bool _editingBg;
+    private double _hue = -1;
+
+    // Darkroom and Merapi colours: paper, safelight, developer amber, ash, terrace green, dawn.
+    private static readonly (string Hex, string Name)[] Swatches =
+    {
+        ("#000000", "Black"), ("#ffffff", "White"), ("#1a1412", "Darkroom"), ("#f3e2c7", "Fibre paper"), ("#e2492e", "Safelight"),
+        ("#f0a33a", "Developer"), ("#8a7f86", "Ash"), ("#3d5a3a", "Terrace"), ("#f6c58a", "Dawn"), ("#5b4a6e", "Twilight"),
+        ("#1c2340", "Night"), ("#c9a27e", "Sepia"),
+    };
+
+    private const double SvW = 248, SvH = 132, HueW = 248;
+
+    private void SvPick(PointerEventArgs e) => SetSv(e.OffsetX / SvW, 1 - e.OffsetY / SvH);
+    private void SvMove(PointerEventArgs e)
+    {
+        if (e.Buttons == 1) SvPick(e);
+    }
+    private void HuePick(PointerEventArgs e)
+    {
+        var (_, s, v) = Hsv(Current);
+        _hue = Math.Clamp(e.OffsetX / HueW, 0, 0.999);
+        Set(Hex(_hue, s, v));
+    }
+    private void HueMove(PointerEventArgs e)
+    {
+        if (e.Buttons == 1) HuePick(e);
+    }
+
+    private string Current => _editingBg ? Session.Editor.Bg : Session.Editor.Fg;
+
+    private void SetSv(double s, double v)
+    {
+        var (h, _, _) = Hsv(Current);
+        if (_hue >= 0) h = _hue;
+        Set(Hex(h, Math.Clamp(s, 0, 1), Math.Clamp(v, 0, 1)));
+    }
+
+    private void SetHex(string? hex)
+    {
+        hex = (hex ?? "").Trim();
+        if (!hex.StartsWith('#')) hex = "#" + hex;
+        if (hex.Length == 4) hex = "#" + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        if (hex.Length != 7 || !hex.Substring(1).All(char.IsAsciiHexDigit)) return;
+        _hue = -1;
+        Set(hex.ToLowerInvariant());
+    }
+
+    private void Set(string hex)
+    {
+        if (_editingBg) Session.Editor.SetBg(hex);
+        else Session.Editor.SetFg(hex);
+    }
+
+    private static string F(double v) => Math.Round(v, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    public static (double H, double S, double V) Hsv(string hex)
+    {
+        var n = Convert.ToInt32(hex.Substring(1), 16);
+        double r = ((n >> 16) & 255) / 255.0, g = ((n >> 8) & 255) / 255.0, b = (n & 255) / 255.0;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var d = max - min;
+        double h = 0;
+        if (d > 0)
+        {
+            if (max == r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+            else if (max == g) h = ((b - r) / d + 2) / 6;
+            else h = ((r - g) / d + 4) / 6;
+        }
+        return (h, max == 0 ? 0 : d / max, max);
+    }
+
+    public static string Hex(double h, double s, double v)
+    {
+        var i = (int)Math.Floor(h * 6);
+        var f = h * 6 - i;
+        double p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+        var (r, g, b) = (i % 6) switch { 0 => (v, t, p), 1 => (q, v, p), 2 => (p, v, t), 3 => (p, q, v), 4 => (t, p, v), _ => (v, p, q) };
+        return "#" + B(r) + B(g) + B(b);
+    }
+
+    private static string B(double c) => ((int)Math.Round(Math.Clamp(c, 0, 1) * 255)).ToString("x2");
+}

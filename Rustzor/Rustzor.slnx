@@ -62,6 +62,7 @@
     <Project Path="samples/Crm/Crm.csproj" />
     <Project Path="samples/Dashboard/Dashboard.csproj" />
     <Project Path="samples/Erp/Erp.csproj" />
+    <Project Path="samples/KamarGelap/KamarGelap.csproj" />
     <Project Path="samples/Meet/Meet.csproj" />
     <Project Path="samples/Rupa/Rupa.csproj" />
     <Project Path="samples/Pos/Pos.csproj" />

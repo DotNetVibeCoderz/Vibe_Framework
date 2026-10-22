@@ -1,0 +1,80 @@
+@* Drawn in document pixels inside the zoomed sheet; strokes keep their screen width. *@
+@implements IDisposable
+
+@{
+    var ed = Session.Editor;
+    var d = ed.Doc;
+}
+<svg class="kg-overlay" viewBox="@("0 0 " + d.W + " " + d.H)" preserveAspectRatio="none" aria-hidden="true">
+    @if (ed.Crop is { } c)
+    {
+        <path class="kg-crop-shade" fill-rule="evenodd" d="@("M0 0H" + d.W + "V" + d.H + "H0Z" + RectPath(c.X, c.Y, c.W, c.H))" />
+        <rect class="kg-crop-edge" x="@N(c.X)" y="@N(c.Y)" width="@N(c.W)" height="@N(c.H)" />
+        @for (var i = 1; i < 3; i++)
+        {
+            <line class="kg-crop-third" x1="@N(c.X + c.W * i / 3)" y1="@N(c.Y)" x2="@N(c.X + c.W * i / 3)" y2="@N(c.Y + c.H)" />
+            <line class="kg-crop-third" x1="@N(c.X)" y1="@N(c.Y + c.H * i / 3)" x2="@N(c.X + c.W)" y2="@N(c.Y + c.H * i / 3)" />
+        }
+    }
+    @if (ed.Doc.ActiveLayer is { Kind: LayerKind.Text } t && (ed.Tool == Tool.Text || ed.Tool == Tool.Move) && t.BW > 0)
+    {
+        var x = t.TX + t.X - (t.Align == "center" ? t.BW / 2 : t.Align == "right" ? t.BW : 0);
+        <rect class="kg-text-box" x="@N(x - 6)" y="@N(t.TY + t.Y - 6)" width="@N(t.BW + 12)" height="@N(t.BH + 12)" />
+    }
+    @if (ed.Drafting is { } draft)
+    {
+        var p = SelPath(draft);
+        <path class="kg-ants-under" d="@p" />
+        <path class="kg-ants" d="@p" />
+    }
+    else if (d.Sel is { } sel)
+    {
+        var p = SelPath(sel);
+        <path class="kg-ants-under" d="@p" />
+        <path class="kg-ants" d="@p" />
+        @if (sel.Inverted)
+        {
+            <path class="kg-ants-under" d="@RectPath(0, 0, d.W, d.H)" />
+            <path class="kg-ants" d="@RectPath(0, 0, d.W, d.H)" />
+        }
+    }
+</svg>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.Editor.Changed += Redraw;
+        Session.Editor.OverlayChanged += Redraw;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private static string N(double v) => Math.Round(v, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string RectPath(double x, double y, double w, double h) =>
+        "M" + N(x) + " " + N(y) + "H" + N(x + w) + "V" + N(y + h) + "H" + N(x) + "Z";
+
+    public static string SelPath(Sel s)
+    {
+        if (s.Kind == "rect") return RectPath(s.X, s.Y, s.W, s.H);
+        if (s.Kind == "ellipse")
+        {
+            var rx = s.W / 2;
+            var ry = s.H / 2;
+            var cx = s.X + rx;
+            var cy = s.Y + ry;
+            return "M" + N(cx - rx) + " " + N(cy) + "A" + N(rx) + " " + N(ry) + " 0 1 0 " + N(cx + rx) + " " + N(cy)
+                + "A" + N(rx) + " " + N(ry) + " 0 1 0 " + N(cx - rx) + " " + N(cy) + "Z";
+        }
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i + 1 < s.Pts.Count; i += 2)
+            sb.Append(i == 0 ? 'M' : 'L').Append(N(s.Pts[i])).Append(' ').Append(N(s.Pts[i + 1]));
+        return sb.Append('Z').ToString();
+    }
+
+    public void Dispose()
+    {
+        Session.Editor.Changed -= Redraw;
+        Session.Editor.OverlayChanged -= Redraw;
+    }
+}
