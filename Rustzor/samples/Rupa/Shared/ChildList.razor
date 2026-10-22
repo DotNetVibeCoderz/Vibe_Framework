@@ -1,0 +1,20 @@
+@* The children of a frame, group or instance. A separate view, so moving a frame
+   with three hundred layers in it does not walk those layers: this renders only
+   when the list itself changes. *@
+@{
+    var ed = Editor.Current!;
+    var n = ed.Doc.Find(Id);
+    if (n is null) return;
+}
+@foreach (var c in n.Children)
+{
+    <NodeView @key="c.Id" Id="@c.Id" Rev="@(c.Rev + InstRev)" Scope="@Scope" />
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+    [Parameter] public int Kids { get; set; }
+    [Parameter] public string? Scope { get; set; }
+    /// <summary>The instance's revision when drawing a component's layers inside it; 0 otherwise.</summary>
+    [Parameter] public int InstRev { get; set; }
+}

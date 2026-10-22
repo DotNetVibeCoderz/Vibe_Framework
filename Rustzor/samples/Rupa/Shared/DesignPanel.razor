@@ -1,0 +1,334 @@
+@* Properties of the selection: geometry, auto layout, appearance, fill, stroke,
+   type, component and instance settings, and export. *@
+@{
+    var ed = Editor.Current!;
+    var sel = ed.Selection;
+    var n = ed.Single;
+}
+<div class="rp-design">
+    @if (sel.Count == 0)
+    {
+        <section class="rp-sec">
+            <h3 class="rp-sec-title">File</h3>
+            <dl class="rp-facts">
+                <div><dt>Layers</dt><dd>@ed.Doc.Count</dd></div>
+                <div><dt>Frames</dt><dd>@ed.Doc.Root.Children.Count(c => c.Kind == NodeKind.Frame && !c.IsComponent)</dd></div>
+                <div><dt>Components</dt><dd>@ed.Doc.Components().Count</dd></div>
+                <div><dt>Colour styles</dt><dd>@ed.Doc.Styles.Count</dd></div>
+            </dl>
+        </section>
+        <section class="rp-sec">
+            <h3 class="rp-sec-title">Shortcuts</h3>
+            <dl class="rp-keys">
+                @foreach (var (keys, what) in Shortcuts)
+                {
+                    <div class="@(keys.Length > 1 ? "wide" : null)"><dt>@foreach (var k in keys) { <kbd>@k</kbd> }</dt><dd>@what</dd></div>
+                }
+            </dl>
+        </section>
+        <section class="rp-sec">
+            <h3 class="rp-sec-title">Export</h3>
+            <p class="rp-panel-note">Nothing selected: every frame on the page.</p>
+            <div class="rp-export">
+                <button class="rp-btn small" @onclick="ExportSvg">SVG</button>
+                <button class="rp-btn small" @onclick="ExportPng">PNG 1×</button>
+                <button class="rp-btn small" @onclick="ExportPng2">PNG 2×</button>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="rp-sec rp-sel-head">
+            @if (n is not null)
+            {
+                <Glyph Name="@LayersPanel.KindIcon(n)" Size="14" />
+                <span class="rp-sel-name">@n.Name</span>
+                <span class="@("rp-kind" + (n.IsComponent || n.Kind == NodeKind.Instance ? " comp" : ""))">@(n.IsComponent ? "Component" : Node.KindLabel(n.Kind))</span>
+            }
+            else
+            {
+                <Glyph Name="group" Size="14" />
+                <span class="rp-sel-name">@sel.Count layers</span>
+            }
+        </section>
+
+        @if (n is { Kind: NodeKind.Instance } inst)
+        {
+            var main = ed.Doc.Find(inst.MainId);
+            <section class="rp-sec">
+                <h3 class="rp-sec-title">Instance of <span class="rp-comp-name">◆ @(main?.Name ?? "a deleted component")</span></h3>
+                @if (main is not null)
+                {
+                    var texts = main.SelfAndDescendants().FindAll(d => d.Kind == NodeKind.Text);
+                    foreach (var t in texts)
+                    {
+                        <label class="rp-override">
+                            <span>@t.Name</span>
+                            <input value="@ed.TextOf(t, inst)" @oninput="e => ed.SetOverride(inst, t.Id, e.Value?.ToString() ?? string.Empty)" aria-label="@("Text of " + t.Name)" />
+                        </label>
+                    }
+                    <div class="rp-row-btns">
+                        <button class="rp-btn small" @onclick="() => { ed.Select(main); ed.ZoomToSelection(); ed.Notify(); }"><Glyph Name="target" Size="12" /> Show main</button>
+                        <button class="rp-btn small" @onclick="() => ed.Detach(inst)"><Glyph Name="detach" Size="12" /> Detach</button>
+                    </div>
+                }
+            </section>
+        }
+        @if (n is { IsComponent: true } comp)
+        {
+            var count = ed.Doc.InstancesOf(comp.Id).Count;
+            <section class="rp-sec">
+                <h3 class="rp-sec-title">Component</h3>
+                <p class="rp-panel-note">@(count == 1 ? "1 instance follows" : count + " instances follow") every change you make here.</p>
+                <button class="rp-btn small accent" @onclick="() => ed.CreateInstance(comp)"><Glyph Name="instance" Size="12" /> Place an instance</button>
+            </section>
+        }
+
+        <PositionFields @ref="_position" Key="@PositionKey(ed)" />
+
+        @if (n is { Kind: NodeKind.Frame } f)
+        {
+            <section class="rp-sec">
+                <h3 class="rp-sec-title">Frame</h3>
+                <label class="rp-check"><input type="checkbox" checked="@f.Clip" @onchange="e => Set(nameof(Node.Clip), x => x.Clip = e.Value is true)" /> Clip content</label>
+                <div class="rp-seg" role="group" aria-label="Auto layout">
+                    <button class="@(f.Layout == LayoutMode.None ? "on" : null)" title="No auto layout" @onclick="() => Layout(f, LayoutMode.None)"><Glyph Name="none" Size="14" /> Free</button>
+                    <button class="@(f.Layout == LayoutMode.Row ? "on" : null)" title="Auto layout in a row" @onclick="() => Layout(f, LayoutMode.Row)"><Glyph Name="row" Size="14" /> Row</button>
+                    <button class="@(f.Layout == LayoutMode.Column ? "on" : null)" title="Auto layout in a column" @onclick="() => Layout(f, LayoutMode.Column)"><Glyph Name="column" Size="14" /> Column</button>
+                </div>
+                @if (f.Layout != LayoutMode.None)
+                {
+                    <div class="rp-grid2">
+                        <NumField Label="Gap" Value="f.Gap" OnChange="v => SetLayout(x => x.Gap = Math.Max(0, v))" />
+                        <NumField Label="Pad" Title="Padding" Value="f.Padding" OnChange="v => SetLayout(x => x.Padding = Math.Max(0, v))" />
+                    </div>
+                    <div class="rp-align-row">
+                        <span class="rp-mini-label">Across</span>
+                        <div class="rp-seg small">
+                            @foreach (var a in new[] { Align.Start, Align.Center, Align.End })
+                            {
+                                <button class="@(f.CrossAlign == a ? "on" : null)" title="@("Align across: " + a)" @onclick="() => SetLayout(x => x.CrossAlign = a)"><Glyph Name="@AlignIcon(a)" Size="14" /></button>
+                            }
+                        </div>
+                    </div>
+                    <div class="rp-align-row">
+                        <span class="rp-mini-label">Along</span>
+                        <div class="rp-seg small">
+                            @foreach (var a in new[] { Align.Start, Align.Center, Align.End })
+                            {
+                                <button class="@(f.MainAlign == a ? "on" : null)" title="@("Align along: " + a)" disabled="@f.Hug" @onclick="() => SetLayout(x => x.MainAlign = a)"><Glyph Name="@AlignIcon(a)" Size="14" /></button>
+                            }
+                        </div>
+                    </div>
+                    <label class="rp-check"><input type="checkbox" checked="@f.Hug" @onchange="e => SetLayout(x => x.Hug = e.Value is true)" /> Hug contents</label>
+                }
+                @if (!f.IsComponent)
+                {
+                    <button class="rp-btn small" @onclick="ed.MakeComponent"><Glyph Name="component" Size="12" /> Make component</button>
+                }
+            </section>
+        }
+
+        <section class="rp-sec">
+            <h3 class="rp-sec-title">Layer</h3>
+            <div class="rp-grid2">
+                <NumField Label="◐" Title="Opacity" Value="Math.Round((n ?? sel[0]).Opacity * 100)" Suffix="%" OnChange="v => Set(nameof(Node.Opacity), x => x.Opacity = Math.Clamp(v / 100, 0, 1))" />
+                @if (n is not null && n.HasRadius)
+                {
+                    <NumField Label="◜" Title="Corner radius" Value="n.Radius" OnChange="v => Set(nameof(Node.Radius), x => x.Radius = Math.Max(0, v))" />
+                }
+            </div>
+        </section>
+
+        @if (n is not null && n.HasFill)
+        {
+            <section class="rp-sec">
+                <h3 class="rp-sec-title">@(n.Kind == NodeKind.Text ? "Text colour" : "Fill")
+                    @if (n.Fill == "none")
+                    {
+                        <button class="rp-sec-add" title="Add a fill" aria-label="Add a fill" @onclick="AddFill"><Glyph Name="plus" Size="13" /></button>
+                    }
+                </h3>
+                @if (n.Fill != "none")
+                {
+                    <PaintField Label="Fill" Value="@n.Fill" AllowNone="n.Kind != NodeKind.Text" OnChange="Paint" />
+                }
+            </section>
+        }
+        @if (n is not null && n.HasStroke)
+        {
+            <section class="rp-sec">
+                <h3 class="rp-sec-title">Stroke
+                    @if (n.Stroke == "none")
+                    {
+                        <button class="rp-sec-add" title="Add a stroke" aria-label="Add a stroke" @onclick="AddStroke"><Glyph Name="plus" Size="13" /></button>
+                    }
+                </h3>
+                @if (n.Stroke != "none")
+                {
+                    <PaintField Label="Stroke" Value="@n.Stroke" OnChange="Paint" />
+                    <div class="rp-grid2">
+                        <NumField Label="≡" Title="Stroke width" Value="n.StrokeWidth" OnChange="v => Set(nameof(Node.StrokeWidth), x => x.StrokeWidth = Math.Max(0, v))" />
+                    </div>
+                }
+            </section>
+        }
+        @if (n is { Kind: NodeKind.Text } t2)
+        {
+            <section class="rp-sec">
+                <h3 class="rp-sec-title">Type</h3>
+                <select class="rp-select" @onchange="e => Text(x => x.Font = e.Value?.ToString() ?? x.Font)" aria-label="Typeface">
+                    @foreach (var font in Fonts)
+                    {
+                        <option value="@font" selected="@(t2.Font == font)">@font</option>
+                    }
+                </select>
+                <div class="rp-grid2">
+                    <label class="rp-num wide">
+                        <span class="rp-num-label">Wt</span>
+                        <select @onchange="WeightChanged" aria-label="Weight">
+                            @foreach (var w in new[] { 400, 500, 600, 700, 800 })
+                            {
+                                <option value="@w" selected="@(t2.Weight == w)">@WeightName(w)</option>
+                            }
+                        </select>
+                    </label>
+                    <NumField Label="Sz" Title="Size" Value="t2.FontSize" OnChange="v => Text(x => x.FontSize = Math.Max(1, v))" />
+                    <NumField Label="Lh" Title="Line height (× size)" Value="t2.LineHeight" OnChange="v => Text(x => x.LineHeight = Math.Clamp(v, 0.5, 4))" />
+                    <NumField Label="Ls" Title="Letter spacing (px)" Value="t2.Tracking" OnChange="v => Text(x => x.Tracking = v)" />
+                </div>
+                <div class="rp-seg" role="group" aria-label="Text alignment">
+                    @foreach (var a in new[] { Align.Start, Align.Center, Align.End })
+                    {
+                        <button class="@(t2.TextAlign == a ? "on" : null)" title="@("Align " + (a == Align.Start ? "left" : a == Align.Center ? "centre" : "right"))" @onclick="() => Set(nameof(Node.TextAlign), x => x.TextAlign = a)"><Glyph Name="@AlignIcon(a)" Size="14" /></button>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="rp-sec">
+            <h3 class="rp-sec-title">Export</h3>
+            <div class="rp-export">
+                <button class="rp-btn small" @onclick="ExportSvg">SVG</button>
+                <button class="rp-btn small" @onclick="ExportPng">PNG 1×</button>
+                <button class="rp-btn small" @onclick="ExportPng2">PNG 2×</button>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter] public int Tick { get; set; }
+
+    private PositionFields? _position;
+
+    // The position fields render again when the selection or its numbers change.
+    private static string PositionKey(Editor ed)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var n in ed.Selection) sb.Append(n.Id).Append('@').Append(n.Rev).Append(';');
+        return sb.ToString();
+    }
+
+    public void Redraw() => StateHasChanged();
+
+    /// <summary>Shows the selection's current position while it is dragged, without the rest of the panel.</summary>
+    public void RedrawPosition() => _position?.Redraw();
+    [Parameter] public EventCallback<(string Kind, double Scale)> OnExport { get; set; }
+
+    private static readonly (string[] Keys, string What)[] Shortcuts =
+    {
+        (new[] { "V" }, "Move"), (new[] { "F" }, "Frame"), (new[] { "R" }, "Rectangle"), (new[] { "O" }, "Ellipse"),
+        (new[] { "L" }, "Line"), (new[] { "P" }, "Pen"), (new[] { "T" }, "Text"), (new[] { "Space" }, "Pan"),
+        (new[] { "Ctrl", "G" }, "Group"), (new[] { "Ctrl", "D" }, "Duplicate"), (new[] { "Ctrl", "Alt", "K" }, "Component"),
+        (new[] { "Shift", "1" }, "Zoom to fit"), (new[] { "Ctrl", "Z" }, "Undo"), (new[] { "Ctrl", "click" }, "Select inside"),
+    };
+
+    private static readonly string[] Fonts = { "Plus Jakarta Sans", "Instrument Sans", "Fraunces", "Geist Mono" };
+
+    private static string WeightName(int w) => w switch { 400 => "Regular", 500 => "Medium", 600 => "Semibold", 700 => "Bold", _ => "Extrabold" };
+
+    private static string AlignIcon(Align a) => a == Align.Start ? "align-l" : a == Align.Center ? "align-c" : "align-r";
+
+    /// <summary>Changes every selected layer; one undo step per property while you keep adjusting it.</summary>
+    private void Set(string key, Action<Node> change)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint("prop:" + key);
+        foreach (var n in ed.Selection)
+        {
+            change(n);
+            ed.Doc.Touch(n);
+            if (n.Kind == NodeKind.Text) ed.Fit(n);
+        }
+        if (ed.Selection.Count > 0) ed.Reflow(ed.Selection[0].Parent ?? ed.Doc.Root);
+        ed.Changes();
+    }
+
+    private void Text(Action<Node> change) => Set("text", change);
+
+    private Task ExportSvg() => OnExport.InvokeAsync(("svg", 1.0));
+
+    private Task ExportPng() => OnExport.InvokeAsync(("png", 1.0));
+
+    private Task ExportPng2() => OnExport.InvokeAsync(("png", 2.0));
+
+    private void AddFill() => Set(nameof(Node.Fill), x => x.Fill = x.Kind == NodeKind.Frame ? "#ffffff" : "#c9d3ce");
+
+    private void AddStroke() => Set(nameof(Node.Stroke), x =>
+    {
+        x.Stroke = "#1b1f2a";
+        x.StrokeWidth = Math.Max(1, x.StrokeWidth);
+    });
+
+    private void WeightChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var w)) Text(x => x.Weight = w);
+    }
+
+    private void Size(Node n, double w, double h)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint("prop:size");
+        ed.SetSize(n, w, h);
+        ed.Changes();
+    }
+
+    private void Layout(Node f, LayoutMode mode)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint();
+        f.Layout = mode;
+        if (mode != LayoutMode.None && f.Gap == 0 && f.Padding == 0)
+        {
+            f.Gap = 12;
+            f.Padding = 16;
+        }
+        if (mode != LayoutMode.None) ed.LayOut(f);
+        ed.Doc.Touch(f);
+        ed.Reflow(f);
+        ed.Changes(structure: true);
+    }
+
+    private void SetLayout(Action<Node> change)
+    {
+        var ed = Editor.Current!;
+        if (ed.Single is not { Kind: NodeKind.Frame } f) return;
+        ed.Checkpoint("layout");
+        change(f);
+        ed.LayOut(f);
+        ed.Reflow(f);
+        ed.Changes();
+    }
+
+    private void Paint((string Key, string Value) change)
+    {
+        var stroke = change.Key.StartsWith("Stroke");
+        var continuous = change.Key.EndsWith(":pick");
+        Set((stroke ? "stroke" : "fill") + (continuous ? ":pick" : ""), x =>
+        {
+            if (stroke) x.Stroke = change.Value;
+            else x.Fill = change.Value;
+        });
+    }
+}

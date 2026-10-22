@@ -1,0 +1,122 @@
+@* One layer on the canvas. Its parameters are an id and a revision number, both
+   immutable, so a parent's render skips it unless the layer changed; a changed
+   layer renders its own view directly (see Flush), so dragging one shape redraws
+   one shape and nothing above it. *@
+@implements IDisposable
+@{
+    var ed = Editor.Current!;
+    var n = ed.Doc.Find(Id);
+    if (n is null || n.Hidden) return;
+    var inst = Scope is null ? null : ed.Doc.Find(Scope);
+    var key = (Scope ?? "") + n.Id;
+}
+<g data-n="@n.Id" data-i="@Scope" transform="@G.LocalSvg(n)" opacity="@(n.Opacity < 1 ? G.N(n.Opacity) : null)">
+    @switch (n.Kind)
+    {
+        case NodeKind.Rect:
+            <rect width="@G.N(n.W)" height="@G.N(n.H)" rx="@Rx(n)" fill="@ed.Doc.Css(n.Fill)" stroke="@StrokeOf(ed, n)" stroke-width="@StrokeWidthOf(n)" />
+            break;
+        case NodeKind.Ellipse:
+            <ellipse cx="@G.N(n.W / 2)" cy="@G.N(n.H / 2)" rx="@G.N(n.W / 2)" ry="@G.N(n.H / 2)" fill="@ed.Doc.Css(n.Fill)" stroke="@StrokeOf(ed, n)" stroke-width="@StrokeWidthOf(n)" />
+            break;
+        case NodeKind.Line:
+            <path d="M0 0H@(G.N(n.W))" stroke="@StrokeOf(ed, n)" stroke-width="@StrokeWidthOf(n)" stroke-linecap="round" fill="none" />
+            break;
+        case NodeKind.Path:
+            <path d="@G.PathData(n)" fill="@(n.Closed ? ed.Doc.Css(n.Fill) : "none")" stroke="@StrokeOf(ed, n)" stroke-width="@StrokeWidthOf(n)" stroke-linejoin="round" stroke-linecap="round" />
+            break;
+        case NodeKind.Text:
+            var text = ed.TextOf(n, inst);
+            var lines = text.Split('\n');
+            var lh = n.FontSize * n.LineHeight;
+            var ax = n.TextAlign == Align.Center ? n.W / 2 : n.TextAlign == Align.End ? n.W : 0;
+            <g><text visibility="@(ed.EditingTextId == n.Id && inst is null ? "hidden" : null)" font-family="@("'" + n.Font + "', sans-serif")" font-size="@G.N(n.FontSize)" font-weight="@n.Weight" letter-spacing="@(n.Tracking != 0 ? G.N(n.Tracking) : null)" fill="@ed.Doc.Css(n.Fill)" text-anchor="@(n.TextAlign == Align.Center ? "middle" : n.TextAlign == Align.End ? "end" : null)">
+                @for (var i = 0; i < lines.Length; i++)
+                {
+                    <tspan x="@G.N(ax)" y="@G.N(i * lh + lh / 2)" dominant-baseline="central">@lines[i]</tspan>
+                }
+            </text></g>
+            break;
+        case NodeKind.Image:
+            if (n.Radius > 0)
+            {
+                <clipPath id="@("c" + key)"><rect width="@G.N(n.W)" height="@G.N(n.H)" rx="@Rx(n)" /></clipPath>
+            }
+            <image href="@n.Href" width="@G.N(n.W)" height="@G.N(n.H)" preserveAspectRatio="xMidYMid slice" clip-path="@(n.Radius > 0 ? "url(#c" + key + ")" : null)" />
+            if (n.Stroke != "none" && n.StrokeWidth > 0)
+            {
+                <rect width="@G.N(n.W)" height="@G.N(n.H)" rx="@Rx(n)" fill="none" stroke="@StrokeOf(ed, n)" stroke-width="@StrokeWidthOf(n)" />
+            }
+            break;
+        case NodeKind.Group:
+            <ChildList Id="@n.Id" Kids="@(n.Kids + (inst?.Rev ?? 0))" Scope="@Scope" InstRev="@(inst?.Rev ?? 0)" />
+            break;
+        case NodeKind.Frame:
+            <rect width="@G.N(n.W)" height="@G.N(n.H)" rx="@Rx(n)" fill="@ed.Doc.Css(n.Fill)" stroke="@StrokeOf(ed, n)" stroke-width="@StrokeWidthOf(n)" />
+            if (n.Clip)
+            {
+                <clipPath id="@("c" + key)"><rect width="@G.N(n.W)" height="@G.N(n.H)" rx="@Rx(n)" /></clipPath>
+            }
+            <g clip-path="@(n.Clip ? "url(#c" + key + ")" : null)">
+                <ChildList Id="@n.Id" Kids="@(n.Kids + (inst?.Rev ?? 0))" Scope="@Scope" InstRev="@(inst?.Rev ?? 0)" />
+            </g>
+            break;
+        case NodeKind.Instance:
+            var main = ed.Doc.Find(n.MainId);
+            if (main is null)
+            {
+                <rect width="@G.N(n.W)" height="@G.N(n.H)" fill="none" stroke="#d4127a" stroke-dasharray="4 3" />
+                break;
+            }
+            <rect width="@G.N(main.W)" height="@G.N(main.H)" rx="@Rx(main)" fill="@ed.Doc.Css(main.Fill)" stroke="@StrokeOf(ed, main)" stroke-width="@StrokeWidthOf(main)" />
+            <clipPath id="@("c" + n.Id)"><rect width="@G.N(main.W)" height="@G.N(main.H)" rx="@Rx(main)" /></clipPath>
+            <g clip-path="@(main.Clip ? "url(#c" + n.Id + ")" : null)">
+                <ChildList Id="@main.Id" Kids="@(main.Kids + n.Rev)" Scope="@n.Id" InstRev="@n.Rev" />
+            </g>
+            break;
+    }
+</g>
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+    [Parameter] public int Rev { get; set; }
+    /// <summary>The instance this layer is drawn inside, when it belongs to a component.</summary>
+    [Parameter] public string? Scope { get; set; }
+
+    // Every view on screen by scope and id, so a changed layer can redraw itself.
+    private static readonly Dictionary<string, NodeView> Live = new();
+    private string _key = "";
+
+    protected override void OnInitialized()
+    {
+        _key = (Scope ?? "") + "/" + Id;
+        Live[_key] = this;
+    }
+
+    public void Dispose()
+    {
+        if (Live.TryGetValue(_key, out var v) && v == this) Live.Remove(_key);
+    }
+
+    /// <summary>
+    /// Renders the views of the layers changed since the last frame, in the
+    /// canvas's own render batch. Top-level layers are left to the canvas.
+    /// </summary>
+    public static void Flush(Doc doc)
+    {
+        if (doc.Dirty.Count == 0) return;
+        foreach (var id in doc.Dirty)
+        {
+            var n = doc.Find(id);
+            if (n is null || n.Parent == doc.Root) continue;
+            if (Live.TryGetValue("/" + id, out var v)) v.StateHasChanged();
+        }
+        doc.Dirty.Clear();
+    }
+
+    private static string? Rx(Node n) => n.Radius > 0 ? G.N(Math.Min(n.Radius, Math.Min(n.W, n.H) / 2)) : null;
+
+    private static string? StrokeOf(Editor ed, Node n) => n.Stroke != "none" && n.StrokeWidth > 0 ? ed.Doc.Css(n.Stroke) : null;
+
+    private static string? StrokeWidthOf(Node n) => n.Stroke != "none" && n.StrokeWidth > 0 ? G.N(n.StrokeWidth) : null;
+}

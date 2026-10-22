@@ -1,0 +1,26 @@
+@* The names above top-level frames, at their zoomed positions. The pan only
+   translates the group around them, so this renders again when the zoom, the
+   frames or the selection change, not while panning. *@
+@{
+    var ed = Editor.Current!;
+}
+@foreach (var f in ed.Doc.Root.Children)
+{
+    if (f.Hidden || f.Kind is not (NodeKind.Frame or NodeKind.Instance)) continue;
+    var sel = ed.Selection.Contains(f);
+    var comp = f.IsComponent || f.Kind == NodeKind.Instance;
+    var width = Math.Max(40, Math.Min(f.W * Zoom, 240));
+    <g><text class="@("rp-flabel" + (sel ? " on" : "") + (comp ? " comp" : ""))" x="@G.N(f.X * Zoom)" y="@G.N(f.Y * Zoom - 8)">@(f.IsComponent ? "◆ " : f.Kind == NodeKind.Instance ? "◇ " : "")@Clip(f.Name, width)</text></g>
+}
+
+@code {
+    [Parameter] public double Zoom { get; set; } = 1;
+    /// <summary>Changes with the frames (positions, names) and the selection.</summary>
+    [Parameter] public long Key { get; set; }
+
+    private static string Clip(string name, double width)
+    {
+        var max = Math.Max(4, (int)(width / 6.4));
+        return name.Length > max ? name.Substring(0, max - 1) + "…" : name;
+    }
+}

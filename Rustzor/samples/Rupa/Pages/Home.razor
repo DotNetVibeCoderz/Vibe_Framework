@@ -1,0 +1,146 @@
+@page "/"
+@inject NavigationManager Nav
+
+<div class="rp-home">
+    <header class="rp-home-bar">
+        <a class="rp-brand" href="">
+            <span class="rp-reg" aria-hidden="true"></span>
+            <span class="rp-word">Rupa</span>
+        </a>
+        <span class="rp-home-sub">Design files in this browser</span>
+        <span class="rp-grow"></span>
+        <ThemeToggle />
+    </header>
+
+    <main class="rp-home-main">
+        <section class="rp-home-head">
+            <h1>Your files</h1>
+            <p>Draw screens, build components and export them as SVG or PNG. Files stay in this browser; save a copy to keep one elsewhere.</p>
+            <div class="rp-home-actions">
+                <button class="rp-btn primary" @onclick="NewFile"><Glyph Name="plus" /> New design file</button>
+                <button class="rp-btn" @onclick="OpenFile"><Glyph Name="open" /> Open a .rupa.json file</button>
+            </div>
+        </section>
+
+        @if (_files is null)
+        {
+            <p class="rp-muted">Reading your files…</p>
+        }
+        else if (_files.Count == 0)
+        {
+            <div class="rp-empty">
+                <h2>No design files yet</h2>
+                <p>Start a new file, or bring back the Lintas sample to see what Rupa can do.</p>
+                <button class="rp-btn" @onclick="ResetSample"><Glyph Name="reset" /> Restore the sample</button>
+            </div>
+        }
+        else
+        {
+            <ul class="rp-files">
+                @foreach (var f in _files)
+                {
+                    <li class="rp-file">
+                        <a class="rp-thumb" href="@("file/" + f.Id)" aria-label="@("Open " + f.Name)">
+                            @if (f.Thumb.Length > 0)
+                            {
+                                @((MarkupString)f.Thumb)
+                            }
+                            <span class="rp-crop tl"></span><span class="rp-crop tr"></span><span class="rp-crop bl"></span><span class="rp-crop br"></span>
+                        </a>
+                        <div class="rp-file-meta">
+                            <a class="rp-file-name" href="@("file/" + f.Id)">@f.Name</a>
+                            <span class="rp-file-sub">@(f.Layers == 1 ? "1 layer" : f.Layers + " layers") · @Ago(f.Updated)</span>
+                        </div>
+                        <button class="rp-icon-btn" title="Delete this file" aria-label="@("Delete " + f.Name)" @onclick="() => Ask(f)"><Glyph Name="trash" /></button>
+                    </li>
+                }
+            </ul>
+            @if (!_files.Exists(f => f.Id == "lintas"))
+            {
+                <p class="rp-muted"><button class="rp-link" @onclick="ResetSample">Restore the Lintas sample file</button></p>
+            }
+        }
+    </main>
+
+    <footer class="rp-home-foot">
+        <span>Rupa is a Rustzor sample: C# and Razor running on RustNetRuntime in WebAssembly.</span>
+        <span>Built by Gravicode Studios, led by Kang Fadhil.</span>
+    </footer>
+</div>
+
+<Modal Open="_deleting is not null" OpenChanged="(bool open) => { if (!open) _deleting = null; }" Title="Delete this file?">
+    <ChildContent>
+    <p>“@_deleting?.Name” will be removed from this browser. A copy you saved elsewhere is not affected.</p>
+    </ChildContent>
+    <Footer>
+        <button class="rp-btn" @onclick="() => _deleting = null">Keep it</button>
+        <button class="rp-btn danger" @onclick="Delete">Delete file</button>
+    </Footer>
+</Modal>
+
+@code {
+    private List<FileEntry>? _files;
+    private FileEntry? _deleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Document.Title = "Your files · Rupa";
+        await Library.EnsureSampleAsync();
+        _files = Library.List();
+    }
+
+    private async Task NewFile()
+    {
+        var doc = new Doc { Id = Library.NewId(), Name = "Untitled design" };
+        var frame = new Node { Id = doc.NewId(), Kind = NodeKind.Frame, Name = "Phone", W = 390, H = 844, Fill = "#ffffff" };
+        doc.Root.Children.Add(frame);
+        doc.Reindex();
+        await Library.SaveAsync(doc);
+        Nav.NavigateTo("file/" + doc.Id);
+    }
+
+    private async Task OpenFile()
+    {
+        var picked = await Files.PickAsync("application/json,.json");
+        if (picked.Count == 0) return;
+        try
+        {
+            var doc = Doc.FromJson(await picked[0].ReadTextAsync());
+            doc.Id = Library.NewId();
+            await Library.SaveAsync(doc);
+            Nav.NavigateTo("file/" + doc.Id);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error(e is FormatException ? e.Message : "That file could not be read as a Rupa design.");
+        }
+    }
+
+    private async Task ResetSample()
+    {
+        await Library.ResetSampleAsync();
+        _files = Library.List();
+        Toasts.Success("The Lintas sample is back.");
+    }
+
+    private void Ask(FileEntry f) => _deleting = f;
+
+    private async Task Delete()
+    {
+        if (_deleting is null) return;
+        var name = _deleting.Name;
+        await Library.DeleteAsync(_deleting.Id);
+        _deleting = null;
+        _files = Library.List();
+        Toasts.Show("Deleted " + name);
+    }
+
+    private static string Ago(DateTime when)
+    {
+        var s = (DateTime.UtcNow - when).TotalSeconds;
+        if (s < 60) return "edited just now";
+        if (s < 3600) return "edited " + (int)(s / 60) + " min ago";
+        if (s < 86400) return "edited " + (int)(s / 3600) + " h ago";
+        return "edited " + when.ToLocalTime().ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+    }
+}

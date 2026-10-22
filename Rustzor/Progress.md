@@ -2,6 +2,43 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-22: Rupa design-tool sample
+
+- `samples/Rupa`: a Figma-like vector design tool. Routes `/` (files kept in
+  the browser, with thumbnails; new, open `.rupa.json`, delete, restore the
+  sample) and `/file/{Id}` (the editor). Seed file: Lintas, three screens of an
+  invented Jabodetabek commuter-rail app, four components, twelve colour styles.
+- Editor: infinite canvas (Space/middle/trackpad pan, Ctrl+wheel and pinch
+  zoom to the pointer, Shift+1/Shift+2); frame, rectangle, ellipse, line, pen,
+  text and image tools; select, marquee, deep select, move with snapping and
+  spacing readouts, eight resize handles, rotation, group, z-order, duplicate,
+  copy/paste, nudge, undo/redo; layers with rename/hide/lock; properties incl.
+  auto layout; components with instances that follow the main and keep text
+  overrides, detach; colour styles; SVG and PNG export (fonts inlined);
+  autosave to OPFS; Figma's shortcuts. Its own browser module handles canvas
+  input (one message per animation frame), text measuring and export.
+- Performance (interpreted, 300 shapes on the page, one pointer move per
+  frame): about 12 ms of work per move dragging one shape, 11 ms dragging 167,
+  11 ms dragging the whole frame; 56 fps in headless Chrome. Getting there:
+  per-layer views that render only when their layer changes, a separate child
+  list per container, the drag shown by the browser (C# redraws once on
+  release), snapping by binary search over sorted edges, overlay guides as
+  two paths, and the two library changes below.
+- Library: `Rustzor.Components` renderer patches same-shaped child lists pairwise
+  without building identity strings and tables; `Rustzor.Core` `JsonWriter`
+  writes strings that need no escaping in one append (every interop call);
+  `js/rustzor.js` creates `image`, `marker`, `filter` and the other missing
+  SVG tags in the SVG namespace (an `<image>` drew nothing before).
+- RustNetRuntime (uncommitted, with conformance checks in `SortChecks.cs`):
+  `Array.Sort(keys, items)`, `(keys, items, comparer)` and `(array, index,
+  length)`; built-in exceptions get .NET's hierarchy, so `catch
+  (ArgumentException)` catches a runtime `ArgumentOutOfRangeException`;
+  `new Dictionary(dictionary)` copies its source. Conformance 472/472 on .NET
+  and RustCLR, `cargo test --workspace` and `tests/embedded.sh` pass.
+- Verified: `tools/e2e/rupa.mjs` (32 checks), every route of every sample
+  renders after the library changes, `meet.mjs` passes; screenshots by
+  `tools/e2e/rupa-shots.mjs`.
+
 ## 2026-10-22: Ruang Redaksi video-call sample
 
 - `samples/Meet`: video calls for Kabar Pesisir, a cooperative of five coastal

@@ -97,6 +97,28 @@ Shows: `PeerConnection` with signalling over `BroadcastChannel`, a perfect pairi
 
 `node tools/e2e/meet.mjs http://localhost:5260` drives it in headless Chrome with fake devices: two tabs see each other's video, chat, mute, hands, reactions, the rundown, the tally, recording (the saved video is checked frame by frame), screen sharing, a third tab without a camera, leaving, ending for everyone, and a 400 px phone.
 
+## Rupa design tool
+
+`samples/Rupa` · `Rustzor.UI`, `Rustzor.Browser.FileSystem`, `Rustzor.Browser.Storage`, `Rustzor.Browser.DOM`, and a browser module of its own (`rustzor.module.js`)
+
+A vector design tool in the manner of Figma, dressed as a prepress proof: graphite chrome, a tracing-paper canvas, process-magenta selection and guides, cyan for components, registration marks on the rulers. It opens on Lintas, three screens of an invented commuter-rail app for Jabodetabek (home, timetable, ticket) with its components and colour styles.
+
+- An infinite canvas: pan with Space-drag, the middle button, the trackpad or the hand tool; zoom with Ctrl+wheel or a pinch, towards the pointer; Shift+1 fits everything, Shift+2 the selection. Rulers in canvas units mark the selection.
+- Frames, rectangles, ellipses, lines, a pen for straight-segment paths, text typed on the canvas, and images from a file, a drop or the clipboard.
+- Select, Shift+click, marquee, Ctrl+click into groups, double-click into frames and groups; move with snapping to neighbours' edges and centres and to the frame, with guide lines and spacing readouts; resize from eight handles (Shift keeps the shape, Alt resizes from the centre); turn from just outside a corner (Shift in 15° steps). Group, ungroup, z-order, duplicate, copy, paste, delete, nudge; undo and redo of every change.
+- Layers with nesting, rename, hide and lock; properties for position, size, rotation, opacity, radius, fill, stroke and type; auto layout for frames (row or column, gap, padding, alignment, hug).
+- Components: a frame becomes one with Ctrl+Alt+K; its instances follow every change and keep their own text, edited in the panel; instances detach into plain frames. Colour styles are shared by every layer that uses them.
+- Export the selection or every frame to SVG and PNG (1× or 2×, with the typefaces inlined). Files live in the browser (origin-private file system) with autosave; save a copy as `.rupa.json` and open it again.
+
+| | |
+| --- | --- |
+| ![Lintas, three screens, a card selected](../images/sample-rupa.png) | ![Moving a layer: snapping and spacing](../images/sample-rupa-guides.png) |
+| ![An instance and its text overrides, dark theme](../images/sample-rupa-dark.png) | ![The file list](../images/sample-rupa-files.png) |
+
+Shows: SVG drawn from Razor with one view per layer that renders only when its layer changes (moving one shape among three hundred redraws that shape), a drag shown by the browser while C# keeps the model and redraws on release, snapping by binary search over sorted edges, a whole-document undo history, an app embedding its own browser module.
+
+`node tools/e2e/rupa.mjs http://localhost:5310` drives it in headless Chrome with the mouse and keyboard and checks the model after each step (drawing, snapping, resizing, grouping, undo and redo, a component change reaching six instances, overrides, text, the pen, SVG and PNG export, autosave across a reload) and times drags with 300 shapes on the page: about 12 ms of work per move and 56 frames a second (the frame rate headless Chrome runs at). `node tools/e2e/rupa-shots.mjs` takes the screenshots above.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -125,4 +147,4 @@ To serve the client elsewhere, put the server's address in the top bar; the serv
 
 ## More apps
 
-[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Seven more samples from the [roadmap](../../PLAN.md) are on the way: a Figma-like design tool, a Photoshop-like editor, GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.
+[RustzorAppGen](appgen.md) ships 21 templates (games, science, business, industry, education, simulators, tools) that are complete apps too. Six more samples from the [roadmap](../../PLAN.md) are on the way: a Photoshop-like editor, GIS, a CAD viewer, an AI assistant, a multiplayer game and a digital twin.

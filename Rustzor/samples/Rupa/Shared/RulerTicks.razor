@@ -1,0 +1,41 @@
+@* The ticks of one ruler for three screen-widths of canvas around the view. They
+   depend only on the zoom and that stretch, so they render again only when the
+   view zooms or pans past the stretch drawn. *@
+@{
+    var step = Step(Zoom);
+    var from = Math.Floor((Window - 1) * Size / Zoom / step) * step;
+    var to = (Window + 2) * Size / Zoom;
+    var half = step * Zoom / 2;
+}
+@for (var t = from; t <= to; t += step)
+{
+    var p = t * Zoom;
+    if (Vertical)
+    {
+        <line class="rp-tick" x1="11" y1="@G.N(p)" x2="20" y2="@G.N(p)" />
+        <line class="rp-tick minor" x1="15" y1="@G.N(p + half)" x2="20" y2="@G.N(p + half)" />
+        <g><text class="rp-tick-label" transform="@("translate(9.5 " + G.N(p + 3) + ") rotate(90)")">@G.N(t, 0)</text></g>
+    }
+    else
+    {
+        <line class="rp-tick" x1="@G.N(p)" y1="11" x2="@G.N(p)" y2="20" />
+        <line class="rp-tick minor" x1="@G.N(p + half)" y1="15" x2="@G.N(p + half)" y2="20" />
+        <g><text class="rp-tick-label" x="@G.N(p + 3)" y="9.5">@G.N(t, 0)</text></g>
+    }
+}
+
+@code {
+    [Parameter] public bool Vertical { get; set; }
+    [Parameter] public double Zoom { get; set; } = 1;
+    [Parameter] public int Window { get; set; }
+    [Parameter] public double Size { get; set; } = 800;
+
+    /// <summary>A round number of canvas units that puts labels about 80 px apart.</summary>
+    private static double Step(double z)
+    {
+        double[] steps = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000 };
+        foreach (var s in steps)
+            if (s * z >= 72) return s;
+        return 10000;
+    }
+}

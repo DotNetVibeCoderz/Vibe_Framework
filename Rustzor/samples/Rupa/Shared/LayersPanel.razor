@@ -1,0 +1,148 @@
+@* The layer tree, drawn as a flat list. It renders when layers or the selection
+   change, never while something is being dragged. *@
+@{
+    var ed = Editor.Current!;
+    var rows = new List<(Node N, int Depth)>();
+    Expand(ed);
+    for (var i = ed.Doc.Root.Children.Count - 1; i >= 0; i--) Collect(ed.Doc.Root.Children[i], 0, rows);
+}
+<div class="rp-layers" role="tree" aria-label="Layers">
+    @if (rows.Count == 0)
+    {
+        <p class="rp-panel-empty">Nothing on the page yet. Press F and drag to draw a frame.</p>
+    }
+    @foreach (var (n, depth) in rows)
+    {
+        var selected = ed.Selection.Contains(n);
+        var open = n.IsContainer && n.Children.Count > 0 && !_collapsed.Contains(n.Id);
+        <div class="@("rp-layer" + (selected ? " on" : "") + (n.Hidden ? " hidden" : "") + (n.IsComponent || n.Kind == NodeKind.Instance ? " comp" : "") + (depth == 0 ? " top" : ""))"
+             role="treeitem" aria-selected="@(selected ? "true" : "false")" style="@("--depth:" + depth)"
+             @onclick="e => Click(n, e)" @ondblclick="() => StartRename(n)" @onmouseenter="() => HoverOn(n)" @onmouseleave="HoverOff">
+            @if (n.IsContainer && n.Children.Count > 0)
+            {
+                <button class="rp-twist" aria-label="@(open ? "Collapse" : "Expand")" @onclick="() => Toggle(n)" @onclick:stopPropagation="true"><Glyph Name="@(open ? "chev-d" : "chev-r")" Size="12" /></button>
+            }
+            else
+            {
+                <span class="rp-twist"></span>
+            }
+            <Glyph Name="@KindIcon(n)" Size="14" Class="rp-layer-icon" />
+            @if (_renaming == n.Id)
+            {
+                <input class="rp-rename" value="@n.Name" @onchange="e => Rename(n, e)" @onblur="() => _renaming = null" @onkeydown="RenameKey" @onclick:stopPropagation="true" aria-label="Layer name" />
+            }
+            else
+            {
+                <span class="rp-layer-name">@n.Name</span>
+            }
+            <button class="@("rp-layer-btn" + (n.Locked ? " set" : ""))" title="@(n.Locked ? "Unlock" : "Lock")" aria-label="@(n.Locked ? "Unlock " + n.Name : "Lock " + n.Name)" @onclick="() => ed.ToggleLocked(n)" @onclick:stopPropagation="true"><Glyph Name="@(n.Locked ? "lock" : "unlock")" Size="13" /></button>
+            <button class="@("rp-layer-btn" + (n.Hidden ? " set" : ""))" title="@(n.Hidden ? "Show" : "Hide")" aria-label="@(n.Hidden ? "Show " + n.Name : "Hide " + n.Name)" @onclick="() => ed.ToggleHidden(n)" @onclick:stopPropagation="true"><Glyph Name="@(n.Hidden ? "eye-off" : "eye")" Size="13" /></button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Rev { get; set; }
+
+    private readonly HashSet<string> _collapsed = new();
+    private readonly HashSet<string> _seen = new();
+    private string? _renaming;
+    private string? _focusRename;
+
+    private void Collect(Node n, int depth, List<(Node, int)> rows)
+    {
+        rows.Add((n, depth));
+        if (!n.IsContainer || _collapsed.Contains(n.Id)) return;
+        for (var i = n.Children.Count - 1; i >= 0; i--) Collect(n.Children[i], depth + 1, rows);
+    }
+
+    /// <summary>Containers start collapsed below the top level; the selection's parents open.</summary>
+    private void Expand(Editor ed)
+    {
+        foreach (var d in ed.Doc.Root.SelfAndDescendants())
+        {
+            if (!d.IsContainer || !_seen.Add(d.Id)) continue;
+            if (d.Parent != ed.Doc.Root || d.Children.Count > 40) _collapsed.Add(d.Id);
+        }
+        foreach (var s in ed.Selection)
+            for (var p = s.Parent; p is not null; p = p.Parent)
+                _collapsed.Remove(p.Id);
+    }
+
+    private void Click(Node n, MouseEventArgs e)
+    {
+        var ed = Editor.Current!;
+        if (n.Locked) return;
+        if (e.ShiftKey || e.CtrlKey || e.MetaKey) ed.Select(n, add: true);
+        else ed.Select(n);
+        ed.Notify();
+    }
+
+    private void Toggle(Node n)
+    {
+        if (!_collapsed.Remove(n.Id)) _collapsed.Add(n.Id);
+        Editor.Current!.LayersRev++;
+        Editor.Current.Notify();
+    }
+
+    private void StartRename(Node n)
+    {
+        _renaming = n.Id;
+        _focusRename = n.Id;
+        Editor.Current!.LayersRev++;
+        Editor.Current.Notify();
+    }
+
+    private void Rename(Node n, ChangeEventArgs e)
+    {
+        _renaming = null;
+        Editor.Current!.Rename(n, e.Value?.ToString() ?? "");
+    }
+
+    private void RenameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _renaming = null;
+            Editor.Current!.LayersRev++;
+            Editor.Current.Notify();
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (_focusRename is null) return;
+        _focusRename = null;
+        Js.Send("rupa.focusRename");
+    }
+
+    private void HoverOn(Node n)
+    {
+        var ed = Editor.Current!;
+        ed.Hover = n;
+        ed.Notify();
+    }
+
+    private void HoverOff()
+    {
+        var ed = Editor.Current!;
+        ed.Hover = null;
+        ed.Notify();
+    }
+
+    public static string KindIcon(Node n) => n.Kind switch
+    {
+        NodeKind.Frame when n.IsComponent => "component",
+        NodeKind.Frame when n.Layout == LayoutMode.Row => "row",
+        NodeKind.Frame when n.Layout == LayoutMode.Column => "column",
+        NodeKind.Frame => "frame",
+        NodeKind.Group => "group",
+        NodeKind.Rect => "rect",
+        NodeKind.Ellipse => "ellipse",
+        NodeKind.Line => "line",
+        NodeKind.Path => "pen",
+        NodeKind.Text => "text",
+        NodeKind.Image => "image",
+        _ => "instance",
+    };
+}

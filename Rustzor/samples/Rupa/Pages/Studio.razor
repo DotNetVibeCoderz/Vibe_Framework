@@ -1,0 +1,572 @@
+@page "/file/{Id}"
+@implements IDisposable
+@inject NavigationManager Nav
+
+@if (_ed is null)
+{
+    <div class="rp-loading"><span>Rupa</span>@(_missing ? "This file is not in this browser." : "Opening the file…")</div>
+    @if (_missing)
+    {
+        <p class="rp-center"><a class="rp-btn primary" href="">Back to your files</a></p>
+    }
+}
+else
+{
+    var ed = _ed;
+    <div class="@("rp-app" + (_left ? " left-open" : "") + (_right ? " right-open" : ""))">
+        <header class="rp-bar">
+            <a class="rp-brand" href="" title="Your files">
+                <span class="rp-reg" aria-hidden="true"></span>
+                <span class="rp-word">Rupa</span>
+            </a>
+            <div class="rp-file-title">
+                <input class="rp-doc-name" value="@ed.Doc.Name" @onchange="RenameDoc" aria-label="File name" spellcheck="false" />
+                <span class="@("rp-save " + _saveState)">@SaveText</span>
+            </div>
+            <div class="rp-menu-wrap">
+                <button class="rp-icon-btn" title="File" aria-label="File menu" aria-expanded="@(_menu ? "true" : "false")" @onclick="() => _menu = !_menu"><Glyph Name="more" /></button>
+                @if (_menu)
+                {
+                    <div class="rp-menu" role="menu" @onclick="() => _menu = false">
+                        <button role="menuitem" @onclick="SaveCopy"><Glyph Name="save" /> Save a copy… <kbd>Ctrl S</kbd></button>
+                        <button role="menuitem" @onclick="OpenFile"><Glyph Name="open" /> Open a file… <kbd>Ctrl O</kbd></button>
+                        <button role="menuitem" @onclick="PlaceImage"><Glyph Name="image" /> Place an image…</button>
+                        <hr />
+                        <button role="menuitem" @onclick="Stress"><Glyph Name="layers" /> Add 300 shapes (performance test)</button>
+                        @if (ed.Doc.Id == "lintas")
+                        {
+                            <button role="menuitem" @onclick="ResetSample"><Glyph Name="reset" /> Reset the sample file</button>
+                        }
+                        <hr />
+                        <a role="menuitem" href=""><Glyph Name="back" /> All files</a>
+                    </div>
+                }
+            </div>
+
+            <nav class="rp-tools" aria-label="Tools">
+                @foreach (var (tool, icon, label, key) in Tools)
+                {
+                    <button class="@("rp-tool" + (ed.Tool == tool ? " on" : ""))" title="@(label + " (" + key + ")")" aria-label="@label" aria-pressed="@(ed.Tool == tool ? "true" : "false")" @onclick="() => PickTool(tool)">
+                        <Glyph Name="@icon" />
+                        <span class="rp-tool-key">@key</span>
+                    </button>
+                }
+                <button class="rp-tool" title="Place an image" aria-label="Place an image" @onclick="PlaceImage"><Glyph Name="image" /></button>
+            </nav>
+
+            <span class="rp-grow"></span>
+
+            <div class="rp-cluster">
+                <button class="rp-icon-btn" title="Undo (Ctrl Z)" aria-label="Undo" disabled="@(!ed.CanUndo)" @onclick="() => { ed.Undo(); }"><Glyph Name="undo" /></button>
+                <button class="rp-icon-btn" title="Redo (Ctrl Shift Z)" aria-label="Redo" disabled="@(!ed.CanRedo)" @onclick="() => { ed.Redo(); }"><Glyph Name="redo" /></button>
+            </div>
+            <div class="rp-zoom">
+                <button class="rp-icon-btn" title="Zoom out (Ctrl −)" aria-label="Zoom out" @onclick="() => Zoom(0.8)"><Glyph Name="minus" /></button>
+                <button class="rp-zoom-val" title="Zoom to 100% (Shift 0)" @onclick="() => Zoom(1 / ed.Zoom)">@(G.N(ed.Zoom * 100, 0))%</button>
+                <button class="rp-icon-btn" title="Zoom in (Ctrl +)" aria-label="Zoom in" @onclick="() => Zoom(1.25)"><Glyph Name="plus" /></button>
+                <button class="rp-icon-btn" title="Zoom to fit (Shift 1)" aria-label="Zoom to fit" @onclick="Fit"><Glyph Name="fit" /></button>
+            </div>
+            <ThemeToggle />
+            <button class="rp-icon-btn rp-only-narrow" title="Layers" aria-label="Show layers" @onclick="() => { _left = !_left; _right = false; }"><Glyph Name="sidebar" /></button>
+            <button class="rp-icon-btn rp-only-narrow" title="Design" aria-label="Show properties" @onclick="() => { _right = !_right; _left = false; }"><Glyph Name="panel" /></button>
+        </header>
+
+        <aside class="rp-left" aria-label="Layers and assets">
+            <div class="rp-tabs" role="tablist">
+                <button role="tab" class="@(_tab == 0 ? "on" : null)" aria-selected="@(_tab == 0 ? "true" : "false")" @onclick="() => _tab = 0">Layers <span class="rp-count">@ed.Doc.Count</span></button>
+                <button role="tab" class="@(_tab == 1 ? "on" : null)" aria-selected="@(_tab == 1 ? "true" : "false")" @onclick="() => _tab = 1">Assets</button>
+            </div>
+            <div class="rp-left-body">
+                @if (_tab == 0)
+                {
+                    <LayersPanel Rev="ed.LayersRev" />
+                }
+                else
+                {
+                    <AssetsPanel Rev="ed.LayersRev" />
+                }
+            </div>
+            <footer class="rp-credit">
+                <span>Rupa · a Rustzor sample</span>
+                <span>Built by Gravicode Studios, led by Kang Fadhil</span>
+            </footer>
+        </aside>
+
+        <main class="rp-stage">
+            <CanvasView @ref="_canvas" Tick="_tick" OnInput="OnCanvas" />
+        </main>
+
+        <aside class="rp-right" aria-label="Design">
+            <DesignPanel @ref="_design" Tick="_tick" OnExport="Export" />
+        </aside>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private Editor? _ed;
+    private bool _missing;
+    private int _tick;
+    private int _keys;
+    private long _keysHandle;
+    private int _saveTimer;
+    private string _saveState = "saved";
+    private bool _menu, _left, _right;
+    private int _tab;
+    private bool _fitted;
+
+    private static readonly (Tool Tool, string Icon, string Label, string Key)[] Tools =
+    {
+        (Tool.Move, "move", "Move", "V"),
+        (Tool.Frame, "frame", "Frame", "F"),
+        (Tool.Rect, "rect", "Rectangle", "R"),
+        (Tool.Ellipse, "ellipse", "Ellipse", "O"),
+        (Tool.Line, "line", "Line", "L"),
+        (Tool.Pen, "pen", "Pen", "P"),
+        (Tool.Text, "text", "Text", "T"),
+        (Tool.Hand, "hand", "Hand", "H"),
+    };
+
+    private string SaveText => _saveState switch
+    {
+        "saving" => "Saving…",
+        "dirty" => "Unsaved changes",
+        "error" => "Could not save in this browser",
+        _ => "Saved in this browser",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_ed is not null && _ed.Doc.Id == Id) return;
+        Close();
+        await Library.EnsureSampleAsync();
+        var doc = await Library.LoadAsync(Id);
+        if (doc is null)
+        {
+            _missing = true;
+            return;
+        }
+        var ed = new Editor(doc);
+        ed.Measure = (font, size, weight, tracking, text) =>
+        {
+            var r = Js.Call("rupa.measure", Js.Args("font", font, "size", size, "weight", weight, "tracking", tracking, "text", text));
+            return (r["w"].AsDouble(), r["n"].AsInt());
+        };
+        ed.Changed += Refresh;
+        ed.Edited += ScheduleSave;
+        ed.Command += OnCommand;
+        ed.DragBegin = ids => Js.Send("rupa.dragBegin", w =>
+        {
+            w.BeginObject().Name("ids").BeginArray();
+            foreach (var id in ids) w.String(id);
+            w.EndArray().EndObject();
+        });
+        ed.DragOffset = (dx, dy) => Js.Send("rupa.drag", Js.Args("dx", dx, "dy", dy));
+        ed.DragEnd = reset => Js.Send("rupa.dragEnd", Js.Args("reset", reset));
+        Editor.Current = ed;
+        _ed = ed;
+        Document.Title = doc.Name + " · Rupa";
+        _keys = Callbacks.Register(OnKey);
+        _keysHandle = Js.Call("rupa.keys", Js.Args("id", _keys)).AsLong();
+        Js.Send("rupa.inspect", Js.Args("id", _keys));
+        _ = FontsAsync(ed);
+    }
+
+    /// <summary>Text is measured again once the typefaces have loaded.</summary>
+    private async Task FontsAsync(Editor ed)
+    {
+        await Js.CallAsync("rupa.fonts");
+        if (_ed != ed) return;
+        ed.FitAllText();
+        Refresh();
+    }
+
+    private CanvasView? _canvas;
+    private DesignPanel? _design;
+    private string _chrome = "";
+    private string _props = "";
+    private DateTime _propsAt;
+
+    /// <summary>
+    /// Redraws what changed. Panning, hovering and dragging change only the canvas
+    /// (and the selection's numbers), so the toolbar and panels are left alone.
+    /// </summary>
+    private void Refresh()
+    {
+        _tick++;
+        var ed = _ed;
+        var chrome = ed is null ? "" : ChromeKey(ed);
+        if (ed is not null && _canvas is not null && chrome == _chrome)
+        {
+            _canvas.Redraw();
+            var props = PropsKey(ed);
+            if (props != _props && !ed.Dragging)
+            {
+                _props = props;
+                _design?.Redraw();
+            }
+            else if (props != _props && (DateTime.UtcNow - _propsAt).TotalMilliseconds > 100)
+            {
+                // While dragging, only the position numbers follow, a few times a second.
+                _propsAt = DateTime.UtcNow;
+                _design?.RedrawPosition();
+            }
+            return;
+        }
+        _chrome = chrome;
+        if (ed is not null) _props = PropsKey(ed);
+        StateHasChanged();
+    }
+
+    private string ChromeKey(Editor ed) =>
+        ed.Tool + "|" + G.N(ed.Zoom * 100, 0) + "|" + ed.CanUndo + ed.CanRedo + "|" + ed.LayersRev + "|" + ed.Doc.Count + "|" + _saveState
+        + "|" + _menu + _left + _right + _tab + "|" + ed.Doc.Name + "|" + ed.EditingTextId;
+
+    /// <summary>The numbers the design panel shows for the selection.</summary>
+    private static string PropsKey(Editor ed)
+    {
+        if (ed.Selection.Count == 0) return "";
+        if (ed.Single is { } n)
+            return n.Id + "|" + G.N(n.X) + "," + G.N(n.Y) + "," + G.N(n.W) + "," + G.N(n.H) + "," + G.N(n.Rotation) + "|" + n.Rev;
+        var b = ed.SelectionBounds()!.Value;
+        return ed.Selection.Count + "|" + G.N(b.X) + "," + G.N(b.Y) + "," + G.N(b.W) + "," + G.N(b.H);
+    }
+
+    // ── input ─────────────────────────────────────────────────────────────
+
+    private void OnCanvas(JsonValue m)
+    {
+        var ed = _ed;
+        if (ed is null) return;
+        var t = m["t"].AsString();
+        var before = _tick;
+        switch (t)
+        {
+            case "down":
+                _menu = false;
+                ed.PointerDown(m["x"].AsDouble(), m["y"].AsDouble(), m["b"].AsInt(), m["s"].AsBool(), m["c"].AsBool(), m["a"].AsBool(), m["n"].AsInt());
+                break;
+            case "move":
+            {
+                var hover = ed.Hover;
+                var cursor = ed.Cursor;
+                var pressed = m["b"].AsBool();
+                ed.PointerMove(m["x"].AsDouble(), m["y"].AsDouble(), pressed, m["s"].AsBool(), m["a"].AsBool());
+                // A hover that changes nothing on screen draws nothing.
+                if (!pressed && ed.Pen.Count == 0 && hover == ed.Hover && cursor == ed.Cursor) return;
+                break;
+            }
+            case "up":
+                ed.PointerUp(m["x"].AsDouble(), m["y"].AsDouble(), m["s"].AsBool());
+                break;
+            case "cancel":
+                ed.CancelGesture();
+                break;
+            case "leave":
+                if (ed.Hover is null) return;
+                ed.Hover = null;
+                break;
+            case "wheel":
+                ed.Wheel(m["dx"].AsDouble(), m["dy"].AsDouble(), m["x"].AsDouble(), m["y"].AsDouble(), m["c"].AsBool());
+                break;
+            case "pinch":
+                ed.Pinch(m["k"].AsDouble(), m["x"].AsDouble(), m["y"].AsDouble(), m["dx"].AsDouble(), m["dy"].AsDouble());
+                break;
+            case "size":
+                ed.ViewW = m["w"].AsDouble();
+                ed.ViewH = m["h"].AsDouble();
+                if (!_fitted && ed.ViewW > 0)
+                {
+                    _fitted = true;
+                    ed.ZoomToFit();
+                }
+                break;
+            case "drop":
+                ed.PlaceImages(Images(m["files"]), ed.ToWorld(m["x"].AsDouble(), m["y"].AsDouble()));
+                break;
+        }
+        if (_tick == before) Refresh();
+    }
+
+    private void OnKey(JsonValue m)
+    {
+        var ed = _ed;
+        if (ed is null) return;
+        if (m["t"].AsString() == "inspect")
+        {
+            Inspect(ed);
+            return;
+        }
+        if (ed.EditingTextId is not null) return;
+        var before = _tick;
+        switch (m["t"].AsString())
+        {
+            case "kd":
+                _menu = false;
+                ed.KeyDown(m["k"].AsString(), m["c"].AsString(), m["ctrl"].AsBool(), m["s"].AsBool(), m["a"].AsBool());
+                break;
+            case "ku":
+                ed.KeyUp(m["k"].AsString());
+                break;
+            case "image":
+                ed.PlaceImages(Images(m["files"]), ed.ToWorld(ed.ViewW / 2, ed.ViewH / 2));
+                break;
+        }
+        if (_tick == before) Refresh();
+    }
+
+    /// <summary>The file, selection and viewport as JSON, for the scripted checks.</summary>
+    private static void Inspect(Editor ed)
+    {
+        var w = new JsonWriter();
+        w.BeginObject();
+        w.Name("doc").Raw(ed.Doc.ToJson());
+        w.Name("selection").BeginArray();
+        foreach (var s in ed.Selection) w.String(s.Id);
+        w.EndArray();
+        w.Prop("zoom", ed.Zoom).Prop("panX", ed.PanX).Prop("panY", ed.PanY).Prop("tool", ed.Tool.ToString());
+        w.Prop("editing", ed.EditingTextId).Prop("canUndo", ed.CanUndo).Prop("canRedo", ed.CanRedo).Prop("count", ed.Doc.Count);
+        w.EndObject();
+        Js.Send("rupa.answer", Js.Args("json", w.ToString()));
+    }
+
+    private static List<(string, string, double, double)> Images(JsonValue files)
+    {
+        var list = new List<(string, string, double, double)>();
+        foreach (var f in files.Items) list.Add((f["name"].AsString(), f["url"].AsString(), f["w"].AsDouble(), f["h"].AsDouble()));
+        return list;
+    }
+
+    private void OnCommand(string command)
+    {
+        switch (command)
+        {
+            case "save": _ = SaveCopy(); break;
+            case "open": _ = OpenFile(); break;
+            case "export": _ = Export(("svg", 1)); break;
+        }
+    }
+
+    private void PickTool(Tool tool)
+    {
+        if (_ed is null) return;
+        if (_ed.Pen.Count > 0 && tool != Tool.Pen) _ed.FinishPen(false);
+        _ed.Tool = tool;
+        _ed.Notify();
+    }
+
+    private void Zoom(double factor)
+    {
+        if (_ed is null) return;
+        _ed.ZoomAt(factor, _ed.ViewW / 2, _ed.ViewH / 2);
+        _ed.Notify();
+    }
+
+    private void Fit()
+    {
+        _ed?.ZoomToFit();
+        _ed?.Notify();
+    }
+
+    // ── saving ────────────────────────────────────────────────────────────
+
+    private void ScheduleSave()
+    {
+        _saveState = "dirty";
+        if (_saveTimer != 0) Scheduler.Clear(_saveTimer);
+        _saveTimer = Scheduler.SetTimeout(() => _ = SaveNow(), 600);
+    }
+
+    private async Task SaveNow()
+    {
+        _saveTimer = 0;
+        if (_ed is null) return;
+        _saveState = "saving";
+        try
+        {
+            await Library.SaveAsync(_ed.Doc);
+            _saveState = "saved";
+        }
+        catch (Exception e)
+        {
+            _saveState = "error";
+            Js.Log(2, "save failed: " + e.Message);
+        }
+        StateHasChanged();
+    }
+
+    private void RenameDoc(ChangeEventArgs e)
+    {
+        if (_ed is null) return;
+        var name = (e.Value?.ToString() ?? "").Trim();
+        if (name.Length == 0) return;
+        _ed.Doc.Name = name;
+        Document.Title = name + " · Rupa";
+        ScheduleSave();
+    }
+
+    private async Task SaveCopy()
+    {
+        if (_ed is null) return;
+        var name = Safe(_ed.Doc.Name) + ".rupa.json";
+        await Files.SaveTextAsync(name, _ed.Doc.ToJson(), "application/json");
+        Toasts.Success("Saved a copy as " + name);
+    }
+
+    private async Task OpenFile()
+    {
+        var picked = await Files.PickAsync("application/json,.json");
+        if (picked.Count == 0) return;
+        try
+        {
+            var doc = Doc.FromJson(await picked[0].ReadTextAsync());
+            doc.Id = Library.NewId();
+            await Library.SaveAsync(doc);
+            Nav.NavigateTo("file/" + doc.Id);
+        }
+        catch (Exception e)
+        {
+            Toasts.Error(e is FormatException ? e.Message : "That file could not be read as a Rupa design.");
+        }
+    }
+
+    private async Task PlaceImage()
+    {
+        if (_ed is null) return;
+        var picked = await Files.PickAsync("image/*", multiple: true);
+        var list = new List<(string, string, double, double)>();
+        foreach (var p in picked)
+        {
+            var url = await p.ReadDataUrlAsync();
+            var size = await Js.CallAsync("rupa.imageSize", Js.Args("url", url));
+            list.Add((p.Name, url, size["w"].AsDouble(), size["h"].AsDouble()));
+        }
+        var c = _ed.Single is { Kind: NodeKind.Frame } f ? G.World(f).Apply(f.W / 2, f.H / 2) : _ed.ToWorld(_ed.ViewW / 2, _ed.ViewH / 2);
+        _ed.PlaceImages(list, c);
+    }
+
+    private void Stress()
+    {
+        _ed?.AddStressFrame(300);
+        Toasts.Show("Added a frame of 300 shapes. Drag a few of them around.");
+    }
+
+    private async Task ResetSample()
+    {
+        var doc = await Library.ResetSampleAsync();
+        Close();
+        Nav.NavigateTo("file/" + doc.Id, forceLoad: true);
+    }
+
+    // ── export ────────────────────────────────────────────────────────────
+
+    private async Task Export((string Kind, double Scale) request)
+    {
+        var ed = _ed;
+        if (ed is null) return;
+        var nodes = ed.Selection.Count > 0 ? new List<Node>(ed.Selection) : ed.Doc.Root.Children.FindAll(c => c.Kind == NodeKind.Frame && !c.Hidden);
+        if (nodes.Count == 0)
+        {
+            Toasts.Warning("There is nothing to export. Draw a frame first.");
+            return;
+        }
+        Box? all = null;
+        var fonts = new HashSet<string>();
+        foreach (var n in nodes)
+        {
+            var b = G.WorldBounds(n);
+            all = all is null ? b : Box.Union(all.Value, b);
+            foreach (var d in n.SelfAndDescendants())
+            {
+                if (d.Kind == NodeKind.Text) fonts.Add(d.Font);
+                if (d.Kind == NodeKind.Instance && ed.Doc.Find(d.MainId) is { } main)
+                    foreach (var t in main.SelfAndDescendants())
+                        if (t.Kind == NodeKind.Text) fonts.Add(t.Font);
+            }
+        }
+        var box = all!.Value;
+        var x = Math.Floor(box.X);
+        var y = Math.Floor(box.Y);
+        var w = Math.Ceiling(box.Right) - x;
+        var h = Math.Ceiling(box.Bottom) - y;
+        var svg = Js.Call("rupa.svg", wr =>
+        {
+            wr.BeginObject();
+            wr.Name("ids").BeginArray();
+            foreach (var n in nodes) wr.String(n.Id);
+            wr.EndArray();
+            wr.Name("matrices").BeginArray();
+            foreach (var n in nodes) wr.String(G.ParentWorld(n).Svg);
+            wr.EndArray();
+            wr.Prop("x", x).Prop("y", y).Prop("w", w).Prop("h", h);
+            wr.Name("fonts").BeginArray();
+            foreach (var f in fonts) wr.String(f);
+            wr.EndArray();
+            wr.EndObject();
+        }).AsString();
+        var name = Safe(nodes.Count == 1 ? nodes[0].Name : ed.Doc.Name);
+        if (request.Kind == "svg")
+        {
+            Download.Text(name + ".svg", svg, "image/svg+xml");
+            Toasts.Success("Exported " + name + ".svg · " + Kb(svg.Length));
+            return;
+        }
+        try
+        {
+            var r = await Js.CallAsync("rupa.png", w2 =>
+            {
+                w2.BeginObject().Prop("svg", svg).Prop("w", w).Prop("h", h).Prop("scale", request.Scale);
+                w2.Name("fonts").BeginArray();
+                foreach (var f in fonts) w2.String(f);
+                w2.EndArray().EndObject();
+            });
+            var file = name + (request.Scale == 1 ? "" : "@" + G.N(request.Scale) + "x") + ".png";
+            Download.Url(file, r["url"].AsString());
+            Toasts.Success("Exported " + file + " · " + r["width"].AsInt() + " × " + r["height"].AsInt() + " px · " + Kb(r["bytes"].AsInt()));
+        }
+        catch (Exception e)
+        {
+            Toasts.Error("The PNG could not be made: " + e.Message);
+        }
+    }
+
+    private static string Kb(int bytes) => bytes < 1024 ? bytes + " B" : G.N(bytes / 1024.0, 1) + " KB";
+
+    private static string Safe(string name)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in name.Trim())
+            sb.Append(char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' ? ch : ch == ' ' ? '-' : '_');
+        var s = sb.ToString().Trim('-', '_');
+        return s.Length == 0 ? "rupa" : s;
+    }
+
+    private void Close()
+    {
+        if (_keysHandle != 0) Js.Send("rupa.detach", Js.Args("h", _keysHandle));
+        if (_keys != 0) Callbacks.Unregister(_keys);
+        _keysHandle = 0;
+        _keys = 0;
+        if (_ed is not null)
+        {
+            _ed.Changed -= Refresh;
+            _ed.Edited -= ScheduleSave;
+            _ed.Command -= OnCommand;
+            if (_saveTimer != 0)
+            {
+                Scheduler.Clear(_saveTimer);
+                _ = Library.SaveAsync(_ed.Doc);
+            }
+        }
+        _saveTimer = 0;
+        _ed = null;
+        _fitted = false;
+    }
+
+    public void Dispose()
+    {
+        Close();
+        if (Editor.Current is not null && Editor.Current.Doc.Id == Id) Editor.Current = null;
+    }
+}

@@ -328,9 +328,28 @@ public sealed class JsonWriter
         return this;
     }
 
+    // Every character JSON must escape: the controls, the quote and the backslash.
+    private static readonly char[] Special = BuildSpecial();
+
+    private static char[] BuildSpecial()
+    {
+        var chars = new char[34];
+        for (var i = 0; i < 32; i++) chars[i] = (char)i;
+        chars[32] = '"';
+        chars[33] = '\\';
+        return chars;
+    }
+
     private void WriteString(string s)
     {
         _sb.Append('"');
+        // Almost every string (attribute values, ids, text) needs no escaping:
+        // one search instead of a test per character.
+        if (s.IndexOfAny(Special) < 0)
+        {
+            _sb.Append(s).Append('"');
+            return;
+        }
         var start = 0;
         for (var i = 0; i < s.Length; i++)
         {

@@ -1,0 +1,69 @@
+@* Position and size of the selection. A view of its own so the numbers can
+   follow a drag a few times a second without redrawing the whole panel. *@
+@{
+    var ed = Editor.Current!;
+    var n = ed.Single;
+}
+<section class="rp-sec">
+    <h3 class="rp-sec-title">@(n is not null && n.Parent is { } p && p != ed.Doc.Root ? "Position in " + p.Name : "Position")</h3>
+    @if (n is not null)
+    {
+        var locked = n.Parent is { Layout: not LayoutMode.None };
+        <div class="rp-grid2">
+            <NumField Label="X" Title="X position" Value="n.X" Disabled="locked" OnChange="v => Set(x => x.X = v)" />
+            <NumField Label="Y" Title="Y position" Value="n.Y" Disabled="locked" OnChange="v => Set(x => x.Y = v)" />
+            @if (n.Kind == NodeKind.Line)
+            {
+                <NumField Label="L" Title="Length" Value="n.W" OnChange="v => Size(n, v, 0)" />
+            }
+            else
+            {
+                <NumField Label="W" Title="Width" Value="n.W" Disabled="n.Kind == NodeKind.Instance || n.Kind == NodeKind.Frame && n.Hug" OnChange="v => Size(n, v, n.H)" />
+                <NumField Label="H" Title="Height" Value="n.H" Disabled="n.Kind == NodeKind.Instance || n.Kind == NodeKind.Frame && n.Hug" OnChange="v => Size(n, n.W, v)" />
+            }
+            <NumField Label="∠" Title="Rotation" Value="n.Rotation" Suffix="°" Disabled="locked || n.Kind == NodeKind.Group" OnChange="v => Set(x => x.Rotation = G.Normalize(v))" />
+        </div>
+        @if (locked)
+        {
+            <p class="rp-panel-note">Placed by @n.Parent!.Name's auto layout. Drag it along the row to reorder.</p>
+        }
+    }
+    else if (ed.SelectionBounds() is { } b)
+    {
+        <div class="rp-grid2">
+            <NumField Label="X" Title="X of the selection" Value="b.X" OnChange="v => Set(x => x.X += v - b.X)" />
+            <NumField Label="Y" Title="Y of the selection" Value="b.Y" OnChange="v => Set(x => x.Y += v - b.Y)" />
+            <NumField Label="W" Value="b.W" Disabled="true" />
+            <NumField Label="H" Value="b.H" Disabled="true" />
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The selected layers and their revisions; the fields render again when it changes.</summary>
+    [Parameter] public string Key { get; set; } = "";
+
+    /// <summary>Shows the selection's current numbers.</summary>
+    public void Redraw() => StateHasChanged();
+
+    private static void Set(Action<Node> change)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint("prop:position");
+        foreach (var n in ed.Selection)
+        {
+            change(n);
+            ed.Doc.Touch(n);
+        }
+        if (ed.Selection.Count > 0) ed.Reflow(ed.Selection[0].Parent ?? ed.Doc.Root);
+        ed.Changes();
+    }
+
+    private static void Size(Node n, double w, double h)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint("prop:size");
+        ed.SetSize(n, w, h);
+        ed.Changes();
+    }
+}

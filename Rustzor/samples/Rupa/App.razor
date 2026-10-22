@@ -1,0 +1,13 @@
+<Router AppAssembly="typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <div class="rp-lost">
+            <h1>Nothing at this address</h1>
+            <p>Design files open from the file list.</p>
+            <a class="rp-btn primary" href="">Go to your files</a>
+        </div>
+    </NotFound>
+</Router>
+<Toaster />

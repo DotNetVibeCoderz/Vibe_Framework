@@ -531,6 +531,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const SVG_TAGS = new Set([
   "path", "circle", "rect", "line", "polyline", "polygon", "ellipse", "g", "text", "tspan", "defs",
   "linearGradient", "radialGradient", "stop", "clipPath", "mask", "pattern", "use", "symbol", "foreignObject", "title",
+  "image", "marker", "textPath", "desc", "switch", "view", "filter", "feGaussianBlur", "feOffset", "feBlend", "feFlood",
+  "feComposite", "feColorMatrix", "feMerge", "feMergeNode", "feDropShadow", "animate", "animateTransform", "set",
 ]);
 
 /** The DOM element behind an ElementReference id (C# sends `{ $el: "42" }`). */

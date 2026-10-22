@@ -1,0 +1,37 @@
+@* Rulers along the top and left, in canvas units, with the selection's extent
+   marked on both, and a registration mark in the corner. The ticks sit in groups
+   the pan only translates, so panning moves two attributes, not every tick. *@
+@{
+    var ed = Editor.Current!;
+    var z = ed.Zoom;
+    var sel = ed.SelectionBounds();
+}
+<g class="rp-rulers" data-ui>
+    <rect class="rp-ruler" x="0" y="0" width="@G.N(ed.ViewW)" height="20" />
+    <rect class="rp-ruler" x="0" y="0" width="20" height="@G.N(ed.ViewH)" />
+    @if (sel is { } s)
+    {
+        var a = ed.ToScreen(new Pt(s.X, s.Y));
+        var b = ed.ToScreen(new Pt(s.Right, s.Bottom));
+        <rect class="rp-ruler-sel" x="@G.N(Math.Max(20, a.X))" y="0" width="@G.N(Math.Max(0, b.X - Math.Max(20, a.X)))" height="20" />
+        <rect class="rp-ruler-sel" x="0" y="@G.N(Math.Max(20, a.Y))" width="20" height="@G.N(Math.Max(0, b.Y - Math.Max(20, a.Y)))" />
+    }
+    <g transform="@("translate(" + G.N(ed.PanX) + " 0)")">
+        <RulerTicks Vertical="false" Zoom="z" Window="Window(ed.PanX, ed.ViewW)" Size="ed.ViewW" />
+    </g>
+    <g transform="@("translate(0 " + G.N(ed.PanY) + ")")">
+        <RulerTicks Vertical="true" Zoom="z" Window="Window(ed.PanY, ed.ViewH)" Size="ed.ViewH" />
+    </g>
+    <rect class="rp-ruler corner" x="0" y="0" width="20" height="20" />
+    <circle class="rp-regmark" cx="10" cy="10" r="4.5" />
+    <line class="rp-regmark" x1="10" y1="2.5" x2="10" y2="17.5" />
+    <line class="rp-regmark" x1="2.5" y1="10" x2="17.5" y2="10" />
+</g>
+
+@code {
+    /// <summary>The viewport and selection extent; the rulers render only when it changes.</summary>
+    [Parameter] public string Key { get; set; } = "";
+
+    /// <summary>Which screen-sized stretch of the canvas the view is in; ticks are drawn a stretch either side.</summary>
+    private static int Window(double pan, double size) => (int)Math.Floor(-pan / Math.Max(size, 1));
+}

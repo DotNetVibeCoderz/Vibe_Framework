@@ -281,6 +281,26 @@ internal sealed class Renderer
             return;
         }
 
+        // Most renders keep the same nodes in the same order (only attributes and
+        // text change): patch them pairwise, with no matching tables to build.
+        if (oldList.Count == newList.Count)
+        {
+            var same = true;
+            for (var i = 0; i < newList.Count; i++)
+            {
+                if (!SameIdentity(oldList[i], newList[i]))
+                {
+                    same = false;
+                    break;
+                }
+            }
+            if (same)
+            {
+                for (var i = 0; i < newList.Count; i++) Patch(owner, oldList[i], newList[i], parentDomId);
+                return;
+            }
+        }
+
         // Match old nodes to new by identity: key when there is one, else
         // sequence number, kind and tag. A sequence number repeats in a loop,
         // so equal identities match in order.
@@ -327,6 +347,19 @@ internal sealed class Renderer
             }
             before = FirstDomId(n);
         }
+    }
+
+    /// <summary>What <see cref="IdentityOf"/> compares, without building strings.</summary>
+    private static bool SameIdentity(VNode a, VNode b)
+    {
+        if (a.Sequence != b.Sequence || !Equals(a.Key, b.Key)) return false;
+        return (a, b) switch
+        {
+            (VElement x, VElement y) => x.Tag == y.Tag,
+            (VComponent x, VComponent y) => x.Type == y.Type,
+            (VText, VText) or (VMarkup, VMarkup) or (VRegion, VRegion) => true,
+            _ => false,
+        };
     }
 
     private static string IdentityOf(VNode n) =>

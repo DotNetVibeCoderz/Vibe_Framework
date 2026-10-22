@@ -1,0 +1,123 @@
+@* Components to place, and the file's colour styles. *@
+@{
+    var ed = Editor.Current!;
+    var comps = ed.Doc.Components();
+}
+<div class="rp-assets">
+    <section class="rp-sec">
+        <h3 class="rp-sec-title">Components <span class="rp-count">@comps.Count</span></h3>
+        @if (comps.Count == 0)
+        {
+            <p class="rp-panel-empty">Select a frame and press Ctrl+Alt+K to make it a component you can reuse.</p>
+        }
+        @foreach (var c in comps)
+        {
+            var uses = ed.Doc.InstancesOf(c.Id).Count;
+            <div class="rp-asset">
+                <span class="rp-asset-icon"><Glyph Name="component" Size="14" /></span>
+                <span class="rp-asset-name">
+                    <span>@c.Name</span>
+                    <span class="rp-asset-sub">@G.N(c.W) × @G.N(c.H) · @(uses == 1 ? "1 instance" : uses + " instances")</span>
+                </span>
+                <button class="rp-mini" title="Show the main component" @onclick="() => Show(c)">Show</button>
+                <button class="rp-mini accent" title="Place an instance" @onclick="() => Place(c)">Place</button>
+            </div>
+        }
+    </section>
+    <section class="rp-sec">
+        <h3 class="rp-sec-title">Colour styles <span class="rp-count">@ed.Doc.Styles.Count</span></h3>
+        @foreach (var s in ed.Doc.Styles)
+        {
+            var users = Users(ed, s);
+            <div class="rp-style">
+                <label class="rp-swatch" style="@("--sw:" + s.Hex)" title="Change colour">
+                    <input type="color" value="@s.Hex" @oninput="e => SetHex(s, e)" aria-label="@("Colour of " + s.Name)" />
+                </label>
+                <input class="rp-style-name" value="@s.Name" @onchange="e => Rename(s, e)" aria-label="Style name" />
+                <span class="rp-style-hex">@s.Hex.ToUpperInvariant()</span>
+                <span class="rp-style-uses" title="Layers using this style">@users</span>
+                @if (users == 0)
+                {
+                    <button class="rp-layer-btn" title="Delete style" aria-label="@("Delete " + s.Name)" @onclick="() => Remove(s)"><Glyph Name="trash" Size="13" /></button>
+                }
+            </div>
+        }
+        @if (ed.Single is { } sel && sel.HasFill && !sel.Fill.StartsWith("s:") && sel.Fill != "none")
+        {
+            <button class="rp-btn small" @onclick="() => FromSelection(sel)"><Glyph Name="plus" Size="12" /> Style from @sel.Fill.ToUpperInvariant()</button>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter] public int Rev { get; set; }
+
+    private static int Users(Editor ed, ColorStyle s)
+    {
+        var key = "s:" + s.Id;
+        var n = 0;
+        foreach (var d in ed.Doc.Root.SelfAndDescendants())
+            if (d.Fill == key || d.Stroke == key) n++;
+        return n;
+    }
+
+    private void Show(Node c)
+    {
+        var ed = Editor.Current!;
+        ed.Select(c);
+        ed.ZoomToSelection();
+        ed.Notify();
+    }
+
+    private void Place(Node c)
+    {
+        var ed = Editor.Current!;
+        var into = ed.Single is { Kind: NodeKind.Frame } f && f != c && !f.IsInside(c) ? f : null;
+        if (into is null)
+        {
+            var w = ed.ToWorld(ed.ViewW / 2, ed.ViewH / 2);
+            ed.CreateInstance(c, ed.Doc.Root, Math.Round(w.X - c.W / 2), Math.Round(w.Y - c.H / 2));
+        }
+        else ed.CreateInstance(c, into);
+    }
+
+    private void SetHex(ColorStyle s, ChangeEventArgs e)
+    {
+        var ed = Editor.Current!;
+        var hex = e.Value?.ToString() ?? s.Hex;
+        if (hex == s.Hex) return;
+        ed.Checkpoint("style:" + s.Id);
+        s.Hex = hex;
+        ed.Doc.TouchStyleUsers(s.Id);
+        ed.Changes(structure: true);
+    }
+
+    private void Rename(ColorStyle s, ChangeEventArgs e)
+    {
+        var ed = Editor.Current!;
+        var name = (e.Value?.ToString() ?? "").Trim();
+        if (name.Length == 0) return;
+        ed.Checkpoint();
+        s.Name = name;
+        ed.Changes(structure: true);
+    }
+
+    private void Remove(ColorStyle s)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint();
+        ed.Doc.Styles.Remove(s);
+        ed.Changes(structure: true);
+    }
+
+    private void FromSelection(Node n)
+    {
+        var ed = Editor.Current!;
+        ed.Checkpoint();
+        var id = "st" + DateTime.UtcNow.Ticks.ToString("x", System.Globalization.CultureInfo.InvariantCulture);
+        ed.Doc.Styles.Add(new ColorStyle { Id = id, Name = "Style " + (ed.Doc.Styles.Count + 1), Hex = n.Fill.Length > 7 ? n.Fill.Substring(0, 7) : n.Fill });
+        n.Fill = "s:" + id;
+        ed.Doc.Touch(n);
+        ed.Changes(structure: true);
+    }
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <base href="/" />
+  <title>Rupa · Rustzor sample</title>
+  <meta name="description" content="A vector design tool in the browser, built with Rustzor by Gravicode Studios, led by Kang Fadhil." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%279%27 fill=%27none%27 stroke=%27%23d4127a%27 stroke-width=%272.5%27/%3E%3Cpath d=%27M16 2v28M2 16h28%27 stroke=%27%23d4127a%27 stroke-width=%272.5%27/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&display=swap" />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="rupa.css" />
+</head>
+<body>
+  <div id="app"><div class="rp-loading app-loading"><span>Rupa</span>Laying out the drawing board…</div></div>
+  <script type="module">
+    import { start } from "./_rustzor/rustzor.js";
+    start().catch((e) => {
+      document.getElementById("app").innerHTML = "<pre class='rp-error app-error'></pre>";
+      document.querySelector(".app-error").textContent = e.message;
+      console.error(e);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+@implements IDisposable
+@{
+    var ed = Editor.Current!;
+    NodeView.Flush(ed.Doc);
+    var z = ed.Zoom;
+    var step = GridStep(z);
+    var editing = ed.Doc.Find(ed.EditingTextId);
+}
+<div class="rp-canvas @(ed.Tool != Tool.Move ? "drawing" : null)" @ref="_host" tabindex="-1" style="@("cursor:" + ed.Cursor)">
+    <svg class="rp-svg" width="100%" height="100%">
+        <defs>
+            <pattern id="rp-dots" patternUnits="userSpaceOnUse" width="@G.N(step * z)" height="@G.N(step * z)" x="@G.N(ed.PanX)" y="@G.N(ed.PanY)">
+                <circle cx="0.8" cy="0.8" r="0.8" class="rp-dot" />
+            </pattern>
+        </defs>
+        <rect class="rp-mat" width="100%" height="100%" />
+        @if (step * z >= 10)
+        {
+            <rect class="rp-dots" width="100%" height="100%" fill="url(#rp-dots)" />
+        }
+        <g class="rp-world" transform="@("translate(" + G.N(ed.PanX) + " " + G.N(ed.PanY) + ") scale(" + G.N(z, 4) + ")")">
+            <PageLayers Key="PageKey(ed)" />
+        </g>
+        <g class="rp-over">
+            <g transform="@("translate(" + G.N(ed.PanX) + " " + G.N(ed.PanY) + ")")">
+                <FrameLabels Zoom="z" Key="LabelKey(ed)" />
+            </g>
+            @if (ed.Hover is { } hv && !ed.Selection.Contains(hv) && !ed.Dragging)
+            {
+                <polygon class="@("rp-hover" + (IsComp(hv) ? " comp" : ""))" points="@Outline(ed, hv)" />
+            }
+            @* Many selected layers, or several being dragged, show only their shared box. *@
+            @foreach (var s in ed.Selection.Count > 60 || ed.Dragging && ed.Selection.Count > 1 ? new List<Node>() : ed.Selection)
+            {
+                if (s.Kind == NodeKind.Line)
+                {
+                    <polyline class="rp-sel" points="@Outline(ed, s)" />
+                }
+                else
+                {
+                    <polygon class="@("rp-sel" + (IsComp(s) ? " comp" : ""))" points="@Outline(ed, s)" />
+                }
+            }
+            @if (ed.HandleFrame() is { } hf && editing is null)
+            {
+                if (ed.Selection.Count > 1)
+                {
+                    <polygon class="rp-sel group" points="@Corners(ed, hf.M, hf.W, hf.H)" />
+                }
+                if (!ed.Moving)
+                {
+                    foreach (var h in ed.VisibleHandles())
+                    {
+                        var p = ed.ToScreen(hf.M.Apply(Editor.HandlePoint(h, hf.W, hf.H)));
+                        <rect class="@("rp-handle" + (ed.Selection.Count == 1 && IsComp(ed.Selection[0]) ? " comp" : ""))" x="@G.N(p.X - 3.5)" y="@G.N(p.Y - 3.5)" width="7" height="7" />
+                    }
+                }
+                var badge = ed.Moving ? "" : Badge(ed);
+                var bb = ScreenBox(ed, hf.M, hf.W, hf.H);
+                var bw = badge.Length * 6.6 + 14;
+                if (badge.Length > 0)
+                {
+                    <g class="@("rp-badge" + (ed.Selection.Count == 1 && IsComp(ed.Selection[0]) ? " comp" : ""))" transform="@("translate(" + G.N(bb.Cx - bw / 2) + " " + G.N(bb.Bottom + 8) + ")")"><rect width="@G.N(bw)" height="18" rx="3" /><text x="@G.N(bw / 2)" y="12.5">@badge</text></g>
+                }
+            }
+            @* All guide lines as one path and all spacing lines as another, then the
+               spacing labels in a loop of their own: the same few elements every frame,
+               so the renderer only updates attributes. *@
+            @if (ed.Guides.Count > 0)
+            {
+                <path class="rp-guide" d="@GuidePath(ed, false)" />
+                <path class="rp-gap" d="@GuidePath(ed, true)" />
+                foreach (var g in ed.Guides)
+                {
+                    if (g.Label is null) continue;
+                    var lw = g.Label.Length * 6.6 + 10;
+                    <g class="rp-badge" transform="@("translate(" + G.N((g.X1 + g.X2) / 2 - lw / 2) + " " + G.N((g.Y1 + g.Y2) / 2 - 9) + ")")"><rect width="@G.N(lw)" height="18" rx="3" /><text x="@G.N(lw / 2)" y="12.5">@g.Label</text></g>
+                }
+            }
+            @if (ed.DropLine is { } dl)
+            {
+                <line class="rp-drop" x1="@G.N(dl.A.X)" y1="@G.N(dl.A.Y)" x2="@G.N(dl.B.X)" y2="@G.N(dl.B.Y)" />
+            }
+            @if (ed.Marquee is { } mq)
+            {
+                <rect class="rp-marquee" x="@G.N(mq.X)" y="@G.N(mq.Y)" width="@G.N(mq.W)" height="@G.N(mq.H)" />
+            }
+            @if (ed.Pen.Count > 0)
+            {
+                var pts = new System.Text.StringBuilder();
+                foreach (var p in ed.Pen)
+                {
+                    var s = ed.ToScreen(p);
+                    pts.Append(G.N(s.X)).Append(',').Append(G.N(s.Y)).Append(' ');
+                }
+                var c = ed.ToScreen(ed.PenCursor);
+                <polyline class="rp-pen" points="@(pts.ToString() + G.N(c.X) + "," + G.N(c.Y))" />
+                foreach (var p in ed.Pen)
+                {
+                    var s = ed.ToScreen(p);
+                    <rect class="rp-handle" x="@G.N(s.X - 3)" y="@G.N(s.Y - 3)" width="6" height="6" />
+                }
+            }
+        </g>
+        <Rulers Key="@RulerKey(ed)" />
+    </svg>
+    @if (editing is not null)
+    {
+        var m = G.World(editing);
+        var o = ed.ToScreen(m.Apply(0, 0));
+        var angle = Math.Atan2(m.B, m.A) * 180 / Math.PI;
+        var fs = editing.FontSize * z;
+        var style = "left:" + G.N(o.X) + "px;top:" + G.N(o.Y) + "px;width:" + G.N(Math.Max(editing.W * z + fs, 40)) + "px;height:" + G.N(editing.H * z + 2)
+            + "px;font:" + editing.Weight + " " + G.N(fs) + "px/" + G.N(editing.FontSize * editing.LineHeight * z) + "px '" + editing.Font + "',sans-serif;letter-spacing:"
+            + G.N(editing.Tracking * z) + "px;color:" + ed.Doc.Css(editing.Fill) + ";transform:rotate(" + G.N(angle) + "deg);text-align:"
+            + (editing.TextAlign == Align.Center ? "center" : editing.TextAlign == Align.End ? "right" : "left");
+        <textarea class="rp-text-edit" data-ui @ref="_text" style="@style" spellcheck="false" value="@editing.Text" @oninput="Typed" @onblur="Blurred" @onkeydown="TextKey" aria-label="Text"></textarea>
+    }
+    <div class="rp-phone-hint" data-ui>Viewing, panning and selecting work here. Editing is best on a larger screen.</div>
+</div>
+
+@code {
+    [Parameter] public int Tick { get; set; }
+    [Parameter] public Action<JsonValue>? OnInput { get; set; }
+
+    private ElementReference _host;
+    private ElementReference _text;
+    private int _callback;
+    private long _handle;
+    private string? _focused;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && Js.IsBrowser)
+        {
+            _callback = Callbacks.Register(m => OnInput?.Invoke(m));
+            _handle = Js.Call("rupa.attach", Js.Args("el", _host.Id, "id", _callback)).AsLong();
+        }
+        var editing = Editor.Current?.EditingTextId;
+        if (editing is not null && editing != _focused)
+        {
+            _focused = editing;
+            _ = _text.FocusAsync();
+            Js.Send("dom.el", Js.Args("el", _text.Id, "call", "select"));
+        }
+        else if (editing is null) _focused = null;
+    }
+
+    private void Typed(ChangeEventArgs e) => Editor.Current?.EditText(e.Value?.ToString() ?? "");
+
+    private void Blurred()
+    {
+        var ed = Editor.Current;
+        if (ed?.EditingTextId is null) return;
+        ed.EndTextEdit();
+    }
+
+    private void TextKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" || e.Key == "Enter" && (e.CtrlKey || e.MetaKey))
+        {
+            Editor.Current?.EndTextEdit();
+            _host.Focus();
+        }
+    }
+
+    /// <summary>Draws the canvas again without the rest of the editor.</summary>
+    public void Redraw() => StateHasChanged();
+
+    // The rulers change only with the viewport and the selection's extent.
+    private static string RulerKey(Editor ed)
+    {
+        var s = ed.SelectionBounds();
+        return G.N(ed.Zoom, 5) + "|" + G.N(ed.PanX) + "|" + G.N(ed.PanY) + "|" + G.N(ed.ViewW) + "|" + G.N(ed.ViewH)
+            + (s is { } b ? "|" + G.N(b.X) + "," + G.N(b.Y) + "," + G.N(b.W) + "," + G.N(b.H) : "");
+    }
+
+    public void Dispose()
+    {
+        if (_handle != 0) Js.Send("rupa.detach", Js.Args("h", _handle));
+        if (_callback != 0) Callbacks.Unregister(_callback);
+    }
+
+    private static double GridStep(double z) => z >= 4 ? 8 : z >= 1 ? 16 : z >= 0.5 ? 32 : 64;
+
+    private static bool IsComp(Node n) => n.IsComponent || n.Kind == NodeKind.Instance;
+
+    private static string Outline(Editor ed, Node n) => Corners(ed, G.World(n), n.W, n.H, n.Kind == NodeKind.Line);
+
+    private static string Corners(Editor ed, Affine m, double w, double h, bool line = false)
+    {
+        var pts = line ? new[] { new Pt(0, 0), new Pt(w, 0) } : new[] { new Pt(0, 0), new Pt(w, 0), new Pt(w, h), new Pt(0, h) };
+        var sb = new System.Text.StringBuilder();
+        foreach (var p in pts)
+        {
+            var s = ed.ToScreen(m.Apply(p));
+            sb.Append(G.N(s.X)).Append(',').Append(G.N(s.Y)).Append(' ');
+        }
+        return sb.ToString();
+    }
+
+    private static string GuidePath(Editor ed, bool gaps)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var g in ed.Guides)
+        {
+            if (g.Label is null == gaps) continue;
+            sb.Append('M').Append(G.N(g.X1, 1)).Append(' ').Append(G.N(g.Y1, 1)).Append('L').Append(G.N(g.X2, 1)).Append(' ').Append(G.N(g.Y2, 1));
+        }
+        return sb.Length == 0 ? "M0 0" : sb.ToString();
+    }
+
+    private static Box ScreenBox(Editor ed, Affine m, double w, double h)
+    {
+        var a = ed.ToScreen(m.Apply(0, 0));
+        var b = ed.ToScreen(m.Apply(w, 0));
+        var c = ed.ToScreen(m.Apply(w, h));
+        var d = ed.ToScreen(m.Apply(0, h));
+        var x0 = Math.Min(Math.Min(a.X, b.X), Math.Min(c.X, d.X));
+        var y0 = Math.Min(Math.Min(a.Y, b.Y), Math.Min(c.Y, d.Y));
+        var x1 = Math.Max(Math.Max(a.X, b.X), Math.Max(c.X, d.X));
+        var y1 = Math.Max(Math.Max(a.Y, b.Y), Math.Max(c.Y, d.Y));
+        return new Box(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    private static string Badge(Editor ed)
+    {
+        if (ed.Single is { Kind: NodeKind.Line } l) return G.N(l.W) + " · " + G.N(l.Rotation) + "°";
+        if (ed.Single is { } s) return G.N(s.W) + " × " + G.N(s.H);
+        var b = ed.SelectionBounds()!.Value;
+        return G.N(b.W) + " × " + G.N(b.H);
+    }
+
+    private static long PageKey(Editor ed)
+    {
+        long k = ed.Doc.Root.Kids;
+        foreach (var n in ed.Doc.Root.Children) k = k * 31 + n.Rev;
+        return k;
+    }
+
+    // Changes whenever a top-level layer, the page's list or the selection changes.
+    private static long LabelKey(Editor ed)
+    {
+        long k = ed.Doc.Root.Kids * 31L + ed.LayersRev;
+        // Positions count too: a frame being dragged moves before its view redraws.
+        foreach (var n in ed.Doc.Root.Children) k = k * 17 + n.Rev + (long)(n.X * 100) * 3 + (long)(n.Y * 100) * 7;
+        return k;
+    }
+
+    private static string Clip(string name, double width)
+    {
+        var max = Math.Max(4, (int)(width / 6.4));
+        return name.Length > max ? name.Substring(0, max - 1) + "…" : name;
+    }
+}

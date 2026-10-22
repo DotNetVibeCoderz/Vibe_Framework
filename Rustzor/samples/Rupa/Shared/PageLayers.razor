@@ -1,0 +1,15 @@
+@* The page's top-level layers. On its own, so a canvas redraw for a pan, a hover
+   or a drag does not compare every top-level view: this renders only when the
+   page's list or one of its layers changes. *@
+@{
+    var ed = Editor.Current!;
+}
+@foreach (var n in ed.Doc.Root.Children)
+{
+    <NodeView @key="n.Id" Id="@n.Id" Rev="@n.Rev" />
+}
+
+@code {
+    /// <summary>Changes with the page's list of layers and any top-level layer.</summary>
+    [Parameter] public long Key { get; set; }
+}

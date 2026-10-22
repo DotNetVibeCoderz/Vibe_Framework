@@ -97,6 +97,28 @@ Menunjukkan: `PeerConnection` dengan signalling lewat `BroadcastChannel`, aturan
 
 `node tools/e2e/meet.mjs http://localhost:5260` menjalankannya di Chrome headless dengan perangkat palsu: dua tab saling melihat video, chat, mute, angkat tangan, reaksi, rundown, tally, perekaman (video yang disimpan diperiksa per frame), berbagi layar, tab ketiga tanpa kamera, keluar, mengakhiri untuk semua, dan ponsel 400 px.
 
+## Rupa, tool desain
+
+`samples/Rupa` · `Rustzor.UI`, `Rustzor.Browser.FileSystem`, `Rustzor.Browser.Storage`, `Rustzor.Browser.DOM`, dan modul browser miliknya sendiri (`rustzor.module.js`)
+
+Tool desain vektor ala Figma, bergaya cetak coba (*proof*) pracetak: tampilan grafit, kanvas seperti kertas kalkir, seleksi dan garis bantu warna magenta proses, sian untuk komponen, tanda register di penggaris. Dibuka dengan Lintas, tiga layar aplikasi KRL rekaan untuk Jabodetabek (beranda, jadwal, tiket) lengkap dengan komponen dan gaya warnanya.
+
+- Kanvas tak terbatas: geser dengan Spasi+seret, tombol tengah, trackpad atau tool tangan; zoom dengan Ctrl+roda atau cubit, ke arah penunjuk; Shift+1 memuat semuanya, Shift+2 seleksinya. Penggaris dalam satuan kanvas menandai seleksi.
+- Frame, persegi, elips, garis, pena untuk path bersegmen lurus, teks yang diketik langsung di kanvas, dan gambar dari file, seret-lepas atau clipboard.
+- Pilih, Shift+klik, marquee, Ctrl+klik ke dalam grup, klik ganda ke dalam frame dan grup; pindahkan dengan snapping ke tepi dan tengah tetangga serta frame, dengan garis bantu dan angka jarak; ubah ukuran dari delapan pegangan (Shift menjaga proporsi, Alt dari tengah); putar dari sedikit di luar sudut (Shift per 15°). Grup, lepas grup, urutan tumpukan, duplikat, salin, tempel, hapus, geser per piksel; undo dan redo untuk setiap perubahan.
+- Panel layer bersarang dengan ganti nama, sembunyikan dan kunci; properti posisi, ukuran, rotasi, opasitas, radius, isi, garis tepi dan tipografi; auto layout untuk frame (baris atau kolom, jarak, padding, perataan, *hug*).
+- Komponen: frame dijadikan komponen dengan Ctrl+Alt+K; instansnya mengikuti setiap perubahan dan tetap memakai teksnya sendiri, yang diubah di panel; instans bisa dilepas menjadi frame biasa. Gaya warna dipakai bersama oleh semua layer yang menggunakannya.
+- Ekspor seleksi atau semua frame ke SVG dan PNG (1× atau 2×, dengan font yang ikut disematkan). File tersimpan di browser (*origin-private file system*) dengan simpan otomatis; simpan salinan sebagai `.rupa.json` dan buka kembali.
+
+| | |
+| --- | --- |
+| ![Lintas, tiga layar, sebuah kartu terpilih](../images/sample-rupa.png) | ![Memindahkan layer: snapping dan jarak](../images/sample-rupa-guides.png) |
+| ![Instans dan teks override-nya, tema gelap](../images/sample-rupa-dark.png) | ![Daftar file](../images/sample-rupa-files.png) |
+
+Menunjukkan: SVG yang digambar dari Razor dengan satu view per layer yang hanya di-render ketika layernya berubah (memindahkan satu bentuk di antara tiga ratus hanya menggambar ulang bentuk itu), seretan yang ditampilkan browser sementara C# memegang model dan menggambar ulang saat dilepas, snapping lewat pencarian biner pada tepi yang terurut, riwayat undo seluruh dokumen, dan aplikasi yang menyertakan modul browser sendiri.
+
+`node tools/e2e/rupa.mjs http://localhost:5310` menjalankannya di Chrome headless dengan mouse dan keyboard, memeriksa model setelah setiap langkah (menggambar, snapping, mengubah ukuran, grup, undo dan redo, perubahan komponen yang sampai ke enam instans, override, teks, pena, ekspor SVG dan PNG, simpan otomatis setelah reload), dan mengukur seretan dengan 300 bentuk di halaman: sekitar 12 ms kerja per gerakan dan 56 frame per detik (laju frame Chrome headless). `node tools/e2e/rupa-shots.mjs` mengambil screenshot di atas.
+
 ## API Playground
 
 `samples/ApiPlayground` · `Rustzor.Browser.Fetch`, `Rustzor.Browser.WebSocket`, `Rustzor.Net.SignalR`, `Rustzor.Net.GrpcWeb`
@@ -125,4 +147,4 @@ Untuk menyajikan client dari tempat lain, isi alamat server di bar atas; server 
 
 ## Aplikasi lainnya
 
-[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Tujuh sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: tool desain mirip Figma, editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.
+[RustzorAppGen](appgen.md) menyertakan 21 template (game, sains, bisnis, industri, pendidikan, simulator, tool) yang juga merupakan aplikasi lengkap. Enam sample lagi dari [roadmap](../../PLAN.md) sedang dikerjakan: editor mirip Photoshop, GIS, CAD viewer, asisten AI, game multiplayer, dan digital twin.

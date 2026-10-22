@@ -1,0 +1,56 @@
+@* A colour: a swatch, its hex code, and a colour style it may follow. *@
+@{
+    var ed = Editor.Current!;
+    var style = Value.StartsWith("s:") ? ed.Doc.Style(Value.Substring(2)) : null;
+    var hex = Value == "none" ? "#ffffff" : ed.Doc.Css(Value);
+    var hex6 = hex.Length >= 7 ? hex.Substring(0, 7).ToLowerInvariant() : "#000000";
+}
+<div class="rp-paint">
+    <label class="rp-swatch" style="@("--sw:" + hex)" title="Pick a colour">
+        <input type="color" value="@hex6" @oninput="Picked" aria-label="@(Label + " colour")" />
+    </label>
+    @if (style is null)
+    {
+        <input class="rp-hex" value="@hex.ToUpperInvariant()" @onchange="Typed" aria-label="@(Label + " hex code")" spellcheck="false" />
+    }
+    <select class="@("rp-style-pick" + (style is not null ? " on" : ""))" @onchange="Styled" aria-label="@(Label + " colour style")" title="@(style is not null ? "Follows the style " + style.Name + " (" + style.Hex.ToUpperInvariant() + ")" : "Use a colour style")">
+        <option value="" selected="@(style is null)">@(style is null ? "Style…" : "No style")</option>
+        @foreach (var s in ed.Doc.Styles)
+        {
+            <option value="@s.Id" selected="@(style == s)">@s.Name</option>
+        }
+    </select>
+    @if (AllowNone)
+    {
+        <button class="rp-layer-btn" title="@("Remove " + Label.ToLowerInvariant())" aria-label="@("Remove " + Label.ToLowerInvariant())" @onclick="Remove"><Glyph Name="minus" Size="13" /></button>
+    }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Fill";
+    [Parameter] public string Value { get; set; } = "none";
+    [Parameter] public bool AllowNone { get; set; } = true;
+    [Parameter] public EventCallback<(string Key, string Value)> OnChange { get; set; }
+
+    private Task Remove() => OnChange.InvokeAsync((Label, "none"));
+
+    private Task Picked(ChangeEventArgs e) => OnChange.InvokeAsync((Label + ":pick", e.Value?.ToString() ?? "#000000"));
+
+    private Task Typed(ChangeEventArgs e)
+    {
+        var v = (e.Value?.ToString() ?? "").Trim().TrimStart('#');
+        if (v.Length == 3) v = new string(new[] { v[0], v[0], v[1], v[1], v[2], v[2] });
+        foreach (var ch in v)
+            if (!(ch >= '0' && ch <= '9' || ch >= 'a' && ch <= 'f' || ch >= 'A' && ch <= 'F')) return Task.CompletedTask;
+        if (v.Length != 6 && v.Length != 8) return Task.CompletedTask;
+        return OnChange.InvokeAsync((Label, "#" + v.ToLowerInvariant()));
+    }
+
+    private Task Styled(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString() ?? "";
+        var ed = Editor.Current!;
+        if (id.Length == 0) return OnChange.InvokeAsync((Label, ed.Doc.Css(Value) is var c && c != "none" ? c : "#000000"));
+        return OnChange.InvokeAsync((Label, "s:" + id));
+    }
+}
