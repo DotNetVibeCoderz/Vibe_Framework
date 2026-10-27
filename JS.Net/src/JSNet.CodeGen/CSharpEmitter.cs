@@ -441,10 +441,24 @@ public sealed partial class CSharpEmitter
             : "new global::System.Collections.Generic.Dictionary<string, object?> { " +
               string.Join(", ", f.Parameters.Select(p => $"[{CSharpNames.StringLiteral(p.Name)}] = {CSharpNames.Id(p.Name)}")) + " }";
         string access = isLocal ? string.Empty : Accessibility(f.Modifiers) + " static ";
+        string tpl;
+        if (f.IsGenerator)
+        {
+            // ai function* → streamed text chunks (IAsyncEnumerable<string>), consumed with `for await`.
+            _w.Open($"{access}async global::System.Collections.Generic.IAsyncEnumerable<string> {CSharpNames.Id(f.Name)}({ps})");
+            foreach (var p in prologue) _w.WriteLine(p);
+            tpl = template is null ? "null" : Expr(template);
+            _w.WriteLine($"await foreach (var __chunk in global::JSNet.AI.AiRuntime.streamAsync({CSharpNames.StringLiteral(f.Name)}, {tpl}, {args})) yield return __chunk;");
+            _w.Close();
+            PopLocals();
+            return;
+        }
+        // Data-only interfaces are deserialized through their generated implementation.
+        string requestType = DataInterfaceMembers(resultType) is not null ? resultType + "__Data" : resultType;
         _w.Open($"{access}async {TaskT}<{resultType}> {CSharpNames.Id(f.Name)}({ps})");
         foreach (var p in prologue) _w.WriteLine(p);
-        string tpl = template is null ? "null" : Expr(template);
-        _w.WriteLine($"return await global::JSNet.AI.AiRuntime.invokeAsync<{resultType}>({CSharpNames.StringLiteral(f.Name)}, {tpl}, {args});");
+        tpl = template is null ? "null" : Expr(template);
+        _w.WriteLine($"return await global::JSNet.AI.AiRuntime.invokeAsync<{requestType}>({CSharpNames.StringLiteral(f.Name)}, {tpl}, {args});");
         _w.Close();
         PopLocals();
     }

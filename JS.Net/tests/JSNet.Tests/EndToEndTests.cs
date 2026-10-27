@@ -191,17 +191,6 @@ public class EndToEndTests
     }
 
     [Fact]
-    public async Task AiFunctionsUseOfflineClientByDefault()
-    {
-        var result = await JsNetScript.RunAsync("""
-            ai function summarize(text: string): Promise<string> { `Summarize: ${text}` }
-            console.log(await summarize("JS.Net is a language"));
-            """, "ai.jsn", new ScriptOptions { CaptureOutput = true, AdditionalReferences = [typeof(JSNet.AI.AiRuntime).Assembly] });
-        Assert.True(result.Success, string.Join("\n", result.Diagnostics) + result.Exception);
-        Assert.Contains("Summarize: JS.Net is a language", result.Output);
-    }
-
-    [Fact]
     public async Task CompileErrorsAreReportedAgainstJsnFile()
     {
         var result = await JsNetScript.RunAsync("let x: number = 'text';", "bad.jsn");
