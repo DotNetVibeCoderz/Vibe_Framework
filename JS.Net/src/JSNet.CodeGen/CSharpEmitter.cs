@@ -506,6 +506,11 @@ public sealed partial class CSharpEmitter
         _w.Open(header.ToString());
 
         bool extended = _model.IsExtended(c.Name);
+        // Fields passed as `ref this.x` / `out this.x` must be real fields, not auto-properties.
+        var savedRefFields = _refFields;
+        _refFields = AstWalker.DescendantsAndSelf(c).OfType<RefArgumentExpression>()
+            .Select(r => r.Target).OfType<MemberExpression>().Where(me => me.Target is ThisExpression)
+            .Select(me => me.Name).ToHashSet(StringComparer.Ordinal);
         var emittedAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach (var m in c.Members)
         {
@@ -537,8 +542,11 @@ public sealed partial class CSharpEmitter
             _w.WriteLine("public override string ToString() => toString()?.ToString() ?? string.Empty;");
         }
         _w.Close();
+        _refFields = savedRefFields;
         _class = saved;
     }
+
+    private HashSet<string> _refFields = new(StringComparer.Ordinal);
 
     private void EmitField(ClassMember m)
     {
@@ -551,7 +559,7 @@ public sealed partial class CSharpEmitter
         bool isPrivate = (m.Modifiers & (Modifiers.Private | Modifiers.Protected)) != 0 || m.Name.StartsWith('#');
         bool isReadonly = (m.Modifiers & Modifiers.Readonly) != 0;
         string stat = m.IsStatic ? "static " : string.Empty;
-        if (isPrivate)
+        if (isPrivate || (!m.IsStatic && _refFields.Contains(m.Name) && !m.Modifiers.HasFlag(Modifiers.Override)))
         {
             string access = m.Name.StartsWith('#') ? "private" : Accessibility(m.Modifiers);
             _w.WriteLine($"{access} {stat}{(isReadonly ? "readonly " : "")}{type} {name}{(init.Length > 0 ? init : ";")}");

@@ -114,7 +114,10 @@ public sealed class Binder
                             if (d.Target is IdentifierPattern ip) symbols.ModuleVariables.TryAdd(ip.Name, d);
                         if (v.Declarators.Any(d => d.Target is not IdentifierPattern)) hasStatements = true;
                         break;
-                    case ImportDeclaration or NamespaceDeclaration or TypeAliasDeclaration or EmptyStatement or PromptDeclaration:
+                    case TypeAliasDeclaration ta:
+                        symbols.TypeAliases[ta.Name] = ta;
+                        break;
+                    case ImportDeclaration or NamespaceDeclaration or EmptyStatement or PromptDeclaration:
                         break;
                     default:
                         hasStatements = true;
@@ -223,6 +226,36 @@ public sealed class Binder
         if (isEntry) ReportUnused(unitScope);
     }
 
+    private readonly HashSet<IfStatement> _elseIfs = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// JSN2006: an <c>if/else if</c> chain that only tests <c>x instanceof T</c> on a variable typed as a class union, with no
+    /// final <c>else</c>, should handle every member of the union.
+    /// </summary>
+    private void CheckUnionChain(IfStatement head)
+    {
+        string? variable = null;
+        var handled = new HashSet<string>(StringComparer.Ordinal);
+        IfStatement? last = null;
+        for (Statement? s = head; s is IfStatement link; s = link.Else)
+        {
+            if (link.Test is not IsTypeExpression { Operand: IdentifierExpression id, Type: NamedType { TypeArgs.Count: 0 } t }) return;
+            if (variable is not null && variable != id.Name) return;
+            variable = id.Name;
+            handled.Add(t.Name);
+            last = link;
+        }
+        if (variable is null || last!.Else is not null || handled.Count < 2) return;
+        if (_scope.Lookup(variable)?.Type is not { } typeName
+            || !_model.Symbols.TypeAliases.TryGetValue(typeName, out var alias) || alias.Type is not UnionType union
+            || !union.Members.All(m => m is NamedType { TypeArgs.Count: 0 } n && _model.Symbols.Classes.ContainsKey(n.Name))) return;
+        var missing = union.Members.Cast<NamedType>().Select(n => n.Name).Where(n => !handled.Contains(n)).ToList();
+        if (missing.Count > 0)
+            _diagnostics.Warning(DiagnosticCodes.UnhandledUnionMember,
+                $"'{variable}' is a '{alias.Name}' but {string.Join(", ", missing.Select(m => $"'{m}'"))} {(missing.Count == 1 ? "is" : "are")} not handled; add the missing case or an 'else'.",
+                _source, head.Span);
+    }
+
     private void BindStatements(List<Statement> statements)
     {
         bool unreachableReported = false;
@@ -253,6 +286,8 @@ public sealed class Binder
             case ExpressionStatement e: BindExpression(e.Expression); break;
             case VariableStatement v: BindVariableStatement(v); break;
             case IfStatement i:
+                if (_elseIfs.Add(i)) CheckUnionChain(i);
+                if (i.Else is IfStatement chained) _elseIfs.Add(chained);
                 BindExpression(i.Test);
                 BindStatement(i.Then);
                 if (i.Else is not null) BindStatement(i.Else);

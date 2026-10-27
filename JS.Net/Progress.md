@@ -6,7 +6,7 @@
 
 | Area | State / Keadaan | Verified by / Diverifikasi dengan |
 |---|---|---|
-| Compiler (Syntax, Parser, Semantics, CodeGen, Compiler) | Working; object types, spread, unions, regex, class expressions, labels, `out`/`ref` | 117 xUnit tests (`tests/JSNet.Tests`) incl. 27 gallery samples run end-to-end |
+| Compiler (Syntax, Parser, Semantics, CodeGen, Compiler) | Working; object types, spread, unions, regex, class expressions, labels, `out`/`ref` | 120 xUnit tests (`tests/JSNet.Tests`) incl. 27 gallery samples run end-to-end |
 | Runtime (`JSNet.Runtime`) | Working, trim/AOT-annotated | Tests, gallery samples, NativeAOT publish of `samples/HelloJsNet` with zero IL warnings |
 | AI (`JSNet.AI`) | Tools, streaming, structured output, Semantic Kernel plugins | `AiTests` |
 | Analyzers (`JSNet.Analyzers`) | `rule` declarations as custom analyzers | `AnalyzerRuleTests`, `samples/RulesDemo` |
@@ -54,8 +54,13 @@
 
 - 0.2.0: default version, SDK version, template `sdkVersion`, docs and VS Code extension moved to 0.2.0; released with tag `jsnet-v0.2.0` (10 packages).
 
+### 2026-10-27 — after 0.2.0
+- `ref`/`out` on public class fields (emitted as plain fields when the class passes them by reference).
+- JSN2006: `if / else if` chains of `instanceof` over a class union must handle every member (or end with `else`).
+- `jsnet-playground-pages.yml`: manual GitHub Pages deployment of the WebAssembly playground (verified locally as a static site under `/Vibe_Framework/`).
+
 ## Next steps / Langkah berikutnya
 1. Watch 0.2.0 adoption; fix issues in 0.2.x.
-2. Host the WebAssembly playground as a static site.
-3. Publish the VS Code and Visual Studio extensions to their marketplaces.
-4. Union exhaustiveness checks; in-process build server.
+2. Enable GitHub Pages (source: GitHub Actions) and run `jsnet-playground-pages.yml` to host the playground.
+3. Publish the VS Code and Visual Studio extensions to their marketplaces (publisher accounts needed).
+4. In-process build server.

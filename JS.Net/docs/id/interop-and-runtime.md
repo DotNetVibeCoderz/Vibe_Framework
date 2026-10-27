@@ -18,7 +18,7 @@ const words = File.ReadAllLines("catatan.txt").Where(l => l.Length > 0).ToList()
 - Pemanggilan generic: `JsonSerializer.Deserialize<Order>(json)`, `services.AddHostedService<Worker>()`.
 - Cast: `x as Rectangle` adalah cast CLR yang diperiksa `((Rectangle)x)`; `x instanceof T` / `x is T` adalah uji tipe; `(typeof MyClass).Assembly` memberi `Type` CLR dari tipe proyek.
 - Event: `button.Click += (sender, e) => this.onClick();`
-- Argumen `out`/`ref`: `int.TryParse(s, out let n)`, `Interlocked.Increment(ref total)` (variabel lokal dan parameter; field class adalah property); deklarasikan dengan parameter `out x: T` / `ref x: T`.
+- Argumen `out`/`ref`: `int.TryParse(s, out let n)`, `Interlocked.Increment(ref this.count)`; deklarasikan dengan parameter `out x: T` / `ref x: T`.
 - Paket NuGet bekerja sama persis seperti di C#: tambahkan `PackageReference`.
 
 ## Memakai JS.Net dari C#

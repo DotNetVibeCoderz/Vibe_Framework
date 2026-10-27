@@ -170,6 +170,8 @@ function area(shape: Shape): number {
 }
 ```
 
+An `if / else if` chain of `instanceof` tests on a union variable without a final `else` must cover every member, otherwise the compiler warns (JSN2006).
+
 ## Class expressions, labels, `out`/`ref`
 
 ```jsnet
@@ -184,6 +186,8 @@ function swap(ref a: int, ref b: int): void { const t = a; a = b; b = t; }
 swap(ref x, ref y);
 if (int.TryParse(text, out let n)) console.log(n + 1);   // out declares a new variable
 ```
+
+Public fields passed by `ref`/`out` inside their class (`Interlocked.Increment(ref this.hits)`) are emitted as plain CLR fields instead of auto-properties.
 
 ## Custom analyzer rules
 

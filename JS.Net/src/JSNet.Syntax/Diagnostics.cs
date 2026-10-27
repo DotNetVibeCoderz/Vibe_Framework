@@ -53,6 +53,7 @@ public static class DiagnosticCodes
     public const string IntegerDivision = "JSN2003";
     public const string UnreachableCode = "JSN2004";
     public const string LooseUnion = "JSN2005";
+    public const string UnhandledUnionMember = "JSN2006";
 
     public const string FileNotFound = "JSN3001";
 }

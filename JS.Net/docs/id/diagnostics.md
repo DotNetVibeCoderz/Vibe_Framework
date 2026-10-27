@@ -38,6 +38,7 @@ JS.Net melaporkan diagnostiknya sendiri (`JSNxxxx`) saat pembangkitan kode; erro
 | JSN2003 | Pembagian integer (`/` pada dua integer membulatkan ke bawah). Pakai `number` atau literal desimal. |
 | JSN2004 | Kode tidak terjangkau setelah `return`/`throw`/`break`/`continue`. |
 | JSN2005 | Tipe union tanpa padanan CLR, diturunkan menjadi `object`. |
+| JSN2006 | Rantai `if / else if` berisi uji `x instanceof T` pada variabel bertipe union class, tanpa `else` akhir, belum menangani semua anggota union. |
 
 ## Driver dan tool
 

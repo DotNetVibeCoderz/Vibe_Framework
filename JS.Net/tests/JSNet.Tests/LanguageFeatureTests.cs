@@ -93,4 +93,18 @@ public class LanguageFeatureTests
         const shapes: Shape[] = [new Circle(1), new Square(2), new Square(0)];
         console.log(shapes.map(x => area(x).toFixed(2)));
         """));
+
+    [Fact]
+    public async Task FieldsCanBePassedByRef() => Assert.Equal("2 1 5", await Run("""
+        import System.Threading;
+        class Counter {
+            hits: int = 0;
+            private misses: int = 0;
+            hit(): int { Interlocked.Increment(ref this.hits); return Interlocked.Increment(ref this.hits); }
+            miss(): int { return Interlocked.Increment(ref this.misses); }
+            parse(s: string): int { int.TryParse(s, out this.hits); return this.hits; }
+        }
+        const c = new Counter();
+        console.log(c.hit(), c.miss(), c.parse("5"));
+        """));
 }

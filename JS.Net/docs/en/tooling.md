@@ -114,4 +114,6 @@ pwsh build/smoke.ps1 -Version 0.2.0    # install the packages in a clean folder,
 
 Releases are published by GitHub Actions in the Vibe_Framework repository: push a tag `jsnet-v0.2.0`, or run **Publish JS.Net to NuGet** manually (with `dry_run` on to rehearse). The workflow runs the full CI at that version and pushes exactly the tested packages using the `NUGET_API_KEY` repository secret.
 
+The WebAssembly playground deploys to GitHub Pages with the manual **JS.Net playground (GitHub Pages)** workflow (`jsnet-playground-pages.yml`; enable Pages with source *GitHub Actions* first).
+
 Packages: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

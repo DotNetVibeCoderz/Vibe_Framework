@@ -38,6 +38,7 @@ JS.Net reports its own diagnostics (`JSNxxxx`) during code generation; C# compil
 | JSN2003 | Integer division (`/` on two integers truncates). Use `number` or a decimal literal. |
 | JSN2004 | Unreachable code after `return`/`throw`/`break`/`continue`. |
 | JSN2005 | Union type without a CLR equivalent, lowered to `object`. |
+| JSN2006 | An `if / else if` chain of `x instanceof T` tests on a class-union variable, with no final `else`, misses some union members. |
 
 ## Driver and tools
 

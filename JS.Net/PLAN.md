@@ -18,7 +18,8 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 | Class unions with `instanceof` narrowing | ✅ |
 | Regex literals `/x+/g` → `RegExp` | ✅ |
 | Class expressions, local classes, labelled `break`/`continue` | ✅ |
-| `out`/`ref` parameters and arguments (`out let x`) | ✅ |
+| `out`/`ref` parameters and arguments (`out let x`, `ref this.field`) | ✅ |
+| Union coverage warning for `instanceof` chains (JSN2006) | ✅ |
 
 ## Phase 2 — Generics, async, LINQ, NuGet, AOT ✅
 
@@ -74,17 +75,15 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 | Blazor, WPF, WinForms, Avalonia front-ends | ✅ |
 | Browser playground (server-side, in the Blazor gallery) | ✅ |
 | Ecosystem samples: RLNet, Matplotlib.Net (Visual.Net), ThreeNet, GraviLearn, HF tokenizers, MediaPipeNet, IoTCom.Net | ✅ |
-| WebAssembly playground (client-side compiler, `gallery/JSNet.Playground`) | ✅ |
+| WebAssembly playground (client-side compiler, `gallery/JSNet.Playground`) + Pages workflow | ✅ |
 
 ## Backlog / Selanjutnya
 
 | Item | Notes |
 |---|---|
 | Incremental, in-process build server | Avoid one compiler process per build. |
-| Exhaustiveness checks for `switch` over unions | Unions are currently open marker interfaces. |
-| `ref` to class fields | Fields lower to properties; would need field lowering for `ref` use. |
-| Publish the VS Code / Visual Studio extensions to their marketplaces | VSIX files are CI artifacts today. |
-| Host the WebAssembly playground (GitHub Pages) | Static site, no server needed. |
+| Publish the VS Code / Visual Studio extensions to their marketplaces | VSIX files are CI artifacts today; needs publisher accounts/tokens. |
+| Turn on GitHub Pages for the playground | Workflow `jsnet-playground-pages.yml` is ready (manual); Pages is one site per repository. |
 
 ## Release / Rilis
 

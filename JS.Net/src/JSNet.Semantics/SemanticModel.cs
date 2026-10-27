@@ -10,6 +10,7 @@ public sealed class ProjectSymbols
     public Dictionary<string, VariableDeclarator> ModuleVariables { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, InterfaceDeclaration> Interfaces { get; } = new(StringComparer.Ordinal);
     public HashSet<string> Enums { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, TypeAliasDeclaration> TypeAliases { get; } = new(StringComparer.Ordinal);
 }
 
 public sealed class ClassInfo(ClassDeclaration declaration)

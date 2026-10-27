@@ -18,7 +18,7 @@ const words = File.ReadAllLines("notes.txt").Where(l => l.Length > 0).ToList();
 - Generic calls: `JsonSerializer.Deserialize<Order>(json)`, `services.AddHostedService<Worker>()`.
 - Casts: `x as Rectangle` is a checked CLR cast `((Rectangle)x)`; `x instanceof T` / `x is T` are type tests; `(typeof MyClass).Assembly` gives the CLR `Type` of a project type.
 - Events: `button.Click += (sender, e) => this.onClick();`
-- `out`/`ref` arguments: `int.TryParse(s, out let n)`, `Interlocked.Increment(ref total)` (locals and parameters; class fields are properties); declare them with `out x: T` / `ref x: T` parameters.
+- `out`/`ref` arguments: `int.TryParse(s, out let n)`, `Interlocked.Increment(ref this.count)`; declare them with `out x: T` / `ref x: T` parameters.
 - NuGet packages work exactly like in C#: add a `PackageReference`.
 
 ## Using JS.Net from C#

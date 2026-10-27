@@ -170,6 +170,8 @@ function area(shape: Shape): number {
 }
 ```
 
+Rantai `if / else if` berisi uji `instanceof` pada variabel union tanpa `else` akhir harus mencakup semua anggota; jika tidak, compiler memberi peringatan (JSN2006).
+
 ## Class expression, label, `out`/`ref`
 
 ```jsnet
@@ -184,6 +186,8 @@ function swap(ref a: int, ref b: int): void { const t = a; a = b; b = t; }
 swap(ref x, ref y);
 if (int.TryParse(text, out let n)) console.log(n + 1);   // out mendeklarasikan variabel baru
 ```
+
+Field publik yang dioper dengan `ref`/`out` di dalam class-nya (`Interlocked.Increment(ref this.hits)`) dibangkitkan sebagai field CLR biasa, bukan auto-property.
 
 ## Aturan analyzer kustom
 

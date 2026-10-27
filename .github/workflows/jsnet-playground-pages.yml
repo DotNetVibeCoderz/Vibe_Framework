@@ -1,0 +1,70 @@
+# Deploy the JS.Net WebAssembly playground (gallery/JSNet.Playground) to GitHub Pages.
+#
+# The playground is a static Blazor WebAssembly site: the JS.Net compiler and Roslyn run in the browser,
+# so no server is needed. Manual only — GitHub Pages hosts one site per repository, so enable it
+# (Settings → Pages → Source: GitHub Actions) when this monorepo should serve the playground.
+#
+# Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+
+name: JS.Net playground (GitHub Pages)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_path:
+        description: 'Path the site is served from (repository name for project pages)'
+        required: false
+        default: '/Vibe_Framework/'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: jsnet-playground-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: JS.Net
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # In-repo projects compile their .jsn files with the CLI built from source.
+      - name: Build the JS.Net compiler
+        run: dotnet build src/JSNet.Cli -c Release
+
+      - name: Publish the playground
+        run: dotnet publish gallery/JSNet.Playground -c Release -o "$RUNNER_TEMP/playground"
+
+      - name: Prepare the static site
+        env:
+          BASE_PATH: ${{ inputs.base_path }}
+        run: |
+          site="$RUNNER_TEMP/playground/wwwroot"
+          sed -i "s#<base href=\"/\" />#<base href=\"$BASE_PATH\" />#" "$site/index.html"
+          rm -f "$site/index.html.br" "$site/index.html.gz"
+          cp "$site/index.html" "$site/404.html"   # deep links fall back to the app
+          touch "$site/.nojekyll"                  # keep the _framework folder
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/playground/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

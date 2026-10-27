@@ -199,6 +199,44 @@ public class SemanticTests
     public void IntegerDivisionWarning() =>
         Assert.Contains(Compile("let a = 7; let b = 2; console.log(a / b);").Diagnostics, d => d.Code == DiagnosticCodes.IntegerDivision);
 
+    private const string Shapes = """
+        class Circle { constructor(public r: number) {} }
+        class Square { constructor(public s: number) {} }
+        class Triangle { constructor(public b: number) {} }
+        type Shape = Circle | Square | Triangle;
+
+        """;
+
+    [Fact]
+    public void UnionChainsReportMissingMembers()
+    {
+        var d = Assert.Single(Compile(Shapes + """
+            function name(shape: Shape): string {
+                if (shape instanceof Circle) return "circle";
+                else if (shape instanceof Square) return "square";
+                return "?";
+            }
+            console.log(name(new Circle(1)));
+            """).Diagnostics, d => d.Code == DiagnosticCodes.UnhandledUnionMember);
+        Assert.Contains("'Triangle'", d.Message);
+    }
+
+    [Fact]
+    public void CompleteUnionChainsAndElseAreQuiet()
+    {
+        var result = Compile(Shapes + """
+            function a(shape: Shape): string {
+                if (shape instanceof Circle) return "c"; else if (shape instanceof Square) return "s"; else if (shape instanceof Triangle) return "t";
+                return "?";
+            }
+            function b(shape: Shape): string {
+                if (shape instanceof Circle) return "c"; else if (shape instanceof Square) return "s"; else return "other";
+            }
+            console.log(a(new Circle(1)), b(new Square(2)));
+            """);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code == DiagnosticCodes.UnhandledUnionMember);
+    }
+
     [Fact]
     public void BreakOutsideLoopIsAnError() =>
         Assert.Contains(Compile("function f() { break; }").Diagnostics, d => d.Code == DiagnosticCodes.BreakOutsideLoop);
