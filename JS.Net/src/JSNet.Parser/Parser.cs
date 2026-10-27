@@ -1440,6 +1440,12 @@ public sealed class Parser
             if (At("."))
             {
                 Advance();
+                // `obj.` followed by a statement on the next line (typing in an editor): keep the next statement intact.
+                if (Cur.NewLineBefore && Cur.Kind == TokenKind.Keyword)
+                {
+                    Error(DiagnosticCodes.ExpectedToken, "Expected a member name after '.'.", Cur.Span);
+                    return Finish(new MemberExpression(expr, "__missing", optional: false), start);
+                }
                 string name = Cur.IsIdentifierLike ? Advance().Text : ExpectIdentifier(allowKeywords: true);
                 expr = Finish(new MemberExpression(expr, name, optional: false), start);
             }

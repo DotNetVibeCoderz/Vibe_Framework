@@ -79,6 +79,10 @@ public sealed class LanguageServerHost
                     case "textDocument/documentSymbol": await RespondAsync(id, DocumentSymbols(@params!)).ConfigureAwait(false); break;
                     case "textDocument/definition": await RespondAsync(id, Definition(@params!)).ConfigureAwait(false); break;
                     case "textDocument/formatting": await RespondAsync(id, Formatting(@params!)).ConfigureAwait(false); break;
+                    case "textDocument/references": await RespondAsync(id, References(@params!)).ConfigureAwait(false); break;
+                    case "textDocument/prepareRename": await RespondAsync(id, PrepareRename(@params!)).ConfigureAwait(false); break;
+                    case "textDocument/rename": await RespondAsync(id, Rename(@params!)).ConfigureAwait(false); break;
+                    case "textDocument/codeAction": await RespondAsync(id, CodeActions(@params!)).ConfigureAwait(false); break;
                     default:
                         if (id is not null) await RespondErrorAsync(id, -32601, $"Method '{method}' is not supported.").ConfigureAwait(false);
                         break;
@@ -100,6 +104,9 @@ public sealed class LanguageServerHost
             ["hoverProvider"] = true,
             ["documentSymbolProvider"] = true,
             ["definitionProvider"] = true,
+            ["referencesProvider"] = true,
+            ["renameProvider"] = new JsonObject { ["prepareProvider"] = true },
+            ["codeActionProvider"] = new JsonObject { ["codeActionKinds"] = new JsonArray("quickfix") },
             ["documentFormattingProvider"] = true,
         },
         ["serverInfo"] = new JsonObject { ["name"] = "jsnet-language-server", ["version"] = "0.1.0" },
@@ -107,7 +114,7 @@ public sealed class LanguageServerHost
 
     // ------------------------------------------------------------------------------- analysis
 
-    private sealed record Analysis(Dictionary<string, CompilationUnit> Units, IReadOnlyList<Diagnostic> Diagnostics);
+    private sealed record Analysis(Dictionary<string, CompilationUnit> Units, IReadOnlyList<Diagnostic> Diagnostics, JsNetCompilationResult Result);
 
     private Analysis Analyze()
     {
@@ -117,7 +124,7 @@ public sealed class LanguageServerHost
         foreach (var u in result.Units) units[u.Source.Path] = u;
         // Multiple open files each containing statements is normal while editing; don't flag it in the IDE.
         var diags = result.Diagnostics.Where(d => d.Code != DiagnosticCodes.MultipleEntryPoints).ToList();
-        return new Analysis(units, diags);
+        return new Analysis(units, diags, result);
     }
 
     private async Task PublishAllDiagnosticsAsync()
@@ -185,16 +192,29 @@ public sealed class LanguageServerHost
         var source = new SourceText(text);
         int offset = source.GetOffset(line + 1, character + 1);
 
-        // Member completion after "identifier."
+        // Member completion after "receiver."
         int dot = offset - 1;
         while (dot >= 0 && dot < text.Length && Lexer.IsIdentPart(text[dot])) dot--;
         if (dot >= 0 && dot < text.Length && text[dot] == '.')
         {
-            int start = dot - 1;
-            while (start >= 0 && Lexer.IsIdentPart(text[start])) start--;
-            string target = text[(start + 1)..dot];
-            var members = MemberLists.TryGetValue(target, out var known) ? known : CommonMembers;
-            foreach (var m in members) items.Add(new JsonObject { ["label"] = m, ["kind"] = 2 });
+            string receiver = ReceiverBefore(text, dot);
+            if (MemberLists.TryGetValue(receiver, out var known))
+            {
+                foreach (var m in known) items.Add(new JsonObject { ["label"] = m, ["kind"] = 2 });
+                return items;
+            }
+            var analysis0 = Analyze();
+            if (receiver.Length > 0 && analysis0.Units.TryGetValue(UriToPath(uri), out var unit0))
+            {
+                try
+                {
+                    var members = DotNetMembers.Complete(analysis0.Result, unit0, receiver, dot);
+                    foreach (var m in members) items.Add(new JsonObject { ["label"] = m.Name, ["kind"] = m.Kind, ["detail"] = m.Detail });
+                }
+                catch (Exception) { /* fall back to the JavaScript member list */ }
+            }
+            if (items.Count == 0)
+                foreach (var m in CommonMembers) items.Add(new JsonObject { ["label"] = m, ["kind"] = 2 });
             return items;
         }
 
@@ -267,11 +287,35 @@ public sealed class LanguageServerHost
         return (unit, e > s ? text[s..e] : null, offset);
     }
 
+    /// <summary>The dotted receiver chain ending just before <paramref name="dot"/> (<c>this.items</c>, <c>sb</c>, <c>System.IO</c>).</summary>
+    private static string ReceiverBefore(string text, int dot)
+    {
+        int start = dot;
+        while (start > 0 && (Lexer.IsIdentPart(text[start - 1]) || text[start - 1] == '.')) start--;
+        return text[start..dot].Trim('.');
+    }
+
     private JsonNode? Hover(JsonNode p)
     {
-        var (unit, word, _) = WordAt(p);
+        var (unit, word, wordOffset) = WordAt(p);
         if (word is null) return null;
         var analysis = Analyze();
+        // Member of a .NET (or JS.Net) type: `sb.Append`
+        string uri0 = p["textDocument"]!["uri"]!.GetValue<string>();
+        if (_documents.TryGetValue(uri0, out var docText) && unit is not null)
+        {
+            int s0 = wordOffset;
+            while (s0 > 0 && Lexer.IsIdentPart(docText[s0 - 1])) s0--;
+            if (s0 > 0 && docText[s0 - 1] == '.')
+            {
+                string receiver = ReceiverBefore(docText, s0 - 1);
+                string? sig = null;
+                try { sig = receiver.Length > 0 ? DotNetMembers.Describe(analysis.Result, unit, receiver, word, s0 - 1) : null; }
+                catch (Exception) { }
+                if (sig is not null)
+                    return new JsonObject { ["contents"] = new JsonObject { ["kind"] = "markdown", ["value"] = $"```csharp\n{sig}\n```" } };
+            }
+        }
         foreach (var u in analysis.Units.Values)
         {
             foreach (var (name, _, node) in Declarations(u))
@@ -359,6 +403,145 @@ public sealed class LanguageServerHost
         if (children is not null) o["children"] = new JsonArray(children.Select(JsonNode (c) => c).ToArray());
         return o;
     }
+
+    // ------------------------------------------------------------------ references, rename, code actions
+
+    /// <summary>Every identifier token named <paramref name="name"/> in the open documents.</summary>
+    private List<(string Uri, int Line, int Column, int Length)> Occurrences(string name)
+    {
+        var list = new List<(string, int, int, int)>();
+        foreach (var (uri, text) in _documents)
+        {
+            var source = new SourceText(text);
+            foreach (var t in Lexer.Tokenize(source, new DiagnosticBag()))
+            {
+                if (t.Kind != TokenKind.Identifier || t.Text != name) continue;
+                var (l, c) = source.GetLineColumn(t.Span.Start);
+                list.Add((uri, l - 1, c - 1, t.Span.Length));
+            }
+        }
+        return list;
+    }
+
+    private JsonNode References(JsonNode p)
+    {
+        var (_, word, _) = WordAt(p);
+        var result = new JsonArray();
+        if (word is null) return result;
+        foreach (var (uri, line, col, len) in Occurrences(word))
+            result.Add(new JsonObject { ["uri"] = uri, ["range"] = Range(line, col, line, col + len) });
+        return result;
+    }
+
+    /// <summary>Only names declared in JS.Net code can be renamed (not .NET or runtime APIs).</summary>
+    private bool IsDeclaredInProject(string name, Analysis analysis) =>
+        analysis.Units.Values.Any(u => AstWalker.DescendantsAndSelf(u).Any(n => n switch
+        {
+            FunctionDeclaration f => f.Name == name,
+            ClassDeclaration c => c.Name == name,
+            InterfaceDeclaration i => i.Name == name,
+            EnumDeclaration e => e.Name == name,
+            ClassMember m => m.Name == name,
+            Parameter pa => pa.Name == name,
+            VariableDeclarator { Target: IdentifierPattern ip } => ip.Name == name,
+            _ => false,
+        }));
+
+    private JsonNode? PrepareRename(JsonNode p)
+    {
+        var (_, word, offset) = WordAt(p);
+        if (word is null || !IsDeclaredInProject(word, Analyze())) return null;
+        string uri = p["textDocument"]!["uri"]!.GetValue<string>();
+        var source = new SourceText(_documents[uri]);
+        int s = offset;
+        while (s > 0 && Lexer.IsIdentPart(source.Text[s - 1])) s--;
+        var (l, c) = source.GetLineColumn(s);
+        return new JsonObject { ["range"] = Range(l - 1, c - 1, l - 1, c - 1 + word.Length), ["placeholder"] = word };
+    }
+
+    private JsonNode? Rename(JsonNode p)
+    {
+        var (_, word, _) = WordAt(p);
+        string newName = p["newName"]!.GetValue<string>();
+        if (word is null || !IsDeclaredInProject(word, Analyze())) return null;
+        var changes = new JsonObject();
+        foreach (var group in Occurrences(word).GroupBy(o => o.Uri))
+        {
+            var edits = new JsonArray();
+            foreach (var (_, line, col, len) in group)
+                edits.Add(new JsonObject { ["range"] = Range(line, col, line, col + len), ["newText"] = newName });
+            changes[group.Key] = edits;
+        }
+        return new JsonObject { ["changes"] = changes };
+    }
+
+    /// <summary>Quick fixes for JS.Net diagnostics: const→let (JSN1001), prefix unused variables (JSN2001), fractional division (JSN2003).</summary>
+    private JsonNode CodeActions(JsonNode p)
+    {
+        string uri = p["textDocument"]!["uri"]!.GetValue<string>();
+        var actions = new JsonArray();
+        if (!_documents.TryGetValue(uri, out var text)) return actions;
+        var source = new SourceText(text);
+        foreach (var d in p["context"]?["diagnostics"]?.AsArray() ?? [])
+        {
+            string? code = d?["code"]?.GetValue<string>();
+            var range = d!["range"]!;
+            int line = range["start"]!["line"]!.GetValue<int>();
+            int col = range["start"]!["character"]!.GetValue<int>();
+            int offset = source.GetOffset(line + 1, col + 1);
+            switch (code)
+            {
+                case DiagnosticCodes.ConstReassignment:
+                {
+                    string message = d["message"]?.GetValue<string>() ?? string.Empty;
+                    int q1 = message.IndexOf('\''), q2 = message.IndexOf('\'', q1 + 1);
+                    if (q1 < 0 || q2 < 0) break;
+                    string name = message[(q1 + 1)..q2];
+                    var match = System.Text.RegularExpressions.Regex.Match(text, $@"\bconst(\s+){System.Text.RegularExpressions.Regex.Escape(name)}\b");
+                    if (!match.Success) break;
+                    var (l, c) = source.GetLineColumn(match.Index);
+                    actions.Add(QuickFix($"Change '{name}' to let", uri, d, Range(l - 1, c - 1, l - 1, c + 4), "let"));
+                    break;
+                }
+                case DiagnosticCodes.UnusedVariable:
+                {
+                    int end = offset;
+                    while (end < text.Length && Lexer.IsIdentPart(text[end])) end++;
+                    string name = text[offset..end];
+                    if (name.Length > 0) actions.Add(QuickFix($"Prefix '{name}' with '_'", uri, d, Range(line, col, line, col), "_"));
+                    break;
+                }
+                case DiagnosticCodes.IntegerDivision:
+                {
+                    // Make the right-hand integer literal fractional: `a / 2` → `a / 2.0`.
+                    var endPos = range["end"]!;
+                    int endOffset = source.GetOffset(endPos["line"]!.GetValue<int>() + 1, endPos["character"]!.GetValue<int>() + 1);
+                    int k = Math.Min(endOffset, text.Length);
+                    while (k > offset && !char.IsAsciiDigit(text[k - 1])) k--;
+                    int digitsEnd = k;
+                    while (k > offset && char.IsAsciiDigit(text[k - 1])) k--;
+                    if (digitsEnd > k && (k == 0 || !Lexer.IsIdentPart(text[k - 1])) && (digitsEnd >= text.Length || text[digitsEnd] != '.'))
+                    {
+                        var (l, c) = source.GetLineColumn(digitsEnd);
+                        actions.Add(QuickFix("Use fractional division", uri, d, Range(l - 1, c - 1, l - 1, c - 1), ".0"));
+                    }
+                    break;
+                }
+            }
+        }
+        return actions;
+    }
+
+    private static JsonObject QuickFix(string title, string uri, JsonNode diagnostic, JsonObject range, string newText) => new()
+    {
+        ["title"] = title,
+        ["kind"] = "quickfix",
+        ["diagnostics"] = new JsonArray(diagnostic.DeepClone()),
+        ["edit"] = new JsonObject
+        {
+            ["changes"] = new JsonObject { [uri] = new JsonArray(new JsonObject { ["range"] = range, ["newText"] = newText }) },
+        },
+    };
 
     /// <summary>Formatting delegates to the native Rust formatter when it is installed.</summary>
     private JsonNode Formatting(JsonNode p)

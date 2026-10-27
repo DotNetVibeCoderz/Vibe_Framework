@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\JSNet.Scripting\JSNet.Scripting.csproj" />
     <ProjectReference Include="..\..\src\JSNet.AI\JSNet.AI.csproj" />
+    <ProjectReference Include="..\..\src\JSNet.LanguageServer\JSNet.LanguageServer.csproj" />
     <ProjectReference Include="..\..\gallery\JSNet.Gallery.Samples\JSNet.Gallery.Samples.csproj" />
   </ItemGroup>
   <ItemGroup>
