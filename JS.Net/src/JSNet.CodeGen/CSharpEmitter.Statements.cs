@@ -21,15 +21,20 @@ public sealed partial class CSharpEmitter
                 EmitVariableStatement(v);
                 return;
             case IfStatement i:
+            {
                 Line(i);
+                int narrowed = BeginNarrowing(i.Test);
                 _w.WriteLine($"if ({Cond(i.Test)})");
                 EmitEmbedded(i.Then);
+                EndNarrowing(narrowed);
                 var @else = i.Else;
                 while (@else is IfStatement elseIf)
                 {
                     Line(elseIf);
+                    int n2 = BeginNarrowing(elseIf.Test);
                     _w.WriteLine($"else if ({Cond(elseIf.Test)})");
                     EmitEmbedded(elseIf.Then);
+                    EndNarrowing(n2);
                     @else = elseIf.Else;
                 }
                 if (@else is not null)
@@ -38,6 +43,10 @@ public sealed partial class CSharpEmitter
                     EmitEmbedded(@else);
                 }
                 return;
+            }
+            case LabeledStatement ls:
+                EmitLabeled(ls);
+                return;
             case ForStatement f:
                 EmitFor(f);
                 return;
@@ -45,16 +54,22 @@ public sealed partial class CSharpEmitter
                 EmitForOf(fo);
                 return;
             case WhileStatement w:
+            {
                 Line(w);
+                string? continueLabel = TakeContinueLabel();
                 _w.WriteLine($"while ({Cond(w.Test)})");
-                EmitEmbedded(w.Body);
+                EmitEmbedded(w.Body, null, continueLabel);
                 return;
+            }
             case DoWhileStatement d:
+            {
                 Line(d);
+                string? continueLabel = TakeContinueLabel();
                 _w.WriteLine("do");
-                EmitEmbedded(d.Body);
+                EmitEmbedded(d.Body, null, continueLabel);
                 _w.WriteLine($"while ({Cond(d.Test)});");
                 return;
+            }
             case ReturnStatement r:
                 Line(r);
                 if (_inGenerator) _w.WriteLine("yield break;");
@@ -65,13 +80,13 @@ public sealed partial class CSharpEmitter
                 Line(y);
                 _w.WriteLine(y.IsBreak || y.Value is null ? "yield break;" : $"yield return {Expr(y.Value)};");
                 return;
-            case BreakStatement:
+            case BreakStatement br:
                 Line(stmt);
-                _w.WriteLine("break;");
+                _w.WriteLine(br.Label is null ? "break;" : $"goto {LabelName(br.Label, "break")};");
                 return;
-            case ContinueStatement:
+            case ContinueStatement co:
                 Line(stmt);
-                _w.WriteLine("continue;");
+                _w.WriteLine(co.Label is null ? "continue;" : $"goto {LabelName(co.Label, "continue")};");
                 return;
             case ThrowStatement t:
                 Line(t);
@@ -91,9 +106,7 @@ public sealed partial class CSharpEmitter
                 EmitFunction(f, isStatic: false, isLocal: true);
                 return;
             case ClassDeclaration or InterfaceDeclaration or EnumDeclaration or PromptDeclaration:
-                Line(stmt);
-                _w.WriteLine("#error JS.Net: type declarations must appear at the top level of a file.");
-                return;
+                return; // hoisted to the namespace (see EmitHoistedTypes)
         }
     }
 
@@ -109,7 +122,7 @@ public sealed partial class CSharpEmitter
     }
 
     /// <summary>Bodies of if/loops are always braced so lowering can safely add statements.</summary>
-    private void EmitEmbedded(Statement body, IEnumerable<string>? prologue = null)
+    private void EmitEmbedded(Statement body, IEnumerable<string>? prologue = null, string? continueLabel = null)
     {
         _w.WriteLine("{");
         _w.Indent++;
@@ -117,6 +130,7 @@ public sealed partial class CSharpEmitter
         if (prologue is not null) foreach (var p in prologue) _w.WriteLine(p);
         if (body is BlockStatement b) foreach (var s in b.Statements) EmitStatement(s);
         else EmitStatement(body);
+        if (continueLabel is not null) _w.WriteLine($"{continueLabel}: ;");
         PopLocals();
         _w.Indent--;
         _w.WriteLine("}");
@@ -167,6 +181,8 @@ public sealed partial class CSharpEmitter
 
     private string DeclaratorCode(VariableKind kind, VariableDeclarator d)
     {
+        if (d.Init is ClassExpression cx && d.Target is IdentifierPattern cip && cx.Declaration.Name == cip.Name)
+            return $"// class {cip.Name} is hoisted to the namespace";
         string? annotated = d.Type is not null ? MapType(d.Type) : kind == VariableKind.Dynamic ? "dynamic" : null;
         if (d.Target is IdentifierPattern ip)
         {
@@ -225,9 +241,36 @@ public sealed partial class CSharpEmitter
         return string.Join("\n" + new string(' ', _w.IndentColumns), lines);
     }
 
+    // ------------------------------------------------------------------ labels
+
+    private string? _pendingContinueLabel;
+
+    private static string LabelName(string label, string kind) => $"__{label}_{kind}";
+
+    private string? TakeContinueLabel()
+    {
+        var l = _pendingContinueLabel;
+        _pendingContinueLabel = null;
+        return l;
+    }
+
+    /// <summary><c>outer: for (...) { ... continue outer; ... break outer; }</c> → C# goto labels.</summary>
+    private void EmitLabeled(LabeledStatement ls)
+    {
+        bool isLoop = ls.Body is ForStatement or ForOfStatement or WhileStatement or DoWhileStatement;
+        if (isLoop) _pendingContinueLabel = LabelName(ls.Label, "continue");
+        _w.WriteLine("{");
+        _w.Indent++;
+        EmitStatement(ls.Body);
+        _w.WriteLine($"{LabelName(ls.Label, "break")}: ;");
+        _w.Indent--;
+        _w.WriteLine("}");
+    }
+
     private void EmitFor(ForStatement f)
     {
         Line(f);
+        string? continueLabel = TakeContinueLabel();
         _w.WriteLine("{");
         _w.Indent++;
         PushLocals();
@@ -241,7 +284,7 @@ public sealed partial class CSharpEmitter
         string test = f.Test is null ? string.Empty : Cond(f.Test);
         string update = f.Update is null ? string.Empty : SequenceCode(f.Update);
         _w.WriteLine($"for ({init}; {test}; {update})");
-        EmitEmbedded(f.Body);
+        EmitEmbedded(f.Body, null, continueLabel);
         PopLocals();
         _w.Indent--;
         _w.WriteLine("}");
@@ -255,6 +298,7 @@ public sealed partial class CSharpEmitter
     private void EmitForOf(ForOfStatement fo)
     {
         Line(fo);
+        string? continueLabel = TakeContinueLabel();
         string iterable = fo.IsIn ? $"{Rt}JS.keys({Expr(fo.Iterable)})" : Expr(fo.Iterable);
         string keyword = fo.IsAwait ? "await foreach" : "foreach";
         PushLocals();
@@ -264,11 +308,11 @@ public sealed partial class CSharpEmitter
             case IdentifierPattern ip:
                 string type = fo.Type is not null ? MapType(fo.Type) : "var";
                 _w.WriteLine($"{keyword} ({type} {CSharpNames.Id(ip.Name)} in {iterable})");
-                EmitEmbedded(fo.Body);
+                EmitEmbedded(fo.Body, null, continueLabel);
                 break;
             case ArrayPattern ap when ap.Elements.Count >= 2 && ap.Elements.All(e => e is IdentifierPattern):
                 _w.WriteLine($"{keyword} (var ({string.Join(", ", ap.Elements.Cast<IdentifierPattern>().Select(e => CSharpNames.Id(e.Name)))}) in {iterable})");
-                EmitEmbedded(fo.Body);
+                EmitEmbedded(fo.Body, null, continueLabel);
                 break;
             default:
                 string tmp = Tmp("it");
@@ -276,7 +320,7 @@ public sealed partial class CSharpEmitter
                 _w.Indent++;
                 string prologue = DestructureCode(fo.Target, tmp, isDeclaration: true).Replace("\n" + new string(' ', _w.IndentColumns), "\n" + new string(' ', _w.IndentColumns + 4), StringComparison.Ordinal);
                 _w.Indent--;
-                EmitEmbedded(fo.Body, [prologue]);
+                EmitEmbedded(fo.Body, [prologue], continueLabel);
                 break;
         }
         PopLocals();

@@ -104,6 +104,9 @@ public static class AstWalker
             case NonNullExpression nn: yield return nn.Operand; break;
             case SpreadExpression sp: yield return sp.Operand; break;
             case ParenthesizedExpression pe: yield return pe.Inner; break;
+            case ClassExpression cx: yield return cx.Declaration; break;
+            case RefArgumentExpression ra: if (ra.Target is not null) yield return ra.Target; break;
+            case LabeledStatement ls: yield return ls.Body; break;
         }
     }
 

@@ -109,7 +109,30 @@ public sealed partial class CSharpEmitter
                 if (a.Type is NamedType { Name: "const" }) return E(a.Operand, target);
                 return ($"(({MapType(a.Type)}){Paren(a.Operand, PrecUnary)})", PrecPrimary);
             }
-            case IsTypeExpression it: return ($"{Paren(it.Operand, 11)} is {MapType(it.Type)}", 10);
+            case IsTypeExpression it:
+            {
+                if (_narrowNames.TryGetValue(it, out var narrowName))
+                {
+                    string test = $"{Paren(it.Operand, 11)} is {MapType(it.Type)} {narrowName}";
+                    // From here on the narrowed variable refers to the typed pattern variable.
+                    _aliases.Push((((IdentifierExpression)Unparen(it.Operand)).Name, narrowName));
+                    return (test, 10);
+                }
+                return ($"{Paren(it.Operand, 11)} is {MapType(it.Type)}", 10);
+            }
+            case RegexExpression rx:
+                return ($"{Rt}RegExp.of(@\"{rx.Pattern.Replace("\"", "\"\"", StringComparison.Ordinal)}\", \"{rx.Flags}\")", PrecPrimary);
+            case ClassExpression cx: return ($"typeof({CSharpNames.Id(cx.Declaration.Name)})", PrecPrimary);
+            case RefArgumentExpression ra:
+            {
+                if (ra.DeclaredName is not null)
+                {
+                    DeclareLocal(ra.DeclaredName);
+                    string t = ra.DeclaredType is null ? "var" : MapType(ra.DeclaredType);
+                    return ($"{ra.Modifier} {t} {CSharpNames.Id(ra.DeclaredName)}", PrecPrimary);
+                }
+                return ($"{ra.Modifier} {Expr(ra.Target!)}", PrecPrimary);
+            }
             case NonNullExpression nn: return (Paren(nn.Operand, PrecPrimary) + "!", PrecPrimary);
             case SpreadExpression sp: return (".. " + Paren(sp.Operand, PrecUnary), PrecUnary);
             case TypeOfTypeExpression tt: return ($"typeof({MapType(tt.Type)})", PrecPrimary);
@@ -147,8 +170,49 @@ public sealed partial class CSharpEmitter
         return sb.ToString();
     }
 
+    // ------------------------------------------------------------------ instanceof narrowing
+
+    private readonly Dictionary<IsTypeExpression, string> _narrowNames = new(ReferenceEqualityComparer.Instance);
+    private readonly Stack<(string Name, string Alias)> _aliases = new();
+
+    private static Expression Unparen(Expression e)
+    {
+        while (e is ParenthesizedExpression p) e = p.Inner;
+        return e;
+    }
+
+    /// <summary>
+    /// <c>if (shape instanceof Circle &amp;&amp; ...)</c>: registers the <c>instanceof</c> tests on local variables in the
+    /// leading <c>&amp;&amp;</c> chain so they emit pattern variables; inside the branch the variable has the narrowed type.
+    /// Returns the alias depth to restore with <see cref="EndNarrowing"/>.
+    /// </summary>
+    private int BeginNarrowing(Expression test)
+    {
+        int depth = _aliases.Count;
+        void Visit(Expression e)
+        {
+            e = Unparen(e);
+            if (e is BinaryExpression { Operator: "&&" } and)
+            {
+                Visit(and.Left);
+                Visit(and.Right);
+            }
+            else if (e is IsTypeExpression { Operand: var op } it && Unparen(op) is IdentifierExpression id && IsLocal(id.Name))
+                _narrowNames[it] = Tmp(id.Name + "_");
+        }
+        Visit(test);
+        return depth;
+    }
+
+    private void EndNarrowing(int depth)
+    {
+        while (_aliases.Count > depth) _aliases.Pop();
+    }
+
     private string Identifier(string name)
     {
+        foreach (var (aliasName, alias) in _aliases)
+            if (aliasName == name) return alias;
         if (!IsLocal(name))
         {
             switch (name)
@@ -204,6 +268,29 @@ public sealed partial class CSharpEmitter
 
     private string ObjectLiteral(ObjectExpression o, string? target)
     {
+        if (o.Properties.Any(p => p.IsSpread))
+        {
+            // { ...a, b: 1, ...c } → merged JsObject (later properties win), converted when a class is the target.
+            var parts = new List<string>();
+            var pending = new List<ObjectProperty>();
+            void Flush()
+            {
+                if (pending.Count == 0) return;
+                parts.Add($"new {Rt}JsObject {{ {string.Join(", ", pending.Select(p => $"[{CSharpNames.StringLiteral(p.Key)}] = {ObjectValue(p.Value)}"))} }}");
+                pending.Clear();
+            }
+            foreach (var p in o.Properties)
+            {
+                if (p.IsSpread) { Flush(); parts.Add($"(object?)({Expr(p.Value)})"); }
+                else pending.Add(p);
+            }
+            Flush();
+            if (target is null or ArgTarget or "dynamic" or "object") return $"{Rt}JSObject.spread({string.Join(", ", parts)})";
+            string merged = $"{Rt}JSObject.spreadObject({string.Join(", ", parts)})";
+            string concrete = _model.Symbols.Interfaces.ContainsKey(target) ? target + "__Data" : target;
+            return $"{Rt}JSObject.to<{concrete}>({merged})";
+        }
+
         string Prop(ObjectProperty p, bool named) => p.Shorthand && !named
             ? CSharpNames.ExprId(p.Key)
             : $"{CSharpNames.Id(p.Key)} = {ObjectValue(p.Value)}";
@@ -218,7 +305,7 @@ public sealed partial class CSharpEmitter
                 return $"new {target} {{ {string.Join(", ", o.Properties.Select(p => $"[{CSharpNames.StringLiteral(p.Key)}] = {Expr(p.Value, valueType)}"))} }}";
             }
             string concrete = _model.Symbols.Interfaces.ContainsKey(target) ? target + "__Data" : target;
-            if (!target.StartsWith("global::", StringComparison.Ordinal) || concrete != target)
+            if (!target.StartsWith("global::", StringComparison.Ordinal) || concrete != target || target.StartsWith("global::JSNet.Generated.", StringComparison.Ordinal))
                 return $"new {concrete} {{ {string.Join(", ", o.Properties.Select(p => Prop(p, named: true)))} }}";
         }
         if (o.Properties.Count == 0) return $"new {Rt}JsObject()";

@@ -83,6 +83,7 @@ public static class JS
     public static IEnumerable<string> keys(object? target) => target switch
     {
         null => [],
+        JsObject jo => [.. jo.Keys],
         IDictionary dict => dict.Keys.Cast<object>().Select(k => k?.ToString() ?? "null").ToList(),
         IList list => Enumerable.Range(0, list.Count).Select(i => i.ToString(CultureInfo.InvariantCulture)),
         string s => Enumerable.Range(0, s.Length).Select(i => i.ToString(CultureInfo.InvariantCulture)),
@@ -212,7 +213,8 @@ public static class JS
             var pairs = props.Select(p => (p.Name, SafeGet(() => p.GetValue(value))))
                 .Concat(fields.Select(f => (f.Name, f.GetValue(value))));
             bool anonymous = type.Name.Contains("AnonymousType", StringComparison.Ordinal);
-            if (!anonymous && !type.Name.Contains("__Data", StringComparison.Ordinal)) sb.Append(type.Name).Append(' ');
+            if (!anonymous && !type.Name.Contains("__Data", StringComparison.Ordinal) && !type.Name.StartsWith("JsType_", StringComparison.Ordinal))
+                sb.Append(type.Name).Append(' ');
             AppendObject(sb, pairs, depth, seen);
         }
         finally

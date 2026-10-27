@@ -69,6 +69,21 @@ public static class TypeMapper
         return sb.ToString();
     }
 
+    /// <summary>Stable name of the record generated for an object type literal: the same shape always maps to the same type.</summary>
+    public static string ObjectTypeName(ObjectTypeNode o)
+    {
+        uint hash = 2166136261;
+        foreach (char c in ObjectTypeSignature(o))
+        {
+            hash ^= c;
+            hash *= 16777619;
+        }
+        return $"JsType_{hash:X8}";
+    }
+
+    public static string ObjectTypeSignature(ObjectTypeNode o) =>
+        string.Join(";", o.Members.Select(m => $"{m.Name}{(m.Optional ? "?" : "")}:{Map(m.Type)}{((m.Modifiers & Modifiers.Readonly) != 0 ? "!" : "")}"));
+
     public static bool IsVoid(TypeNode? type) => type is NamedType { Name: "void" or "never", TypeArgs.Count: 0 };
 
     /// <summary>Returns the element type text of <c>Promise&lt;T&gt;</c>/<c>Task&lt;T&gt;</c>, or null.</summary>
@@ -109,6 +124,9 @@ public static class TypeMapper
                 break;
             case FunctionType f:
                 AppendFunction(sb, f, diagnostics, source);
+                break;
+            case ObjectTypeNode o:
+                sb.Append("global::JSNet.Generated.").Append(ObjectTypeName(o));
                 break;
             case UnionType u:
                 diagnostics?.Warning(DiagnosticCodes.LooseUnion,

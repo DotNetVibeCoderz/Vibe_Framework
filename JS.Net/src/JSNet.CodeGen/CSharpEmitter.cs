@@ -58,10 +58,13 @@ public sealed partial class CSharpEmitter
         _w.WriteLine("//   JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.");
         _w.WriteLine("// </auto-generated>");
         _w.WriteLine("#nullable enable annotations");
-        _w.WriteLine("#pragma warning disable CS1998, CS0162, CS0168, CS0219, CS8981, CS0108, CS0114, CS1591, CS8321, CS0649, CS0169, CS0414, CS4014, CS8892");
+        _w.WriteLine("#pragma warning disable CS1998, CS0162, CS0164, CS0168, CS0219, CS8981, CS0108, CS0114, CS1591, CS8321, CS0649, CS0169, CS0414, CS4014, CS8892");
 
         foreach (var alias in _unit.Statements.OfType<TypeAliasDeclaration>())
+        {
+            if (IsClassUnion(alias)) continue; // emitted as a marker interface below
             _w.WriteLine($"global using {CSharpNames.Id(alias.Name)} = {MapType(alias.Type)};");
+        }
         foreach (var import in _unit.Statements.OfType<ImportDeclaration>()) EmitImport(import);
         _w.WriteLine($"using {_ctx.Namespace};");
 
@@ -87,8 +90,14 @@ public sealed partial class CSharpEmitter
                 case InterfaceDeclaration i when (i.Modifiers & Modifiers.Declare) == 0: EmitInterface(i); break;
                 case EnumDeclaration e when (e.Modifiers & Modifiers.Declare) == 0: EmitEnum(e); break;
                 case PromptDeclaration p: EmitPrompt(p); break;
+                case TypeAliasDeclaration ta when IsClassUnion(ta):
+                    Line(ta);
+                    _w.WriteLine($"/// <summary>Union of {string.Join(", ", ((UnionType)ta.Type).Members.Cast<NamedType>().Select(m => m.Name))}.</summary>");
+                    _w.WriteLine($"public partial interface {CSharpNames.Id(ta.Name)} {{ }}");
+                    break;
             }
         }
+        EmitHoistedTypes();
 
         var moduleVars = _ctx.IsEntry ? [] : variables;
         if (functions.Count > 0 || variables.Count > 0 || _ctx.IsEntry)
@@ -105,6 +114,27 @@ public sealed partial class CSharpEmitter
         _w.Close();
         _w.Directive("#line default");
         return _w.ToString();
+    }
+
+    /// <summary><c>type Shape = Circle | Square</c> over project classes → marker interface the classes implement.</summary>
+    public static bool IsClassUnion(TypeAliasDeclaration alias, SemanticModel model) =>
+        alias.Type is UnionType u && u.Members.Count > 1
+        && u.Members.All(m => m is NamedType { TypeArgs.Count: 0 } n && model.Symbols.Classes.TryGetValue(n.Name, out var c) && c.Declaration.TypeParameters.Count == 0);
+
+    private bool IsClassUnion(TypeAliasDeclaration alias) => IsClassUnion(alias, _model);
+
+    /// <summary>Class expressions and types declared inside functions become namespace-level types.</summary>
+    private void EmitHoistedTypes()
+    {
+        foreach (var node in AstWalker.DescendantsAndSelf(_unit))
+        {
+            switch (node)
+            {
+                case ClassDeclaration cd when !_unit.Statements.Contains(cd): EmitClass(cd); break;
+                case InterfaceDeclaration id when !_unit.Statements.Contains(id): EmitInterface(id); break;
+                case EnumDeclaration ed when !_unit.Statements.Contains(ed): EmitEnum(ed); break;
+            }
+        }
     }
 
     private static IEnumerable<string> PatternNames(Pattern p) => p switch
@@ -268,6 +298,12 @@ public sealed partial class CSharpEmitter
             string type = p.Type is not null ? MapType(p.Type) : TypeOf(p) ?? "dynamic";
             var sb = new StringBuilder();
             sb.Append(Attributes(p.Attributes));
+            if (p.RefKind is not null)
+            {
+                sb.Append(p.RefKind).Append(' ').Append(type).Append(' ').Append(name);
+                parts.Add(sb.ToString());
+                continue;
+            }
             if (p.Rest)
             {
                 if (p.Type is null) type = "object[]";

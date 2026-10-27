@@ -247,6 +247,7 @@ public static class JSObject
     public static List<object?> values(object? obj) => obj switch
     {
         null => [],
+        JsObject jo => [.. jo.Values],
         IDictionary d => d.Values.Cast<object?>().ToList(),
         _ => obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.GetIndexParameters().Length == 0).Select(p => p.GetValue(obj)).ToList(),
     };
@@ -254,6 +255,7 @@ public static class JSObject
     public static List<(string key, object? value)> entries(object? obj) => obj switch
     {
         null => [],
+        JsObject jo => jo.Select(kv => (kv.Key, kv.Value)).ToList(),
         IDictionary d => d.Cast<DictionaryEntry>().Select(e => (e.Key.ToString()!, e.Value)).ToList(),
         _ => obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.GetIndexParameters().Length == 0).Select(p => (p.Name, p.GetValue(obj))).ToList(),
     };
@@ -262,6 +264,36 @@ public static class JSObject
         dict.Select(kv => (kv.Key, kv.Value)).ToList();
 
     public static T freeze<T>(T obj) => obj;
+
+    /// <summary><c>{ ...a, b: 1, ...c }</c>: merges the own properties of every part, later parts winning.</summary>
+    public static dynamic spread(params object?[] parts) => spreadObject(parts);
+
+    public static JsObject spreadObject(params object?[] parts)
+    {
+        var result = new JsObject();
+        foreach (var part in parts)
+        {
+            if (part is null) continue;
+            foreach (var (k, v) in entries(part)) result[k] = v;
+        }
+        return result;
+    }
+
+    /// <summary>Copies matching properties (case-insensitive) of a dynamic object into a new <typeparamref name="T"/>.</summary>
+    public static T to<T>(JsObject source) where T : new()
+    {
+        var target = new T();
+        foreach (var prop in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite))
+        {
+            var key = source.Keys.FirstOrDefault(k => string.Equals(k, prop.Name, StringComparison.OrdinalIgnoreCase));
+            if (key is null) continue;
+            var value = source[key];
+            if (value is not null && !prop.PropertyType.IsInstanceOfType(value))
+                value = Convert.ChangeType(value, Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType, System.Globalization.CultureInfo.InvariantCulture);
+            prop.SetValue(target, value);
+        }
+        return target;
+    }
 
     public static JsObject assign(JsObject target, params object?[] sources)
     {

@@ -46,6 +46,12 @@ public sealed class UnionType(List<TypeNode> members) : TypeNode
     public List<TypeNode> Members { get; } = members;
 }
 
+/// <summary><c>{ name: string; age?: number }</c> — lowered to a generated record class per distinct shape.</summary>
+public sealed class ObjectTypeNode(List<ClassMember> members) : TypeNode
+{
+    public List<ClassMember> Members { get; } = members;
+}
+
 // --------------------------------------- Common parts --------------------------------------
 
 /// <summary><c>@Name(args)</c> decorator or <c>[Name(args)]</c> attribute; both lower to a CLR attribute.</summary>
@@ -95,6 +101,8 @@ public sealed class Parameter(string name) : Node
     /// <summary>TypeScript-style constructor parameter property (<c>constructor(private repo: Repo)</c>).</summary>
     public Modifiers PropertyModifiers { get; init; }
     public List<AttributeNode> Attributes { get; init; } = [];
+    /// <summary><c>out</c>, <c>ref</c> or <c>in</c> for by-reference CLR parameters.</summary>
+    public string? RefKind { get; init; }
 }
 
 // -------------------------------------- Patterns -------------------------------------------
@@ -156,6 +164,30 @@ public sealed class ObjectProperty(string key, Expression value, bool shorthand)
     public string Key { get; } = key;
     public Expression Value { get; } = value;
     public bool Shorthand { get; } = shorthand;
+    /// <summary><c>...value</c> inside an object literal.</summary>
+    public bool IsSpread { get; init; }
+}
+
+/// <summary><c>/pattern/flags</c></summary>
+public sealed class RegexExpression(string pattern, string flags) : Expression
+{
+    public string Pattern { get; } = pattern;
+    public string Flags { get; } = flags;
+}
+
+/// <summary><c>class { ... }</c> used as a value; hoisted to a namespace-level class.</summary>
+public sealed class ClassExpression(ClassDeclaration declaration) : Expression
+{
+    public ClassDeclaration Declaration { get; } = declaration;
+}
+
+/// <summary><c>out x</c>, <c>ref x</c>, <c>out let x</c> call arguments.</summary>
+public sealed class RefArgumentExpression(string modifier, Expression? target, string? declaredName, TypeNode? declaredType) : Expression
+{
+    public string Modifier { get; } = modifier;
+    public Expression? Target { get; } = target;
+    public string? DeclaredName { get; } = declaredName;
+    public TypeNode? DeclaredType { get; } = declaredType;
 }
 
 public sealed class ObjectExpression(List<ObjectProperty> properties) : Expression
@@ -357,8 +389,21 @@ public sealed class YieldStatement(Expression? value, bool isBreak) : Statement
     public bool IsBreak { get; } = isBreak;
 }
 
-public sealed class BreakStatement : Statement;
-public sealed class ContinueStatement : Statement;
+public sealed class BreakStatement : Statement
+{
+    public string? Label { get; init; }
+}
+
+public sealed class ContinueStatement : Statement
+{
+    public string? Label { get; init; }
+}
+
+public sealed class LabeledStatement(string label, Statement body) : Statement
+{
+    public string Label { get; } = label;
+    public Statement Body { get; } = body;
+}
 
 public sealed class ThrowStatement(Expression value) : Statement
 {
@@ -438,7 +483,8 @@ public enum ClassKind { Class, Struct, Record }
 
 public sealed class ClassDeclaration(string name, List<ClassMember> members) : Statement
 {
-    public string Name { get; } = name;
+    /// <summary>Settable so anonymous class expressions can take the name of the variable they initialize.</summary>
+    public string Name { get; set; } = name;
     public List<ClassMember> Members { get; } = members;
     public ClassKind Kind { get; init; }
     public List<TypeParameter> TypeParameters { get; init; } = [];
@@ -519,4 +565,6 @@ public sealed class CompilationUnit(SourceText source, List<Statement> statement
 {
     public SourceText Source { get; } = source;
     public List<Statement> Statements { get; } = statements;
+    /// <summary>Every object type literal in the file (the compiler generates one record per distinct shape).</summary>
+    public List<ObjectTypeNode> ObjectTypes { get; init; } = [];
 }

@@ -122,6 +122,29 @@ public sealed class Binder
                 }
             }
             if (hasStatements) _model.EntryUnits.Add(unit);
+
+            // Class expressions and classes declared inside functions are hoisted to the namespace.
+            foreach (var node in AstWalker.DescendantsAndSelf(unit))
+            {
+                var nested = node switch
+                {
+                    ClassExpression cx => cx.Declaration,
+                    ClassDeclaration cd when !unit.Statements.Contains(cd) => cd,
+                    _ => null,
+                };
+                if (nested is null || symbols.Classes.ContainsKey(nested.Name)) continue;
+                var nestedInfo = new ClassInfo(nested);
+                foreach (var m in nested.Members)
+                {
+                    if (m.Kind == MemberKind.Field) nestedInfo.Fields[m.Name] = m;
+                    else if (m.Kind != MemberKind.Constructor)
+                    {
+                        if (!nestedInfo.Methods.TryGetValue(m.Name, out var list)) nestedInfo.Methods[m.Name] = list = [];
+                        list.Add(m);
+                    }
+                }
+                symbols.Classes[nested.Name] = nestedInfo;
+            }
         }
 
         if (_model.EntryUnits.Count > 1 && !_isLibrary)
@@ -273,6 +296,12 @@ public sealed class Binder
                     _fn.Yields.Add(y.Value);
                 }
                 break;
+            case LabeledStatement ls:
+                BindStatement(ls.Body);
+                break;
+            case BreakStatement { Label: not null }:
+            case ContinueStatement { Label: not null }:
+                break;
             case BreakStatement:
                 if (_fn.Loops == 0 && _fn.Switches == 0)
                     _diagnostics.Error(DiagnosticCodes.BreakOutsideLoop, "'break' is only valid inside a loop or switch.", _source, stmt.Span);
@@ -355,6 +384,8 @@ public sealed class Binder
             }
             if (type is not null && d.Type is null) _model.Types[d] = type;
             DeclarePattern(d.Target, v.Kind == VariableKind.Const ? SymbolKind.Const : SymbolKind.Let, d, type);
+            // `const Foo = class { }` declares a type, not a variable that must be read.
+            if (d.Init is ClassExpression && d.Target is IdentifierPattern cip && _scope.Lookup(cip.Name) is { } classSym) classSym.Used = true;
         }
     }
 
@@ -633,6 +664,17 @@ public sealed class Binder
                     _diagnostics.Error(DiagnosticCodes.SuperOutsideDerived, "'super' is only valid in a class that extends another class.", _source, expr.Span);
                 break;
             case FunctionExpression f: BindFunctionExpression(f); break;
+            case ClassExpression cx: BindClass(cx.Declaration); break;
+            case RegexExpression: break;
+            case RefArgumentExpression ra:
+                if (ra.Target is not null)
+                {
+                    BindExpression(ra.Target);
+                    if (ra.Target is IdentifierExpression rid && _scope.Lookup(rid.Name) is { } rsym) rsym.Used = true;
+                }
+                else if (ra.DeclaredName is not null)
+                    Declare(ra.DeclaredName, SymbolKind.Let, ra, ra.DeclaredType is null ? null : TypeMapper.Map(ra.DeclaredType)).Used = true;
+                break;
         }
     }
 

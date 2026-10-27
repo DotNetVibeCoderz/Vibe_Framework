@@ -25,6 +25,7 @@ public sealed class Parser
     private readonly SourceText _source;
     private readonly DiagnosticBag _diagnostics;
     private readonly List<Token> _tokens;
+    private readonly List<ObjectTypeNode> _objectTypes = [];
     private int _pos;
     private int _speculating;
     private bool _noIn;
@@ -149,7 +150,7 @@ public sealed class Parser
             else if (stmt is not null) statements.Add(stmt);
             if (_pos == before) Advance();
         }
-        var unit = new CompilationUnit(_source, statements) { Span = new TextSpan(0, _source.Length) };
+        var unit = new CompilationUnit(_source, statements) { Span = new TextSpan(0, _source.Length), ObjectTypes = _objectTypes };
         return unit;
     }
 
@@ -281,8 +282,20 @@ public sealed class Parser
                     ConsumeSemicolon();
                     return Finish(new YieldStatement(value, false), start);
                 }
-                case "break": Advance(); ConsumeSemicolon(); return Finish(new BreakStatement(), start);
-                case "continue": Advance(); ConsumeSemicolon(); return Finish(new ContinueStatement(), start);
+                case "break":
+                {
+                    Advance();
+                    string? label = Cur.Kind == TokenKind.Identifier && !Cur.NewLineBefore ? Advance().Text : null;
+                    ConsumeSemicolon();
+                    return Finish(new BreakStatement { Label = label }, start);
+                }
+                case "continue":
+                {
+                    Advance();
+                    string? label = Cur.Kind == TokenKind.Identifier && !Cur.NewLineBefore ? Advance().Text : null;
+                    ConsumeSemicolon();
+                    return Finish(new ContinueStatement { Label = label }, start);
+                }
                 case "throw":
                 {
                     Advance();
@@ -301,6 +314,12 @@ public sealed class Parser
             }
         }
 
+        if (t.Kind == TokenKind.Identifier && PeekTok().Is(":"))
+        {
+            string label = Advance().Text;
+            Advance(); // ':'
+            return Finish(new LabeledStatement(label, ParseStatement()), start);
+        }
         if (At("{")) return ParseBlock();
         if (Eat(";")) return Finish(new EmptyStatement(), start);
 
@@ -448,6 +467,8 @@ public sealed class Parser
             if (Eat(":")) type = ParseType();
             Expression? init = null;
             if (Eat("=")) init = ParseAssignment();
+            if (init is ClassExpression { Declaration: var cd } && target is IdentifierPattern named && cd.Name.StartsWith("__Class", StringComparison.Ordinal))
+                cd.Name = named.Name;
             declarators.Add(Finish(new VariableDeclarator(target, type, init), dStart));
         } while (Eat(","));
         return Finish(new VariableStatement(kind, declarators), start);
@@ -728,6 +749,9 @@ public sealed class Parser
                 _ => Modifiers.Readonly,
             };
         }
+        string? refKind = null;
+        if (Cur.Kind == TokenKind.Identifier && Cur.Text is "out" or "ref" or "in" && PeekTok().Kind == TokenKind.Identifier)
+            refKind = Advance().Text;
         bool rest = Eat("...");
         Pattern? pattern = null;
         string name;
@@ -749,13 +773,14 @@ public sealed class Parser
             Rest = rest,
             PropertyModifiers = mods,
             Attributes = attrs,
+            RefKind = refKind,
         }, start);
     }
 
-    private ClassDeclaration ParseClass(int start, ClassKind kind)
+    private ClassDeclaration ParseClass(int start, ClassKind kind, bool nameOptional = false)
     {
         Advance(); // class/struct/record
-        string name = ExpectIdentifier();
+        string name = nameOptional && Cur.Kind != TokenKind.Identifier ? string.Empty : ExpectIdentifier();
         var typeParams = ParseTypeParameters();
         TypeNode? extends = null;
         var implements = new List<TypeNode>();
@@ -873,7 +898,7 @@ public sealed class Parser
 
         TypeNode? type = Eat(":") ? ParseType() : null;
         Expression? init = Eat("=") ? ParseAssignment() : null;
-        ConsumeSemicolon();
+        if (!(isInterface && Eat(","))) ConsumeSemicolon();
         return Finish(new ClassMember(MemberKind.Field, name)
         {
             Modifiers = mods,
@@ -1135,15 +1160,12 @@ public sealed class Parser
         }
         if (At("{"))
         {
-            Error(DiagnosticCodes.UnsupportedFeature, "Object type literals are not supported; declare an interface or class instead.", Cur.Span);
-            int depth = 0;
-            do
-            {
-                if (At("{")) depth++;
-                else if (At("}")) depth--;
-                Advance();
-            } while (depth > 0 && !AtEnd);
-            return Finish(new NamedType("object", []), start);
+            var members = ParseMembers(isInterface: true, className: string.Empty);
+            if (members.Any(m => m.Kind != MemberKind.Field))
+                Error(DiagnosticCodes.UnsupportedFeature, "Object type literals may only declare properties; use an interface for methods.", Cur.Span);
+            var objectType = Finish(new ObjectTypeNode(members.Where(m => m.Kind == MemberKind.Field).ToList()), start);
+            _objectTypes.Add(objectType);
+            return objectType;
         }
         if (Cur.Is("typeof")) Advance();
 
@@ -1488,6 +1510,18 @@ public sealed class Parser
         {
             int s = Cur.Span.Start;
             if (Eat("...")) args.Add(Finish(new SpreadExpression(ParseAssignment()), s));
+            else if (Cur.Kind == TokenKind.Identifier && Cur.Text is "out" or "ref" or "in" && PeekTok().IsIdentifierLike && !PeekTok().Is("=>"))
+            {
+                string modifier = Advance().Text;
+                if (Cur.Text is "let" or "const" or "var" && Cur.Kind == TokenKind.Keyword)
+                {
+                    Advance();
+                    string name = ExpectIdentifier();
+                    TypeNode? type = Eat(":") ? ParseType() : null;
+                    args.Add(Finish(new RefArgumentExpression(modifier, null, name, type), s));
+                }
+                else args.Add(Finish(new RefArgumentExpression(modifier, ParseUnary(), null, null), s));
+            }
             else args.Add(ParseAssignment());
             if (!Eat(",")) break;
         }
@@ -1528,6 +1562,9 @@ public sealed class Parser
             case TokenKind.Template:
                 Advance();
                 return ParseTemplate(t);
+            case TokenKind.Regex:
+                Advance();
+                return Finish(new RegexExpression(t.Value ?? string.Empty, t.Text), start);
             case TokenKind.Identifier:
                 Advance();
                 return Finish(new IdentifierExpression(t.Text), start);
@@ -1542,9 +1579,11 @@ public sealed class Parser
                     case "super": Advance(); return Finish(new SuperExpression(), start);
                     case "function": return ParseFunctionExpression(start, isAsync: false);
                     case "class":
-                        Error(DiagnosticCodes.UnsupportedFeature, "Class expressions are not supported; use a class declaration.", t.Span);
-                        Advance();
-                        return Finish(new LiteralExpression(LiteralKind.Null, "null"), start);
+                    {
+                        var decl = ParseClass(start, ClassKind.Class, nameOptional: true);
+                        if (decl.Name.Length == 0) decl.Name = $"__Class{start}";
+                        return Finish(new ClassExpression(decl), start);
+                    }
                 }
                 break;
             case TokenKind.Punctuator:
@@ -1592,11 +1631,9 @@ public sealed class Parser
         while (!At("}") && !AtEnd)
         {
             int s = Cur.Span.Start;
-            if (At("..."))
+            if (Eat("..."))
             {
-                Error(DiagnosticCodes.UnsupportedFeature, "Object spread is not supported in object literals.", Cur.Span);
-                Advance();
-                ParseAssignment();
+                props.Add(Finish(new ObjectProperty("...", ParseAssignment(), false) { IsSpread = true }, s));
             }
             else
             {

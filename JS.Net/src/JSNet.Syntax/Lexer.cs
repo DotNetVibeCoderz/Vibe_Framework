@@ -48,7 +48,54 @@ public sealed class Lexer
     private char Cur => _pos < _end ? _source.Text[_pos] : '\0';
     private char Peek(int n = 1) => _pos + n < _end ? _source.Text[_pos + n] : '\0';
 
+    private Token? _previous;
+
     public Token Next()
+    {
+        var token = NextCore();
+        if (token.Kind != TokenKind.EndOfFile) _previous = token;
+        return token;
+    }
+
+    /// <summary>A '/' starts a regex literal where an expression may begin (after operators, '(' , ',', keywords...).</summary>
+    private bool RegexAllowed()
+    {
+        if (_previous is not { } p) return true;
+        return p.Kind switch
+        {
+            TokenKind.Number or TokenKind.String or TokenKind.Template or TokenKind.Regex or TokenKind.Identifier => false,
+            TokenKind.Keyword => p.Text is not ("this" or "super" or "null" or "true" or "false" or "undefined"),
+            TokenKind.Punctuator => p.Text is not (")" or "]" or "}" or "++" or "--"),
+            _ => true,
+        };
+    }
+
+    private Token LexRegex(int start)
+    {
+        _pos++; // opening '/'
+        bool inClass = false;
+        while (true)
+        {
+            if (_pos >= _end || Cur == '\n')
+            {
+                _diagnostics.Error(DiagnosticCodes.UnterminatedString, "Unterminated regular expression literal.", _source, TextSpan.FromBounds(start, _pos));
+                break;
+            }
+            char c = Cur;
+            if (c == '\\') { _pos += 2; continue; }
+            if (c == '[') inClass = true;
+            else if (c == ']') inClass = false;
+            else if (c == '/' && !inClass) break;
+            _pos++;
+        }
+        string pattern = _source.Text[(start + 1)..Math.Min(_pos, _end)];
+        if (_pos < _end) _pos++; // closing '/'
+        int flagsStart = _pos;
+        while (char.IsAsciiLetter(Cur)) _pos++;
+        return new Token(TokenKind.Regex, _source.Text[flagsStart.._pos], TextSpan.FromBounds(start, _pos), _newLine, pattern);
+    }
+
+    private Token NextCore()
     {
         _newLine = false;
         SkipTrivia();
@@ -68,6 +115,7 @@ public sealed class Lexer
         if (char.IsAsciiDigit(c) || (c == '.' && char.IsAsciiDigit(Peek()))) return LexNumber(start);
         if (c is '"' or '\'') return LexString(start, c);
         if (c == '`') return LexTemplate(start);
+        if (c == '/' && Peek() != '/' && Peek() != '*' && RegexAllowed()) return LexRegex(start);
 
         foreach (var p in Punctuators)
         {

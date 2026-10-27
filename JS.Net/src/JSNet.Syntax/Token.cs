@@ -8,6 +8,7 @@ public enum TokenKind : byte
     Number,
     String,
     Template,
+    Regex,
     Punctuator,
     Bad,
 }
