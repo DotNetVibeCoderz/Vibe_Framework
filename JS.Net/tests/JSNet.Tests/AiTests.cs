@@ -5,7 +5,8 @@ using Microsoft.Extensions.AI;
 
 namespace JSNet.Tests;
 
-/// <summary>AI-native features. One class so the tests run sequentially (AiRuntime is process-wide).</summary>
+/// <summary>AI-native features. AiRuntime is process-wide, so these share a collection with the gallery (AiNative sample).</summary>
+[Collection("AiRuntime")]
 public class AiTests : IDisposable
 {
     public AiTests()

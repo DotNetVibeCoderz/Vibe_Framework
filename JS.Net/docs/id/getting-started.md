@@ -92,8 +92,11 @@ dotnet publish -c Release -r win-x64 -p:PublishAot=true
 
 ## 6. Dukungan editor
 
-- **VS Code**: pasang `artifacts/vscode/jsnet-0.1.0.vsix` (*Extensions → … → Install from VSIX*). Membutuhkan CLI `jsnet` di PATH.
-- **Visual Studio / Rider**: file `.jsn` di-build dan di-debug lewat SDK; breakpoint dan stack trace mengarah ke baris `.jsn` berkat pemetaan `#line`. Integrasi editor khusus ada di [roadmap](../../PLAN.md).
+- **VS Code**: pasang `jsnet-vscode.vsix` dari artefak CI (*Extensions → … → Install from VSIX*). Membutuhkan CLI `jsnet` di PATH.
+- **Visual Studio**: pasang `JSNet.VisualStudio.vsix` (language server untuk file `.jsn`).
+- **Rider / IntelliJ**: LSP4IJ ditambah template di [`jetbrains/`](../../jetbrains/README.md).
+- Di mana pun: file `.jsn` di-build dan di-debug lewat SDK; breakpoint dan stack trace mengarah ke baris `.jsn` berkat pemetaan `#line`.
+- **Tanpa instalasi**: playground WebAssembly (`dotnet run --project gallery/JSNet.Playground`) mengompilasi dan menjalankan JS.Net sepenuhnya di browser.
 
 ## Selanjutnya
 

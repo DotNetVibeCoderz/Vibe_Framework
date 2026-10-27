@@ -16,8 +16,10 @@
     <PackageReference Include="Gravicode.Matplotlib.Net" Version="1.2.0" />
     <PackageReference Include="Gravicode.Science.GraviLearn" Version="1.4.0" />
     <PackageReference Include="Gravicode.HFNet.GraviTokenizers" Version="0.11.1" />
-    <PackageReference Include="Gravicode.MediaPipeNet" Version="1.0.0" />
+    <!-- Text tasks only (the umbrella package also brings the vision stack and ImageSharp 3.1.12 with known advisories); native ONNX Runtime as the umbrella does. -->
+    <PackageReference Include="Gravicode.MediaPipeNet.Tasks.Text" Version="1.0.0" />
     <PackageReference Include="Gravicode.MediaPipeNet.Models.Text" Version="1.0.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" />
     <PackageReference Include="IoTCom.Net" Version="0.22.0-preview.1" />
     <PackageReference Include="ThreeNet" Version="0.12.0" />
   </ItemGroup>

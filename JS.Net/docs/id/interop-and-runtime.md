@@ -18,7 +18,7 @@ const words = File.ReadAllLines("catatan.txt").Where(l => l.Length > 0).ToList()
 - Pemanggilan generic: `JsonSerializer.Deserialize<Order>(json)`, `services.AddHostedService<Worker>()`.
 - Cast: `x as Rectangle` adalah cast CLR yang diperiksa `((Rectangle)x)`; `x instanceof T` / `x is T` adalah uji tipe; `(typeof MyClass).Assembly` memberi `Type` CLR dari tipe proyek.
 - Event: `button.Click += (sender, e) => this.onClick();`
-- Parameter `out`/`ref` belum didukung; pakai API yang mengembalikan nilai (alih-alih `int.TryParse` pakai `parseInt`/`Number`).
+- Argumen `out`/`ref`: `int.TryParse(s, out let n)`, `Interlocked.Increment(ref total)` (variabel lokal dan parameter; field class adalah property); deklarasikan dengan parameter `out x: T` / `ref x: T`.
 - Paket NuGet bekerja sama persis seperti di C#: tambahkan `PackageReference`.
 
 ## Memakai JS.Net dari C#
@@ -89,3 +89,24 @@ export class Worker extends BackgroundService {
 - **WPF**: `MainWindow.xaml.jsn` → `export partial class MainWindow extends Window { constructor() { super(); this.InitializeComponent(); } }`. Elemen bernama adalah field (`this.CounterText`).
 - **Avalonia**: pola yang sama dengan `.axaml.jsn`; name generator Avalonia menyediakan `InitializeComponent`.
 - **WinForms**: bangun UI lewat kode; pakai `export function main()` dengan `@STAThread`.
+
+## Paket pendamping
+
+| Paket | Yang ditambahkan |
+|---|---|
+| `JSNet.Web` | Routing gaya Express di atas ASP.NET Core: `app.get("/hi/{name}", (name: string) => ...)`, `post/put/patch/delete/route`, `app.use(async (ctx, next) => ...)`, `serveStatic`, `listen`, dan `res.json/text/status/redirect`. |
+| `JSNet.EntityFramework` | Operator async EF Core huruf kecil: `toListAsync`, `firstAsync`, `countAsync`, `include`, `add`, `remove`, `save`, `ensureCreated`. Lambda tetap menjadi expression tree, jadi `where(t => !t.done)` diterjemahkan ke SQL. |
+| `JSNet.Blazor` | Base class `JsComponent` dengan hook `mounted`/`updated`/`unmounted`, `setState`, timer `every`/`after`, dan `navigate`. |
+| `JSNet.Reactive` | Observable gaya RxJS di atas System.Reactive: `rx.of/from/interval/subject`, `map`, `filter`, `scan`, `debounceTime`, `subscribe`, `toArrayAsync`. |
+| `JSNet.Analyzers` | API yang dipakai deklarasi `rule` kustom (`Rule`, `RuleContext`, `RuleRunner`). |
+
+`IQueryable<T>` mendapat LINQ huruf kecil yang sama (`where`, `select`, `orderBy`, ...) seperti array, sehingga query di atas tetap bisa diterjemahkan.
+
+## NativeAOT dan trimming
+
+Runtime sudah diberi anotasi trim dan AOT. Kode bertipe dipublikasikan tanpa peringatan. Helper berbasis reflection (`JSON.stringify(obj)`, `JSON.parse<T>(text)`, `fetch(...).json<T>()`, `AddJsNetServices`) ditandai `RequiresUnreferencedCode`; untuk AOT pakai overload yang menerima `JsonTypeInfo` dari `JsonSerializerContext`:
+
+```jsnet
+const json = JSON.stringify(point, AppJson.Default.Point);
+const back = JSON.parse(json, AppJson.Default.Point);
+```

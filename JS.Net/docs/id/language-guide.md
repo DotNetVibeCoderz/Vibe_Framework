@@ -143,6 +143,64 @@ for (const [key, value] of map) { … }
 console.log(`Total: ${total.toFixed(2)} (${items.length} item)`);
 ```
 
+## Object type, spread, dan regex
+
+```jsnet
+type Point = { x: number; y: number };               // object type literal → record yang dibangkitkan
+function len(p: { x: number, y: number }): number { return Math.sqrt(p.x * p.x + p.y * p.y); }
+const p: Point = { x: 3, y: 4 };                      // record dibandingkan berdasarkan nilai
+
+const merged = { ...base, role: "lead" };             // object spread: properti terakhir menang
+const s: Settings = { ...defaults, size: 14 };        // spread ke dalam class
+
+const re = /(\d+)-(\d+)/g;                            // regex literal → RegExp (System.Text.RegularExpressions)
+"a1b22".replace(/\d+/g, "#");  "a, b;c".split(/[,;]\s*/);  re.test(text);
+```
+
+## Union dan narrowing
+
+Union dari beberapa class menjadi marker interface yang diimplementasikan semua anggotanya; `instanceof` mempersempit tipe variabel di dalam cabang:
+
+```jsnet
+type Shape = Circle | Square;
+function area(shape: Shape): number {
+    if (shape instanceof Circle) return Math.PI * shape.radius ** 2;
+    if (shape instanceof Square && shape.side > 0) return shape.side ** 2;
+    return 0;
+}
+```
+
+## Class expression, label, `out`/`ref`
+
+```jsnet
+const Greeter = class { constructor(public name: string) {} };   // dinamai sesuai variabelnya
+function make(): int { class Counter { n: int = 0; } return new Counter().n; }   // class lokal di-hoist
+
+outer: for (const row of grid) {
+    for (const cell of row) { if (cell == 0) continue outer; if (cell < 0) break outer; }
+}
+
+function swap(ref a: int, ref b: int): void { const t = a; a = b; b = t; }
+swap(ref x, ref y);
+if (int.TryParse(text, out let n)) console.log(n + 1);   // out mendeklarasikan variabel baru
+```
+
+## Aturan analyzer kustom
+
+Deklarasi `rule` dikompilasi menjadi analyzer yang berjalan di dalam compiler JS.Net (lihat [panduan tooling](tooling.md#aturan-kustom)):
+
+```jsnet
+rule NoConsoleLog {
+    id: "APP001";
+    severity: "warning";
+    description: "console.log tidak boleh ada di library";
+    check(node: Node, ctx: RuleContext): void {
+        if (node instanceof CallExpression && ctx.text(node.Callee) == "console.log")
+            ctx.report(node, "Pakai logger, bukan console.log");
+    }
+}
+```
+
 ## Attribute dan decorator
 
 Sintaks decorator TypeScript maupun attribute C# diturunkan menjadi attribute CLR:
@@ -191,12 +249,27 @@ console.log(await summarize(artikel));
 console.log(await Translator.run("Terima kasih", "Japanese"));
 ```
 
-Membutuhkan paket `JSNet.AI` (`<JSNetEnableAI>true</JSNetEnableAI>`). Konfigurasikan model dengan `AiRuntime.configure(chatClient)` memakai `IChatClient` dari `Microsoft.Extensions.AI` (OpenAI, Azure OpenAI, Ollama, Semantic Kernel). Tanpa konfigurasi, klien echo offline yang menjawab. Tipe return selain string diminta dalam format JSON lalu dideserialisasi.
+Membutuhkan paket `JSNet.AI` (`<JSNetEnableAI>true</JSNetEnableAI>`). Konfigurasikan model dengan `AiRuntime.configure(chatClient)` memakai `IChatClient` apa pun dari `Microsoft.Extensions.AI` (OpenAI, Azure OpenAI, Ollama, Semantic Kernel). Tanpa konfigurasi, klien echo offline yang menjawab. Tipe kembalian selain string diminta sebagai JSON lalu dideserialisasi.
 
-## Keterbatasan yang diketahui (v0.1)
+```jsnet
+interface Weather { city: string; celsius: number; }
+ai function forecast(city: string): Promise<Weather> { `Cuaca untuk ${city}` }   // output terstruktur (JSON schema)
 
-- Belum ada object type literal (`{ a: string }` sebagai tipe) — deklarasikan interface.
-- Belum ada class expression, object spread (`{ ...o }`), labelled statement, atau regex literal (pakai `new Regex(...)`).
+ai function* tell(topic: string): AsyncIterable<string> { `Ceritakan tentang ${topic}` }
+for await (const chunk of tell("CoreCLR")) Console.Write(chunk);         // streaming
+
+class WeatherTools {
+    @AiTool("Cuaca terkini di sebuah kota")
+    getWeather(city: string): string { return `${city} 24°C`; }
+}
+AiRuntime.useTools(new WeatherTools());                                          // model boleh memanggil tool
+```
+
+Class JS.Net juga bisa menjadi plugin Semantic Kernel: tandai method dengan `@KernelFunction` dan `@Description`, lalu berikan objeknya ke `KernelPluginFactory.CreateFromObject`.
+
+## Keterbatasan yang diketahui
+
+- Object type literal bersifat struktural hanya di dalam satu proyek: dua literal dengan anggota yang sama adalah record hasil bangkitan yang sama.
 - `this` di dalam ekspresi `function` merujuk ke class yang melingkupinya (semantik arrow function).
 - `Map.get` untuk kunci yang tidak ada mengembalikan nilai default (`0`, `null`); untuk tipe nilai, periksa `has` terlebih dahulu.
 - Iterasi string dengan `for...of` menghasilkan nilai `char`.

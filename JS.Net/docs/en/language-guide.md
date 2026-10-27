@@ -143,6 +143,64 @@ for (const [key, value] of map) { … }
 console.log(`Total: ${total.toFixed(2)} (${items.length} items)`);
 ```
 
+## Object types, spread and regex
+
+```jsnet
+type Point = { x: number; y: number };               // object type literal → generated record
+function len(p: { x: number, y: number }): number { return Math.sqrt(p.x * p.x + p.y * p.y); }
+const p: Point = { x: 3, y: 4 };                      // records compare by value
+
+const merged = { ...base, role: "lead" };             // object spread: later properties win
+const s: Settings = { ...defaults, size: 14 };        // spread into a class
+
+const re = /(\d+)-(\d+)/g;                            // regex literal → RegExp (System.Text.RegularExpressions)
+"a1b22".replace(/\d+/g, "#");  "a, b;c".split(/[,;]\s*/);  re.test(text);
+```
+
+## Unions and narrowing
+
+A union of classes becomes a marker interface that every member implements; `instanceof` narrows the variable inside the branch:
+
+```jsnet
+type Shape = Circle | Square;
+function area(shape: Shape): number {
+    if (shape instanceof Circle) return Math.PI * shape.radius ** 2;
+    if (shape instanceof Square && shape.side > 0) return shape.side ** 2;
+    return 0;
+}
+```
+
+## Class expressions, labels, `out`/`ref`
+
+```jsnet
+const Greeter = class { constructor(public name: string) {} };   // named after the variable
+function make(): int { class Counter { n: int = 0; } return new Counter().n; }   // local classes are hoisted
+
+outer: for (const row of grid) {
+    for (const cell of row) { if (cell == 0) continue outer; if (cell < 0) break outer; }
+}
+
+function swap(ref a: int, ref b: int): void { const t = a; a = b; b = t; }
+swap(ref x, ref y);
+if (int.TryParse(text, out let n)) console.log(n + 1);   // out declares a new variable
+```
+
+## Custom analyzer rules
+
+`rule` declarations compile to analyzers that run inside the JS.Net compiler (see the [tooling guide](tooling.md#custom-rules)):
+
+```jsnet
+rule NoConsoleLog {
+    id: "APP001";
+    severity: "warning";
+    description: "console.log should not ship in libraries";
+    check(node: Node, ctx: RuleContext): void {
+        if (node instanceof CallExpression && ctx.text(node.Callee) == "console.log")
+            ctx.report(node, "Use a logger instead of console.log");
+    }
+}
+```
+
 ## Attributes and decorators
 
 Both TypeScript decorators and C# attribute syntax lower to CLR attributes:
@@ -193,10 +251,25 @@ console.log(await Translator.run("Terima kasih", "Japanese"));
 
 Requires the `JSNet.AI` package (`<JSNetEnableAI>true</JSNetEnableAI>`). Configure a model with `AiRuntime.configure(chatClient)` using any `Microsoft.Extensions.AI` `IChatClient` (OpenAI, Azure OpenAI, Ollama, Semantic Kernel). Without configuration an offline echo client answers. Non-string return types are requested as JSON and deserialized.
 
-## Known limitations (v0.1)
+```jsnet
+interface Weather { city: string; celsius: number; }
+ai function forecast(city: string): Promise<Weather> { `Weather for ${city}` }   // structured output (JSON schema)
 
-- No object type literals (`{ a: string }` as a type) — declare an interface.
-- No class expressions, object spread (`{ ...o }`), labelled statements or regex literals (use `new Regex(...)`).
+ai function* tell(topic: string): AsyncIterable<string> { `Tell me about ${topic}` }
+for await (const chunk of tell("CoreCLR")) Console.Write(chunk);         // streaming
+
+class WeatherTools {
+    @AiTool("Current weather for a city")
+    getWeather(city: string): string { return `${city} 24°C`; }
+}
+AiRuntime.useTools(new WeatherTools());                                          // the model may call tools
+```
+
+JS.Net classes are also Semantic Kernel plugins: mark methods with `@KernelFunction` and `@Description` and pass the object to `KernelPluginFactory.CreateFromObject`.
+
+## Known limitations
+
+- Object type literals are structural only within a project: two literals with the same members are the same generated record.
 - `this` inside a `function` expression refers to the enclosing class (arrow-function semantics).
 - `Map.get` on a missing key returns the default value (`0`, `null`); use `has` first for value types.
 - Iterating a string with `for...of` yields `char` values.

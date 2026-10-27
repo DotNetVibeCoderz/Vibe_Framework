@@ -28,7 +28,10 @@ JS.Net follows the design in [architecture-design.md](../../architecture-design.
 | `JSNet.Sdk` | MSBuild SDK: incremental code generation before `CoreCompile`. |
 | `JSNet.Scripting` | Roslyn in-memory compilation into a collectible `AssemblyLoadContext` (`jsnet run`, Gallery playground, tests). |
 | `JSNet.Cli` | `jsnet` command. |
-| `JSNet.LanguageServer` | Dependency-free LSP host. |
+| `JSNet.LanguageServer` | LSP host; .NET member completion/hover come from a Roslyn probe compilation over the lowered code and the project's references. |
+| `JSNet.Analyzers` | API for `rule` declarations; rules load from assemblies and run on the bound AST. |
+| `JSNet.Web` · `JSNet.EntityFramework` · `JSNet.Blazor` · `JSNet.Reactive` | Companion packages (extension members on ASP.NET Core, EF Core, Blazor and System.Reactive). |
+| `gallery/JSNet.Playground` | The same front end plus Roslyn running in Blazor WebAssembly; metadata references come from the loaded assemblies (`Assembly.TryGetRawMetadata`). |
 | `rust/jsnet-tools` | Native formatter, checker, tokenizer and statistics. |
 
 ## Design decisions

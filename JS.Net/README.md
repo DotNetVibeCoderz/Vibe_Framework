@@ -37,9 +37,9 @@ await delay(100);                                         // async/await on Task
 - **Familiar** — `let`/`const`, arrow functions, classes, interfaces, generics, `async`/`await`, destructuring, template literals, `console.log`, `JSON`, `Promise`, `map`/`filter`/`reduce`.
 - **A native .NET citizen** — JS.Net classes are real CLR classes, generics are CLR generics, `Promise<T>` is `Task<T>`. Use any NuGet package; call JS.Net from C#, F# and VB.NET and vice versa.
 - **Fast** — typed code compiles to the same IL as C#. Works with tiered JIT, ReadyToRun and **NativeAOT** (a JS.Net console app publishes to a ~2 MB native executable).
-- **Every app model** — console, class libraries, ASP.NET Core (minimal APIs and controllers), Blazor, WPF, WinForms, Avalonia, worker services and xUnit tests.
-- **Real tooling** — `dotnet build/run/publish`, an MSBuild SDK, errors mapped to `.jsn` lines, a language server, a VS Code extension and native Rust tools.
-- **AI-native** — `ai function` and `prompt` declarations on Microsoft.Extensions.AI.
+- **Every app model** — console, class libraries, ASP.NET Core (minimal APIs and controllers), Blazor, WPF, WinForms, Avalonia, .NET MAUI, Orleans, Aspire, worker services and xUnit tests.
+- **Real tooling** — `dotnet build/run/publish`, an MSBuild SDK, errors mapped to `.jsn` lines, a language server with .NET-aware completion and rename, VS Code / Visual Studio / JetBrains support, custom analyzer rules written in JS.Net, native Rust tools and a browser playground.
+- **AI-native** — `ai function` and `prompt` declarations on Microsoft.Extensions.AI, with tools, streaming and structured output.
 
 ## Quick start
 
@@ -86,10 +86,13 @@ For other SDKs (Web, Worker, WindowsDesktop) add JS.Net on top: `<Project Sdk="M
 | Avalonia app | `jsnet-avalonia` |
 | Worker service | `jsnet-worker` |
 | xUnit tests | `jsnet-xunit` |
+| .NET MAUI app (Android, iOS, macOS, Windows) | `jsnet-maui` |
+| Orleans grains (silo + client) | `jsnet-orleans` |
+| .NET Aspire app host + API | `jsnet-aspire` |
 
 ## JS.Net Gallery
 
-Twenty runnable samples — language features, async, LINQ, .NET interop, JSON, AI-native functions and real use cases — written in JS.Net and presented by four native front-ends. Each sample can be flipped to the **C# the compiler lowers it to**.
+Twenty-seven runnable samples — language features, async, LINQ, .NET interop, JSON, AI-native functions and real use cases — written in JS.Net and presented by four native front-ends. Each sample can be flipped to the **C# the compiler lowers it to**.
 
 | Blazor (web) | WPF |
 |---|---|
@@ -107,6 +110,20 @@ dotnet run --project gallery/JSNet.Gallery.Wpf
 dotnet run --project gallery/JSNet.Gallery.WinForms
 dotnet run --project gallery/JSNet.Gallery.Avalonia
 ```
+
+**Ecosystem samples** use real NuGet libraries from JS.Net: reinforcement learning (Gravicode.RLNet), charts (Matplotlib.Net), machine learning (GraviLearn), Hugging Face tokenizers, MediaPipe text classification, Modbus/IoT (IoTCom.Net) and 3D scenes (ThreeNet).
+
+| Ecosystem: RLNet | Ecosystem: MediaPipeNet |
+|---|---|
+| ![RLNet sample](docs/images/web-ecosystem-rlnet.png) | ![MediaPipeNet sample](docs/images/web-ecosystem-mediapipe.png) |
+
+**WebAssembly playground** — the JS.Net compiler and Roslyn running entirely in the browser; no server compiles or runs your code (`dotnet run --project gallery/JSNet.Playground`, `?example=N&run=1` links).
+
+![WebAssembly playground](docs/images/web-playground-wasm.png)
+
+**.NET MAUI** — the `jsnet-maui` template on Windows:
+
+![MAUI on Windows](docs/images/maui-windows.png)
 
 ## How it works
 
@@ -126,10 +143,13 @@ JS.Net uses the **Roslyn backend strategy** from the design: the JS.Net front en
 | `src/JSNet.Runtime` | Runtime library (console, JSON, Math, Promise, Date, fetch, timers, JS-style APIs, `@Service`) |
 | `src/JSNet.AI` | `ai function` / `prompt` runtime on Microsoft.Extensions.AI |
 | `src/JSNet.Sdk` | MSBuild project SDK (`JSNet.Sdk`) |
+| `src/JSNet.Web` · `JSNet.EntityFramework` · `JSNet.Blazor` · `JSNet.Reactive` | Companion packages (Express-style routing, async EF Core, `JsComponent`, RxJS-style observables) |
+| `src/JSNet.Analyzers` | API for custom `rule` analyzers |
 | `src/JSNet.Scripting` | In-memory Roslyn backend (`jsnet run`, playground, tests) |
 | `src/JSNet.Cli` | The `jsnet` tool (also bundled in the SDK) |
 | `src/JSNet.LanguageServer` | Language Server Protocol implementation |
 | `rust/jsnet-tools` | Native Rust tools: formatter, fast checker, tokenizer, statistics |
+| `visualstudio/` · `jetbrains/` | Visual Studio extension, JetBrains (LSP4IJ) setup |
 | `templates/` · `vscode/` · `gallery/` · `samples/` · `tests/` · `docs/` | Templates, VS Code extension, gallery, samples, tests, documentation |
 
 ## Documentation

@@ -48,17 +48,37 @@ What it does on `dotnet build`:
 
 Errors appear in MSBuild/IDE format against the original file, e.g. `Program.jsn(12,7): error CS0029: Cannot implicitly convert type 'string' to 'double'`.
 
-## Language server and VS Code
+## Language server and editors
 
-`jsnet lsp` implements the Language Server Protocol over stdio: diagnostics (JS.Net and project-wide binding), completion (keywords, runtime globals, members, declarations, snippets), hover, go to definition, document symbols and formatting (through `jsnet-tools`).
+`jsnet lsp` implements the Language Server Protocol over stdio: diagnostics (JS.Net and project-wide binding), completion (keywords, runtime globals, declarations, snippets, and **every .NET member** of the inferred type, resolved by Roslyn over the lowered code and the project's references), hover with .NET signatures, go to definition, find references, rename, quick fixes (`const` → `let`, remove unused declarations), semantic tokens, document symbols and formatting (through `jsnet-tools`).
 
-The VS Code extension (`vscode/jsnet-vscode`, packaged as `artifacts/vscode/jsnet-0.1.0.vsix`) adds the TextMate grammar, language configuration, snippets and the LSP client. Settings: `jsnet.server.command` (default `jsnet`) and `jsnet.server.args` (default `["lsp"]`).
+The VS Code extension (`vscode/jsnet-vscode`, packaged by CI as `jsnet-vscode.vsix`) adds the TextMate grammar, language configuration, snippets and the LSP client. Settings: `jsnet.server.command` (default `jsnet`) and `jsnet.server.args` (default `["lsp"]`).
 
 ```bash
 cd vscode/jsnet-vscode
 npm install
 npx vsce package --allow-missing-repository
 ```
+
+### Visual Studio
+
+`visualstudio/JSNet.VisualStudio` is a VisualStudio.Extensibility extension (VS 2022 17.14+) that starts `jsnet lsp` for `.jsn` files (or the compiler named by the `JSNET_PATH` environment variable). CI builds `JSNet.VisualStudio.vsix`; install it by double-clicking.
+
+### JetBrains Rider / IntelliJ
+
+Install the free **LSP4IJ** plugin and import the [`jetbrains/lsp4ij-template`](../../jetbrains/lsp4ij-template) folder as a custom language-server template; optionally add `vscode/jsnet-vscode` as a TextMate bundle. See [jetbrains/README.md](../../jetbrains/README.md).
+
+## Custom rules
+
+Write team rules in JS.Net (`rule` declarations, see the [language guide](language-guide.md#custom-analyzer-rules)) in a class library that references `JSNet.Analyzers`, then use them from any JS.Net project:
+
+```xml
+<ItemGroup>
+  <JSNetAnalyzer Include="../TeamRules/bin/$(Configuration)/net10.0/TeamRules.dll" />
+</ItemGroup>
+```
+
+From the CLI: `jsnet check src --analyzer TeamRules.dll`. Findings appear as normal build warnings or errors (`Program.jsn(4,5): warning TEAM001: ...`). `samples/JsNetRules` and `samples/RulesDemo` show the setup.
 
 ## Native tools in Rust (`jsnet-tools`)
 
@@ -81,7 +101,7 @@ cargo test
 
 ## Templates
 
-`dotnet new install JSNet.Templates` installs ten templates (see the [README](../../README.md#templates)). Every template accepts `--sdkVersion` to pin the JS.Net version.
+`dotnet new install JSNet.Templates` installs thirteen templates (see the [README](../../README.md#templates)). Every template accepts `--sdkVersion` to pin the JS.Net version.
 
 ## Building and packing the repository
 
@@ -94,4 +114,4 @@ pwsh build/smoke.ps1 -Version 0.1.1    # install the packages in a clean folder,
 
 Releases are published by GitHub Actions in the Vibe_Framework repository: push a tag `jsnet-v0.1.1`, or run **Publish JS.Net to NuGet** manually (with `dry_run` on to rehearse). The workflow runs the full CI at that version and pushes exactly the tested packages using the `NUGET_API_KEY` repository secret.
 
-Packages: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Cli`, `JSNet.Templates`.
+Packages: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

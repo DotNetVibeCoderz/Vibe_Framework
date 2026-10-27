@@ -3,6 +3,7 @@ using JSNet.Gallery;
 namespace JSNet.Tests;
 
 /// <summary>Every JS.Net Gallery sample is itself a compiler regression test: it must build and run cleanly.</summary>
+[Collection("AiRuntime")]  // the AiNative sample uses the process-wide AiRuntime
 public class GalleryTests
 {
     public static TheoryData<string> SampleIds() => new(Catalog.samples.Select(s => s.id));

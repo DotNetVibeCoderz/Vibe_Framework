@@ -48,17 +48,37 @@ Yang terjadi saat `dotnet build`:
 
 Error tampil dalam format MSBuild/IDE terhadap file aslinya, mis. `Program.jsn(12,7): error CS0029: Cannot implicitly convert type 'string' to 'double'`.
 
-## Language server dan VS Code
+## Language server dan editor
 
-`jsnet lsp` mengimplementasikan Language Server Protocol lewat stdio: diagnostik (JS.Net dan binding seluruh proyek), completion (keyword, global runtime, member, deklarasi, snippet), hover, go to definition, document symbol, dan formatting (melalui `jsnet-tools`).
+`jsnet lsp` mengimplementasikan Language Server Protocol lewat stdio: diagnostik (JS.Net dan binding seluruh proyek), completion (keyword, global runtime, deklarasi, snippet, dan **semua member .NET** dari tipe hasil inferensi, diselesaikan oleh Roslyn atas kode hasil penurunan dan referensi proyek), hover dengan signature .NET, go to definition, find references, rename, quick fix (`const` → `let`, hapus deklarasi tak terpakai), semantic token, document symbol, dan formatting (melalui `jsnet-tools`).
 
-Ekstensi VS Code (`vscode/jsnet-vscode`, dikemas sebagai `artifacts/vscode/jsnet-0.1.0.vsix`) menambahkan grammar TextMate, konfigurasi bahasa, snippet, dan klien LSP. Pengaturan: `jsnet.server.command` (default `jsnet`) dan `jsnet.server.args` (default `["lsp"]`).
+Ekstensi VS Code (`vscode/jsnet-vscode`, dikemas oleh CI sebagai `jsnet-vscode.vsix`) menambahkan grammar TextMate, konfigurasi bahasa, snippet, dan klien LSP. Pengaturan: `jsnet.server.command` (default `jsnet`) dan `jsnet.server.args` (default `["lsp"]`).
 
 ```bash
 cd vscode/jsnet-vscode
 npm install
 npx vsce package --allow-missing-repository
 ```
+
+### Visual Studio
+
+`visualstudio/JSNet.VisualStudio` adalah ekstensi VisualStudio.Extensibility (VS 2022 17.14+) yang menjalankan `jsnet lsp` untuk file `.jsn` (atau compiler yang ditunjuk variabel lingkungan `JSNET_PATH`). CI membangun `JSNet.VisualStudio.vsix`; pasang dengan klik ganda.
+
+### JetBrains Rider / IntelliJ
+
+Pasang plugin gratis **LSP4IJ** lalu impor folder [`jetbrains/lsp4ij-template`](../../jetbrains/lsp4ij-template) sebagai template language server kustom; opsional tambahkan `vscode/jsnet-vscode` sebagai TextMate bundle. Lihat [jetbrains/README.md](../../jetbrains/README.md).
+
+## Aturan kustom
+
+Tulis aturan tim dalam JS.Net (deklarasi `rule`, lihat [panduan bahasa](language-guide.md#aturan-analyzer-kustom)) di class library yang mereferensikan `JSNet.Analyzers`, lalu pakai dari proyek JS.Net mana pun:
+
+```xml
+<ItemGroup>
+  <JSNetAnalyzer Include="../TeamRules/bin/$(Configuration)/net10.0/TeamRules.dll" />
+</ItemGroup>
+```
+
+Dari CLI: `jsnet check src --analyzer TeamRules.dll`. Temuan muncul sebagai warning atau error build biasa (`Program.jsn(4,5): warning TEAM001: ...`). `samples/JsNetRules` dan `samples/RulesDemo` menunjukkan penyiapannya.
 
 ## Tool native Rust (`jsnet-tools`)
 
@@ -81,7 +101,7 @@ cargo test
 
 ## Template
 
-`dotnet new install JSNet.Templates` memasang sepuluh template (lihat [README](../../README.id.md#template)). Setiap template menerima `--sdkVersion` untuk mengunci versi JS.Net.
+`dotnet new install JSNet.Templates` memasang tiga belas template (lihat [README](../../README.id.md#template)). Setiap template menerima `--sdkVersion` untuk mengunci versi JS.Net.
 
 ## Build dan pack repositori
 
@@ -94,4 +114,4 @@ pwsh build/smoke.ps1 -Version 0.1.1    # pasang paket di folder bersih, build se
 
 Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.1.1`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
 
-Paket: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Cli`, `JSNet.Templates`.
+Paket: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

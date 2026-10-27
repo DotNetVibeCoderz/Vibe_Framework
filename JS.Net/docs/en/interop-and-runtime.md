@@ -18,7 +18,7 @@ const words = File.ReadAllLines("notes.txt").Where(l => l.Length > 0).ToList();
 - Generic calls: `JsonSerializer.Deserialize<Order>(json)`, `services.AddHostedService<Worker>()`.
 - Casts: `x as Rectangle` is a checked CLR cast `((Rectangle)x)`; `x instanceof T` / `x is T` are type tests; `(typeof MyClass).Assembly` gives the CLR `Type` of a project type.
 - Events: `button.Click += (sender, e) => this.onClick();`
-- `out`/`ref` parameters are not supported yet; use APIs that return values (`int.TryParse` → use `parseInt`/`Number`).
+- `out`/`ref` arguments: `int.TryParse(s, out let n)`, `Interlocked.Increment(ref total)` (locals and parameters; class fields are properties); declare them with `out x: T` / `ref x: T` parameters.
 - NuGet packages work exactly like in C#: add a `PackageReference`.
 
 ## Using JS.Net from C#
@@ -89,3 +89,24 @@ export class Worker extends BackgroundService {
 - **WPF**: `MainWindow.xaml.jsn` → `export partial class MainWindow extends Window { constructor() { super(); this.InitializeComponent(); } }`. Named elements are fields (`this.CounterText`).
 - **Avalonia**: same pattern with `.axaml.jsn`; the Avalonia name generator provides `InitializeComponent`.
 - **WinForms**: build the UI in code; use `export function main()` with `@STAThread`.
+
+## Companion packages
+
+| Package | What it adds |
+|---|---|
+| `JSNet.Web` | Express-style routing on ASP.NET Core: `app.get("/hi/{name}", (name: string) => ...)`, `post/put/patch/delete/route`, `app.use(async (ctx, next) => ...)`, `serveStatic`, `listen`, and `res.json/text/status/redirect`. |
+| `JSNet.EntityFramework` | Lower-case async EF Core operators: `toListAsync`, `firstAsync`, `countAsync`, `include`, `add`, `remove`, `save`, `ensureCreated`. Lambdas stay expression trees, so `where(t => !t.done)` translates to SQL. |
+| `JSNet.Blazor` | `JsComponent` base class with `mounted`/`updated`/`unmounted` hooks, `setState`, `every`/`after` timers and `navigate`. |
+| `JSNet.Reactive` | RxJS-style observables on System.Reactive: `rx.of/from/interval/subject`, `map`, `filter`, `scan`, `debounceTime`, `subscribe`, `toArrayAsync`. |
+| `JSNet.Analyzers` | The API custom `rule` declarations compile against (`Rule`, `RuleContext`, `RuleRunner`). |
+
+`IQueryable<T>` gets the same lower-case LINQ (`where`, `select`, `orderBy`, ...) as arrays, so the queries above stay translatable.
+
+## NativeAOT and trimming
+
+The runtime is trim- and AOT-annotated. Typed code publishes with no warnings. Reflection-based helpers (`JSON.stringify(obj)`, `JSON.parse<T>(text)`, `fetch(...).json<T>()`, `AddJsNetServices`) say so with `RequiresUnreferencedCode`; for AOT use the overloads that take a `JsonTypeInfo` from a `JsonSerializerContext`:
+
+```jsnet
+const json = JSON.stringify(point, AppJson.Default.Point);
+const back = JSON.parse(json, AppJson.Default.Point);
+```

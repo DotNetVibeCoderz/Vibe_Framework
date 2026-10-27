@@ -28,7 +28,10 @@ JS.Net mengikuti desain di [architecture-design.md](../../architecture-design.md
 | `JSNet.Sdk` | MSBuild SDK: pembangkitan kode inkremental sebelum `CoreCompile`. |
 | `JSNet.Scripting` | Kompilasi Roslyn di memori ke `AssemblyLoadContext` yang bisa di-unload (`jsnet run`, playground Gallery, test). |
 | `JSNet.Cli` | Perintah `jsnet`. |
-| `JSNet.LanguageServer` | Host LSP tanpa dependensi. |
+| `JSNet.LanguageServer` | Host LSP; completion/hover member .NET berasal dari kompilasi probe Roslyn atas kode hasil penurunan dan referensi proyek. |
+| `JSNet.Analyzers` | API untuk deklarasi `rule`; aturan dimuat dari assembly dan dijalankan atas AST yang sudah di-bind. |
+| `JSNet.Web` · `JSNet.EntityFramework` · `JSNet.Blazor` · `JSNet.Reactive` | Paket pendamping (extension member untuk ASP.NET Core, EF Core, Blazor, dan System.Reactive). |
+| `gallery/JSNet.Playground` | Front end yang sama ditambah Roslyn yang berjalan di Blazor WebAssembly; referensi metadata diambil dari assembly yang sudah dimuat (`Assembly.TryGetRawMetadata`). |
 | `rust/jsnet-tools` | Formatter, checker, tokenizer, dan statistik native. |
 
 ## Keputusan desain

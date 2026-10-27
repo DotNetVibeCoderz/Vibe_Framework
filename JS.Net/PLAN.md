@@ -13,78 +13,80 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 | Lowering to C# + Roslyn IL backend with `#line` mapping | ✅ |
 | CLR interop (types, generics, events, attributes, imports) | ✅ |
 | Runtime library (console, JSON, Math, Promise, Date, fetch, timers, JS APIs) | ✅ |
+| Object type literals → generated records | ✅ |
+| Object spread `{ ...a, b: 1 }` (anonymous objects and class targets) | ✅ |
+| Class unions with `instanceof` narrowing | ✅ |
+| Regex literals `/x+/g` → `RegExp` | ✅ |
+| Class expressions, local classes, labelled `break`/`continue` | ✅ |
+| `out`/`ref` parameters and arguments (`out let x`) | ✅ |
 
-## Phase 2 — Generics, async, LINQ, NuGet ✅
+## Phase 2 — Generics, async, LINQ, NuGet, AOT ✅
 
 | Item | Status |
 |---|---|
 | Generic classes/functions/constraints | ✅ |
 | async/await, Promise interop, generators, `for await` | ✅ |
-| LINQ (lower-case API) and JS array/Map/Set APIs | ✅ |
-| MSBuild SDK (`JSNet.Sdk`), NuGet packages, templates (10) | ✅ |
-| NativeAOT publish | ✅ (typed code; reflection-based helpers are not trim-annotated yet) |
+| LINQ (lower-case API) for `IEnumerable` and `IQueryable` | ✅ |
+| MSBuild SDK (`JSNet.Sdk`), NuGet packages, templates (13) | ✅ |
+| NativeAOT publish; runtime trim/AOT-annotated, AOT-safe `JSON` overloads | ✅ |
 
-## Phase 3 — Tooling / IDE 🟡
+## Phase 3 — Tooling / IDE ✅
 
 | Item | Status |
 |---|---|
 | `jsnet` CLI (run, emit, check, compile, fmt, new, lsp) | ✅ |
-| Language Server (diagnostics, completion, hover, definition, symbols, formatting) | ✅ |
+| Language Server (diagnostics, completion, hover, definition, symbols, formatting, semantic tokens) | ✅ |
+| Roslyn-backed completion and hover for .NET members | ✅ |
+| Rename, find references, quick fixes | ✅ |
 | VS Code extension (grammar, snippets, LSP client) | ✅ |
+| Visual Studio extension (VisualStudio.Extensibility, LSP) | ✅ |
+| JetBrains Rider / IntelliJ via LSP4IJ template + TextMate bundle | ✅ |
 | Native Rust tools (formatter, checker, tokenizer, stats) | ✅ |
-| Debugging through `#line` PDB mapping | ✅ (stepping maps to `.jsn` lines) |
-| Semantic completion on .NET members (Roslyn-backed) | ⬜ |
-| Rename / find references / code actions | ⬜ |
-| Visual Studio extension (VSIX) with project system | ⬜ |
-| Rider plugin | ⬜ |
+| Debugging through `#line` PDB mapping | ✅ |
+| `rule` declarations → custom analyzers (`JSNet.Analyzers`, `JSNetAnalyzer` items, `--analyzer`) | ✅ |
 
-## Phase 4 — AI-native 🟡
+## Phase 4 — AI-native ✅
 
 | Item | Status |
 |---|---|
 | `ai function` and `prompt` declarations | ✅ |
 | Microsoft.Extensions.AI `IChatClient` runtime, offline echo client | ✅ |
-| Semantic Kernel plugins from JS.Net classes (`@KernelFunction`) | ⬜ |
-| Structured output schemas from interfaces | ⬜ |
-| Streaming (`for await` over `ai function*`) | ⬜ |
+| Tools (`@AiTool`, `AiRuntime.useTools`) with automatic function invocation | ✅ |
+| Semantic Kernel plugins from JS.Net classes (`@KernelFunction`) | ✅ |
+| Structured output (JSON schema from interfaces/classes) | ✅ |
+| Streaming (`ai function*` + `for await`) | ✅ |
 
-## Phase 5 — Platforms / Cloud 🟡
+## Phase 5 — Platforms / Cloud ✅
 
 | Item | Status |
 |---|---|
 | ASP.NET Core (minimal API, MVC), Blazor, worker services | ✅ |
 | WPF, WinForms, Avalonia | ✅ |
-| .NET MAUI template | ⬜ |
-| Orleans grains, Aspire app host templates | ⬜ |
-| Packages `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive` | ⬜ |
+| .NET MAUI template (Android, iOS, macOS, Windows) | ✅ |
+| Orleans grains, Aspire app host templates | ✅ |
+| Packages `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive` | ✅ |
 
-## Language backlog / Daftar fitur bahasa
-
-| Feature | Notes |
-|---|---|
-| Object type literals (`{ a: string }`) | Lower to generated records. |
-| Object spread `{ ...a, b: 1 }` | Records `with` / dictionary merge. |
-| Discriminated unions (`type Shape = Circle \| Square`) | Closed hierarchies + `switch` exhaustiveness. |
-| `out`/`ref` parameters, `checked`, operators overloading | CLR parity. |
-| Regex literals `/x+/g` | Lower to `Regex`. |
-| Class expressions, labelled statements | |
-| Trim/AOT annotations for runtime reflection helpers | Silence trimming warnings. |
-| `rule` declarations for custom analyzers (design §22) | Compile to Roslyn analyzers. |
-| Incremental, in-process build server | Avoid one process per build. |
-
-## Gallery / Galeri
+## Gallery / Galeri ✅
 
 | Item | Status |
 |---|---|
-| Shared sample library (20 samples) written in JS.Net | ✅ |
+| Shared sample library (27 samples) written in JS.Net | ✅ |
 | Blazor, WPF, WinForms, Avalonia front-ends | ✅ |
-| Browser playground (server-side) | ✅ |
-| Samples using RLNet, Visual.Net, ThreeNet, GravicodeScience, HF.Net, MediaPipeNet, IoTComNet | ⬜ (needs those packages on NuGet / as project references) |
-| WebAssembly playground (client-side compiler) | ⬜ |
+| Browser playground (server-side, in the Blazor gallery) | ✅ |
+| Ecosystem samples: RLNet, Matplotlib.Net (Visual.Net), ThreeNet, GraviLearn, HF tokenizers, MediaPipeNet, IoTCom.Net | ✅ |
+| WebAssembly playground (client-side compiler, `gallery/JSNet.Playground`) | ✅ |
+
+## Backlog / Selanjutnya
+
+| Item | Notes |
+|---|---|
+| Incremental, in-process build server | Avoid one compiler process per build. |
+| Exhaustiveness checks for `switch` over unions | Unions are currently open marker interfaces. |
+| `ref` to class fields | Fields lower to properties; would need field lowering for `ref` use. |
+| Publish the VS Code / Visual Studio extensions to their marketplaces | VSIX files are CI artifacts today. |
+| Host the WebAssembly playground (GitHub Pages) | Static site, no server needed. |
 
 ## Release / Rilis
 
-1. `pwsh build/pack.ps1` → packages in `artifacts/packages`.
-2. Push to nuget.org (API key kept outside the repo).
-3. Publish the VS Code extension to the Marketplace.
-4. Tag `v0.1.0`.
+1. `pwsh build/pack.ps1 -Version x.y.z` → packages in `artifacts/packages`; `pwsh build/smoke.ps1 -Version x.y.z`.
+2. Push tag `jsnet-vx.y.z` (or run *Publish JS.Net to NuGet*); the workflow pushes with the `NUGET_API_KEY` secret.

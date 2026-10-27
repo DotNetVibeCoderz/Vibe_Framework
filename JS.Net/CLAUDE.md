@@ -23,6 +23,8 @@ cd vscode/jsnet-vscode && npm install && npx vsce package --allow-missing-reposi
 
 Gallery: `dotnet run --project gallery/JSNet.Gallery.Web` (port 5170; `/samples/<id>?run=1` auto-runs). Desktop galleries (`JSNet.Gallery.Wpf|WinForms|Avalonia`) accept `--screenshot <png> [--sample <id>] [--components]` to regenerate `docs/images/*`; web screenshots come from headless Edge.
 
+WebAssembly playground: `gallery/JSNet.Playground` (Blazor WASM, untrimmed) runs the JS.Net front end + Roslyn in the browser (`BrowserCompiler.cs`: references from `Assembly.TryGetRawMetadata`; awaits an async `Main` directly since the browser can't block). `?example=N&run=1` auto-runs; verify with `msedge --headless=new --virtual-time-budget=60000 --dump-dom`. Kill the old dev server before restarting (it holds the port).
+
 ## Architecture (big picture)
 
 Pipeline: `.jsn` → `JSNet.Syntax` (lexer/AST) → `JSNet.Parser` → `JSNet.Semantics` (`Binder`: scopes, JS rule checks, analyzers, type inference; `TypeMapper`: JS.Net→CLR types) → `JSNet.CodeGen` (`CSharpEmitter`, split into `.cs`/`.Statements.cs`/`.Expressions.cs`) → C# with `#line` maps → Roslyn → IL. `JSNet.Compiler.JsNetCompiler` drives it (parallel parse/emit, one project-wide bind) and adds `JSNet.GlobalUsings.g.cs`.

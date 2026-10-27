@@ -37,9 +37,9 @@ await delay(100);                                         // async/await di atas
 - **Familier** — `let`/`const`, arrow function, class, interface, generic, `async`/`await`, destructuring, template literal, `console.log`, `JSON`, `Promise`, `map`/`filter`/`reduce`.
 - **Warga asli .NET** — class JS.Net adalah class CLR sungguhan, generic adalah generic CLR, `Promise<T>` adalah `Task<T>`. Pakai paket NuGet apa pun; panggil JS.Net dari C#, F#, dan VB.NET, begitu pula sebaliknya.
 - **Cepat** — kode bertipe dikompilasi menjadi IL yang sama dengan C#. Mendukung tiered JIT, ReadyToRun, dan **NativeAOT** (aplikasi console JS.Net bisa dipublish menjadi executable native ±2 MB).
-- **Semua model aplikasi** — console, class library, ASP.NET Core (minimal API dan controller), Blazor, WPF, WinForms, Avalonia, worker service, dan test xUnit.
-- **Tooling nyata** — `dotnet build/run/publish`, MSBuild SDK, error yang dipetakan ke baris `.jsn`, language server, ekstensi VS Code, dan tool native Rust.
-- **AI-native** — deklarasi `ai function` dan `prompt` di atas Microsoft.Extensions.AI.
+- **Semua model aplikasi** — console, class library, ASP.NET Core (minimal API dan controller), Blazor, WPF, WinForms, Avalonia, .NET MAUI, Orleans, Aspire, worker service, dan test xUnit.
+- **Tooling nyata** — `dotnet build/run/publish`, MSBuild SDK, error yang dipetakan ke baris `.jsn`, language server dengan completion dan rename yang memahami .NET, dukungan VS Code / Visual Studio / JetBrains, aturan analyzer kustom yang ditulis dalam JS.Net, tool native Rust, dan playground di browser.
+- **AI-native** — deklarasi `ai function` dan `prompt` di atas Microsoft.Extensions.AI, dengan tool, streaming, dan output terstruktur.
 
 ## Mulai cepat
 
@@ -86,10 +86,13 @@ Untuk SDK lain (Web, Worker, WindowsDesktop), tambahkan JS.Net di atasnya: `<Pro
 | Aplikasi Avalonia | `jsnet-avalonia` |
 | Worker service | `jsnet-worker` |
 | Test xUnit | `jsnet-xunit` |
+| Aplikasi .NET MAUI (Android, iOS, macOS, Windows) | `jsnet-maui` |
+| Grain Orleans (silo + klien) | `jsnet-orleans` |
+| App host .NET Aspire + API | `jsnet-aspire` |
 
 ## JS.Net Gallery
 
-Dua puluh sampel yang bisa dijalankan — fitur bahasa, async, LINQ, interop .NET, JSON, fungsi AI-native, dan kasus nyata — ditulis dalam JS.Net dan ditampilkan oleh empat front-end native. Setiap sampel bisa dibalik untuk melihat **C# hasil penurunan oleh compiler**.
+Dua puluh tujuh sampel yang bisa dijalankan — fitur bahasa, async, LINQ, interop .NET, JSON, fungsi AI-native, dan kasus nyata — ditulis dalam JS.Net dan ditampilkan oleh empat front-end native. Setiap sampel bisa dibalik untuk melihat **C# hasil penurunan oleh compiler**.
 
 | Blazor (web) | WPF |
 |---|---|
@@ -107,6 +110,20 @@ dotnet run --project gallery/JSNet.Gallery.Wpf
 dotnet run --project gallery/JSNet.Gallery.WinForms
 dotnet run --project gallery/JSNet.Gallery.Avalonia
 ```
+
+**Sampel ekosistem** memakai pustaka NuGet sungguhan dari JS.Net: reinforcement learning (Gravicode.RLNet), grafik (Matplotlib.Net), machine learning (GraviLearn), tokenizer Hugging Face, klasifikasi teks MediaPipe, Modbus/IoT (IoTCom.Net), dan scene 3D (ThreeNet).
+
+| Ekosistem: RLNet | Ekosistem: MediaPipeNet |
+|---|---|
+| ![Sampel RLNet](docs/images/web-ecosystem-rlnet.png) | ![Sampel MediaPipeNet](docs/images/web-ecosystem-mediapipe.png) |
+
+**Playground WebAssembly** — compiler JS.Net dan Roslyn berjalan sepenuhnya di browser; tidak ada server yang mengompilasi atau menjalankan kode Anda (`dotnet run --project gallery/JSNet.Playground`, tautan `?example=N&run=1`).
+
+![Playground WebAssembly](docs/images/web-playground-wasm.png)
+
+**.NET MAUI** — template `jsnet-maui` di Windows:
+
+![MAUI di Windows](docs/images/maui-windows.png)
 
 ## Cara kerjanya
 
@@ -126,10 +143,13 @@ JS.Net memakai **strategi backend Roslyn** dari dokumen desain: front end JS.Net
 | `src/JSNet.Runtime` | Pustaka runtime (console, JSON, Math, Promise, Date, fetch, timer, API gaya JS, `@Service`) |
 | `src/JSNet.AI` | Runtime `ai function` / `prompt` di atas Microsoft.Extensions.AI |
 | `src/JSNet.Sdk` | MSBuild project SDK (`JSNet.Sdk`) |
+| `src/JSNet.Web` · `JSNet.EntityFramework` · `JSNet.Blazor` · `JSNet.Reactive` | Paket pendamping (routing gaya Express, EF Core async, `JsComponent`, observable gaya RxJS) |
+| `src/JSNet.Analyzers` | API untuk analyzer `rule` kustom |
 | `src/JSNet.Scripting` | Backend Roslyn in-memory (`jsnet run`, playground, test) |
 | `src/JSNet.Cli` | Tool `jsnet` (juga dibundel di SDK) |
 | `src/JSNet.LanguageServer` | Implementasi Language Server Protocol |
 | `rust/jsnet-tools` | Tool native Rust: formatter, pemeriksa cepat, tokenizer, statistik |
+| `visualstudio/` · `jetbrains/` | Ekstensi Visual Studio, penyiapan JetBrains (LSP4IJ) |
 | `templates/` · `vscode/` · `gallery/` · `samples/` · `tests/` · `docs/` | Template, ekstensi VS Code, gallery, sampel, test, dokumentasi |
 
 ## Dokumentasi

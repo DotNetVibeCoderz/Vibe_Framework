@@ -2,23 +2,24 @@
 
 > JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil. Roadmap: [PLAN.md](PLAN.md).
 
-## Status — 2026-10-27 (v0.1.0)
+## Status — 2026-10-27 (v0.2.0 candidate)
 
 | Area | State / Keadaan | Verified by / Diverifikasi dengan |
 |---|---|---|
-| Compiler (Syntax, Parser, Semantics, CodeGen, Compiler) | Working / berfungsi | 88 xUnit tests (`tests/JSNet.Tests`) incl. 20 gallery samples run end-to-end |
-| Runtime (`JSNet.Runtime`) | Working | Tests + gallery samples |
-| AI (`JSNet.AI`) | Working (offline client by default) | `AiNative.jsn` sample, `AiFunctionsUseOfflineClientByDefault` test |
-| MSBuild SDK (`JSNet.Sdk`) | Working, incremental, errors mapped to `.jsn` | `samples/HelloJsNet`, gallery projects |
-| Templates (`JSNet.Templates`, 10 templates) | All 10 build from packed NuGet packages | Instantiated and built locally: console, classlib, webapi, web, blazor, wpf, winforms, avalonia, worker, xunit; console/webapi/worker run |
-| NativeAOT | Console template publishes to a ~2.1 MB native exe | `dotnet publish -p:PublishAot=true` |
-| CLI (`jsnet`) | run, emit, check, compile, fmt, new, lsp, info | Manual runs |
-| Language server | initialize, diagnostics, completion, hover, definition, symbols, formatting | stdio smoke test |
-| VS Code extension | Packaged `artifacts/vscode/jsnet-0.1.0.vsix` | `vsce package` |
-| Rust `jsnet-tools` | fmt, check, tokens, stats | `cargo test` (4 tests) |
-| Gallery | Blazor (+ playground), WPF, WinForms, Avalonia | Screenshots in `docs/images` |
-| Docs EN/ID | README, getting started, language guide, interop & runtime, tooling, architecture, diagnostics | — |
-| NuGet packages | Packed in `artifacts/packages` (Sdk, Runtime, AI, Cli, Templates) | Not yet pushed to nuget.org |
+| Compiler (Syntax, Parser, Semantics, CodeGen, Compiler) | Working; object types, spread, unions, regex, class expressions, labels, `out`/`ref` | 117 xUnit tests (`tests/JSNet.Tests`) incl. 27 gallery samples run end-to-end |
+| Runtime (`JSNet.Runtime`) | Working, trim/AOT-annotated | Tests, gallery samples, NativeAOT publish of `samples/HelloJsNet` with zero IL warnings |
+| AI (`JSNet.AI`) | Tools, streaming, structured output, Semantic Kernel plugins | `AiTests` |
+| Analyzers (`JSNet.Analyzers`) | `rule` declarations as custom analyzers | `AnalyzerRuleTests`, `samples/RulesDemo` |
+| Packages Web / EntityFramework / Blazor / Reactive | Working | `PackageTests` (real Kestrel, SQLite, HtmlRenderer, Rx) |
+| MSBuild SDK (`JSNet.Sdk`) | Incremental, errors mapped to `.jsn`, `JSNetAnalyzer` items, MAUI `Platforms/<platform>` | `samples/*`, gallery projects |
+| Templates (13) | console, classlib, webapi, web, blazor, wpf, winforms, avalonia, worker, xunit, maui, orleans, aspire | `build/smoke.ps1` from packed packages (maui when the workload is installed) |
+| CLI (`jsnet`) | run, emit, check (`--analyzer`), compile, fmt, new, lsp, info | Tests + smoke |
+| Language server | Roslyn-backed .NET completion/hover, references, rename, quick fixes, semantic tokens | `LanguageServerTests` |
+| Editors | VS Code VSIX, Visual Studio VSIX, JetBrains LSP4IJ template | CI artifacts |
+| Rust `jsnet-tools` | fmt, check, tokens, stats | `cargo test` |
+| Gallery | Blazor (+ server playground), WPF, WinForms, Avalonia, WebAssembly playground | Screenshots in `docs/images` |
+| Docs EN/ID | Updated for all of the above | — |
+| NuGet | 0.1.0 and 0.1.1 published (5 packages); 0.2.0 adds Analyzers, Web, EntityFramework, Blazor, Reactive | — |
 
 ## Log / Catatan
 
@@ -43,9 +44,16 @@
 - 0.1.0 published to nuget.org (JSNet.Runtime, JSNet.AI, JSNet.Sdk, JSNet.Cli, JSNet.Templates) by `jsnet-publish.yml`.
 - 0.1.1: gallery builds warning-free (WPF `Title` element renamed `TitleText` so it no longer hides `Window.Title`; Blazor chart layout uses `300.0 /` instead of integer division). Default version, template `sdkVersion` and docs moved to 0.1.1; `pack.ps1` stamps any previous template default.
 
+### 2026-10-27 — toward 0.2.0
+- Language: object type literals (generated records), object spread, class unions with `instanceof` narrowing, regex literals, class expressions and local classes, labelled `break`/`continue`, `out`/`ref`.
+- NativeAOT: runtime marked `IsAotCompatible`; reflection helpers annotated; AOT-safe `JSON.stringify/parse(JsonTypeInfo)`.
+- AI: `@AiTool` tools, `ai function*` streaming, JSON-schema structured output, Semantic Kernel plugin test.
+- Language server: Roslyn-backed .NET member completion and hover, references, rename, quick fixes, semantic tokens; parser keeps the next statement after a trailing dot.
+- `rule` declarations + `JSNet.Analyzers`; packages `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`; templates MAUI, Orleans, Aspire; Visual Studio extension and JetBrains setup.
+- Gallery: seven ecosystem samples on real NuGet packages (Gravicode.RLNet, Gravicode.Matplotlib.Net, Gravicode.Science.GraviLearn, Gravicode.HFNet.GraviTokenizers, Gravicode.MediaPipeNet, IoTCom.Net, ThreeNet); WebAssembly playground (`gallery/JSNet.Playground`) compiling with Roslyn in the browser — an async `Main` is awaited directly because the browser runtime cannot block.
+
 ## Next steps / Langkah berikutnya
-1. Publish: push the `jsnet-v0.1.0` tag (or run *Publish JS.Net to NuGet* with `dry_run` off); publish the VS Code extension to the Marketplace.
-2. Roslyn-backed semantic completion for .NET members in the language server.
-3. Object type literals and object spread.
-4. Trim/AOT annotations for runtime helpers.
-5. Gallery samples for the Gravicode supporting libraries once they are consumable packages.
+1. Release 0.2.0 (tag `jsnet-v0.2.0`) after confirmation.
+2. Host the WebAssembly playground as a static site.
+3. Publish the VS Code and Visual Studio extensions to their marketplaces.
+4. Union exhaustiveness checks; in-process build server.
