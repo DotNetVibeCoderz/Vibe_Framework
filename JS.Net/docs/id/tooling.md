@@ -23,10 +23,10 @@ dotnet tool install -g JSNet.Cli
 ## MSBuild SDK (`JSNet.Sdk`)
 
 ```xml
-<Project Sdk="JSNet.Sdk/0.2.0"> … </Project>
+<Project Sdk="JSNet.Sdk/0.2.1"> … </Project>
 <!-- atau di atas SDK lain -->
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <Sdk Name="JSNet.Sdk" Version="0.2.0" />
+  <Sdk Name="JSNet.Sdk" Version="0.2.1" />
 </Project>
 ```
 
@@ -119,11 +119,11 @@ cargo test
 ```bash
 dotnet build JSNet.slnx
 dotnet test tests/JSNet.Tests          # compiler, runtime, dan semua sampel gallery
-pwsh build/pack.ps1 -Version 0.2.0     # artifacts/packages/*.nupkg
-pwsh build/smoke.ps1 -Version 0.2.0    # pasang paket di folder bersih, build semua template
+pwsh build/pack.ps1 -Version 0.2.1     # artifacts/packages/*.nupkg
+pwsh build/smoke.ps1 -Version 0.2.1    # pasang paket di folder bersih, build semua template
 ```
 
-Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.2.0`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
+Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.2.1`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
 
 Playground WebAssembly (https://dotnetvibecoderz.github.io/Vibe_Framework/) di-deploy ke GitHub Pages dengan workflow manual **JS.Net playground (GitHub Pages)** (`jsnet-playground-pages.yml`; aktifkan Pages dengan sumber *GitHub Actions* terlebih dahulu).
 

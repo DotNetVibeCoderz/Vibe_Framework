@@ -2,11 +2,11 @@
 
 > JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil. Roadmap: [PLAN.md](PLAN.md).
 
-## Status — 2026-10-27 (v0.2.0)
+## Status — 2026-10-27 (v0.2.1)
 
 | Area | State / Keadaan | Verified by / Diverifikasi dengan |
 |---|---|---|
-| Compiler (Syntax, Parser, Semantics, CodeGen, Compiler) | Working; object types, spread, unions, regex, class expressions, labels, `out`/`ref` | 120 xUnit tests (`tests/JSNet.Tests`) incl. 27 gallery samples run end-to-end |
+| Compiler (Syntax, Parser, Semantics, CodeGen, Compiler) | Working; object types, spread, unions, regex, class expressions, labels, `out`/`ref` | 123 xUnit tests (`tests/JSNet.Tests`) incl. 27 gallery samples run end-to-end |
 | Runtime (`JSNet.Runtime`) | Working, trim/AOT-annotated | Tests, gallery samples, NativeAOT publish of `samples/HelloJsNet` with zero IL warnings |
 | AI (`JSNet.AI`) | Tools, streaming, structured output, Semantic Kernel plugins | `AiTests` |
 | Analyzers (`JSNet.Analyzers`) | `rule` declarations as custom analyzers | `AnalyzerRuleTests`, `samples/RulesDemo` |
@@ -19,7 +19,7 @@
 | Rust `jsnet-tools` | fmt, check, tokens, stats | `cargo test` |
 | Gallery | Blazor (+ server playground), WPF, WinForms, Avalonia, WebAssembly playground | Screenshots in `docs/images` |
 | Docs EN/ID | Updated for all of the above | — |
-| NuGet | 0.1.0, 0.1.1 (5 packages) and 0.2.0 (10 packages: + Analyzers, Web, EntityFramework, Blazor, Reactive) | `jsnet-publish.yml` |
+| NuGet | 0.1.0, 0.1.1 (5 packages), 0.2.0 and 0.2.1 (10 packages: + Analyzers, Web, EntityFramework, Blazor, Reactive) | `jsnet-publish.yml` |
 
 ## Log / Catatan
 
@@ -65,6 +65,8 @@
 ### 2026-10-27 — build server
 - `JSNet.Sdk.Tasks` (netstandard2.0) replaces the `Exec` of `jsnet compile`: the `JsNetCompile` task sends requests to `jsnet server` over a current-user named pipe, starting it on demand (shadow copy in `%TEMP%`, no handle inheritance) and falling back to a child process. Warm compile of `samples/HelloJsNet`: 6–15 ms vs ≈220 ms (warm) / 1.6 s (cold) per process.
 - Verified: errors identical in both modes, piped `dotnet build | cat` does not hang, Visual Studio (.NET Framework) MSBuild uses the server, rebuilding the compiler with live MSBuild nodes works (in-repo task copy keyed by timestamp), analyzers load from memory (no file locks). `BuildServerTests` drives a real server.
+
+- 0.2.1: build server, `ref`/`out` on class fields, JSN2006; default/SDK/template versions moved to 0.2.1 (tag `jsnet-v0.2.1`).
 
 ## Next steps / Langkah berikutnya
 1. Watch 0.2.0 adoption; fix issues in 0.2.x.

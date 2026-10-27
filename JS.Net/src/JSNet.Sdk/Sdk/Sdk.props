@@ -1,9 +1,9 @@
 <Project>
   <!--
     JSNet.Sdk can be used two ways:
-      <Project Sdk="JSNet.Sdk/0.2.0">                       (imports Microsoft.NET.Sdk itself)
+      <Project Sdk="JSNet.Sdk/0.2.1">                       (imports Microsoft.NET.Sdk itself)
       <Project Sdk="Microsoft.NET.Sdk.Web">
-        <Sdk Name="JSNet.Sdk" Version="0.2.0" />            (adds JS.Net on top of another SDK)
+        <Sdk Name="JSNet.Sdk" Version="0.2.1" />            (adds JS.Net on top of another SDK)
   -->
   <PropertyGroup>
     <UsingJSNetSdk>true</UsingJSNetSdk>

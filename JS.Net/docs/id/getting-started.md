@@ -17,7 +17,7 @@ dotnet tool install -g JSNet.Cli       # perintah jsnet (opsional tapi disaranka
 >
 > ```bash
 > pwsh build/pack.ps1                                        # → artifacts/packages
-> dotnet new install artifacts/packages/JSNet.Templates.0.2.0.nupkg
+> dotnet new install artifacts/packages/JSNet.Templates.0.2.1.nupkg
 > dotnet nuget add source <repo>/artifacts/packages -n jsnet-local
 > ```
 

@@ -4,7 +4,7 @@
   Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
 .EXAMPLE
   ./build/pack.ps1                          # Release build + tests + pack at the default version
-  ./build/pack.ps1 -Version 0.2.0-preview.1
+  ./build/pack.ps1 -Version 0.2.1-preview.1
   ./build/pack.ps1 -SkipTests -SkipRust
 #>
 param(
@@ -22,7 +22,7 @@ if ($Version) {
     if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') { throw "'$Version' is not a semantic version" }
     $versionArgs = @("-p:JSNetVersion=$Version")
 }
-$effectiveVersion = if ($Version) { $Version } else { "0.2.0" }
+$effectiveVersion = if ($Version) { $Version } else { "0.2.1" }
 
 if (-not $SkipRust -and (Get-Command cargo -ErrorAction SilentlyContinue)) {
     Write-Host "==> Building native jsnet-tools (Rust)" -ForegroundColor Cyan
