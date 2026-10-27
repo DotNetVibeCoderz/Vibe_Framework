@@ -18,6 +18,7 @@ public sealed class ServiceAttribute(ServiceScope scope = ServiceScope.Scoped) :
 public static class JsNetServiceCollectionExtensions
 {
     /// <summary>Registers every <c>@Service</c> class of <paramref name="assembly"/> (default: the calling assembly).</summary>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Scans the assembly for @Service classes; register services explicitly in trimmed/AOT apps.")]
     public static IServiceCollection AddJsNetServices(this IServiceCollection services, Assembly? assembly = null)
     {
         assembly ??= Assembly.GetCallingAssembly();
@@ -38,6 +39,7 @@ public static class JsNetServiceCollectionExtensions
     }
 
     /// <summary>Lower-case alias for JS.Net code: <c>builder.Services.addJsNetServices()</c>.</summary>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Scans the assembly for @Service classes; register services explicitly in trimmed/AOT apps.")]
     public static IServiceCollection addJsNetServices(this IServiceCollection services, Assembly? assembly = null) =>
         services.AddJsNetServices(assembly ?? Assembly.GetCallingAssembly());
 }

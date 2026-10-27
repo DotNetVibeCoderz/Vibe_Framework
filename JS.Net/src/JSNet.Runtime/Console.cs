@@ -117,6 +117,7 @@ public static class console
 
 internal static class TableFormatter
 {
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     public static string Format(object? data)
     {
         if (data is not System.Collections.IEnumerable rows || data is string) return JS.inspect(data);

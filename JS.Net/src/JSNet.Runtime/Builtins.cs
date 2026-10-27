@@ -59,6 +59,10 @@ public static class Globals
     private static readonly Lazy<HttpClient> Http = new(() => new HttpClient { DefaultRequestHeaders = { { "User-Agent", "JS.Net/0.1 (Gravicode Studios)" } } });
 
     /// <summary>Minimal WHATWG <c>fetch</c> backed by a shared <see cref="HttpClient"/>.</summary>
+    /// <remarks>Object bodies are serialized with reflection-based JSON; in trimmed/NativeAOT apps pass a string body
+    /// (e.g. <c>JSON.stringify(value, AppJson.Default.Order)</c>).</remarks>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Documented: AOT apps pass string bodies.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Documented: AOT apps pass string bodies.")]
     public static async Task<FetchResponse> fetch(string url, FetchOptions? options = null)
     {
         using var request = new HttpRequestMessage(new HttpMethod(options?.method ?? "GET"), url);
@@ -92,8 +96,11 @@ public sealed class FetchResponse(int status, string statusText, string body, Di
     public bool ok => status is >= 200 and < 300;
     public Dictionary<string, string> headers { get; } = headers;
     public Task<string> text() => Task.FromResult(body);
-    public Task<dynamic?> json() => Task.FromResult(JSON.parse(body));
+    public Task<dynamic?> json() => Task.FromResult<dynamic?>(JSON.parseValue(body));
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Reflection-based JSON; use json(JsonTypeInfo) for trimmed/AOT apps.")]
+    [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Reflection-based JSON; use json(JsonTypeInfo) for trimmed/AOT apps.")]
     public Task<T?> json<T>() => Task.FromResult(JSON.parse<T>(body));
+    public Task<T?> json<T>(System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo) => Task.FromResult(JSON.parse(body, typeInfo));
 }
 
 /// <summary>Tracks pending timers so a JS.Net program, like Node.js, exits only when no timers remain.</summary>
@@ -244,6 +251,7 @@ public static class JSObject
 {
     public static List<string> keys(object? obj) => [.. JS.keys(obj)];
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     public static List<object?> values(object? obj) => obj switch
     {
         null => [],
@@ -252,6 +260,7 @@ public static class JSObject
         _ => obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.GetIndexParameters().Length == 0).Select(p => p.GetValue(obj)).ToList(),
     };
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     public static List<(string key, object? value)> entries(object? obj) => obj switch
     {
         null => [],
@@ -280,7 +289,7 @@ public static class JSObject
     }
 
     /// <summary>Copies matching properties (case-insensitive) of a dynamic object into a new <typeparamref name="T"/>.</summary>
-    public static T to<T>(JsObject source) where T : new()
+    public static T to<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(JsObject source) where T : new()
     {
         var target = new T();
         foreach (var prop in typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanWrite))

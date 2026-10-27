@@ -5,3 +5,7 @@ export class Greeter {
         return `Hello from ${this.name}! 👋`;
     }
 }
+
+export class Point {
+    constructor(public x: int, public y: int) {}
+}

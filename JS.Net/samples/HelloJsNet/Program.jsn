@@ -7,3 +7,7 @@ console.log(`Running on .NET ${Environment.Version} — ${process.platform}`);
 
 const squares = Array.range(10).map(n => n * n);
 console.log("squares:", squares, "sum:", squares.sum());
+
+// AOT-safe JSON with a System.Text.Json source-generated context
+const json = JSON.stringify(new Point(1, 2), AppJson.Default.Point);
+console.log(json, JSON.parse(json, AppJson.Default.Point)?.x);

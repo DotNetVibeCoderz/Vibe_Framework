@@ -12,6 +12,7 @@ namespace JSNet.Runtime;
 /// A mutable, dynamic JavaScript object (<c>let o: dynamic = { a: 1 }; o.b = 2;</c>). Plain object literals
 /// compile to faster immutable anonymous types; use this when properties are added at runtime.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsObject works as a dictionary under NativeAOT; only C# 'dynamic' member access needs dynamic code.")]
 public sealed class JsObject : DynamicObject, IDictionary<string, object?>
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
@@ -89,13 +90,26 @@ public static class JSON
 
     private static readonly JsonSerializerOptions Indented = new(Compact) { WriteIndented = true };
 
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Reflection-based JSON; use stringify(value, JsonTypeInfo) for trimmed/AOT apps.")]
+    [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Reflection-based JSON; use stringify(value, JsonTypeInfo) for trimmed/AOT apps.")]
     public static string stringify(object? value, object? replacer = null, int space = 0) =>
         JsonSerializer.Serialize(value, value?.GetType() ?? typeof(object), space > 0 ? Indented : Compact);
 
     /// <summary>Parses into dynamic JS values: <see cref="JsObject"/>, <c>List&lt;dynamic&gt;</c>, double, string, bool or null.</summary>
-    public static dynamic? parse(string text) => Convert(JsonNode.Parse(text));
+    public static dynamic? parse(string text) => parseValue(text);
 
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Reflection-based JSON; use parse(text, JsonTypeInfo) for trimmed/AOT apps.")]
+    [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Reflection-based JSON; use parse(text, JsonTypeInfo) for trimmed/AOT apps.")]
     public static T? parse<T>(string text) => JsonSerializer.Deserialize<T>(text, Compact);
+
+    /// <summary>AOT-safe: <c>JSON.stringify(order, AppJson.Default.Order)</c> with a System.Text.Json source-generated context.</summary>
+    public static string stringify<T>(T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo) => JsonSerializer.Serialize(value, typeInfo);
+
+    /// <summary>AOT-safe typed parse with a source-generated <see cref="System.Text.Json.Serialization.Metadata.JsonTypeInfo{T}"/>.</summary>
+    public static T? parse<T>(string text, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo) => JsonSerializer.Deserialize(text, typeInfo);
+
+    /// <summary>Untyped parse as plain values: <see cref="JsObject"/>, <c>List&lt;object?&gt;</c>, double, string, bool or null (AOT-safe).</summary>
+    public static object? parseValue(string text) => Convert(JsonNode.Parse(text));
 
     private static object? Convert(JsonNode? node) => node switch
     {

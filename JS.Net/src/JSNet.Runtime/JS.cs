@@ -71,6 +71,7 @@ public static class JS
         return false;
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     public static bool hasKey(object? target, object? key) => target switch
     {
         null => false,
@@ -80,6 +81,7 @@ public static class JS
     };
 
     /// <summary>Keys for <c>for (k in obj)</c>: dictionary keys, list indices or public property names.</summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     public static IEnumerable<string> keys(object? target) => target switch
     {
         null => [],
@@ -148,6 +150,7 @@ public static class JS
         return sb.ToString();
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     private static void Inspect(StringBuilder sb, object? value, int depth, bool nested, HashSet<object> seen)
     {
         switch (value)
@@ -245,6 +248,7 @@ public static class JS
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, bool> CustomToString = new();
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort display/introspection of user objects; trimmed members are simply omitted.")]
     private static bool HasCustomToString(object value) => CustomToString.GetOrAdd(value.GetType(), static t =>
     {
         if (t.Name.Contains("AnonymousType", StringComparison.Ordinal)) return false;
