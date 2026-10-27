@@ -45,6 +45,7 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 | Native Rust tools (formatter, checker, tokenizer, stats) | ✅ |
 | Debugging through `#line` PDB mapping | ✅ |
 | `rule` declarations → custom analyzers (`JSNet.Analyzers`, `JSNetAnalyzer` items, `--analyzer`) | ✅ |
+| Build server: `JsNetCompile` MSBuild task + warm `jsnet server` over a named pipe | ✅ |
 
 ## Phase 4 — AI-native ✅
 
@@ -81,7 +82,6 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 
 | Item | Notes |
 |---|---|
-| Incremental, in-process build server | Avoid one compiler process per build. |
 
 ## Release / Rilis
 

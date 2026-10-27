@@ -21,5 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\JSNet.Scripting\JSNet.Scripting.csproj" />
     <ProjectReference Include="..\JSNet.LanguageServer\JSNet.LanguageServer.csproj" />
+    <!-- The MSBuild task JSNet.Sdk loads from next to jsnet.dll; also the build server protocol. -->
+    <ProjectReference Include="..\JSNet.Sdk.Tasks\JSNet.Sdk.Tasks.csproj" />
   </ItemGroup>
 </Project>

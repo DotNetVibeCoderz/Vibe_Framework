@@ -17,6 +17,7 @@ dotnet tool install -g JSNet.Cli
 | `jsnet fmt <files \| dirs> [--check]` | Format with the native Rust formatter. |
 | `jsnet new <template> [args]` | Shortcut for `dotnet new jsnet-<template>`. |
 | `jsnet lsp` | Start the language server on stdio. |
+| `jsnet server [--stop]` | Run (or stop) the build server the SDK uses (see below). |
 | `jsnet info`, `jsnet --version` | Version information. |
 
 ## The MSBuild SDK (`JSNet.Sdk`)
@@ -45,8 +46,18 @@ What it does on `dotnet build`:
 | `JSNetEnableAI` | `false` | Reference `JSNet.AI` for `ai function`/`prompt`. |
 | `JSNetDisableImplicitRuntimeReference` | `false` | Do not reference `JSNet.Runtime` automatically. |
 | `JSNetCompilerPath` | bundled | Use a different compiler build. |
+| `JSNetUseBuildServer` | `true` | Compile through the warm JS.Net build server. |
 
 Errors appear in MSBuild/IDE format against the original file, e.g. `Program.jsn(12,7): error CS0029: Cannot implicitly convert type 'string' to 'double'`.
+
+### Build server
+
+The SDK compiles `.jsn` files with an MSBuild task (`JsNetCompile`) that hands the work to the **JS.Net build server**: a `jsnet server` process that stays loaded and JIT-compiled between builds, reached over a named pipe that only the current user can open. The first build starts it; it exits after 10 minutes without builds (`JSNET_SERVER_IDLE_SECONDS`). A warm compile of a small project takes a few milliseconds instead of a fresh compiler process (≈0.2–1.6 s).
+
+- The server runs from a private copy of the compiler under `%TEMP%/jsnet-server/`, so updating the SDK or rebuilding the compiler never hits locked files; each compiler build gets its own server.
+- Custom analyzer assemblies are loaded from memory, so they are never locked either.
+- Works in `dotnet build` and in Visual Studio's MSBuild (the task targets netstandard2.0). If the server cannot be reached, the task runs the compiler as a child process, as before.
+- Opt out with `<JSNetUseBuildServer>false</JSNetUseBuildServer>` or `JSNET_NO_BUILD_SERVER=1`; stop a server with `jsnet server --stop`.
 
 ## Language server and editors
 

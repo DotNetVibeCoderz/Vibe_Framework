@@ -17,6 +17,7 @@ dotnet tool install -g JSNet.Cli
 | `jsnet fmt <file \| dir> [--check]` | Format dengan formatter native Rust. |
 | `jsnet new <template> [args]` | Pintasan untuk `dotnet new jsnet-<template>`. |
 | `jsnet lsp` | Menjalankan language server di stdio. |
+| `jsnet server [--stop]` | Menjalankan (atau menghentikan) build server yang dipakai SDK (lihat di bawah). |
 | `jsnet info`, `jsnet --version` | Informasi versi. |
 
 ## MSBuild SDK (`JSNet.Sdk`)
@@ -45,8 +46,18 @@ Yang terjadi saat `dotnet build`:
 | `JSNetEnableAI` | `false` | Referensikan `JSNet.AI` untuk `ai function`/`prompt`. |
 | `JSNetDisableImplicitRuntimeReference` | `false` | Jangan referensikan `JSNet.Runtime` secara otomatis. |
 | `JSNetCompilerPath` | bawaan | Pakai build compiler yang lain. |
+| `JSNetUseBuildServer` | `true` | Kompilasi lewat build server JS.Net yang sudah hangat. |
 
 Error tampil dalam format MSBuild/IDE terhadap file aslinya, mis. `Program.jsn(12,7): error CS0029: Cannot implicitly convert type 'string' to 'double'`.
+
+### Build server
+
+SDK mengompilasi file `.jsn` dengan task MSBuild (`JsNetCompile`) yang meneruskan pekerjaan ke **build server JS.Net**: proses `jsnet server` yang tetap termuat dan sudah di-JIT di antara build, dihubungi lewat named pipe yang hanya bisa dibuka pengguna yang sama. Build pertama menyalakannya; server berhenti sendiri setelah 10 menit tanpa build (`JSNET_SERVER_IDLE_SECONDS`). Kompilasi proyek kecil saat server sudah hangat hanya beberapa milidetik, bukan proses compiler baru (≈0,2–1,6 detik).
+
+- Server berjalan dari salinan pribadi compiler di `%TEMP%/jsnet-server/`, jadi pembaruan SDK atau build ulang compiler tidak pernah terbentur file terkunci; setiap build compiler punya server sendiri.
+- Assembly analyzer kustom dimuat dari memori, jadi juga tidak pernah terkunci.
+- Berfungsi di `dotnet build` dan di MSBuild Visual Studio (task menargetkan netstandard2.0). Jika server tidak bisa dihubungi, task menjalankan compiler sebagai proses anak seperti sebelumnya.
+- Matikan dengan `<JSNetUseBuildServer>false</JSNetUseBuildServer>` atau `JSNET_NO_BUILD_SERVER=1`; hentikan server dengan `jsnet server --stop`.
 
 ## Language server dan editor
 

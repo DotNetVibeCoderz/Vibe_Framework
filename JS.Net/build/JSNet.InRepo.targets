@@ -1,6 +1,15 @@
 <Project>
   <PropertyGroup>
     <JSNetCompilerPath Condition="'$(JSNetCompilerPath)' == ''">$(JSNetRepoRoot)src\JSNet.Cli\bin\$(Configuration)\net10.0\jsnet.dll</JSNetCompilerPath>
+    <!--
+      MSBuild keeps task assemblies loaded (and locked) in its reusable nodes. In this repository the compiler is rebuilt
+      all the time, so the task is loaded from a copy keyed by its timestamp instead of from src\JSNet.Cli\bin.
+    -->
+    <_JSNetTasksSource>$([System.IO.Path]::GetDirectoryName('$(JSNetCompilerPath)'))\JSNet.Sdk.Tasks.dll</_JSNetTasksSource>
+    <_JSNetTasksStamp Condition="Exists('$(_JSNetTasksSource)')">$([System.IO.File]::GetLastWriteTime('$(_JSNetTasksSource)').Ticks)</_JSNetTasksStamp>
+    <JSNetTasksAssembly Condition="'$(JSNetTasksAssembly)' == '' and '$(_JSNetTasksStamp)' != ''">$([System.IO.Path]::GetTempPath())jsnet-tasks\$(_JSNetTasksStamp)\JSNet.Sdk.Tasks.dll</JSNetTasksAssembly>
+    <!-- Not built yet when this project was evaluated (clean build): run the task in a short-lived task host instead. -->
+    <JSNetTasksOutOfProc Condition="'$(_JSNetTasksStamp)' == ''">true</JSNetTasksOutOfProc>
   </PropertyGroup>
   <ItemGroup Condition="'$(JSNetSkipInRepoReferences)' != 'true'">
     <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Cli\JSNet.Cli.csproj" ReferenceOutputAssembly="false" Private="false" SkipGetTargetFrameworkProperties="true" GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained;PublishAot" />
@@ -8,4 +17,8 @@
     <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.AI\JSNet.AI.csproj" Condition="'$(JSNetEnableAI)' == 'true'" />
   </ItemGroup>
   <Import Project="$(JSNetRepoRoot)src\JSNet.Sdk\build\JSNet.Sdk.targets" />
+
+  <Target Name="_JSNetCopyInRepoTasks" BeforeTargets="JSNetGenerate" Condition="'$(_JSNetTasksStamp)' != '' and !Exists('$(JSNetTasksAssembly)')">
+    <Copy SourceFiles="$(_JSNetTasksSource)" DestinationFolder="$([System.IO.Path]::GetDirectoryName('$(JSNetTasksAssembly)'))" ContinueOnError="true" />
+  </Target>
 </Project>

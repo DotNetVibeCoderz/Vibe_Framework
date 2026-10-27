@@ -62,8 +62,11 @@
 - Playground live on GitHub Pages: https://dotnetvibecoderz.github.io/Vibe_Framework/ (verified: examples compile and run).
 - Marketplace: VS Code extension `GravicodeStudios.jsnet` 0.2.0 (vsce) and Visual Studio extension `GravicodeStudios.jsnet-visualstudio` 0.2.0 (VsixPublisher, `publishManifest.json` + `overview.md`). Publisher changed from the non-existent `gravicode-studios` to the existing `GravicodeStudios`.
 
+### 2026-10-27 — build server
+- `JSNet.Sdk.Tasks` (netstandard2.0) replaces the `Exec` of `jsnet compile`: the `JsNetCompile` task sends requests to `jsnet server` over a current-user named pipe, starting it on demand (shadow copy in `%TEMP%`, no handle inheritance) and falling back to a child process. Warm compile of `samples/HelloJsNet`: 6–15 ms vs ≈220 ms (warm) / 1.6 s (cold) per process.
+- Verified: errors identical in both modes, piped `dotnet build | cat` does not hang, Visual Studio (.NET Framework) MSBuild uses the server, rebuilding the compiler with live MSBuild nodes works (in-repo task copy keyed by timestamp), analyzers load from memory (no file locks). `BuildServerTests` drives a real server.
+
 ## Next steps / Langkah berikutnya
 1. Watch 0.2.0 adoption; fix issues in 0.2.x.
 2. Renew the NuGet API key (expires early November 2026) and update the `NUGET_API_KEY` secret.
 3. Optionally automate extension publishing in CI (`VSCE_PAT` secret).
-4. In-process build server.

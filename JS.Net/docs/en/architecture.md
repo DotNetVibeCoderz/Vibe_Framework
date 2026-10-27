@@ -26,6 +26,7 @@ JS.Net follows the design in [architecture-design.md](../../architecture-design.
 | `JSNet.Runtime` | Small runtime library: `console`, `JSON`, `Math`, `Promise`, `Date`, timers, `fetch`, `JsObject`, JavaScript-style members as C# 14 extension members, `@Service` DI. |
 | `JSNet.AI` | `AiRuntime` and `Prompt<T>` on `Microsoft.Extensions.AI.IChatClient`. |
 | `JSNet.Sdk` | MSBuild SDK: incremental code generation before `CoreCompile`. |
+| `JSNet.Sdk.Tasks` | The `JsNetCompile` MSBuild task (netstandard2.0) and the build-server protocol; `jsnet server` keeps the compiler warm between builds. |
 | `JSNet.Scripting` | Roslyn in-memory compilation into a collectible `AssemblyLoadContext` (`jsnet run`, Gallery playground, tests). |
 | `JSNet.Cli` | `jsnet` command. |
 | `JSNet.LanguageServer` | LSP host; .NET member completion/hover come from a Roslyn probe compilation over the lowered code and the project's references. |

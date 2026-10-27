@@ -22,7 +22,8 @@ public static class Program
         {
             return command switch
             {
-                "compile" => Compile(rest),
+                "compile" => Compile(rest, Directory.GetCurrentDirectory(), Console.Out, Console.Error),
+                "server" => await BuildServer.RunCommand(rest),
                 "run" => await Run(rest),
                 "emit" => Emit(rest),
                 "check" => Check(rest),
@@ -56,6 +57,7 @@ public static class Program
         Console.WriteLine("  fmt <files|dirs> [--check]     Format code with the native (Rust) jsnet-tools formatter");
         Console.WriteLine("  new <template> [args]          Shortcut for 'dotnet new jsnet-<template>'");
         Console.WriteLine("  lsp                            Start the JS.Net language server on stdio");
+        Console.WriteLine("  server [--stop]                Run (or stop) the build server used by JSNet.Sdk");
         Console.WriteLine("  info | --version               Show version information");
         Console.WriteLine();
         Console.WriteLine("compile options:");
@@ -86,13 +88,13 @@ public static class Program
     }
 
     /// <summary>Expands '@file.rsp' arguments (one argument per line) as MSBuild passes long file lists that way.</summary>
-    private static List<string> ExpandResponseFiles(IEnumerable<string> args)
+    private static List<string> ExpandResponseFiles(IEnumerable<string> args, string baseDir)
     {
         var result = new List<string>();
         foreach (var a in args)
         {
-            if (a.StartsWith('@') && File.Exists(a[1..]))
-                result.AddRange(File.ReadAllLines(a[1..]).Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith('#')));
+            if (a.StartsWith('@') && File.Exists(Path.GetFullPath(a[1..], baseDir)))
+                result.AddRange(File.ReadAllLines(Path.GetFullPath(a[1..], baseDir)).Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith('#')));
             else result.Add(a);
         }
         return result;
@@ -113,9 +115,14 @@ public static class Program
         }
     }
 
-    private static int Compile(string[] rawArgs)
+    /// <summary>
+    /// <c>jsnet compile</c>. Relative paths resolve against <paramref name="baseDir"/> and output goes to the given writers,
+    /// because the build server runs many of these at once in one process.
+    /// </summary>
+    internal static int Compile(string[] rawArgs, string baseDir, TextWriter output, TextWriter error)
     {
-        var args = ExpandResponseFiles(rawArgs);
+        var args = ExpandResponseFiles(rawArgs, baseDir);
+        string Full(string path) => Path.GetFullPath(path, baseDir);
         string? outDir = null, rootNs = null, projectDir = null;
         bool library = false, lines = true;
         var nowarn = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -125,23 +132,23 @@ public static class Program
         {
             switch (args[i])
             {
-                case "--out": outDir = args[++i]; break;
+                case "--out": outDir = Full(args[++i]); break;
                 case "--root-namespace": rootNs = args[++i]; break;
-                case "--project-dir": projectDir = args[++i]; break;
+                case "--project-dir": projectDir = Full(args[++i]); break;
                 case "--library": library = true; break;
                 case "--no-line": lines = false; break;
                 case "--analyzer":
-                    rules.AddRange(JSNet.Analyzers.RuleRunner.Load(args[++i]));
+                    rules.AddRange(JSNet.Analyzers.RuleRunner.Load(Full(args[++i])));
                     break;
                 case "--nowarn":
                     foreach (var c in args[++i].Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) nowarn.Add(c);
                     break;
-                default: files.Add(args[i]); break;
+                default: files.Add(Full(args[i])); break;
             }
         }
         if (outDir is null)
         {
-            Console.Error.WriteLine("jsnet: error JSN3000: --out <dir> is required.");
+            error.WriteLine("jsnet: error JSN3000: --out <dir> is required.");
             return 1;
         }
 
@@ -149,13 +156,13 @@ public static class Program
         var result = JsNetCompiler.CompileFiles(ExpandInputs(files), new JsNetCompilationOptions
         {
             RootNamespace = rootNs ?? "JsNetApp",
-            ProjectDirectory = projectDir is null ? null : Path.GetFullPath(projectDir),
+            ProjectDirectory = projectDir,
             IsLibrary = library,
             EmitLineDirectives = lines,
             SuppressedDiagnostics = nowarn,
             Rules = rules,
         });
-        PrintDiagnostics(result.Diagnostics);
+        PrintDiagnostics(result.Diagnostics, output, error);
         if (!result.Success) return 1;
 
         Directory.CreateDirectory(outDir);
@@ -170,15 +177,17 @@ public static class Program
         foreach (var stale in Directory.EnumerateFiles(outDir, "*.g.cs"))
             if (!expected.Contains(Path.GetFullPath(stale))) File.Delete(stale);
 
-        Console.WriteLine($"jsnet: compiled {result.Units.Count} file(s) in {sw.ElapsedMilliseconds} ms");
+        output.WriteLine($"jsnet: compiled {result.Units.Count} file(s) in {sw.ElapsedMilliseconds} ms");
         return 0;
     }
 
-    private static void PrintDiagnostics(IEnumerable<Diagnostic> diagnostics)
+    private static void PrintDiagnostics(IEnumerable<Diagnostic> diagnostics) => PrintDiagnostics(diagnostics, Console.Out, Console.Error);
+
+    private static void PrintDiagnostics(IEnumerable<Diagnostic> diagnostics, TextWriter output, TextWriter error)
     {
         foreach (var d in diagnostics)
         {
-            var writer = d.Severity == DiagnosticSeverity.Error ? Console.Error : Console.Out;
+            var writer = d.Severity == DiagnosticSeverity.Error ? error : output;
             writer.WriteLine(d.ToString());
         }
     }

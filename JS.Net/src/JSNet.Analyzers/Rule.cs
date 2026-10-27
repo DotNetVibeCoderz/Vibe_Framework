@@ -74,11 +74,14 @@ public static class RuleRunner
         }
     }
 
-    /// <summary>Loads every concrete <see cref="Rule"/> from an assembly built from JS.Net (or C#) rule sources.</summary>
+    /// <summary>
+    /// Loads every concrete <see cref="Rule"/> from an assembly built from JS.Net (or C#) rule sources. The assembly is read
+    /// into memory and loaded into a collectible context, so a long-lived compiler (the build server) never locks the file.
+    /// </summary>
     public static IReadOnlyList<Rule> Load(string assemblyPath)
     {
         var context = new RulesLoadContext(Path.GetFullPath(assemblyPath));
-        var assembly = context.LoadFromAssemblyPath(Path.GetFullPath(assemblyPath));
+        var assembly = context.LoadFromBytes(Path.GetFullPath(assemblyPath));
         return FromAssembly(assembly);
     }
 
@@ -89,8 +92,14 @@ public static class RuleRunner
             .ToList();
 
     /// <summary>Shares the compiler's JS.Net assemblies with rule assemblies; resolves their other dependencies locally.</summary>
-    private sealed class RulesLoadContext(string mainPath) : AssemblyLoadContext("jsnet-rules")
+    private sealed class RulesLoadContext(string mainPath) : AssemblyLoadContext("jsnet-rules", isCollectible: true)
     {
+        public Assembly LoadFromBytes(string path)
+        {
+            using var image = new MemoryStream(File.ReadAllBytes(path));
+            return LoadFromStream(image);
+        }
+
         private readonly AssemblyDependencyResolver _resolver = new(mainPath);
 
         protected override Assembly? Load(AssemblyName name)
@@ -101,7 +110,7 @@ public static class RuleRunner
                 if (shared is not null) return shared;
             }
             string? path = _resolver.ResolveAssemblyToPath(name);
-            return path is null ? null : LoadFromAssemblyPath(path);
+            return path is null ? null : LoadFromBytes(path);
         }
     }
 }

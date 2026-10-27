@@ -26,6 +26,7 @@
     <Project Path="src/JSNet.Runtime/JSNet.Runtime.csproj" />
     <Project Path="src/JSNet.Scripting/JSNet.Scripting.csproj" />
     <Project Path="src/JSNet.Sdk/JSNet.Sdk.csproj" />
+    <Project Path="src/JSNet.Sdk.Tasks/JSNet.Sdk.Tasks.csproj" />
     <Project Path="src/JSNet.Semantics/JSNet.Semantics.csproj" />
     <Project Path="src/JSNet.Syntax/JSNet.Syntax.csproj" />
     <Project Path="src/JSNet.Web/JSNet.Web.csproj" />

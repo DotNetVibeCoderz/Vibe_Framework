@@ -26,6 +26,7 @@ JS.Net mengikuti desain di [architecture-design.md](../../architecture-design.md
 | `JSNet.Runtime` | Pustaka runtime kecil: `console`, `JSON`, `Math`, `Promise`, `Date`, timer, `fetch`, `JsObject`, anggota gaya JavaScript sebagai extension member C# 14, DI `@Service`. |
 | `JSNet.AI` | `AiRuntime` dan `Prompt<T>` di atas `Microsoft.Extensions.AI.IChatClient`. |
 | `JSNet.Sdk` | MSBuild SDK: pembangkitan kode inkremental sebelum `CoreCompile`. |
+| `JSNet.Sdk.Tasks` | Task MSBuild `JsNetCompile` (netstandard2.0) dan protokol build server; `jsnet server` menjaga compiler tetap hangat di antara build. |
 | `JSNet.Scripting` | Kompilasi Roslyn di memori ke `AssemblyLoadContext` yang bisa di-unload (`jsnet run`, playground Gallery, test). |
 | `JSNet.Cli` | Perintah `jsnet`. |
 | `JSNet.LanguageServer` | Host LSP; completion/hover member .NET berasal dari kompilasi probe Roslyn atas kode hasil penurunan dan referensi proyek. |

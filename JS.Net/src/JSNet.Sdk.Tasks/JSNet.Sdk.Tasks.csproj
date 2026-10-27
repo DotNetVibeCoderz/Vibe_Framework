@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    MSBuild task used by JSNet.Sdk to compile .jsn files. It runs inside MSBuild (.NET or .NET Framework, hence
+    netstandard2.0) and hands the work to a warm JS.Net build server over a named pipe, falling back to one compiler
+    process per build. Ships next to jsnet.dll (JSNet.Cli references it). Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>JSNet.Sdk.Tasks</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JSNet.Tests" />
+    <!-- Provided by MSBuild at run time. -->
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>

@@ -43,6 +43,14 @@
     <_JSNetCompilerFiles Include="$([System.IO.Path]::GetDirectoryName('$(JSNetCompilerPath)'))\JSNet*.dll;$(JSNetCompilerPath)" />
   </ItemGroup>
 
+  <!-- Ships next to jsnet.dll and hands the work to the JS.Net build server (JSNetUseBuildServer=false or JSNET_NO_BUILD_SERVER=1 opts out). -->
+  <PropertyGroup>
+    <JSNetTasksAssembly Condition="'$(JSNetTasksAssembly)' == ''">$([System.IO.Path]::GetDirectoryName('$(JSNetCompilerPath)'))\JSNet.Sdk.Tasks.dll</JSNetTasksAssembly>
+    <JSNetUseBuildServer Condition="'$(JSNetUseBuildServer)' == ''">true</JSNetUseBuildServer>
+  </PropertyGroup>
+  <UsingTask TaskName="JSNet.Sdk.Tasks.JsNetCompile" AssemblyFile="$(JSNetTasksAssembly)" Condition="'$(JSNetTasksOutOfProc)' != 'true'" />
+  <UsingTask TaskName="JSNet.Sdk.Tasks.JsNetCompile" AssemblyFile="$(JSNetTasksAssembly)" TaskFactory="TaskHostFactory" Condition="'$(JSNetTasksOutOfProc)' == 'true'" />
+
   <Target Name="JSNetGenerate"
           BeforeTargets="BeforeCompile;CoreCompile;XamlPreCompile"
           Condition="'@(JSNetCompile)' != ''"
@@ -50,17 +58,14 @@
           Outputs="$(JSNetGeneratedDir)jsnet.stamp">
     <PropertyGroup>
       <_JSNetResponseFile>$(JSNetGeneratedDir)jsnet.rsp</_JSNetResponseFile>
-      <_JSNetArgs>compile --out &quot;$(JSNetGeneratedDir.TrimEnd('\'))&quot; --root-namespace &quot;$(JSNetRootNamespace)&quot; --project-dir &quot;$(MSBuildProjectDirectory)&quot;</_JSNetArgs>
-      <_JSNetArgs Condition="'$(JSNetIsLibrary)' == 'true'">$(_JSNetArgs) --library</_JSNetArgs>
-      <_JSNetArgs Condition="'$(JSNetEmitLineDirectives)' != 'true'">$(_JSNetArgs) --no-line</_JSNetArgs>
-      <_JSNetArgs Condition="'$(JSNetNoWarn)' != ''">$(_JSNetArgs) --nowarn &quot;$(JSNetNoWarn)&quot;</_JSNetArgs>
-      <_JSNetArgs Condition="'@(JSNetAnalyzer)' != ''">$(_JSNetArgs) @(JSNetAnalyzer->'--analyzer &quot;%(FullPath)&quot;', ' ')</_JSNetArgs>
     </PropertyGroup>
     <MakeDir Directories="$(JSNetGeneratedDir)" />
     <WriteLinesToFile File="$(_JSNetResponseFile)" Lines="@(JSNetCompile->'%(FullPath)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
     <Error Condition="!Exists('$(JSNetCompilerPath)')" Text="JS.Net compiler not found at '$(JSNetCompilerPath)'." Code="JSN3004" />
-    <Exec Command="&quot;$(JSNetDotnetHost)&quot; exec &quot;$(JSNetCompilerPath)&quot; $(_JSNetArgs) @&quot;$(_JSNetResponseFile)&quot;"
-          StandardOutputImportance="low" IgnoreExitCode="true" />
+    <JsNetCompile CompilerPath="$(JSNetCompilerPath)" DotnetHost="$(JSNetDotnetHost)" ResponseFile="$(_JSNetResponseFile)"
+                  OutputDirectory="$(JSNetGeneratedDir.TrimEnd('\'))" RootNamespace="$(JSNetRootNamespace)" ProjectDirectory="$(MSBuildProjectDirectory)"
+                  IsLibrary="$(JSNetIsLibrary)" EmitLineDirectives="$(JSNetEmitLineDirectives)" NoWarn="$(JSNetNoWarn)"
+                  Analyzers="@(JSNetAnalyzer)" UseBuildServer="$(JSNetUseBuildServer)" />
     <Touch Files="$(JSNetGeneratedDir)jsnet.stamp" AlwaysCreate="true" />
   </Target>
 
