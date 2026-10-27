@@ -67,8 +67,9 @@
 - Verified: errors identical in both modes, piped `dotnet build | cat` does not hang, Visual Studio (.NET Framework) MSBuild uses the server, rebuilding the compiler with live MSBuild nodes works (in-repo task copy keyed by timestamp), analyzers load from memory (no file locks). `BuildServerTests` drives a real server.
 
 - 0.2.1: build server, `ref`/`out` on class fields, JSN2006; default/SDK/template versions moved to 0.2.1 (tag `jsnet-v0.2.1`).
+- Marketplace: VS Code extension `GravicodeStudios.jsnet` and Visual Studio extension `GravicodeStudios.jsnet-visualstudio` updated to 0.2.1.
 
 ## Next steps / Langkah berikutnya
-1. Watch 0.2.0 adoption; fix issues in 0.2.x.
+1. Watch 0.2.1 adoption; fix issues in 0.2.x.
 2. Renew the NuGet API key (expires early November 2026) and update the `NUGET_API_KEY` secret.
 3. Optionally automate extension publishing in CI (`VSCE_PAT` secret).
