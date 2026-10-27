@@ -22,10 +22,10 @@ dotnet tool install -g JSNet.Cli
 ## MSBuild SDK (`JSNet.Sdk`)
 
 ```xml
-<Project Sdk="JSNet.Sdk/0.1.1"> … </Project>
+<Project Sdk="JSNet.Sdk/0.2.0"> … </Project>
 <!-- atau di atas SDK lain -->
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <Sdk Name="JSNet.Sdk" Version="0.1.1" />
+  <Sdk Name="JSNet.Sdk" Version="0.2.0" />
 </Project>
 ```
 
@@ -108,10 +108,10 @@ cargo test
 ```bash
 dotnet build JSNet.slnx
 dotnet test tests/JSNet.Tests          # compiler, runtime, dan semua sampel gallery
-pwsh build/pack.ps1 -Version 0.1.1     # artifacts/packages/*.nupkg
-pwsh build/smoke.ps1 -Version 0.1.1    # pasang paket di folder bersih, build semua template
+pwsh build/pack.ps1 -Version 0.2.0     # artifacts/packages/*.nupkg
+pwsh build/smoke.ps1 -Version 0.2.0    # pasang paket di folder bersih, build semua template
 ```
 
-Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.1.1`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
+Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.2.0`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
 
 Paket: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

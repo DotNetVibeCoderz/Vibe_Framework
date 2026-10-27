@@ -22,7 +22,7 @@ if ($Version) {
     if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') { throw "'$Version' is not a semantic version" }
     $versionArgs = @("-p:JSNetVersion=$Version")
 }
-$effectiveVersion = if ($Version) { $Version } else { "0.1.1" }
+$effectiveVersion = if ($Version) { $Version } else { "0.2.0" }
 
 if (-not $SkipRust -and (Get-Command cargo -ErrorAction SilentlyContinue)) {
     Write-Host "==> Building native jsnet-tools (Rust)" -ForegroundColor Cyan

@@ -27,7 +27,7 @@
     "sdkVersion": {
       "type": "parameter",
       "datatype": "string",
-      "defaultValue": "0.1.1",
+      "defaultValue": "0.2.0",
       "replaces": "JSNET_SDK_VERSION",
       "description": "JSNet.Sdk / JSNet.Runtime version."
     }

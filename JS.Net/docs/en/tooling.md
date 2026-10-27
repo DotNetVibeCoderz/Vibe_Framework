@@ -22,10 +22,10 @@ dotnet tool install -g JSNet.Cli
 ## The MSBuild SDK (`JSNet.Sdk`)
 
 ```xml
-<Project Sdk="JSNet.Sdk/0.1.1"> … </Project>
+<Project Sdk="JSNet.Sdk/0.2.0"> … </Project>
 <!-- or on top of another SDK -->
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <Sdk Name="JSNet.Sdk" Version="0.1.1" />
+  <Sdk Name="JSNet.Sdk" Version="0.2.0" />
 </Project>
 ```
 
@@ -108,10 +108,10 @@ cargo test
 ```bash
 dotnet build JSNet.slnx
 dotnet test tests/JSNet.Tests          # compiler, runtime and all gallery samples
-pwsh build/pack.ps1 -Version 0.1.1     # artifacts/packages/*.nupkg
-pwsh build/smoke.ps1 -Version 0.1.1    # install the packages in a clean folder, build every template
+pwsh build/pack.ps1 -Version 0.2.0     # artifacts/packages/*.nupkg
+pwsh build/smoke.ps1 -Version 0.2.0    # install the packages in a clean folder, build every template
 ```
 
-Releases are published by GitHub Actions in the Vibe_Framework repository: push a tag `jsnet-v0.1.1`, or run **Publish JS.Net to NuGet** manually (with `dry_run` on to rehearse). The workflow runs the full CI at that version and pushes exactly the tested packages using the `NUGET_API_KEY` repository secret.
+Releases are published by GitHub Actions in the Vibe_Framework repository: push a tag `jsnet-v0.2.0`, or run **Publish JS.Net to NuGet** manually (with `dry_run` on to rehearse). The workflow runs the full CI at that version and pushes exactly the tested packages using the `NUGET_API_KEY` repository secret.
 
 Packages: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

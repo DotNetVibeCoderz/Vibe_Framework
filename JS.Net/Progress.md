@@ -2,7 +2,7 @@
 
 > JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil. Roadmap: [PLAN.md](PLAN.md).
 
-## Status — 2026-10-27 (v0.2.0 candidate)
+## Status — 2026-10-27 (v0.2.0)
 
 | Area | State / Keadaan | Verified by / Diverifikasi dengan |
 |---|---|---|
@@ -19,7 +19,7 @@
 | Rust `jsnet-tools` | fmt, check, tokens, stats | `cargo test` |
 | Gallery | Blazor (+ server playground), WPF, WinForms, Avalonia, WebAssembly playground | Screenshots in `docs/images` |
 | Docs EN/ID | Updated for all of the above | — |
-| NuGet | 0.1.0 and 0.1.1 published (5 packages); 0.2.0 adds Analyzers, Web, EntityFramework, Blazor, Reactive | — |
+| NuGet | 0.1.0, 0.1.1 (5 packages) and 0.2.0 (10 packages: + Analyzers, Web, EntityFramework, Blazor, Reactive) | `jsnet-publish.yml` |
 
 ## Log / Catatan
 
@@ -52,8 +52,10 @@
 - `rule` declarations + `JSNet.Analyzers`; packages `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`; templates MAUI, Orleans, Aspire; Visual Studio extension and JetBrains setup.
 - Gallery: seven ecosystem samples on real NuGet packages (Gravicode.RLNet, Gravicode.Matplotlib.Net, Gravicode.Science.GraviLearn, Gravicode.HFNet.GraviTokenizers, Gravicode.MediaPipeNet, IoTCom.Net, ThreeNet); WebAssembly playground (`gallery/JSNet.Playground`) compiling with Roslyn in the browser — an async `Main` is awaited directly because the browser runtime cannot block.
 
+- 0.2.0: default version, SDK version, template `sdkVersion`, docs and VS Code extension moved to 0.2.0; released with tag `jsnet-v0.2.0` (10 packages).
+
 ## Next steps / Langkah berikutnya
-1. Release 0.2.0 (tag `jsnet-v0.2.0`) after confirmation.
+1. Watch 0.2.0 adoption; fix issues in 0.2.x.
 2. Host the WebAssembly playground as a static site.
 3. Publish the VS Code and Visual Studio extensions to their marketplaces.
 4. Union exhaustiveness checks; in-process build server.
