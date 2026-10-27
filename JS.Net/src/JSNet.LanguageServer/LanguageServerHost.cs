@@ -80,6 +80,13 @@ public sealed class LanguageServerHost
                     case "textDocument/definition": await RespondAsync(id, Definition(@params!)).ConfigureAwait(false); break;
                     case "textDocument/formatting": await RespondAsync(id, Formatting(@params!)).ConfigureAwait(false); break;
                     case "textDocument/references": await RespondAsync(id, References(@params!)).ConfigureAwait(false); break;
+                    case "textDocument/semanticTokens/full":
+                    {
+                        string stUri = @params!["textDocument"]!["uri"]!.GetValue<string>();
+                        var data = _documents.TryGetValue(stUri, out var stText) ? SemanticTokens.Encode(stText) : [];
+                        await RespondAsync(id, new JsonObject { ["data"] = new JsonArray(data.Select(v => (JsonNode)v).ToArray()) }).ConfigureAwait(false);
+                        break;
+                    }
                     case "textDocument/prepareRename": await RespondAsync(id, PrepareRename(@params!)).ConfigureAwait(false); break;
                     case "textDocument/rename": await RespondAsync(id, Rename(@params!)).ConfigureAwait(false); break;
                     case "textDocument/codeAction": await RespondAsync(id, CodeActions(@params!)).ConfigureAwait(false); break;
@@ -105,6 +112,15 @@ public sealed class LanguageServerHost
             ["documentSymbolProvider"] = true,
             ["definitionProvider"] = true,
             ["referencesProvider"] = true,
+            ["semanticTokensProvider"] = new JsonObject
+            {
+                ["legend"] = new JsonObject
+                {
+                    ["tokenTypes"] = new JsonArray(SemanticTokens.Legend.Select(t => (JsonNode)t).ToArray()),
+                    ["tokenModifiers"] = new JsonArray(),
+                },
+                ["full"] = true,
+            },
             ["renameProvider"] = new JsonObject { ["prepareProvider"] = true },
             ["codeActionProvider"] = new JsonObject { ["codeActionKinds"] = new JsonArray("quickfix") },
             ["documentFormattingProvider"] = true,

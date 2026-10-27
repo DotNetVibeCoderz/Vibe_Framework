@@ -123,6 +123,22 @@ public sealed class LanguageServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ProvidesSemanticTokens()
+    {
+        await Open("// note\nconst n: number = 42;\nconsole.log(`x ${n}`);\n");
+        var result = await Request("textDocument/semanticTokens/full", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = Uri } });
+        var data = result!["data"]!.AsArray().Select(v => v!.GetValue<int>()).ToList();
+        Assert.Equal(0, data.Count % 5);
+        var types = Enumerable.Range(0, data.Count / 5).Select(i => SemanticTokens.Legend[data[i * 5 + 3]]).ToList();
+        Assert.Equal("comment", types[0]);    // // note
+        Assert.Equal("keyword", types[1]);    // const
+        Assert.Contains("type", types);        // number
+        Assert.Contains("number", types);      // 42
+        Assert.Contains("function", types);    // log(
+        Assert.Contains("string", types);      // template
+    }
+
+    [Fact]
     public async Task OffersQuickFixes()
     {
         await Open("const limit = 1;\nlimit = 2;\nconsole.log(limit);\n");

@@ -1,0 +1,14 @@
+{
+  "id": "jsnet",
+  "name": "JS.Net",
+  "programArgs": {
+    "default": "jsnet lsp",
+    "windows": "jsnet.exe lsp"
+  },
+  "fileTypeMappings": [
+    {
+      "fileType": { "name": "JS.Net", "patterns": [ "*.jsn" ] },
+      "languageId": "jsnet"
+    }
+  ]
+}

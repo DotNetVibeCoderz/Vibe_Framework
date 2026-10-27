@@ -114,6 +114,12 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: jsnet-visualstudio-${{ steps.ver.outputs.version }}
+          path: ${{ steps.loc.outputs.dir }}/visualstudio/JSNet.VisualStudio/bin/Release/net8.0-windows8.0/JSNet.VisualStudio.vsix
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
           name: jsnet-packages-${{ steps.ver.outputs.version }}
           path: ${{ steps.loc.outputs.dir }}/artifacts/packages/*.nupkg
           if-no-files-found: error

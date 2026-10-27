@@ -35,4 +35,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/JSNet.Tests/JSNet.Tests.csproj" />
   </Folder>
+  <Folder Name="/visualstudio/">
+    <Project Path="visualstudio/JSNet.VisualStudio/JSNet.VisualStudio.csproj" />
+  </Folder>
 </Solution>
