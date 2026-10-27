@@ -88,7 +88,7 @@ export partial class MainWindow extends Window {
         this.SamplesView.Visibility = Visibility.Visible;
         this.ComponentsView.Visibility = Visibility.Collapsed;
         this.Eyebrow.Text = sample.category.ToUpperInvariant();
-        this.Title.Text = sample.title;
+        this.TitleText.Text = sample.title;
         this.Summary.Text = sample.summary;
         this.SourceTab.Content = sample.file;
         this.Output.Text = "Output appears here.";

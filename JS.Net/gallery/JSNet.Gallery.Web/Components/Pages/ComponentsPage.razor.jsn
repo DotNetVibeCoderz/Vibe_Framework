@@ -45,7 +45,7 @@ export partial class ComponentsPage extends ComponentBase implements IDisposable
     /** Lays bars out in a 320×180 viewBox. */
     static layoutBars(points: BarPoint[]): Bar[] {
         const max = points.max(p => p.value);
-        const slot = 300 / points.length;
+        const slot = 300.0 / points.length;
         return points.map((p, i) => {
             const height = p.value / max * 120;
             return new Bar(p.label, p.value, 10 + i * slot + slot * 0.18, 150 - height, slot * 0.64, height);

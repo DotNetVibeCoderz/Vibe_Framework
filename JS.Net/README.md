@@ -62,7 +62,7 @@ jsnet emit hello.jsn     # show the C# the compiler lowers it to
 A JS.Net project file:
 
 ```xml
-<Project Sdk="JSNet.Sdk/0.1.0">
+<Project Sdk="JSNet.Sdk/0.1.1">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -70,7 +70,7 @@ A JS.Net project file:
 </Project>
 ```
 
-For other SDKs (Web, Worker, WindowsDesktop) add JS.Net on top: `<Project Sdk="Microsoft.NET.Sdk.Web"> <Sdk Name="JSNet.Sdk" Version="0.1.0" />`.
+For other SDKs (Web, Worker, WindowsDesktop) add JS.Net on top: `<Project Sdk="Microsoft.NET.Sdk.Web"> <Sdk Name="JSNet.Sdk" Version="0.1.1" />`.
 
 ### Templates
 

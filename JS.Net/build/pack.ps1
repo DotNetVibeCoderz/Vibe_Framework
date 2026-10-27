@@ -22,7 +22,7 @@ if ($Version) {
     if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') { throw "'$Version' is not a semantic version" }
     $versionArgs = @("-p:JSNetVersion=$Version")
 }
-$effectiveVersion = if ($Version) { $Version } else { "0.1.0" }
+$effectiveVersion = if ($Version) { $Version } else { "0.1.1" }
 
 if (-not $SkipRust -and (Get-Command cargo -ErrorAction SilentlyContinue)) {
     Write-Host "==> Building native jsnet-tools (Rust)" -ForegroundColor Cyan
@@ -51,7 +51,8 @@ New-Item -ItemType Directory -Force (Split-Path $staging) | Out-Null
 Copy-Item -Recurse templates/JSNet.Templates $staging
 Get-ChildItem $staging -Recurse -Filter template.json | ForEach-Object {
     $json = Get-Content $_.FullName -Raw
-    $json = $json -replace '"defaultValue": "0\.1\.0"', "`"defaultValue`": `"$effectiveVersion`""
+    # `sdkVersion` is the only parameter with a defaultValue in the JS.Net templates.
+    $json = $json -replace '"defaultValue": "[^"]*"', "`"defaultValue`": `"$effectiveVersion`""
     [IO.File]::WriteAllText($_.FullName, $json)
 }
 

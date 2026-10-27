@@ -62,7 +62,7 @@ jsnet emit hello.jsn     # tampilkan C# hasil penurunan (lowering) oleh compiler
 File proyek JS.Net:
 
 ```xml
-<Project Sdk="JSNet.Sdk/0.1.0">
+<Project Sdk="JSNet.Sdk/0.1.1">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -70,7 +70,7 @@ File proyek JS.Net:
 </Project>
 ```
 
-Untuk SDK lain (Web, Worker, WindowsDesktop), tambahkan JS.Net di atasnya: `<Project Sdk="Microsoft.NET.Sdk.Web"> <Sdk Name="JSNet.Sdk" Version="0.1.0" />`.
+Untuk SDK lain (Web, Worker, WindowsDesktop), tambahkan JS.Net di atasnya: `<Project Sdk="Microsoft.NET.Sdk.Web"> <Sdk Name="JSNet.Sdk" Version="0.1.1" />`.
 
 ### Template
 

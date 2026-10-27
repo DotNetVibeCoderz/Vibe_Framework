@@ -34,7 +34,7 @@
             </Grid.RowDefinitions>
             <StackPanel>
                 <TextBlock x:Name="Eyebrow" Foreground="{StaticResource Yolk}" FontWeight="SemiBold" FontSize="11.5" />
-                <TextBlock x:Name="Title" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="38" Margin="0,6,0,4" />
+                <TextBlock x:Name="TitleText" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="38" Margin="0,6,0,4" />
                 <TextBlock x:Name="Summary" Foreground="#D6D0FB" FontSize="15" TextWrapping="Wrap" Margin="0,0,0,18" />
             </StackPanel>
             <Grid Grid.Row="1">

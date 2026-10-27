@@ -39,6 +39,10 @@
 - Moved into the Vibe_Framework monorepo (`JS.Net/`). Added `.github/workflows/jsnet-ci.yml` (Windows: build, tests, Rust tests, pack at a version, package smoke test of all 10 templates and the tool, VS Code extension) and `jsnet-publish.yml` (tag `jsnet-v*` or a manual run with `dry_run`; pushes with the `NUGET_API_KEY` repository secret).
 - `build/pack.ps1 -Version x.y.z` stamps every package and the templates' default SDK version; `build/smoke.ps1` verifies the packages from a clean folder. Verified locally at 0.0.0-ci.1.
 
+### 2026-10-27 — 0.1.0 published, 0.1.1
+- 0.1.0 published to nuget.org (JSNet.Runtime, JSNet.AI, JSNet.Sdk, JSNet.Cli, JSNet.Templates) by `jsnet-publish.yml`.
+- 0.1.1: gallery builds warning-free (WPF `Title` element renamed `TitleText` so it no longer hides `Window.Title`; Blazor chart layout uses `300.0 /` instead of integer division). Default version, template `sdkVersion` and docs moved to 0.1.1; `pack.ps1` stamps any previous template default.
+
 ## Next steps / Langkah berikutnya
 1. Publish: push the `jsnet-v0.1.0` tag (or run *Publish JS.Net to NuGet* with `dry_run` off); publish the VS Code extension to the Marketplace.
 2. Roslyn-backed semantic completion for .NET members in the language server.

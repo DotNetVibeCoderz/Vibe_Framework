@@ -2,7 +2,7 @@
   <Import Project="$(MSBuildThisFileDirectory)JSNet.Sdk.Version.props" Condition="Exists('$(MSBuildThisFileDirectory)JSNet.Sdk.Version.props')" />
 
   <PropertyGroup>
-    <JSNetSdkVersion Condition="'$(JSNetSdkVersion)' == ''">0.1.0</JSNetSdkVersion>
+    <JSNetSdkVersion Condition="'$(JSNetSdkVersion)' == ''">0.1.1</JSNetSdkVersion>
     <EnableDefaultJSNetItems Condition="'$(EnableDefaultJSNetItems)' == ''">true</EnableDefaultJSNetItems>
     <!-- JS.Net emits C# 14 (extension members, collection expressions). -->
     <LangVersion Condition="'$(LangVersion)' == ''">latest</LangVersion>
