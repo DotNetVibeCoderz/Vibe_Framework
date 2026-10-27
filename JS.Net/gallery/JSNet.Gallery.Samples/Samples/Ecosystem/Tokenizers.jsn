@@ -1,0 +1,21 @@
+// Hugging Face tokenizers in pure .NET with HF.Net (Gravicode.HFNet.GraviTokenizers): train a BPE tokenizer offline.
+// https://github.com/DotNetVibeCoderz/Vibe_ML/tree/main/HF.Net
+
+import Gravicode.HFNet.GraviTokenizers;
+
+const corpus = [
+    "JS.Net compiles JavaScript syntax to .NET IL.",
+    "JavaScript developers keep their syntax and .NET developers keep their runtime.",
+    "Tokenizers split text into tokens before a transformer model sees it.",
+    "Gravicode Studios builds open source libraries for .NET developers.",
+];
+
+export async function tokenizersDemo(): Promise<void> {
+    const tokenizer = Tokenizer.TrainBpe(corpus.concat(corpus).concat(corpus), 300, 2);
+    const encoding = tokenizer.Encode("JavaScript developers love .NET");
+
+    console.log(`vocabulary: ${tokenizer.VocabularySize} entries`);
+    console.log(`tokens: ${encoding.Tokens.join(" | ")}`);
+    console.log(`ids:    ${encoding.Ids.join(", ")}`);
+    console.log(`decoded: ${tokenizer.Decode(encoding.ToIdArray())}`);
+}

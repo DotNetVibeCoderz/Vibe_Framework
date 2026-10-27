@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <!--
+    JS.Net Playground: the JS.Net compiler and Roslyn running entirely in the browser (WebAssembly).
+    Static site — no server compiles or runs your code. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>JSNet.Playground</RootNamespace>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- User code may call any BCL API, so nothing can be trimmed away. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <JSNetNoWarn>JSN2001;JSN2002</JSNetNoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Compiler\JSNet.Compiler.csproj" />
+  </ItemGroup>
+</Project>

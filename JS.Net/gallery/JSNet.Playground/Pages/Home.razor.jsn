@@ -1,0 +1,63 @@
+import Microsoft.AspNetCore.Components;
+
+/** The playground page, written in JS.Net; the in-browser compiler lives in BrowserCompiler.cs. */
+export partial class Home extends ComponentBase {
+    examples: Example[] = Examples.All;
+    code: string = Examples.All[0].Code;
+    output: string = "Press Run. The first run downloads and warms up the compiler (a few seconds).";
+    lowered: string = "";
+    diagnostics = new Array<string>();
+    status: string = "Ready";
+    ok: bool = true;
+    running: bool = false;
+    tab: int = 0;
+    selected: int = 0;
+
+    /** `?example=N` picks an example and `?run=1` runs it as soon as the page opens (shareable links). */
+    @SupplyParameterFromQuery({ Name: "example" })
+    exampleQuery: string | null = null;
+    @SupplyParameterFromQuery({ Name: "run" })
+    autoRun: string | null = null;
+
+    protected override async OnAfterRenderAsync(firstRender: bool): Promise<void> {
+        if (!firstRender) return;
+        if (this.exampleQuery != null) this.select(parseInt(this.exampleQuery));
+        if (this.autoRun == "1") {
+            await this.run();
+            this.StateHasChanged();
+        }
+    }
+
+    pick(e: ChangeEventArgs): void {
+        this.select(parseInt(e.Value?.ToString() ?? "0"));
+    }
+
+    private select(index: int): void {
+        if (index < 0 || index >= this.examples.length) return;
+        this.selected = index;
+        this.code = this.examples[index].Code;
+    }
+
+    showOutput(): void { this.tab = 0; }
+    showLowered(): void { this.tab = 1; }
+    showDiagnostics(): void { this.tab = 2; }
+
+    async run(): Promise<void> {
+        this.running = true;
+        this.status = "Compiling in the browser…";
+        this.StateHasChanged();
+        await Task.Yield();
+        const result = await BrowserCompiler.RunAsync(this.code);
+        this.output = result.Output.length > 0 ? result.Output : (result.Success ? "(no output)" : "Did not run — see Diagnostics.");
+        this.lowered = result.Lowered;
+        this.diagnostics = result.Diagnostics.toList();
+        this.ok = result.Success;
+        this.status = result.Success
+            ? (result.CompileMs >= 1
+                ? `Compiled in ${result.CompileMs.toFixed(0)} ms · ran in ${result.RunMs.toFixed(0)} ms`
+                : "Compiled and ran in the browser")
+            : "Failed — fix the errors in Diagnostics";
+        if (!result.Success && this.diagnostics.length > 0) this.tab = 2; else this.tab = 0;
+        this.running = false;
+    }
+}

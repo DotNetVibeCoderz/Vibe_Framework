@@ -1,0 +1,35 @@
+@page "/"
+
+<PageTitle>JS.Net Playground</PageTitle>
+
+<div class="shell">
+    <header class="bar">
+        <a class="brand" href="./"><img src="icon.png" alt="" width="30" height="30" /><span><strong>JS.Net</strong> Playground</span></a>
+        <span class="where">Compiled and run in your browser — no server involved</span>
+        <label class="sr-only" for="example">Example</label>
+        <select id="example" @onchange="pick">
+            @for (var i = 0; i < examples.Length; i++)
+            {
+                <option value="@i" selected="@(i == selected)">@examples[i].Title</option>
+            }
+        </select>
+        <button class="run" @onclick="run" disabled="@running">@(running ? "Running…" : "Run")</button>
+    </header>
+
+    <main class="split">
+        <section class="pane">
+            <label class="sr-only" for="editor">JS.Net source</label>
+            <textarea id="editor" spellcheck="false" @bind="code" @bind:event="oninput"></textarea>
+        </section>
+        <section class="pane right">
+            <nav class="tabs" role="tablist">
+                <button role="tab" class="@(tab == 0 ? "on" : "")" @onclick="showOutput">Output</button>
+                <button role="tab" class="@(tab == 1 ? "on" : "")" @onclick="showLowered">Lowered C#</button>
+                <button role="tab" class="@(tab == 2 ? "on" : "")" @onclick="showDiagnostics">Diagnostics (@diagnostics.Count)</button>
+            </nav>
+            <p class="status @(ok ? "ok" : "bad")">@status</p>
+            <pre class="out">@(tab == 0 ? output : tab == 1 ? lowered : string.Join("\n", diagnostics))</pre>
+        </section>
+    </main>
+    <footer>JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil</footer>
+</div>

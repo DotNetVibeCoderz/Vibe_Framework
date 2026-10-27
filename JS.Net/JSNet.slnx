@@ -5,6 +5,7 @@
     <Project Path="gallery/JSNet.Gallery.Web/JSNet.Gallery.Web.csproj" />
     <Project Path="gallery/JSNet.Gallery.WinForms/JSNet.Gallery.WinForms.csproj" />
     <Project Path="gallery/JSNet.Gallery.Wpf/JSNet.Gallery.Wpf.csproj" />
+    <Project Path="gallery/JSNet.Playground/JSNet.Playground.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/HelloJsNet/HelloJsNet.csproj" />

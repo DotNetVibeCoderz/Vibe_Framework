@@ -1,0 +1,27 @@
+// Industrial IoT with IoTCom.Net: a Modbus server (PLC simulator) and client talking over an in-memory link.
+// https://github.com/DotNetVibeCoderz/Vibe_IoT/tree/main/IoTComNet
+
+import IoTCom.Net.Protocols.Modbus;
+import IoTCom.Net.Transports;
+
+export async function iotDemo(): Promise<void> {
+    const link = new InMemoryTransportListener("plc-1");
+    const store = new ModbusDataStore(16, 16, 16, 16);
+    const server = ModbusServer.Create(o => { o.UseListener(() => link).WithStore(store).WithIdentity("Gravicode", "JSNET-PLC"); });
+    await server.StartAsync();
+
+    const client = ModbusClient.Create(o => { o.UseTransport(() => link.Connect()).WithUnitId(1); });
+    await client.ConnectAsync();
+
+    await client.WriteSingleRegisterAsync(0, 2150);   // temperature ×100
+    await client.WriteSingleRegisterAsync(1, 4300);   // humidity ×100
+    await client.WriteSingleCoilAsync(3, true);       // pump on
+    const registers = await client.ReadHoldingRegistersAsync(0, 2);
+    const coils = await client.ReadCoilsAsync(3, 1);
+
+    console.log(`temperature ${(registers[0] / 100.0).toFixed(2)} °C, humidity ${(registers[1] / 100.0).toFixed(2)} %`);
+    console.log(`pump coil: ${coils[0]}, server handled ${server.RequestCount} requests`);
+
+    await client.DisconnectAsync();
+    await server.StopAsync();
+}

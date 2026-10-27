@@ -46,6 +46,13 @@ export class Catalog {
         new Sample("algorithms", "Algorithms", "Use cases", "Quicksort, sieve of Eratosthenes and binary search.", "Algorithms.jsn", () => algorithmsDemo()),
         new Sample("eventbus", "Event bus & state machine", "Use cases", "A generic pub/sub bus and an enum-driven state machine.", "EventBus.jsn", () => eventBusDemo()),
         new Sample("life", "Game of Life", "Use cases", "Conway's Life; also rendered natively on the Components page.", "GameOfLife.jsn", () => lifeDemo()),
+        new Sample("rlnet", "Reinforcement learning", "Ecosystem", "RLNet: a PPO agent learns CartPole on the CPU.", "Ecosystem/RlNet.jsn", () => rlnetDemo()),
+        new Sample("charts", "Charts (Visual.Net)", "Ecosystem", "Matplotlib-style plotting to SVG and PNG with Visual.Net.", "Ecosystem/Charts.jsn", () => chartsDemo()),
+        new Sample("science", "Data science", "Ecosystem", "Gravicode.Science: regression and datasets, NumPy/scikit-learn style.", "Ecosystem/Science.jsn", () => scienceDemo()),
+        new Sample("tokenizers", "Hugging Face tokenizers", "Ecosystem", "HF.Net: train and run a BPE tokenizer in pure .NET.", "Ecosystem/Tokenizers.jsn", () => tokenizersDemo()),
+        new Sample("mediapipe", "MediaPipe on device", "Ecosystem", "MediaPipeNet: language detection with a bundled model.", "Ecosystem/MediaPipe.jsn", () => mediapipeDemo()),
+        new Sample("iot", "Industrial IoT (Modbus)", "Ecosystem", "IoTCom.Net: a Modbus server and client over an in-memory link.", "Ecosystem/IoT.jsn", () => iotDemo()),
+        new Sample("three", "3D scene (ThreeNet)", "Ecosystem", "ThreeNet: scene graph, bounds and ray casting.", "Ecosystem/ThreeD.jsn", () => threeDemo()),
     ];
 
     static get categories(): string[] {
@@ -59,7 +66,7 @@ export class Catalog {
     /** Source text of a sample file (embedded resource). */
     static source(file: string): string {
         const asm = (typeof Catalog).Assembly;
-        using (const stream = asm.GetManifestResourceStream(`samples/${file}`)) {
+        using (const stream = asm.GetManifestResourceStream(`samples/${file.replace("/", ".")}`)) {
             if (stream == null) return `// ${file} not found`;
             using (const reader = new System.IO.StreamReader(stream)) {
                 return reader.ReadToEnd();

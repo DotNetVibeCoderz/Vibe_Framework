@@ -1,0 +1,19 @@
+// Machine learning with Gravicode.Science (NumPy / scikit-learn style for .NET): fit a regression and a clustering.
+// https://github.com/DotNetVibeCoderz/Vibe_ML/tree/main/GravicodeScience
+
+import Gravicode.Science.GraviLearn;
+import Gravicode.Science.GraviLearn.Linear;
+
+export async function scienceDemo(): Promise<void> {
+    const [x, y, trueCoefficients] = Datasets.MakeRegression(500, 3, 0.3, 42);
+    const model = new LinearRegression(true);
+    model.Fit(x, y);
+
+    console.log(`samples: 500, features: ${model.FeatureCount}`);
+    console.log(`R² on training data: ${model.Score(x, y).toFixed(4)}`);
+    console.log(`learned coefficients: ${model.Coefficients}`);
+    console.log(`true coefficients:    ${trueCoefficients}`);
+
+    const blobs = Datasets.MakeBlobs(150, 2, 3, 0.6, 7);
+    console.log(`blobs dataset: ${blobs.SampleCount} samples × ${blobs.FeatureCount} features`);
+}

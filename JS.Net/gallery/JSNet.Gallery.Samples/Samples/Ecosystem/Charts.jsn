@@ -1,0 +1,26 @@
+// Charts with Visual.Net (Gravicode.Matplotlib.Net): a Matplotlib-style API that renders SVG/PNG/PDF in pure .NET.
+// https://github.com/DotNetVibeCoderz/Vibe_Charting/tree/main/Visual.Net
+
+import Matplotlib.Net;
+import System.IO;
+
+export async function chartsDemo(): Promise<void> {
+    const figure = new Figure(8, 4.5);
+    const ax = figure.AddSubplot();
+
+    const x = Array.range(200).map(i => i * 4 * Math.PI / 199).toArray();
+    ax.Plot(x, x.map(v => Math.sin(v)).toArray(), "sin(x)");
+    ax.Plot(x, x.map(v => Math.cos(v) * 0.6).toArray(), "0.6 cos(x)");
+    ax.SetTitle("Rendered by Visual.Net from JS.Net");
+    ax.SetXLabel("x (radians)");
+    ax.Legend();
+
+    const svg = figure.ToSvg();
+    const png = figure.ToPng();
+    const path = Path.Combine(Path.GetTempPath(), "jsnet-visualnet-chart.png");
+    File.WriteAllBytes(path, png);
+
+    console.log(`figure: ${figure.PixelWidth}×${figure.PixelHeight} px, ${figure.Axes.Count} axes`);
+    console.log(`SVG: ${(svg.length / 1024).toFixed(1)} KB, starts with ${svg.substring(0, 4)}`);
+    console.log(`PNG: ${(png.length / 1024).toFixed(1)} KB saved to ${path}`);
+}

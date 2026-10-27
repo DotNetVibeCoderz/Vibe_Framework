@@ -323,6 +323,26 @@ public static class JsValueExtensions
         public string toLocaleString(string? locale = null) => value.ToString("N0", locale is null ? CultureInfo.CurrentCulture : CultureInfo.GetCultureInfo(locale));
     }
 
+    extension(float value)
+    {
+        public string toFixed(int digits = 0) => value.ToString("F" + digits, CultureInfo.InvariantCulture);
+        public string toPrecision(int digits) => value.ToString("G" + digits, CultureInfo.InvariantCulture);
+        public string toString() => JS.FormatNumber(value);
+    }
+
+    extension(long value)
+    {
+        public string toFixed(int digits = 0) => value.ToString("F" + digits, CultureInfo.InvariantCulture);
+        public string toString(int radix = 10) => radix == 10 ? value.ToString(CultureInfo.InvariantCulture) : Convert.ToString(value, radix);
+        public string toLocaleString(string? locale = null) => value.ToString("N0", locale is null ? CultureInfo.CurrentCulture : CultureInfo.GetCultureInfo(locale));
+    }
+
+    extension(decimal value)
+    {
+        public string toFixed(int digits = 0) => value.ToString("F" + digits, CultureInfo.InvariantCulture);
+        public string toLocaleString(string? locale = null) => value.ToString("N", locale is null ? CultureInfo.CurrentCulture : CultureInfo.GetCultureInfo(locale));
+    }
+
     extension(bool value)
     {
         public string toString() => value ? "true" : "false";

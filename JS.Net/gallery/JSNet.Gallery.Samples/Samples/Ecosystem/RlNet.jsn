@@ -1,0 +1,19 @@
+// Reinforcement learning with RLNet (Gravicode.RLNet): a PPO agent learns CartPole on the CPU.
+// https://github.com/DotNetVibeCoderz/Vibe_Library/tree/main/RLNet
+
+import RLNet;
+import RlCatalog = RLNet.Catalog;   // the Gallery has its own Catalog type
+import RLNet.Training;
+
+export async function rlnetDemo(): Promise<void> {
+    const environment = RlCatalog.CreateDiscrete("CartPole");
+    const agent = RlCatalog.CreateAgent(Algorithm.Ppo, environment.ObservationSpace, environment.ActionSpace, 1);
+
+    const before = Trainer.Evaluate(environment, agent, 5, 7);
+    const report = Trainer.Train(environment, agent, new TrainingOptions() { MaxSteps: 12000, Seed: 1 });
+    const after = Trainer.Evaluate(environment, agent, 5, 7);
+
+    console.log(`environments in the catalog: ${RlCatalog.Environments.Count}`);
+    console.log(`trained ${report.Episodes} episodes / ${report.TotalSteps} steps at ${report.StepsPerSecond.toFixed(0)} steps/s`);
+    console.log(`average return: ${before.toFixed(1)} before → ${after.toFixed(1)} after training`);
+}

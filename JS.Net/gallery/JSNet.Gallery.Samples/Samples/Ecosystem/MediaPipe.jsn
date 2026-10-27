@@ -1,0 +1,20 @@
+// On-device ML with MediaPipeNet (Gravicode.MediaPipeNet): detect the language of text with a bundled model.
+// https://github.com/DotNetVibeCoderz/Vibe_ML/tree/main/MediaPipeNet
+
+import MediaPipeNet.Tasks.Text;
+
+const sentences = [
+    "Selamat pagi, apa kabar?",
+    "Good morning, how are you?",
+    "Bonjour, comment allez-vous ?",
+    "Guten Morgen, wie geht es dir?",
+];
+
+export async function mediapipeDemo(): Promise<void> {
+    using (const detector = LanguageDetector.Create()) {
+        for (const sentence of sentences) {
+            const top = detector.Detect(sentence).TopLanguage;
+            console.log(`${sentence.padEnd(32)} → ${top?.LanguageCode} (${((top?.Probability ?? 0) * 100).toFixed(1)} %)`);
+        }
+    }
+}

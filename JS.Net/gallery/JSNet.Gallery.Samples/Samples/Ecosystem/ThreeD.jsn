@@ -1,0 +1,27 @@
+// 3D scenes with ThreeNet: build a scene graph, compute bounds and ray-cast against meshes (no window needed).
+// https://github.com/DotNetVibeCoderz/Vibe_Graphics/tree/main/ThreeNet
+
+import System.Numerics;
+import ThreeNet;
+
+export async function threeDemo(): Promise<void> {
+    using (const scene = new Scene()) {
+        const orange = scene.CreateMaterial(new Vector4(1.0f, 0.55f, 0.1f, 1.0f), 0.1f, 0.4f);
+        const violet = scene.CreateMaterial(new Vector4(0.32f, 0.17f, 0.83f, 1.0f), 0.0f, 0.6f);
+
+        const box = scene.AddMesh(scene.CreateBoxGeometry(1, 1, 1), orange, null, "box");
+        box.Position = new Vector3(-1.5f, 0, 0);
+        const ball = scene.AddMesh(scene.CreateSphereGeometry(0.75f), violet, null, "ball");
+        ball.Position = new Vector3(1.5f, 0, 0);
+
+        const bounds = scene.GetBounds();
+        console.log(`nodes: ${scene.NodeCount}, scene bounds: ${bounds.Min} → ${bounds.Max}`);
+
+        for (const target of [box, ball]) {
+            const origin = new Vector3(target.Position.X, 0, 5);
+            const hits = scene.Raycast(new Ray(origin, -Vector3.UnitZ));
+            const first = hits.first();
+            console.log(`ray towards '${target.Name}' hit '${first.Node.Name}' at distance ${first.Distance.toFixed(2)}`);
+        }
+    }
+}
