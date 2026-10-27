@@ -1,0 +1,9 @@
+namespace JsNetApp;
+
+import UIKit;
+
+export class Program {
+    static Main(args: string[]): void {
+        UIApplication.Main(args, null, typeof AppDelegate);
+    }
+}

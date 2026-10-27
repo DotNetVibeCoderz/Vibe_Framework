@@ -1,0 +1,10 @@
+namespace JsNetApp;
+
+import Foundation;
+
+@Register("AppDelegate")
+export class AppDelegate extends MauiUIApplicationDelegate {
+    protected override CreateMauiApp(): MauiApp {
+        return MauiProgram.CreateMauiApp();
+    }
+}

@@ -1,0 +1,6 @@
+export partial class AppShell extends Shell {
+    constructor() {
+        super();
+        this.InitializeComponent();
+    }
+}

@@ -1,0 +1,11 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Microsoft.AspNetCore.Builder;
+
+const app = WebApplication.CreateBuilder(args).Build();
+
+const forecasts = ["Freezing", "Cool", "Mild", "Warm", "Hot"];
+app.MapGet("/", () => "JS.Net API running under Aspire");
+app.MapGet("/weather", () => forecasts.map((summary, i) => ({ day: i + 1, summary: summary, celsius: 5 + i * 7 })));
+
+app.Run();

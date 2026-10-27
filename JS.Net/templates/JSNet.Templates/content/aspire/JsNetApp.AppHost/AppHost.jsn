@@ -1,0 +1,11 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Aspire.Hosting;
+
+// The Aspire app host: run it to start the dashboard and every resource below.
+const builder = DistributedApplication.CreateBuilder(args);
+
+const api = builder.AddProject<Projects.JsNetAppSafe_Api>("api")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();

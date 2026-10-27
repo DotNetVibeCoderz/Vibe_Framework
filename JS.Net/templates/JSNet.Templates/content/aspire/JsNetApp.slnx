@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="JsNetApp.AppHost/JsNetApp.AppHost.csproj" />
+  <Project Path="JsNetApp.Api/JsNetApp.Api.csproj" />
+</Solution>

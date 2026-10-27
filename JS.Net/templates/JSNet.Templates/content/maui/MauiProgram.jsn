@@ -1,0 +1,14 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+export class MauiProgram {
+    static CreateMauiApp(): MauiApp {
+        const builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts => {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            });
+        return builder.Build();
+    }
+}

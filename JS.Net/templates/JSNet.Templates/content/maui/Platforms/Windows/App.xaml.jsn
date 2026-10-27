@@ -1,0 +1,12 @@
+namespace JsNetApp.WinUI;
+
+export partial class App extends MauiWinUIApplication {
+    constructor() {
+        super();
+        this.InitializeComponent();
+    }
+
+    protected override CreateMauiApp(): MauiApp {
+        return MauiProgram.CreateMauiApp();
+    }
+}

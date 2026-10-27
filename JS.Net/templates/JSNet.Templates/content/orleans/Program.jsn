@@ -1,0 +1,20 @@
+import Microsoft.Extensions.DependencyInjection;
+import Microsoft.Extensions.Hosting;
+import Microsoft.Extensions.Logging;
+import Orleans;
+import Orleans.Hosting;
+
+const builder = Host.CreateApplicationBuilder(args);
+builder.Logging.SetMinimumLevel(LogLevel.Warning);
+builder.UseOrleans(silo => { silo.UseLocalhostClustering(); });
+
+const host = builder.Build();
+await host.StartAsync();
+
+const grains = host.Services.GetRequiredService<IGrainFactory>();
+const visits = grains.GetGrain<ICounterGrain>("homepage");
+await visits.increment(1);
+await visits.increment(41);
+console.log(`homepage visits: ${await visits.current()}`);
+
+await host.StopAsync();

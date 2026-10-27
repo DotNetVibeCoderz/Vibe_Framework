@@ -1,0 +1,15 @@
+namespace JsNetApp;
+
+import Android.App;
+import Android.Runtime;
+
+@Application
+export class MainApplication extends MauiApplication {
+    constructor(handle: IntPtr, ownership: JniHandleOwnership) {
+        super(handle, ownership);
+    }
+
+    protected override CreateMauiApp(): MauiApp {
+        return MauiProgram.CreateMauiApp();
+    }
+}

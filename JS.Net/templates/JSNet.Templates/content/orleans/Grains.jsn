@@ -1,0 +1,22 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Orleans;
+
+/** A virtual actor contract. Orleans generates the proxy from the C# the JS.Net compiler emits. */
+export interface ICounterGrain extends IGrainWithStringKey {
+    increment(by: int): Promise<int>;
+    current(): Promise<int>;
+}
+
+export class CounterGrain extends Grain implements ICounterGrain {
+    private value = 0;
+
+    async increment(by: int): Promise<int> {
+        this.value += by;
+        return this.value;
+    }
+
+    async current(): Promise<int> {
+        return this.value;
+    }
+}

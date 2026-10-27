@@ -23,6 +23,15 @@
     <None Remove="@(JSNetCompile)" />
   </ItemGroup>
 
+  <!-- .NET MAUI single projects: Platforms/<platform>/*.jsn only compile for that platform's target framework. -->
+  <ItemGroup Condition="'$(SingleProject)' == 'true'">
+    <JSNetCompile Remove="Platforms\Android\**" Condition="'$(TargetPlatformIdentifier)' != 'android'" />
+    <JSNetCompile Remove="Platforms\iOS\**" Condition="'$(TargetPlatformIdentifier)' != 'ios'" />
+    <JSNetCompile Remove="Platforms\MacCatalyst\**" Condition="'$(TargetPlatformIdentifier)' != 'maccatalyst'" />
+    <JSNetCompile Remove="Platforms\Windows\**" Condition="'$(TargetPlatformIdentifier)' != 'windows'" />
+    <JSNetCompile Remove="Platforms\Tizen\**" Condition="'$(TargetPlatformIdentifier)' != 'tizen'" />
+  </ItemGroup>
+
   <!-- Implicit runtime references (package flavour). In-repo builds use project references instead. -->
   <ItemGroup Condition="'$(JSNetUseProjectReferences)' != 'true'">
     <PackageReference Include="JSNet.Runtime" Version="$(JSNetSdkVersion)" IsImplicitlyDefined="true" Condition="'$(JSNetDisableImplicitRuntimeReference)' != 'true'" />

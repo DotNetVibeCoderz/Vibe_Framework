@@ -33,7 +33,7 @@ Write-Host "==> Installing JSNet.Templates $Version" -ForegroundColor Cyan
 dotnet new install (Join-Path $packages "JSNet.Templates.$Version.nupkg") --force
 Check "template install"
 
-$templates = @("console", "classlib", "webapi", "web", "blazor", "worker", "xunit", "avalonia")
+$templates = @("console", "classlib", "webapi", "web", "blazor", "worker", "xunit", "avalonia", "orleans", "aspire")
 if ($IsWindows -or $env:OS -eq "Windows_NT") { $templates += @("wpf", "winforms") }
 
 foreach ($t in $templates) {
@@ -43,6 +43,23 @@ foreach ($t in $templates) {
     dotnet build "Smoke_$t" -c Release --nologo
     Check "build jsnet-$t"
 }
+
+# .NET MAUI needs the maui workload; build it when the machine has it.
+if ((dotnet workload list) -match "maui") {
+    Write-Host "==> jsnet-maui" -ForegroundColor Cyan
+    dotnet new jsnet-maui -n Smoke_maui -o Smoke_maui
+    Check "dotnet new jsnet-maui"
+    $mauiTfm = if ($IsWindows -or $env:OS -eq "Windows_NT") { "net10.0-windows10.0.19041.0" } else { "net10.0-android" }
+    dotnet build Smoke_maui -c Release -f $mauiTfm --nologo
+    Check "build jsnet-maui"
+} else {
+    Write-Host "==> jsnet-maui skipped (maui workload not installed)" -ForegroundColor Yellow
+}
+
+Write-Host "==> Running the Orleans app" -ForegroundColor Cyan
+$orleans = dotnet run --project Smoke_orleans -c Release --no-build
+Check "run orleans"
+if (-not ($orleans -match "homepage visits: 42")) { throw "Orleans app output was unexpected" }
 
 Write-Host "==> Running the console app" -ForegroundColor Cyan
 $out = dotnet run --project Smoke_console -c Release --no-build

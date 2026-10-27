@@ -1,0 +1,10 @@
+export partial class App extends Application {
+    constructor() {
+        super();
+        this.InitializeComponent();
+    }
+
+    protected override CreateWindow(activationState: IActivationState | null): Window {
+        return new Window(new AppShell());
+    }
+}

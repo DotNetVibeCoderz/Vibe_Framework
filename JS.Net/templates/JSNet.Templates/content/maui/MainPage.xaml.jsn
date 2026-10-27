@@ -1,0 +1,14 @@
+export partial class MainPage extends ContentPage {
+    private count = 0;
+
+    constructor() {
+        super();
+        this.InitializeComponent();
+    }
+
+    private onCounterClicked(sender: object | null, e: EventArgs): void {
+        this.count++;
+        this.CounterBtn.Text = `Clicked ${this.count} time${this.count == 1 ? "" : "s"}`;
+        SemanticScreenReader.Announce(this.CounterBtn.Text);
+    }
+}
