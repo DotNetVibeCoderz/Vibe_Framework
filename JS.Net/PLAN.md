@@ -39,8 +39,8 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 | Language Server (diagnostics, completion, hover, definition, symbols, formatting, semantic tokens) | ✅ |
 | Roslyn-backed completion and hover for .NET members | ✅ |
 | Rename, find references, quick fixes | ✅ |
-| VS Code extension (grammar, snippets, LSP client) | ✅ |
-| Visual Studio extension (VisualStudio.Extensibility, LSP) | ✅ |
+| VS Code extension (grammar, snippets, LSP client) — Marketplace `GravicodeStudios.jsnet` | ✅ |
+| Visual Studio extension (VisualStudio.Extensibility, LSP) — Marketplace `GravicodeStudios.jsnet-visualstudio` | ✅ |
 | JetBrains Rider / IntelliJ via LSP4IJ template + TextMate bundle | ✅ |
 | Native Rust tools (formatter, checker, tokenizer, stats) | ✅ |
 | Debugging through `#line` PDB mapping | ✅ |
@@ -75,15 +75,13 @@ Legend / Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ planne
 | Blazor, WPF, WinForms, Avalonia front-ends | ✅ |
 | Browser playground (server-side, in the Blazor gallery) | ✅ |
 | Ecosystem samples: RLNet, Matplotlib.Net (Visual.Net), ThreeNet, GraviLearn, HF tokenizers, MediaPipeNet, IoTCom.Net | ✅ |
-| WebAssembly playground (client-side compiler, `gallery/JSNet.Playground`) + Pages workflow | ✅ |
+| WebAssembly playground (client-side compiler, `gallery/JSNet.Playground`) — live at https://dotnetvibecoderz.github.io/Vibe_Framework/ | ✅ |
 
 ## Backlog / Selanjutnya
 
 | Item | Notes |
 |---|---|
 | Incremental, in-process build server | Avoid one compiler process per build. |
-| Publish the VS Code / Visual Studio extensions to their marketplaces | VSIX files are CI artifacts today; needs publisher accounts/tokens. |
-| Turn on GitHub Pages for the playground | Workflow `jsnet-playground-pages.yml` is ready (manual); Pages is one site per repository. |
 
 ## Release / Rilis
 

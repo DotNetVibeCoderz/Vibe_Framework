@@ -59,8 +59,11 @@
 - JSN2006: `if / else if` chains of `instanceof` over a class union must handle every member (or end with `else`).
 - `jsnet-playground-pages.yml`: manual GitHub Pages deployment of the WebAssembly playground (verified locally as a static site under `/Vibe_Framework/`).
 
+- Playground live on GitHub Pages: https://dotnetvibecoderz.github.io/Vibe_Framework/ (verified: examples compile and run).
+- Marketplace: VS Code extension `GravicodeStudios.jsnet` 0.2.0 (vsce) and Visual Studio extension `GravicodeStudios.jsnet-visualstudio` 0.2.0 (VsixPublisher, `publishManifest.json` + `overview.md`). Publisher changed from the non-existent `gravicode-studios` to the existing `GravicodeStudios`.
+
 ## Next steps / Langkah berikutnya
 1. Watch 0.2.0 adoption; fix issues in 0.2.x.
-2. Enable GitHub Pages (source: GitHub Actions) and run `jsnet-playground-pages.yml` to host the playground.
-3. Publish the VS Code and Visual Studio extensions to their marketplaces (publisher accounts needed).
+2. Renew the NuGet API key (expires early November 2026) and update the `NUGET_API_KEY` secret.
+3. Optionally automate extension publishing in CI (`VSCE_PAT` secret).
 4. In-process build server.

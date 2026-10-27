@@ -52,7 +52,7 @@ Errors appear in MSBuild/IDE format against the original file, e.g. `Program.jsn
 
 `jsnet lsp` implements the Language Server Protocol over stdio: diagnostics (JS.Net and project-wide binding), completion (keywords, runtime globals, declarations, snippets, and **every .NET member** of the inferred type, resolved by Roslyn over the lowered code and the project's references), hover with .NET signatures, go to definition, find references, rename, quick fixes (`const` → `let`, remove unused declarations), semantic tokens, document symbols and formatting (through `jsnet-tools`).
 
-The VS Code extension (`vscode/jsnet-vscode`, packaged by CI as `jsnet-vscode.vsix`) adds the TextMate grammar, language configuration, snippets and the LSP client. Settings: `jsnet.server.command` (default `jsnet`) and `jsnet.server.args` (default `["lsp"]`).
+The VS Code extension ([`GravicodeStudios.jsnet`](https://marketplace.visualstudio.com/items?itemName=GravicodeStudios.jsnet) on the Marketplace; source `vscode/jsnet-vscode`) adds the TextMate grammar, language configuration, snippets and the LSP client. Settings: `jsnet.server.command` (default `jsnet`) and `jsnet.server.args` (default `["lsp"]`).
 
 ```bash
 cd vscode/jsnet-vscode
@@ -62,7 +62,7 @@ npx vsce package --allow-missing-repository
 
 ### Visual Studio
 
-`visualstudio/JSNet.VisualStudio` is a VisualStudio.Extensibility extension (VS 2022 17.14+) that starts `jsnet lsp` for `.jsn` files (or the compiler named by the `JSNET_PATH` environment variable). CI builds `JSNet.VisualStudio.vsix`; install it by double-clicking.
+`visualstudio/JSNet.VisualStudio` is a VisualStudio.Extensibility extension (VS 2022 17.14+) that starts `jsnet lsp` for `.jsn` files (or the compiler named by the `JSNET_PATH` environment variable). It is on the Marketplace as [JS.Net for Visual Studio](https://marketplace.visualstudio.com/items?itemName=GravicodeStudios.jsnet-visualstudio); CI also builds `JSNet.VisualStudio.vsix`. Publish with `VsixPublisher.exe publish -payload <vsix> -publishManifest publishManifest.json`.
 
 ### JetBrains Rider / IntelliJ
 
@@ -114,6 +114,6 @@ pwsh build/smoke.ps1 -Version 0.2.0    # install the packages in a clean folder,
 
 Releases are published by GitHub Actions in the Vibe_Framework repository: push a tag `jsnet-v0.2.0`, or run **Publish JS.Net to NuGet** manually (with `dry_run` on to rehearse). The workflow runs the full CI at that version and pushes exactly the tested packages using the `NUGET_API_KEY` repository secret.
 
-The WebAssembly playground deploys to GitHub Pages with the manual **JS.Net playground (GitHub Pages)** workflow (`jsnet-playground-pages.yml`; enable Pages with source *GitHub Actions* first).
+The WebAssembly playground (https://dotnetvibecoderz.github.io/Vibe_Framework/) deploys to GitHub Pages with the manual **JS.Net playground (GitHub Pages)** workflow (`jsnet-playground-pages.yml`; enable Pages with source *GitHub Actions* first).
 
 Packages: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

@@ -46,6 +46,7 @@ await delay(100);                                         // async/await on Task
 ```bash
 dotnet new install JSNet.Templates          # project templates
 dotnet tool install -g JSNet.Cli            # optional: the jsnet CLI (run scripts, LSP, formatter)
+code --install-extension GravicodeStudios.jsnet   # optional: VS Code support
 
 dotnet new jsnet -n HelloJsNet               # console app
 cd HelloJsNet
@@ -117,7 +118,7 @@ dotnet run --project gallery/JSNet.Gallery.Avalonia
 |---|---|
 | ![RLNet sample](docs/images/web-ecosystem-rlnet.png) | ![MediaPipeNet sample](docs/images/web-ecosystem-mediapipe.png) |
 
-**WebAssembly playground** — the JS.Net compiler and Roslyn running entirely in the browser; no server compiles or runs your code (`dotnet run --project gallery/JSNet.Playground`, `?example=N&run=1` links).
+**[WebAssembly playground](https://dotnetvibecoderz.github.io/Vibe_Framework/)** — the JS.Net compiler and Roslyn running entirely in the browser; no server compiles or runs your code (`dotnet run --project gallery/JSNet.Playground`, `?example=N&run=1` links).
 
 ![WebAssembly playground](docs/images/web-playground-wasm.png)
 

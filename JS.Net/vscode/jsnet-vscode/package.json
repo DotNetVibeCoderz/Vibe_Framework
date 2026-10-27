@@ -3,8 +3,17 @@
   "displayName": "JS.Net",
   "description": "JS.Net language support: syntax highlighting, diagnostics, completion, hover, go to definition, outline and formatting. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.",
   "version": "0.2.0",
-  "publisher": "gravicode-studios",
+  "publisher": "GravicodeStudios",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DotNetVibeCoderz/Vibe_Framework",
+    "directory": "JS.Net/vscode/jsnet-vscode"
+  },
+  "homepage": "https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/JS.Net",
+  "bugs": {
+    "url": "https://github.com/DotNetVibeCoderz/Vibe_Framework/issues"
+  },
   "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.90.0"

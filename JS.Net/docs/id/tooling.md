@@ -52,7 +52,7 @@ Error tampil dalam format MSBuild/IDE terhadap file aslinya, mis. `Program.jsn(1
 
 `jsnet lsp` mengimplementasikan Language Server Protocol lewat stdio: diagnostik (JS.Net dan binding seluruh proyek), completion (keyword, global runtime, deklarasi, snippet, dan **semua member .NET** dari tipe hasil inferensi, diselesaikan oleh Roslyn atas kode hasil penurunan dan referensi proyek), hover dengan signature .NET, go to definition, find references, rename, quick fix (`const` → `let`, hapus deklarasi tak terpakai), semantic token, document symbol, dan formatting (melalui `jsnet-tools`).
 
-Ekstensi VS Code (`vscode/jsnet-vscode`, dikemas oleh CI sebagai `jsnet-vscode.vsix`) menambahkan grammar TextMate, konfigurasi bahasa, snippet, dan klien LSP. Pengaturan: `jsnet.server.command` (default `jsnet`) dan `jsnet.server.args` (default `["lsp"]`).
+Ekstensi VS Code ([`GravicodeStudios.jsnet`](https://marketplace.visualstudio.com/items?itemName=GravicodeStudios.jsnet) di Marketplace; sumber `vscode/jsnet-vscode`) menambahkan grammar TextMate, konfigurasi bahasa, snippet, dan klien LSP. Pengaturan: `jsnet.server.command` (default `jsnet`) dan `jsnet.server.args` (default `["lsp"]`).
 
 ```bash
 cd vscode/jsnet-vscode
@@ -62,7 +62,7 @@ npx vsce package --allow-missing-repository
 
 ### Visual Studio
 
-`visualstudio/JSNet.VisualStudio` adalah ekstensi VisualStudio.Extensibility (VS 2022 17.14+) yang menjalankan `jsnet lsp` untuk file `.jsn` (atau compiler yang ditunjuk variabel lingkungan `JSNET_PATH`). CI membangun `JSNet.VisualStudio.vsix`; pasang dengan klik ganda.
+`visualstudio/JSNet.VisualStudio` adalah ekstensi VisualStudio.Extensibility (VS 2022 17.14+) yang menjalankan `jsnet lsp` untuk file `.jsn` (atau compiler yang ditunjuk variabel lingkungan `JSNET_PATH`). Tersedia di Marketplace sebagai [JS.Net for Visual Studio](https://marketplace.visualstudio.com/items?itemName=GravicodeStudios.jsnet-visualstudio); CI juga membangun `JSNet.VisualStudio.vsix`. Publikasikan dengan `VsixPublisher.exe publish -payload <vsix> -publishManifest publishManifest.json`.
 
 ### JetBrains Rider / IntelliJ
 
@@ -114,6 +114,6 @@ pwsh build/smoke.ps1 -Version 0.2.0    # pasang paket di folder bersih, build se
 
 Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.2.0`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
 
-Playground WebAssembly di-deploy ke GitHub Pages dengan workflow manual **JS.Net playground (GitHub Pages)** (`jsnet-playground-pages.yml`; aktifkan Pages dengan sumber *GitHub Actions* terlebih dahulu).
+Playground WebAssembly (https://dotnetvibecoderz.github.io/Vibe_Framework/) di-deploy ke GitHub Pages dengan workflow manual **JS.Net playground (GitHub Pages)** (`jsnet-playground-pages.yml`; aktifkan Pages dengan sumber *GitHub Actions* terlebih dahulu).
 
 Paket: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Analyzers`, `JSNet.Web`, `JSNet.EntityFramework`, `JSNet.Blazor`, `JSNet.Reactive`, `JSNet.Cli`, `JSNet.Templates`.

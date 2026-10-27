@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [ "coding", "programming languages" ],
+  "identity": {
+    "internalName": "jsnet-visualstudio"
+  },
+  "overview": "overview.md",
+  "priceCategory": "free",
+  "publisher": "GravicodeStudios",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/DotNetVibeCoderz/Vibe_Framework"
+}

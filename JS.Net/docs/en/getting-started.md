@@ -92,11 +92,11 @@ dotnet publish -c Release -r win-x64 -p:PublishAot=true
 
 ## 6. Editor support
 
-- **VS Code**: install the `jsnet-vscode.vsix` from the CI artifacts (*Extensions → … → Install from VSIX*). It needs the `jsnet` CLI on your PATH.
-- **Visual Studio**: install `JSNet.VisualStudio.vsix` (language server for `.jsn` files).
+- **VS Code**: install [JS.Net](https://marketplace.visualstudio.com/items?itemName=GravicodeStudios.jsnet) from the Marketplace (`code --install-extension GravicodeStudios.jsnet`). It needs the `jsnet` CLI on your PATH.
+- **Visual Studio**: install [JS.Net for Visual Studio](https://marketplace.visualstudio.com/items?itemName=GravicodeStudios.jsnet-visualstudio) (*Extensions → Manage Extensions*).
 - **Rider / IntelliJ**: LSP4IJ plus the template in [`jetbrains/`](../../jetbrains/README.md).
 - Everywhere: `.jsn` files build and debug through the SDK; breakpoints and stack traces point at `.jsn` lines thanks to `#line` mapping.
-- **No install**: the WebAssembly playground (`dotnet run --project gallery/JSNet.Playground`) compiles and runs JS.Net entirely in the browser.
+- **No install**: the [WebAssembly playground](https://dotnetvibecoderz.github.io/Vibe_Framework/) compiles and runs JS.Net entirely in the browser.
 
 ## Next
 

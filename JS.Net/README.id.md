@@ -46,6 +46,7 @@ await delay(100);                                         // async/await di atas
 ```bash
 dotnet new install JSNet.Templates          # template proyek
 dotnet tool install -g JSNet.Cli            # opsional: CLI jsnet (jalankan skrip, LSP, formatter)
+code --install-extension GravicodeStudios.jsnet   # opsional: dukungan VS Code
 
 dotnet new jsnet -n HelloJsNet               # aplikasi console
 cd HelloJsNet
@@ -117,7 +118,7 @@ dotnet run --project gallery/JSNet.Gallery.Avalonia
 |---|---|
 | ![Sampel RLNet](docs/images/web-ecosystem-rlnet.png) | ![Sampel MediaPipeNet](docs/images/web-ecosystem-mediapipe.png) |
 
-**Playground WebAssembly** — compiler JS.Net dan Roslyn berjalan sepenuhnya di browser; tidak ada server yang mengompilasi atau menjalankan kode Anda (`dotnet run --project gallery/JSNet.Playground`, tautan `?example=N&run=1`).
+**[Playground WebAssembly](https://dotnetvibecoderz.github.io/Vibe_Framework/)** — compiler JS.Net dan Roslyn berjalan sepenuhnya di browser; tidak ada server yang mengompilasi atau menjalankan kode Anda (`dotnet run --project gallery/JSNet.Playground`, tautan `?example=N&run=1`).
 
 ![Playground WebAssembly](docs/images/web-playground-wasm.png)
 
