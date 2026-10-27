@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Gravicode Studios (Kang Fadhil)",
+  "classifications": [
+    "JS.Net",
+    "Common",
+    "Library"
+  ],
+  "identity": "JSNet.Templates.classlib",
+  "groupIdentity": "JSNet.classlib",
+  "name": "JS.Net Class Library",
+  "description": "A class library written in JS.Net, consumable from C#, F# and VB.NET. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.",
+  "shortName": [
+    "jsnet-classlib"
+  ],
+  "sourceName": "JsNetApp",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "JS.Net",
+    "type": "project"
+  },
+  "symbols": {
+    "sdkVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "0.1.0",
+      "replaces": "JSNET_SDK_VERSION",
+      "description": "JSNet.Sdk / JSNet.Runtime version."
+    }
+  }
+}

@@ -1,0 +1,9 @@
+// JS.Net — Hello World
+import { Greeter } from "./Greeter";
+
+const greeter = new Greeter("JS.Net");
+console.log(greeter.greet());
+console.log(`Running on .NET ${Environment.Version} — ${process.platform}`);
+
+const squares = Array.range(10).map(n => n * n);
+console.log("squares:", squares, "sum:", squares.sum());

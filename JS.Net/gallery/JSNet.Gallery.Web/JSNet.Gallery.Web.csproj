@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- JS.Net Gallery for the web: Blazor (interactive server) with code-behind written in JS.Net. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>JSNet.Gallery.Web</RootNamespace>
+    <JSNetNoWarn>JSN2001;JSN2002</JSNetNoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Gallery.Samples\JSNet.Gallery.Samples.csproj" />
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Scripting\JSNet.Scripting.csproj" />
+  </ItemGroup>
+</Project>

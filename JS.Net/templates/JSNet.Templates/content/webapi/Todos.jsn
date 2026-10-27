@@ -1,0 +1,28 @@
+export class Todo {
+    id: int = 0;
+    title: string = "";
+    done: bool = false;
+}
+
+@Service(ServiceScope.Singleton)
+export class TodoStore {
+    private items = new Array<Todo>();
+    private nextId = 1;
+
+    constructor() {
+        this.add("Try JS.Net");
+        this.add("Ship something great");
+    }
+
+    all(): Todo[] {
+        return this.items.toArray();
+    }
+
+    add(title: string): Todo {
+        const todo = new Todo();
+        todo.id = this.nextId++;
+        todo.title = title;
+        this.items.push(todo);
+        return todo;
+    }
+}

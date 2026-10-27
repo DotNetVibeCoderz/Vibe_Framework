@@ -1,0 +1,10 @@
+bin/
+obj/
+artifacts/
+target/
+node_modules/
+*.user
+.vs/
+*.vsix
+TestResults/
+templates/.staging/

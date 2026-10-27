@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net recursive-descent parser.</Description>
+    <RootNamespace>JSNet.Parsing</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Syntax\JSNet.Syntax.csproj" />
+  </ItemGroup>
+</Project>

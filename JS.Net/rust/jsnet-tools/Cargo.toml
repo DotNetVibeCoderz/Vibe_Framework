@@ -1,0 +1,16 @@
+[package]
+name = "jsnet-tools"
+version = "0.1.0"
+edition = "2021"
+description = "Native high-performance tooling for JS.Net: formatter, fast syntax checker, tokenizer and code statistics. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil."
+license = "MIT"
+authors = ["Gravicode Studios (Kang Fadhil)"]
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

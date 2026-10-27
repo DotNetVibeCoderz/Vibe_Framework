@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net syntax layer: source text, tokens, lexer, AST and diagnostics.</Description>
+  </PropertyGroup>
+</Project>

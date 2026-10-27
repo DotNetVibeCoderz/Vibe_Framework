@@ -1,0 +1,34 @@
+// Exceptions: JavaScript-style errors are real CLR exceptions (catchable from C# too).
+
+export class ValidationError extends Error {
+    constructor(public readonly field: string, message: string) {
+        super(message);
+    }
+}
+
+function parseAge(text: string): int {
+    const value = parseInt(text);
+    if (isNaN(parseFloat(text))) throw new ValidationError("age", `'${text}' is not a number`);
+    if (value < 0) throw new RangeError("age cannot be negative");
+    return value;
+}
+
+export async function errorsDemo(): Promise<void> {
+    for (const input of ["42", "-3", "abc"]) {
+        try {
+            console.log(`parseAge('${input}') =`, parseAge(input));
+        } catch (e: ValidationError) {
+            console.log(`ValidationError on '${e.field}': ${e.message}`);
+        } catch (e) {
+            console.log(`${e.name}: ${e.message}`);
+        } finally {
+            console.log("  (checked", input + ")");
+        }
+    }
+
+    try {
+        throw "a plain string can be thrown too";
+    } catch (e) {
+        console.log("caught:", e.message);
+    }
+}

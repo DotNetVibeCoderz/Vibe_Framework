@@ -1,0 +1,10 @@
+import System.Windows.Forms;
+
+/** A double-buffered panel for flicker-free owner drawing. */
+export class Surface extends Panel {
+    constructor() {
+        super();
+        this.DoubleBuffered = true;
+        this.ResizeRedraw = true;
+    }
+}

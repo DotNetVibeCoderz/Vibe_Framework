@@ -1,0 +1,97 @@
+# Tooling
+
+> JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil. · [English](../en/tooling.md)
+
+## CLI `jsnet` (`JSNet.Cli`)
+
+```bash
+dotnet tool install -g JSNet.Cli
+```
+
+| Perintah | Deskripsi |
+|---|---|
+| `jsnet run <file.jsn \| dir> [-- args]` | Kompilasi di memori dengan Roslyn lalu jalankan. Set `JSNET_TRACE=1` untuk stack trace. |
+| `jsnet emit <file.jsn> [--line] [--all]` | Cetak C# yang dihasilkan. |
+| `jsnet check <file \| dir> [--library]` | Hanya diagnostik. |
+| `jsnet compile --out <dir> [--root-namespace N] [--project-dir D] [--library] [--no-line] [--nowarn kode] <file \| @rsp>` | Pembangkitan kode yang dipakai MSBuild SDK. |
+| `jsnet fmt <file \| dir> [--check]` | Format dengan formatter native Rust. |
+| `jsnet new <template> [args]` | Pintasan untuk `dotnet new jsnet-<template>`. |
+| `jsnet lsp` | Menjalankan language server di stdio. |
+| `jsnet info`, `jsnet --version` | Informasi versi. |
+
+## MSBuild SDK (`JSNet.Sdk`)
+
+```xml
+<Project Sdk="JSNet.Sdk/0.1.0"> … </Project>
+<!-- atau di atas SDK lain -->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <Sdk Name="JSNet.Sdk" Version="0.1.0" />
+</Project>
+```
+
+Yang terjadi saat `dotnet build`:
+
+1. Mengumpulkan `**/*.jsn` ke `@(JSNetCompile)`.
+2. Menjalankan `jsnet compile` secara inkremental (hanya bila file `.jsn`, proyek, atau compiler berubah) ke `obj/<config>/<tfm>/jsnet/*.g.cs`.
+3. Menambahkan file hasil ke `@(Compile)`. Roslyn mengompilasinya bersama file C# di proyek — mencampur JS.Net dan C# dalam satu proyek didukung.
+4. Mereferensikan `JSNet.Runtime` secara implisit.
+
+| Properti | Default | Arti |
+|---|---|---|
+| `EnableDefaultJSNetItems` | `true` | Sertakan `**/*.jsn` secara otomatis. |
+| `JSNetRootNamespace` | `$(RootNamespace)` | Namespace dasar untuk namespace folder. |
+| `JSNetNoWarn` | — | Peringatan JS.Net yang disembunyikan, dipisah titik koma (mis. `JSN2001;JSN2002`). |
+| `JSNetEmitLineDirectives` | `true` | Petakan error, PDB, dan stack trace ke baris `.jsn`. |
+| `JSNetEnableAI` | `false` | Referensikan `JSNet.AI` untuk `ai function`/`prompt`. |
+| `JSNetDisableImplicitRuntimeReference` | `false` | Jangan referensikan `JSNet.Runtime` secara otomatis. |
+| `JSNetCompilerPath` | bawaan | Pakai build compiler yang lain. |
+
+Error tampil dalam format MSBuild/IDE terhadap file aslinya, mis. `Program.jsn(12,7): error CS0029: Cannot implicitly convert type 'string' to 'double'`.
+
+## Language server dan VS Code
+
+`jsnet lsp` mengimplementasikan Language Server Protocol lewat stdio: diagnostik (JS.Net dan binding seluruh proyek), completion (keyword, global runtime, member, deklarasi, snippet), hover, go to definition, document symbol, dan formatting (melalui `jsnet-tools`).
+
+Ekstensi VS Code (`vscode/jsnet-vscode`, dikemas sebagai `artifacts/vscode/jsnet-0.1.0.vsix`) menambahkan grammar TextMate, konfigurasi bahasa, snippet, dan klien LSP. Pengaturan: `jsnet.server.command` (default `jsnet`) dan `jsnet.server.args` (default `["lsp"]`).
+
+```bash
+cd vscode/jsnet-vscode
+npm install
+npx vsce package --allow-missing-repository
+```
+
+## Tool native Rust (`jsnet-tools`)
+
+Binary Rust tanpa dependensi untuk pekerjaan yang diuntungkan kecepatan native dan paralelisme:
+
+| Perintah | Deskripsi |
+|---|---|
+| `jsnet-tools fmt <file \| dir> [--check] [--stdin] [--indent N]` | Formatter yang sadar token: indentasi ulang berdasarkan kedalaman kurung (termasuk badan `case` dan rantai yang diawali titik), menghapus spasi di akhir baris, merapatkan baris kosong; tidak pernah mengubah isi string/template/komentar. |
+| `jsnet-tools check <file \| dir>` | Validasi leksikal paralel: string/template/komentar yang tidak ditutup, kurung tidak seimbang. |
+| `jsnet-tools tokens <file>` | Tampilkan daftar token. |
+| `jsnet-tools stats <file \| dir>` | Jumlah baris, token, tipe, dan fungsi beserta throughput lexer. |
+
+```bash
+cd rust/jsnet-tools
+cargo build --release
+cargo test
+```
+
+`jsnet fmt` dan language server menemukan binary lewat `JSNET_TOOLS_PATH`, di samping CLI (`native/`), atau di `PATH`. Paket SDK menyertakan build Windows.
+
+## Template
+
+`dotnet new install JSNet.Templates` memasang sepuluh template (lihat [README](../../README.id.md#template)). Setiap template menerima `--sdkVersion` untuk mengunci versi JS.Net.
+
+## Build dan pack repositori
+
+```bash
+dotnet build JSNet.slnx
+dotnet test tests/JSNet.Tests          # compiler, runtime, dan semua sampel gallery
+pwsh build/pack.ps1 -Version 0.1.0     # artifacts/packages/*.nupkg
+pwsh build/smoke.ps1 -Version 0.1.0    # pasang paket di folder bersih, build semua template
+```
+
+Rilis dipublikasikan oleh GitHub Actions di repositori Vibe_Framework: push tag `jsnet-v0.1.0`, atau jalankan **Publish JS.Net to NuGet** secara manual (aktifkan `dry_run` untuk gladi). Workflow menjalankan CI lengkap pada versi tersebut dan mem-push paket yang persis sudah diuji memakai secret repositori `NUGET_API_KEY`.
+
+Paket: `JSNet.Sdk`, `JSNet.Runtime`, `JSNet.AI`, `JSNet.Cli`, `JSNet.Templates`.

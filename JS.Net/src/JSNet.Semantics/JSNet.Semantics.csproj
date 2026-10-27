@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net semantic analysis: binder, type mapping, type inference and built-in analyzers.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Syntax\JSNet.Syntax.csproj" />
+  </ItemGroup>
+</Project>

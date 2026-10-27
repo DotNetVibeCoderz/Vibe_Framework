@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shared JS.Net Gallery content, written in JS.Net: samples, component view-models and the code highlighter. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>JSNet.Gallery</RootNamespace>
+    <JSNetEnableAI>true</JSNetEnableAI>
+    <JSNetNoWarn>JSN2001;JSN2002;JSN2003</JSNetNoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Samples\*.jsn" LogicalName="samples/%(Filename)%(Extension)" />
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Compiler\JSNet.Compiler.csproj" />
+  </ItemGroup>
+</Project>

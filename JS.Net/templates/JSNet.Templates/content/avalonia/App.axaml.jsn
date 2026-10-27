@@ -1,0 +1,17 @@
+import Avalonia;
+import Avalonia.Controls.ApplicationLifetimes;
+import Avalonia.Markup.Xaml;
+
+export partial class App extends Application {
+    override Initialize(): void {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    override OnFrameworkInitializationCompleted(): void {
+        const desktop = this.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        if (desktop != null) {
+            desktop.MainWindow = new MainWindow();
+        }
+        super.OnFrameworkInitializationCompleted();
+    }
+}

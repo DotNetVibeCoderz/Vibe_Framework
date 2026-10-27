@@ -1,0 +1,30 @@
+// JSON.stringify/parse are backed by System.Text.Json; typed parsing produces real CLR objects.
+
+export class Order {
+    id: int = 0;
+    customer: string = "";
+    items: string[] = [];
+    total: number = 0;
+}
+
+export async function jsonDemo(): Promise<void> {
+    const order = new Order();
+    order.id = 1001;
+    order.customer = "Gravicode Studios";
+    order.items = ["license", "support"];
+    order.total = 249.5;
+
+    const json = JSON.stringify(order);
+    console.log("stringify:", json);
+
+    const typed = JSON.parse<Order>(json);
+    console.log("typed parse:", typed.customer, typed.items.length, "items");
+
+    const loose = JSON.parse('{"city":"Bandung","tags":["coffee","code"],"rating":4.8}');
+    console.log("dynamic parse:", loose.city, loose.tags[1], loose.rating);
+
+    console.table([
+        { language: "JS.Net", runtime: "CoreCLR", typing: "static + dynamic" },
+        { language: "JavaScript", runtime: "V8", typing: "dynamic" },
+    ]);
+}

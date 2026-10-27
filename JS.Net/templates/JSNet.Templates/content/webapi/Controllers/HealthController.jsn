@@ -1,0 +1,10 @@
+import Microsoft.AspNetCore.Mvc;
+
+@ApiController
+@Route("api/[controller]")
+export class HealthController extends ControllerBase {
+    [HttpGet]
+    get(): object {
+        return { status: "healthy", runtime: Environment.Version.ToString(), at: new Date().toISOString() };
+    }
+}

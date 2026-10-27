@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JsNetApp.MainWindow"
+        Title="JsNetApp — JS.Net + Avalonia" Width="520" Height="320" Background="#0F172A">
+    <StackPanel Margin="32" Spacing="12" VerticalAlignment="Center">
+        <TextBlock Text="Hello from JS.Net + Avalonia" FontSize="26" FontWeight="SemiBold" />
+        <TextBlock x:Name="CounterText" Text="Not clicked yet" Foreground="#94A3B8" />
+        <Button Content="Click me" Click="onClick" Background="#FBBF24" Foreground="#111" />
+        <TextBlock Text="Gravicode Studios dipimpin oleh Kang Fadhil" FontSize="11" Foreground="#64748B" />
+    </StackPanel>
+</Window>

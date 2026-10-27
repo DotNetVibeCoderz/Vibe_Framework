@@ -1,0 +1,95 @@
+// The JS.Net Gallery catalog: shared by the Blazor, WPF, WinForms and Avalonia front-ends.
+// Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import System.Reflection;
+import JSNet.Compiler;
+import JSNet.Syntax;
+
+export class Sample {
+    constructor(
+        public readonly id: string,
+        public readonly title: string,
+        public readonly category: string,
+        public readonly summary: string,
+        public readonly file: string,
+        public readonly run: () => Promise<void>) {}
+}
+
+export class SampleResult {
+    output: string = "";
+    error: string | null = null;
+    milliseconds: number = 0;
+    get ok(): bool { return this.error == null; }
+}
+
+export class Catalog {
+    static readonly credit = "JS.Net — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil";
+
+    static readonly samples: Sample[] = [
+        new Sample("basics", "Variables & types", "Language", "let/const, CLR type mapping, dynamic, nullability and truthiness.", "Basics.jsn", () => basicsDemo()),
+        new Sample("functions", "Functions & closures", "Language", "Default and rest parameters, arrow functions, closures and composition.", "Functions.jsn", () => functionsDemo()),
+        new Sample("classes", "Classes & inheritance", "Language", "Real CLR classes with overriding, getters, statics and parameter properties.", "Classes.jsn", () => classesDemo()),
+        new Sample("generics", "Interfaces & generics", "Language", "Constrained generic repository over CLR generics, data interfaces.", "Generics.jsn", () => genericsDemo()),
+        new Sample("enums", "Enums & switch", "Language", "Numeric and string enums, fall-through and switch(true).", "EnumsSwitch.jsn", () => enumsDemo()),
+        new Sample("destructuring", "Destructuring & spread", "Language", "Object/array destructuring, swaps, spread and Map iteration.", "Destructuring.jsn", () => destructuringDemo()),
+        new Sample("errors", "Errors & exceptions", "Language", "Custom Error classes, typed catch clauses and finally.", "Errors.jsn", () => errorsDemo()),
+        new Sample("async", "Async & promises", "Async", "async/await on Tasks, Promise.all, Promise.race and setTimeout.", "AsyncAwait.jsn", () => asyncDemo()),
+        new Sample("generators", "Generators", "Async", "function* as lazy IEnumerable with lower-case LINQ.", "Generators.jsn", () => generatorsDemo()),
+        new Sample("collections", "Collections & LINQ", "Data", "map/filter/reduce, groupBy, Set and sorting.", "Collections.jsn", () => collectionsDemo()),
+        new Sample("json", "JSON & tables", "Data", "JSON.stringify/parse (typed and dynamic) and console.table.", "Json.jsn", () => jsonDemo()),
+        new Sample("interop", ".NET interop", ".NET", "StringBuilder, Regex, SHA-256, LINQ and Stopwatch straight from the BCL.", "Interop.jsn", () => interopDemo()),
+        new Sample("performance", "Typed vs dynamic", ".NET", "Benchmark: typed loops JIT to native code; dynamic pays for late binding.", "Performance.jsn", () => performanceDemo()),
+        new Sample("ai", "AI-native functions", "AI", "ai function and prompt declarations on Microsoft.Extensions.AI.", "AiNative.jsn", () => aiDemo()),
+        new Sample("bank", "Bank account", "Use cases", "Domain model with events, validation and a statement.", "BankAccount.jsn", () => bankDemo()),
+        new Sample("inventory", "Sales report", "Use cases", "Group, aggregate and tabulate a sales ledger.", "Inventory.jsn", () => inventoryDemo()),
+        new Sample("text", "Text analytics", "Use cases", "Word frequencies with Map and string APIs.", "TextAnalytics.jsn", () => textDemo()),
+        new Sample("algorithms", "Algorithms", "Use cases", "Quicksort, sieve of Eratosthenes and binary search.", "Algorithms.jsn", () => algorithmsDemo()),
+        new Sample("eventbus", "Event bus & state machine", "Use cases", "A generic pub/sub bus and an enum-driven state machine.", "EventBus.jsn", () => eventBusDemo()),
+        new Sample("life", "Game of Life", "Use cases", "Conway's Life; also rendered natively on the Components page.", "GameOfLife.jsn", () => lifeDemo()),
+    ];
+
+    static get categories(): string[] {
+        return Catalog.samples.select(s => s.category).distinct().toArray();
+    }
+
+    static find(id: string): Sample | null {
+        return Catalog.samples.firstOrDefault(s => s.id == id);
+    }
+
+    /** Source text of a sample file (embedded resource). */
+    static source(file: string): string {
+        const asm = (typeof Catalog).Assembly;
+        using (const stream = asm.GetManifestResourceStream(`samples/${file}`)) {
+            if (stream == null) return `// ${file} not found`;
+            using (const reader = new System.IO.StreamReader(stream)) {
+                return reader.ReadToEnd();
+            }
+        }
+    }
+
+    /** The C# the JS.Net compiler lowers a sample to (what Roslyn turns into IL). */
+    static lowered(file: string): string {
+        const text = new SourceText(Catalog.source(file), file);
+        const options = new JsNetCompilationOptions() { IsLibrary: true, EmitLineDirectives: false, RootNamespace: "JSNet.Gallery" };
+        const result = JsNetCompiler.Compile([text], options);
+        return result.Files[0].Text;
+    }
+
+    /** Runs a sample and captures everything it prints. */
+    static async runSample(id: string): Promise<SampleResult> {
+        const result = new SampleResult();
+        const sample = Catalog.find(id);
+        if (sample == null) {
+            result.error = `Unknown sample '${id}'.`;
+            return result;
+        }
+        const started = Date.now();
+        try {
+            result.output = await console.capture(sample.run);
+        } catch (e) {
+            result.error = `${e.GetType().Name}: ${e.message}`;
+        }
+        result.milliseconds = Date.now() - started;
+        return result;
+    }
+}

@@ -1,0 +1,16 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)JSNet.Sdk.Version.props" Condition="Exists('$(MSBuildThisFileDirectory)JSNet.Sdk.Version.props')" />
+
+  <PropertyGroup>
+    <JSNetSdkVersion Condition="'$(JSNetSdkVersion)' == ''">0.1.0</JSNetSdkVersion>
+    <EnableDefaultJSNetItems Condition="'$(EnableDefaultJSNetItems)' == ''">true</EnableDefaultJSNetItems>
+    <!-- JS.Net emits C# 14 (extension members, collection expressions). -->
+    <LangVersion Condition="'$(LangVersion)' == ''">latest</LangVersion>
+    <DefaultLanguageSourceExtension>.jsn</DefaultLanguageSourceExtension>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets IDEs offer "JSNetCompile" as a build action for .jsn files. -->
+    <AvailableItemName Include="JSNetCompile" />
+  </ItemGroup>
+</Project>

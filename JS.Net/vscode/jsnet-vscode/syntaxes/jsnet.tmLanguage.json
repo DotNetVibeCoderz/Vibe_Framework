@@ -1,0 +1,202 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "JS.Net",
+  "scopeName": "source.jsnet",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#decorators"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.documentation.jsnet",
+          "begin": "/\\*\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.block.jsnet",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.double-slash.jsnet",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.jsnet",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.jsnet",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "name": "string.template.jsnet",
+          "begin": "`",
+          "end": "`",
+          "patterns": [
+            {
+              "include": "#escapes"
+            },
+            {
+              "name": "meta.template.expression.jsnet",
+              "begin": "\\$\\{",
+              "end": "\\}",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.definition.template-expression.begin.jsnet"
+                }
+              },
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.template-expression.end.jsnet"
+                }
+              },
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "escapes": {
+      "name": "constant.character.escape.jsnet",
+      "match": "\\\\(u\\{[0-9A-Fa-f]+\\}|u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|.)"
+    },
+    "decorators": {
+      "patterns": [
+        {
+          "name": "entity.name.function.decorator.jsnet",
+          "match": "@[A-Za-z_][\\w.]*"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(class|interface|enum|struct|record|prompt|namespace|type)\\s+([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.jsnet"
+            },
+            "2": {
+              "name": "entity.name.type.jsnet"
+            }
+          }
+        },
+        {
+          "match": "\\b(function)\\s*\\*?\\s*([A-Za-z_$][\\w$]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.jsnet"
+            },
+            "2": {
+              "name": "entity.name.function.jsnet"
+            }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.jsnet",
+          "match": "\\b(if|else|for|of|in|while|do|switch|case|default|break|continue|return|throw|try|catch|finally|yield|await|using)\\b"
+        },
+        {
+          "name": "storage.modifier.jsnet",
+          "match": "\\b(export|import|from|as|async|static|public|private|protected|internal|readonly|abstract|override|virtual|sealed|partial|declare|get|set|extends|implements|ai)\\b"
+        },
+        {
+          "name": "storage.type.jsnet",
+          "match": "\\b(let|const|var|dynamic|function|class|interface|enum|struct|record|prompt|namespace|type|constructor)\\b"
+        },
+        {
+          "name": "keyword.operator.expression.jsnet",
+          "match": "\\b(new|typeof|instanceof|delete|void|is)\\b"
+        },
+        {
+          "name": "constant.language.jsnet",
+          "match": "\\b(true|false|null|undefined|NaN|Infinity)\\b"
+        },
+        {
+          "name": "variable.language.jsnet",
+          "match": "\\b(this|super)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.jsnet",
+          "match": "\\b(number|int|long|float|double|decimal|byte|short|char|string|bool|boolean|object|any|unknown|void|never|bigint)\\b"
+        },
+        {
+          "name": "support.class.jsnet",
+          "match": "\\b(Promise|Array|Map|Set|Record|Iterable|Date|Error|JSON|Math|console|Object|Number|String)\\b"
+        },
+        {
+          "name": "entity.name.type.jsnet",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.jsnet",
+      "match": "\\b(0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9]+)?[LlMmFfDdUu]*)\\b"
+    },
+    "functions": {
+      "name": "entity.name.function.call.jsnet",
+      "match": "\\b[a-z_$][\\w$]*(?=\\s*(<[^>]*>)?\\s*\\()"
+    },
+    "operators": {
+      "name": "keyword.operator.jsnet",
+      "match": "=>|\\?\\?=?|\\?\\.|===?|!==?|<=|>=|&&=?|\\|\\|=?|\\*\\*=?|[-+*/%&|^~!<>=]=?"
+    }
+  }
+}

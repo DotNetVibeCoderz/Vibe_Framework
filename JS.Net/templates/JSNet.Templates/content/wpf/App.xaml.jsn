@@ -1,0 +1,3 @@
+import System.Windows;
+
+export partial class App extends Application {}

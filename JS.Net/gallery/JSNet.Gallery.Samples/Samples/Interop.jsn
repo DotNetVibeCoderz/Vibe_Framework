@@ -1,0 +1,26 @@
+// The entire .NET base class library is available directly — no bindings, no wrappers.
+
+import System.Text;
+import System.Text.RegularExpressions;
+import System.Diagnostics;
+import System.Security.Cryptography;
+
+export async function interopDemo(): Promise<void> {
+    const sb = new StringBuilder();
+    for (let i = 0; i < 3; i++) sb.Append("JS.Net ").Append(i).Append("; ");
+    console.log(sb.ToString().TrimEnd());
+
+    const emails = new Regex("[\\w.]+@[\\w.]+\\.\\w+");
+    const text = "Contact: fadhil@gravicode.dev, studio@example.org";
+    console.log("emails:", emails.Matches(text).Select(m => m.Value).ToList());
+
+    const hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("JS.Net")));
+    console.log("SHA-256:", hash.substring(0, 16) + "…");
+
+    const sw = Stopwatch.StartNew();
+    const primes = Enumerable.Range(2, 50000).Where(n => Enumerable.Range(2, (Math.sqrt(n) as int) - 1).All(d => n % d != 0)).Count();
+    console.log(`${primes} primes below 50,002 in ${sw.ElapsedMilliseconds} ms`);
+
+    console.log("today:", DateTime.Today.ToString("dddd, dd MMMM yyyy"));
+    console.log("guid:", Guid.NewGuid().ToString().length, "chars;", "machine cores:", Environment.ProcessorCount);
+}

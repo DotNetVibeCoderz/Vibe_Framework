@@ -1,0 +1,39 @@
+// Classes compile to real CLR classes: inheritance, overriding, getters/setters, statics and parameter properties.
+
+export class Shape {
+    static created = 0;
+
+    constructor(public readonly name: string) {
+        Shape.created++;
+    }
+
+    area(): number { return 0; }
+
+    describe(): string {
+        return `${this.name} with area ${this.area().toFixed(2)}`;
+    }
+}
+
+export class Circle extends Shape {
+    constructor(private radius: number) { super("circle"); }
+    area(): number { return Math.PI * this.radius ** 2; }
+}
+
+export class Rectangle extends Shape {
+    constructor(private width: number, private height: number) { super("rectangle"); }
+    area(): number { return this.width * this.height; }
+
+    get isSquare(): bool { return this.width == this.height; }
+}
+
+export async function classesDemo(): Promise<void> {
+    const shapes: Shape[] = [new Circle(1.5), new Rectangle(2, 3), new Rectangle(4, 4)];
+    for (const s of shapes) console.log(s.describe());
+
+    const biggest = shapes.orderByDescending(s => s.area()).first();
+    console.log("biggest:", biggest.name);
+    console.log("shapes created:", Shape.created);
+
+    const square = shapes[2] as Rectangle;
+    console.log("is the last one a square?", square.isSquare, "| instanceof Circle?", shapes[0] instanceof Circle);
+}

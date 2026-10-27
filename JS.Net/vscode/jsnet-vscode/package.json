@@ -1,0 +1,96 @@
+{
+  "name": "jsnet",
+  "displayName": "JS.Net",
+  "description": "JS.Net language support: syntax highlighting, diagnostics, completion, hover, go to definition, outline and formatting. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.",
+  "version": "0.1.0",
+  "publisher": "gravicode-studios",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters",
+    "Snippets"
+  ],
+  "keywords": [
+    "jsnet",
+    "javascript",
+    "typescript",
+    "dotnet",
+    "csharp"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:jsnet"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jsnet",
+        "aliases": [
+          "JS.Net",
+          "jsnet"
+        ],
+        "extensions": [
+          ".jsn"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/icon.png",
+          "dark": "./images/icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jsnet",
+        "scopeName": "source.jsnet",
+        "path": "./syntaxes/jsnet.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "jsnet",
+        "path": "./snippets/jsnet.json"
+      }
+    ],
+    "configuration": {
+      "title": "JS.Net",
+      "properties": {
+        "jsnet.server.command": {
+          "type": "string",
+          "default": "jsnet",
+          "description": "Command that starts the JS.Net CLI (install with: dotnet tool install -g JSNet.Cli)."
+        },
+        "jsnet.server.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "lsp"
+          ],
+          "description": "Arguments passed to the CLI to start the language server."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "jsnet.restartServer",
+        "title": "JS.Net: Restart language server"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.1"
+  },
+  "scripts": {
+    "package": "vsce package --allow-missing-repository"
+  }
+}

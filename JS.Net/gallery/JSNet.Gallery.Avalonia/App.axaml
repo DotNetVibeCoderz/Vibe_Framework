@@ -1,0 +1,54 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="JSNet.Gallery.Avalonia.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="ToggleButton.nav">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#E9E5FF" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="FontSize" Value="13.5" />
+        </Style>
+        <Style Selector="ToggleButton.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF" />
+        </Style>
+        <Style Selector="ToggleButton.nav:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="#512BD4" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="ToggleButton.tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#B9AEF5" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="ToggleButton.tab:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#FBBF24" />
+            <Setter Property="Foreground" Value="#E9E5FF" />
+        </Style>
+        <Style Selector="ToggleButton.tab:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#11FFFFFF" />
+        </Style>
+        <Style Selector="Button.run">
+            <Setter Property="Background" Value="#FBBF24" />
+            <Setter Property="Foreground" Value="#120F33" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Padding" Value="18,10" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Button.run:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FCD34D" />
+            <Setter Property="Foreground" Value="#120F33" />
+        </Style>
+    </Application.Styles>
+</Application>

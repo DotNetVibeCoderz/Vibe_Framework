@@ -1,0 +1,25 @@
+// AI-native declarations. Without configuration an offline echo client answers, so this runs anywhere.
+// In an app: AiRuntime.configure(chatClient) with any Microsoft.Extensions.AI IChatClient (OpenAI, Ollama, Semantic Kernel...).
+
+import JSNet.AI;
+
+ai function summarize(text: string): Promise<string> {
+    `Summarize in one sentence: ${text}`
+}
+
+prompt Translator {
+    text: string;
+    language: string;
+    output: string;
+    template: `Translate "${text}" into ${language}.`;
+}
+
+export async function aiDemo(): Promise<void> {
+    console.log("client:", AiRuntime.client.GetType().Name);
+    console.log(await summarize("JS.Net compiles TypeScript-style code to IL and runs on CoreCLR."));
+    const translator = new Translator();
+    translator.text = "Selamat pagi";
+    translator.language = "English";
+    console.log("rendered prompt:", translator.render());
+    console.log(await Translator.run("Terima kasih", "Japanese"));
+}

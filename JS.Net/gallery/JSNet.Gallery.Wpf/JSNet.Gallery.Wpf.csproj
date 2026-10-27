@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- JS.Net Gallery for WPF: XAML views with code-behind written in JS.Net. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>JSNet.Gallery.Wpf</RootNamespace>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <JSNetNoWarn>JSN2001;JSN2002</JSNetNoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Gallery.Samples\JSNet.Gallery.Samples.csproj" />
+    <Resource Include="icon.png" />
+  </ItemGroup>
+</Project>

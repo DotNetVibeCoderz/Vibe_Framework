@@ -1,0 +1,29 @@
+import Microsoft.AspNetCore.Components;
+import JSNet.Scripting;
+
+export partial class Home extends ComponentBase {
+    snippet: string = `class Greeter {
+    constructor(private name: string) {}
+    greet() { return \`Hello, \${this.name}!\`; }
+}
+
+const langs = ["JS.Net", "C#", "F#"];
+console.log(langs.map(l => new Greeter(l).greet()));`;
+
+    lowered: string = "";
+    output: string = "running…";
+
+    protected override async OnInitializedAsync(): Promise<void> {
+        const result = await JsNetScript.RunAsync(this.snippet, "source.jsn", new ScriptOptions() { CaptureOutput: true });
+        const generated = result.GeneratedFiles.first().Text;
+        // Show only the interesting part: the class and the entry point.
+        const start = generated.IndexOf("public partial class Greeter");
+        const body = start >= 0 ? generated.substring(start).TrimEnd("} \n\r".ToCharArray()) : generated;
+        this.lowered = Home.dedent(body.split("\n").filter(l => !l.TrimStart().startsWith("#line")).join("\n"));
+        this.output = result.Success ? result.Output : result.Diagnostics.join("\n");
+    }
+
+    private static dedent(text: string): string {
+        return text.split("\n").map(l => l.startsWith("    ") ? l.substring(4) : l).join("\n").trim();
+    }
+}

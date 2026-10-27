@@ -1,0 +1,45 @@
+// Interfaces and generics map directly to CLR interfaces and generics (no erasure, no boxing).
+
+export interface Entity {
+    id: int;
+}
+
+export interface Product extends Entity {
+    name: string;
+    price: number;
+}
+
+export class Repository<T extends Entity> {
+    private items = new Map<int, T>();
+
+    add(item: T): Repository<T> {
+        this.items.set(item.id, item);
+        return this;
+    }
+
+    find(id: int): T | null {
+        return this.items.get(id);
+    }
+
+    get count(): int { return this.items.size; }
+
+    all(): T[] { return this.items.values().toArray(); }
+}
+
+function firstOrFallback<T>(items: T[], fallback: T): T {
+    return items.length > 0 ? items[0] : fallback;
+}
+
+export async function genericsDemo(): Promise<void> {
+    const repo = new Repository<Product>();
+    // Object literals can target data-only interfaces.
+    const keyboard: Product = { id: 1, name: "Keyboard", price: 49.9 };
+    const mouse: Product = { id: 2, name: "Mouse", price: 19.5 };
+    repo.add(keyboard).add(mouse);
+
+    console.log("products:", repo.count);
+    console.log("find(2):", repo.find(2)?.name);
+    console.log("find(9):", repo.find(9)?.name ?? "not found");
+    console.log("cheapest:", repo.all().orderBy(p => p.price).first().name);
+    console.log("firstOrFallback:", firstOrFallback<string>([], "empty"));
+}

@@ -1,0 +1,12 @@
+<Window x:Class="JsNetApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="JsNetApp — JS.Net + WPF" Height="320" Width="520" Background="#0F172A">
+    <StackPanel Margin="32" VerticalAlignment="Center">
+        <TextBlock Text="Hello from JS.Net + WPF" FontSize="26" FontWeight="SemiBold" Foreground="#F8FAFC" />
+        <TextBlock x:Name="CounterText" Text="Not clicked yet" Margin="0,12,0,20" FontSize="16" Foreground="#94A3B8" />
+        <Button Content="Click me" Click="onClick" Width="140" Height="38" HorizontalAlignment="Left"
+                Background="#FBBF24" BorderThickness="0" FontWeight="SemiBold" />
+        <TextBlock Text="Gravicode Studios dipimpin oleh Kang Fadhil" Margin="0,24,0,0" FontSize="11" Foreground="#64748B" />
+    </StackPanel>
+</Window>

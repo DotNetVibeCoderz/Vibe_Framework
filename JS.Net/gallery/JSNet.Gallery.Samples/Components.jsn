@@ -1,0 +1,78 @@
+// Platform-neutral component logic. Each Gallery front-end renders these with its native controls.
+
+export class TodoItem {
+    constructor(public title: string, public done: bool = false) {}
+}
+
+export class TodoList {
+    items = new Array<TodoItem>();
+
+    constructor() {
+        this.add("Write JS.Net");
+        this.add("Compile to IL");
+        this.add("Ship to every platform");
+        this.items[0].done = true;
+    }
+
+    add(title: string): void {
+        const trimmed = title.trim();
+        if (trimmed.length > 0) this.items.push(new TodoItem(trimmed));
+    }
+
+    toggle(index: int): void { this.items[index].done = !this.items[index].done; }
+    remove(index: int): void { this.items.splice(index, 1); }
+    clearDone(): void { this.items = this.items.filter(t => !t.done); }
+
+    get remaining(): int { return this.items.count(t => !t.done); }
+    get summary(): string { return `${this.remaining} of ${this.items.length} left`; }
+}
+
+export class BarPoint {
+    constructor(public readonly label: string, public readonly value: number) {}
+}
+
+export class ChartData {
+    /** Revenue per region from the Sales report sample. */
+    static revenueByRegion(): BarPoint[] {
+        return salesData()
+            .groupBy(s => s.region)
+            .select(g => new BarPoint(g.Key, g.sum(s => s.units * s.price)))
+            .orderByDescending(p => p.value)
+            .toArray();
+    }
+
+    /** A smooth wave for line charts. */
+    static wave(points: int, phase: number): number[] {
+        const values = new Array<number>();
+        for (let i = 0; i < points; i++) values.push(Math.sin(i / 4 + phase) * 0.6 + Math.sin(i / 9 + phase * 0.5) * 0.4);
+        return values.toArray();
+    }
+}
+
+/** Design tokens shared by the desktop galleries (same palette as the web gallery and the JS.Net icon). */
+export class Palette {
+    static readonly midnight = "#120F33";
+    static readonly indigo = "#1E1A5C";
+    static readonly codeBackground = "#0D0B26";
+    static readonly consoleBackground = "#07061A";
+    static readonly violet = "#512BD4";
+    static readonly lavender = "#B9AEF5";
+    static readonly mist = "#E9E5FF";
+    static readonly yolk = "#FBBF24";
+    static readonly mint = "#6EE7B7";
+    static readonly rose = "#FB7185";
+
+    static colorFor(kind: TokenClass): string {
+        switch (kind) {
+            case TokenClass.Keyword: return "#C4B5FD";
+            case TokenClass.Type: return "#7DD3FC";
+            case TokenClass.String: return "#FDE68A";
+            case TokenClass.Number: return "#FDBA74";
+            case TokenClass.Comment: return "#7C74B8";
+            case TokenClass.Function: return "#6EE7B7";
+            case TokenClass.Decorator: return "#FB7185";
+            case TokenClass.Punctuation: return "#A39BD9";
+            default: return "#E4E0FF";
+        }
+    }
+}

@@ -1,0 +1,122 @@
+<Window x:Class="JSNet.Gallery.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="JS.Net Gallery — WPF" Width="1320" Height="820" MinWidth="960" MinHeight="600"
+        Background="{StaticResource Midnight}" Foreground="{StaticResource Mist}"
+        FontFamily="Segoe UI" Icon="icon.png" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Rail -->
+        <Border Background="{StaticResource Indigo}">
+            <DockPanel Margin="14,18">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,0,0,14">
+                    <Image Source="icon.png" Width="34" Height="34" />
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontFamily="{StaticResource Display}" FontSize="19">
+                        <Run Text="JS.Net" Foreground="{StaticResource Yolk}" FontWeight="Bold" /><Run Text=" Gallery" />
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock x:Name="Credit" DockPanel.Dock="Bottom" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Lavender}" Margin="6,12,6,0" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="Nav" />
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Samples view -->
+        <Grid x:Name="SamplesView" Grid.Column="1" Margin="36,28,36,28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackPanel>
+                <TextBlock x:Name="Eyebrow" Foreground="{StaticResource Yolk}" FontWeight="SemiBold" FontSize="11.5" />
+                <TextBlock x:Name="Title" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="38" Margin="0,6,0,4" />
+                <TextBlock x:Name="Summary" Foreground="#D6D0FB" FontSize="15" TextWrapping="Wrap" Margin="0,0,0,18" />
+            </StackPanel>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.6*" />
+                    <ColumnDefinition Width="18" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Background="{StaticResource Indigo}" CornerRadius="14" BorderBrush="#24FFFFFF" BorderThickness="1">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                            <ToggleButton x:Name="SourceTab" Style="{StaticResource TabButton}" IsChecked="True" />
+                            <ToggleButton x:Name="LoweredTab" Style="{StaticResource TabButton}" Content="Lowered C#" />
+                        </StackPanel>
+                        <Border Background="{StaticResource CodeBg}" CornerRadius="0,0,14,14">
+                            <RichTextBox x:Name="CodeBox" IsReadOnly="True" Background="Transparent" BorderThickness="0" Padding="12"
+                                         FontFamily="{StaticResource Mono}" FontSize="13" Foreground="#E4E0FF"
+                                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+                        </Border>
+                    </DockPanel>
+                </Border>
+                <DockPanel Grid.Column="2">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="RunButton" Content="Run sample" Style="{StaticResource RunButton}" />
+                        <TextBlock x:Name="RunMeta" VerticalAlignment="Center" Margin="14,0,0,0" FontSize="12" Foreground="{StaticResource Mint}" />
+                    </StackPanel>
+                    <Border Background="#07061A" CornerRadius="14" BorderBrush="#556EE7B7" BorderThickness="1">
+                        <TextBox x:Name="Output" IsReadOnly="True" Background="Transparent" BorderThickness="0" Padding="14"
+                                 FontFamily="{StaticResource Mono}" FontSize="12.5" Foreground="{StaticResource Mint}"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="Output appears here." />
+                    </Border>
+                </DockPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Components view -->
+        <Grid x:Name="ComponentsView" Grid.Column="1" Margin="36,28,36,28" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.ColumnSpan="3" Margin="0,0,0,18">
+                <TextBlock Text="BUILD WITH IT" Foreground="{StaticResource Yolk}" FontWeight="SemiBold" FontSize="11.5" />
+                <TextBlock Text="UI components" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="38" Margin="0,6,0,4" />
+                <TextBlock Text="TodoList, ChartData and LifeBoard are JS.Net classes; this window draws them with WPF." Foreground="#D6D0FB" FontSize="15" />
+            </StackPanel>
+
+            <Border Grid.Row="1" Background="{StaticResource Indigo}" CornerRadius="14" Padding="20" Height="280">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Todo list" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" />
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button x:Name="AddTodo" DockPanel.Dock="Right" Content="Add" Style="{StaticResource RunButton}" Margin="8,0,0,0" />
+                        <TextBox x:Name="TodoInput" Background="#0D0B26" Foreground="{StaticResource Mist}" BorderBrush="#33FFFFFF" Padding="8,6" CaretBrush="{StaticResource Yolk}" />
+                    </DockPanel>
+                    <TextBlock x:Name="TodoSummary" DockPanel.Dock="Bottom" Foreground="{StaticResource Lavender}" Margin="0,8,0,0" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel x:Name="TodoItems" /></ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Row="1" Grid.Column="2" Background="{StaticResource Indigo}" CornerRadius="14" Padding="20" Height="280">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Revenue by region" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" />
+                    <Canvas x:Name="Chart" />
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Row="2" Grid.ColumnSpan="3" Background="{StaticResource Indigo}" CornerRadius="14" Padding="20" Margin="0,18,0,0">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button x:Name="PlayLife" DockPanel.Dock="Right" Content="Play" Style="{StaticResource RunButton}" />
+                        <TextBlock Text="Game of Life" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="18" />
+                        <TextBlock x:Name="LifeStatus" Foreground="{StaticResource Lavender}" Margin="14,4,0,0" />
+                    </DockPanel>
+                    <Canvas x:Name="LifeCanvas" ClipToBounds="True" />
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

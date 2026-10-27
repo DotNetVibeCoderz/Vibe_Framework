@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <JSNetCompilerPath Condition="'$(JSNetCompilerPath)' == ''">$(JSNetRepoRoot)src\JSNet.Cli\bin\$(Configuration)\net10.0\jsnet.dll</JSNetCompilerPath>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(JSNetSkipInRepoReferences)' != 'true'">
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Cli\JSNet.Cli.csproj" ReferenceOutputAssembly="false" Private="false" SkipGetTargetFrameworkProperties="true" GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained;PublishAot" />
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Runtime\JSNet.Runtime.csproj" />
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.AI\JSNet.AI.csproj" Condition="'$(JSNetEnableAI)' == 'true'" />
+  </ItemGroup>
+  <Import Project="$(JSNetRepoRoot)src\JSNet.Sdk\build\JSNet.Sdk.targets" />
+</Project>

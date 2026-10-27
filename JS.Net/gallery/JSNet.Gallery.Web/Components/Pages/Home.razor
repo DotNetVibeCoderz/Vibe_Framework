@@ -1,0 +1,46 @@
+@page "/"
+
+<PageTitle>JS.Net Gallery</PageTitle>
+
+<section class="hero">
+    <p class="eyebrow">JavaScript syntax · CLR performance</p>
+    <h1>Write it like JavaScript.<br /><em>Ship it as .NET.</em></h1>
+    <p class="lede">
+        Every sample in this gallery is a <code>.jsn</code> file compiled by the JS.Net compiler, lowered to C#,
+        turned into IL by Roslyn and executed on CoreCLR — the same pipeline your apps use.
+    </p>
+</section>
+
+<section class="pipeline" aria-label="The JS.Net pipeline, live">
+    <div class="pane">
+        <header><span class="tag">source.jsn</span><span>you write</span></header>
+        <CodeView Code="@snippet" />
+    </div>
+    <div class="arrow" aria-hidden="true">jsnet →</div>
+    <div class="pane">
+        <header><span class="tag tag-cs">lowered.cs</span><span>the compiler emits</span></header>
+        <CodeView Code="@lowered" />
+    </div>
+    <div class="arrow" aria-hidden="true">Roslyn · CoreCLR →</div>
+    <div class="pane pane-out">
+        <header><span class="tag tag-out">stdout</span><span>it runs</span></header>
+        <pre class="console">@output</pre>
+    </div>
+</section>
+
+<section class="facts">
+    <div><strong>@Catalog.samples.Length</strong><span>runnable samples</span></div>
+    <div><strong>@Catalog.categories.Length</strong><span>topics, from language basics to AI</span></div>
+    <div><strong>4</strong><span>front-ends: Blazor, WPF, WinForms, Avalonia</span></div>
+</section>
+
+<section class="platforms">
+    <h2>One sample library, four native front-ends</h2>
+    <div class="platform-grid">
+        <article><h3>Blazor</h3><p>This site. Razor markup with code-behind written in JS.Net, served by an ASP.NET Core host whose <code>Program.jsn</code> is JS.Net too.</p></article>
+        <article><h3>WPF</h3><p>XAML views and <code>.xaml.jsn</code> code-behind; the Game of Life board is drawn on a WPF canvas.</p></article>
+        <article><h3>WinForms</h3><p>Forms built entirely in JS.Net code with owner-drawn charts and a RichTextBox code viewer.</p></article>
+        <article><h3>Avalonia</h3><p>Cross-platform XAML with compiled bindings, running the same samples on Windows, macOS and Linux.</p></article>
+    </div>
+    <a class="cta" href="samples/basics">Open the first sample</a>
+</section>

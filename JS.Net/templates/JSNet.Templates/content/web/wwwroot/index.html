@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>JsNetApp</title>
+<style>body{font-family:system-ui;margin:4rem;background:#0f172a;color:#e2e8f0}code{color:#facc15}</style></head>
+<body>
+  <h1>JsNetApp</h1>
+  <p>Served by an ASP.NET Core app written in <code>JS.Net</code>.</p>
+  <p id="time">…</p>
+  <script>fetch('/api/time').then(r => r.json()).then(d => document.getElementById('time').textContent = d.now);</script>
+  <footer><small>JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil</small></footer>
+</body>
+</html>

@@ -1,0 +1,42 @@
+import Microsoft.AspNetCore.Components;
+
+export partial class SamplePage extends ComponentBase {
+    @Parameter
+    Id: string = "";
+
+    /** `?run=1` runs the sample as soon as the page opens (shareable "run" links). */
+    @SupplyParameterFromQuery({ Name: "run" })
+    autoRun: string | null = null;
+
+    sample: Sample | null = null;
+    source: string = "";
+    lowered: string = "";
+    showLowered: bool = false;
+    running: bool = false;
+    result: SampleResult | null = null;
+
+    protected override async OnParametersSetAsync(): Promise<void> {
+        this.load();
+        if (this.autoRun == "1") await this.run();
+    }
+
+    private load(): void {
+        this.sample = Catalog.find(this.Id);
+        this.result = null;
+        this.showLowered = false;
+        if (this.sample != null) {
+            this.source = Catalog.source(this.sample.file);
+            this.lowered = Catalog.lowered(this.sample.file);
+        }
+    }
+
+    showSource(): void { this.showLowered = false; }
+    showLowering(): void { this.showLowered = true; }
+
+    async run(): Promise<void> {
+        if (this.sample == null) return;
+        this.running = true;
+        this.result = await Catalog.runSample(this.sample.id);
+        this.running = false;
+    }
+}

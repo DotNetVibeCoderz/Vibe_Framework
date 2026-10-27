@@ -1,0 +1,17 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import { Greeter } from "./Greeter";
+
+const greeter = new Greeter("JS.Net");
+console.log(greeter.greet());
+
+const numbers = [3, 1, 4, 1, 5, 9, 2, 6];
+const top3 = numbers.toSorted((a, b) => b - a).slice(0, 3);
+console.log("Top 3:", top3, "sum:", numbers.sum());
+
+async function fetchGreeting(name: string): Promise<string> {
+    await delay(100);
+    return `Hello, ${name}!`;
+}
+
+console.log(await fetchGreeting("World"));

@@ -1,0 +1,36 @@
+import System.Drawing;
+import System.Windows.Forms;
+
+export class MainForm extends Form {
+    private clicks = 0;
+    private readonly label = new Label();
+
+    constructor() {
+        super();
+        this.Text = "JsNetApp — JS.Net + WinForms";
+        this.ClientSize = new Size(480, 220);
+        this.BackColor = Color.FromArgb(15, 23, 42);
+        this.Font = new Font("Segoe UI", 11);
+
+        this.label.Text = "Hello from JS.Net + WinForms";
+        this.label.ForeColor = Color.White;
+        this.label.AutoSize = true;
+        this.label.Location = new Point(28, 32);
+
+        const button = new Button();
+        button.Text = "Click me";
+        button.Size = new Size(140, 40);
+        button.Location = new Point(28, 90);
+        button.BackColor = Color.FromArgb(251, 191, 36);
+        button.FlatStyle = FlatStyle.Flat;
+        button.Click += (sender, e) => this.onClick();
+
+        this.Controls.Add(this.label);
+        this.Controls.Add(button);
+    }
+
+    private onClick(): void {
+        this.clicks++;
+        this.label.Text = `Clicked ${this.clicks} times`;
+    }
+}

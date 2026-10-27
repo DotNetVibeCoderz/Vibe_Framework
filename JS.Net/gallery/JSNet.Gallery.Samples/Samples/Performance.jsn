@@ -1,0 +1,31 @@
+// Typed JS.Net code is ordinary IL — the JIT optimizes it like C#. `dynamic` is available but slower.
+
+import System.Diagnostics;
+
+function sumTyped(n: int): long {
+    let total = 0L;
+    for (let i = 0; i < n; i++) total += i % 7;
+    return total;
+}
+
+function sumDynamic(n: int): dynamic {
+    dynamic total = 0;
+    for (let i = 0; i < n; i++) total += i % 7;
+    return total;
+}
+
+export async function performanceDemo(): Promise<void> {
+    const n = 5000000;
+    sumTyped(1000);
+    const sw = Stopwatch.StartNew();
+    const typed = sumTyped(n);
+    const typedMs = sw.Elapsed.TotalMilliseconds;
+
+    sw.Restart();
+    const dyn = sumDynamic(n / 10);
+    const dynamicMs = sw.Elapsed.TotalMilliseconds * 10;
+
+    console.log(`typed   : ${typed} in ${typedMs.toFixed(1)} ms`);
+    console.log(`dynamic : ${dyn} (scaled) ≈ ${dynamicMs.toFixed(1)} ms`);
+    console.log(`typed code is ~${Math.round(dynamicMs / Math.max(typedMs, 0.01))}× faster — annotate hot paths.`);
+}

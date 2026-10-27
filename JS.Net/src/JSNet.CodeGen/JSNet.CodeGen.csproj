@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net code generator: lowers the bound AST to C# for the Roslyn IL backend.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Semantics\JSNet.Semantics.csproj" />
+  </ItemGroup>
+</Project>

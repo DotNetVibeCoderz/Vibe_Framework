@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net in-memory Roslyn backend: compile and run .jsn scripts without a project file.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Compiler\JSNet.Compiler.csproj" />
+    <ProjectReference Include="..\JSNet.Runtime\JSNet.Runtime.csproj" />
+  </ItemGroup>
+</Project>

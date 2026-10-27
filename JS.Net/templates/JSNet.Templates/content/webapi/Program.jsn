@@ -1,0 +1,18 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Microsoft.AspNetCore.Builder;
+import Microsoft.Extensions.DependencyInjection;
+import Microsoft.Extensions.Hosting;
+
+const builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
+builder.Services.addJsNetServices();   // registers every @Service class
+
+const app = builder.Build();
+
+app.MapGet("/", () => "JS.Net Web API is running");
+app.MapGet("/api/todos", (store: TodoStore) => store.all());
+app.MapPost("/api/todos", (store: TodoStore, todo: Todo) => store.add(todo.title));
+app.MapControllers();
+
+app.Run();

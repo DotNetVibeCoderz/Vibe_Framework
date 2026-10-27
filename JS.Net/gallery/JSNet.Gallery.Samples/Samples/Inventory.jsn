@@ -1,0 +1,29 @@
+// Use case: data processing — aggregate a sales ledger and print a report.
+
+interface Sale { region: string; product: string; units: int; price: number; }
+
+export function salesData(): Sale[] {
+    return [
+        { region: "Java", product: "Coffee", units: 120, price: 4.5 },
+        { region: "Java", product: "Tea", units: 80, price: 3.2 },
+        { region: "Bali", product: "Coffee", units: 95, price: 5.1 },
+        { region: "Bali", product: "Cocoa", units: 40, price: 6.0 },
+        { region: "Sumatra", product: "Coffee", units: 150, price: 4.2 },
+        { region: "Sumatra", product: "Tea", units: 60, price: 3.0 },
+    ];
+}
+
+export async function inventoryDemo(): Promise<void> {
+    const sales = salesData();
+    const byRegion = sales
+        .groupBy(s => s.region)
+        .select(g => ({ region: g.Key, revenue: g.sum(s => s.units * s.price), units: g.sum(s => s.units) }))
+        .orderByDescending(r => r.revenue)
+        .toList();
+
+    console.table(byRegion.map(r => ({ region: r.region, units: r.units, revenue: r.revenue.toFixed(2) })));
+
+    const best = sales.orderByDescending(s => s.units * s.price).first();
+    console.log(`best line: ${best.product} in ${best.region}`);
+    console.log("total revenue:", sales.sum(s => s.units * s.price).toFixed(2));
+}

@@ -1,0 +1,44 @@
+import Microsoft.AspNetCore.Components;
+import JSNet.Scripting;
+
+export partial class Playground extends ComponentBase {
+    code: string = `// Try JS.Net: classes, async, LINQ and the whole .NET library.
+interface Planet { name: string; moons: int; }
+
+const planets: Planet[] = [
+    { name: "Earth", moons: 1 },
+    { name: "Mars", moons: 2 },
+    { name: "Jupiter", moons: 95 },
+];
+
+const busy = planets.filter(p => p.moons > 1).map(p => p.name);
+console.log("planets with several moons:", busy);
+console.log(\`total moons: \${planets.sum(p => p.moons)}\`);
+console.log("today is", DateTime.Now.DayOfWeek);
+`;
+
+    output: string = "Press Run to compile and execute.";
+    lowered: string = "";
+    status: string = "Ready";
+    ok: bool = true;
+    running: bool = false;
+
+    async run(): Promise<void> {
+        this.running = true;
+        this.status = "Compiling…";
+        const result = await JsNetScript.RunAsync(this.code, "playground.jsn", new ScriptOptions() { CaptureOutput: true, Timeout: TimeSpan.FromSeconds(10) });
+        this.lowered = result.GeneratedFiles.count() > 0 ? result.GeneratedFiles.first().Text : "";
+        this.ok = result.Success;
+        if (!result.Success && result.Exception == null) {
+            this.output = result.Diagnostics.join("\n");
+            this.status = "Did not compile — fix the errors below";
+        } else if (result.Exception != null) {
+            this.output = result.Output + `\nUncaught ${result.Exception.GetType().Name}: ${result.Exception.Message}`;
+            this.status = "Threw an exception";
+        } else {
+            this.output = result.Output.length > 0 ? result.Output : "(no output)";
+            this.status = `Compiled in ${result.CompileTime.TotalMilliseconds.toFixed(0)} ms · ran in ${result.RunTime.TotalMilliseconds.toFixed(0)} ms`;
+        }
+        this.running = false;
+    }
+}

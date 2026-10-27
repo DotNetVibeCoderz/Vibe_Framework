@@ -1,0 +1,11 @@
+// JS.Net Gallery for Avalonia — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+import Avalonia;
+
+@STAThread
+export function main(args: string[]): void {
+    BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+}
+
+export function BuildAvaloniaApp(): AppBuilder {
+    return AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont().LogToTrace();
+}

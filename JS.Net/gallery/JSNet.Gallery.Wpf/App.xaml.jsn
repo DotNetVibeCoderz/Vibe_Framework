@@ -1,0 +1,4 @@
+import System.Windows;
+
+/** JS.Net Gallery for WPF — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil. */
+export partial class App extends Application {}

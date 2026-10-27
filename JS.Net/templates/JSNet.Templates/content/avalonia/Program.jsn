@@ -1,0 +1,13 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Avalonia;
+
+@STAThread
+export function main(args: string[]): void {
+    BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+}
+
+// Also used by the Avalonia previewer.
+export function BuildAvaloniaApp(): AppBuilder {
+    return AppBuilder.Configure<App>().UsePlatformDetect().WithInterFont().LogToTrace();
+}

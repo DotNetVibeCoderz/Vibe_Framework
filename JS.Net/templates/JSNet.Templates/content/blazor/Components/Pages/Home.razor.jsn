@@ -1,0 +1,14 @@
+import Microsoft.AspNetCore.Components;
+
+/** Code-behind for Home.razor, written in JS.Net. */
+export partial class Home extends ComponentBase {
+    currentCount: int = 0;
+
+    get parity(): string {
+        return this.currentCount % 2 == 0 ? "even" : "odd";
+    }
+
+    increment(): void {
+        this.currentCount++;
+    }
+}

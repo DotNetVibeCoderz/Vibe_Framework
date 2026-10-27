@@ -1,0 +1,15 @@
+import System.Windows;
+
+export partial class MainWindow extends Window {
+    private clicks = 0;
+
+    constructor() {
+        super();
+        this.InitializeComponent();
+    }
+
+    onClick(sender: object, e: RoutedEventArgs): void {
+        this.clicks++;
+        this.CounterText.Text = `Clicked ${this.clicks} time${this.clicks == 1 ? "" : "s"}`;
+    }
+}

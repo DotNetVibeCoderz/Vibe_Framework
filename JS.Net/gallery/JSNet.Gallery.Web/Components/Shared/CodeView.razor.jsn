@@ -1,0 +1,27 @@
+import Microsoft.AspNetCore.Components;
+
+/** Renders JS.Net (or C#) source with the Gallery's lexer-based highlighter. */
+export partial class CodeView extends ComponentBase {
+    @Parameter
+    Code: string = "";
+
+    spans: CodeSpan[] = [];
+
+    protected override OnParametersSet(): void {
+        this.spans = Highlighter.highlight(this.Code);
+    }
+
+    cssFor(kind: TokenClass): string {
+        switch (kind) {
+            case TokenClass.Keyword: return "t-kw";
+            case TokenClass.Type: return "t-ty";
+            case TokenClass.String: return "t-str";
+            case TokenClass.Number: return "t-num";
+            case TokenClass.Comment: return "t-com";
+            case TokenClass.Function: return "t-fn";
+            case TokenClass.Decorator: return "t-dec";
+            case TokenClass.Punctuation: return "t-pun";
+            default: return "";
+        }
+    }
+}

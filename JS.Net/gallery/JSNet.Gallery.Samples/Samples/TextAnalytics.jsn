@@ -1,0 +1,18 @@
+// Use case: word frequencies with Map, regular expressions and sorting.
+
+const passage = `JS.Net brings the familiar syntax of JavaScript and TypeScript to .NET.
+Code written in JS.Net compiles to IL, runs on CoreCLR and can use every NuGet package.
+JavaScript developers keep their syntax; .NET developers keep their runtime.`;
+
+export async function textDemo(): Promise<void> {
+    const words = passage.toLowerCase().split(" ")
+        .map(w => w.trim().replaceAll(".", "").replaceAll(",", "").replaceAll(";", "").replaceAll("\n", ""))
+        .filter(w => w.length > 3);
+
+    const counts = new Map<string, int>();
+    for (const w of words) counts.set(w, counts.has(w) ? counts.get(w) + 1 : 1);
+
+    const top = counts.entries().toSorted((x, y) => y.Item2 - x.Item2).slice(0, 5);
+    console.log(`${words.length} words, ${counts.size} unique`);
+    for (const [word, n] of top) console.log(`  ${word.padEnd(12)} ${"■".repeat(n)} ${n}`);
+}

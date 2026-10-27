@@ -1,0 +1,39 @@
+@page "/samples/{Id}"
+
+<PageTitle>@(sample?.title ?? "Sample") · JS.Net Gallery</PageTitle>
+
+@if (sample is null)
+{
+    <section class="empty">
+        <h1>No sample called “@Id”</h1>
+        <p>Pick one from the list on the left.</p>
+    </section>
+}
+else
+{
+    <section class="sample-head">
+        <p class="eyebrow">@sample.category</p>
+        <h1>@sample.title</h1>
+        <p class="lede">@sample.summary</p>
+    </section>
+
+    <section class="workbench">
+        <div class="source">
+            <div class="tabs" role="tablist" aria-label="Source view">
+                <button role="tab" aria-selected="@(!showLowered)" class="@(showLowered ? "" : "on")" @onclick="showSource">@sample.file</button>
+                <button role="tab" aria-selected="@showLowered" class="@(showLowered ? "on" : "")" @onclick="showLowering">Lowered C#</button>
+                <span class="seam @(showLowered ? "right" : "")" aria-hidden="true"></span>
+            </div>
+            <CodeView Code="@(showLowered ? lowered : source)" />
+        </div>
+
+        <div class="run">
+            <button class="run-btn" @onclick="run" disabled="@running">@(running ? "Running…" : "Run sample")</button>
+            @if (result is not null)
+            {
+                <p class="run-meta @(result.ok ? "ok" : "bad")">@(result.ok ? "Exited normally" : "Threw an exception") · @result.milliseconds.ToString("0") ms</p>
+            }
+            <pre class="console" aria-live="polite">@(result is null ? "Output appears here." : result.ok ? result.output : result.error)</pre>
+        </div>
+    </section>
+}

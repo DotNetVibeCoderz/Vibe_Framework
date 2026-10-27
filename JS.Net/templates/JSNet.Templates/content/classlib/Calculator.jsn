@@ -1,0 +1,27 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+/** From C#: `var c = new JsNetApp.Calculator(); c.add(1, 2);` */
+export class Calculator {
+    private history = new Array<string>();
+
+    add(a: number, b: number): number {
+        return this.record(`${a} + ${b}`, a + b);
+    }
+
+    multiply(a: number, b: number): number {
+        return this.record(`${a} * ${b}`, a * b);
+    }
+
+    get operations(): string[] {
+        return this.history.toArray();
+    }
+
+    private record(expression: string, result: number): number {
+        this.history.push(`${expression} = ${result}`);
+        return result;
+    }
+}
+
+export function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}

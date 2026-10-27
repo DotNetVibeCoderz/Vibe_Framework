@@ -1,0 +1,8 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Microsoft.Extensions.DependencyInjection;
+import Microsoft.Extensions.Hosting;
+
+const builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddHostedService<Worker>();
+builder.Build().Run();

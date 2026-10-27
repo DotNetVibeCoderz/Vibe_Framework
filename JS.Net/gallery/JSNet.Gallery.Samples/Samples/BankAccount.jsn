@@ -1,0 +1,50 @@
+// Use case: a small domain model with events, validation and an audit trail.
+
+export class Transaction {
+    constructor(public readonly kind: string, public readonly amount: number, public readonly balance: number) {}
+}
+
+export class BankAccount {
+    private history = new Array<Transaction>();
+    private listeners = new Array<(t: Transaction) => void>();
+    private balance: number = 0;
+
+    constructor(public readonly owner: string) {}
+
+    onTransaction(listener: (t: Transaction) => void): void {
+        this.listeners.push(listener);
+    }
+
+    deposit(amount: number): void {
+        if (amount <= 0) throw new RangeError("deposit must be positive");
+        this.apply("deposit", amount);
+    }
+
+    withdraw(amount: number): void {
+        if (amount > this.balance) throw new Error(`insufficient funds: balance ${this.balance}`);
+        this.apply("withdraw", -amount);
+    }
+
+    get statement(): Transaction[] { return this.history.toArray(); }
+
+    private apply(kind: string, delta: number): void {
+        this.balance += delta;
+        const t = new Transaction(kind, Math.abs(delta), this.balance);
+        this.history.push(t);
+        this.listeners.forEach(l => l(t));
+    }
+}
+
+export async function bankDemo(): Promise<void> {
+    const account = new BankAccount("Kang Fadhil");
+    account.onTransaction(t => console.log(`  ${t.kind.padEnd(8)} ${t.amount.toFixed(2).padStart(8)} → ${t.balance.toFixed(2)}`));
+    account.deposit(500);
+    account.withdraw(120.75);
+    account.deposit(80);
+    try {
+        account.withdraw(10000);
+    } catch (e) {
+        console.log("rejected:", e.message);
+    }
+    console.log(`${account.owner} has ${account.statement.length} transactions`);
+}

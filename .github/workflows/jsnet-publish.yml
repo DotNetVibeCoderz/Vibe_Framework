@@ -1,0 +1,103 @@
+# Publish the JS.Net packages to nuget.org: JSNet.Runtime, JSNet.AI, JSNet.Sdk, JSNet.Cli and
+# JSNet.Templates.
+#
+# Tags are prefixed `jsnet-v` because this lives in a monorepo: a bare `v1.2.3` would fire for a
+# release of any other project in Vibe_Framework.
+#
+# The `test` job is the CI workflow itself, run at the release version; it builds, tests, packs and
+# builds a project from every template using those packages. This job pushes those same packages,
+# so nothing reaches nuget.org that was not tested.
+#
+# Publishing is irreversible: nuget.org lets a version be unlisted but never re-uploaded. Hence
+# `dry_run`, which does everything except the push.
+
+name: Publish JS.Net to NuGet
+
+on:
+  push:
+    tags: ['jsnet-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 0.1.0 (or 0.2.0-preview.1)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Build, pack and test, but do not push'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jsnet-publish
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      push: ${{ steps.ver.outputs.push }}
+    steps:
+      - id: ver
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then version="${{ inputs.version }}"
+          else version="${GITHUB_REF_NAME#jsnet-v}"; fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$version' is not a semantic version"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # A tag push always publishes; a manual run only when dry_run is off.
+          # `inputs.dry_run` is empty on a tag push, so test the event first.
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.dry_run }}" = "false" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: version
+    uses: ./.github/workflows/jsnet-ci.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  publish:
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: jsnet-packages-${{ needs.version.outputs.version }}
+          path: packages
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Check the packages
+        run: |
+          ls -la packages
+          for id in JSNet.Runtime JSNet.AI JSNet.Sdk JSNet.Cli JSNet.Templates; do
+            f="packages/$id.${{ needs.version.outputs.version }}.nupkg"
+            if [ ! -f "$f" ]; then echo "::error::missing $f"; exit 1; fi
+          done
+
+      - name: Push to nuget.org
+        if: needs.version.outputs.push == 'true'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then echo "::error::the NUGET_API_KEY secret is not set"; exit 1; fi
+          # Dependencies first: the SDK references JSNet.Runtime/JSNet.AI, templates reference the SDK.
+          for id in JSNet.Runtime JSNet.AI JSNet.Sdk JSNet.Cli JSNet.Templates; do
+            dotnet nuget push "packages/$id.${{ needs.version.outputs.version }}.nupkg" \
+              --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
+
+      - name: Say what was skipped
+        if: needs.version.outputs.push != 'true'
+        run: 'echo "Dry run - the packages were built, tested and checked, not pushed."'

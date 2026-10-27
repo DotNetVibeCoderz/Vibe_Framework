@@ -1,0 +1,19 @@
+// JS.Net Gallery (Blazor) — entry point, written in JS.Net.
+// Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Microsoft.AspNetCore.Builder;
+import Microsoft.Extensions.DependencyInjection;
+import Microsoft.Extensions.Hosting;
+import JSNet.Gallery.Web.Components;
+
+const builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+const app = builder.Build();
+if (!app.Environment.IsDevelopment()) {
+    app.UseExceptionHandler("/", true);
+}
+app.UseAntiforgery();
+app.MapStaticAssets();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+app.Run();

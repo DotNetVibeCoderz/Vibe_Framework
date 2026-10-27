@@ -1,0 +1,29 @@
+// Variables, types and template strings.
+// `let` infers the CLR type, annotations map to CLR types (number → double, string → System.String).
+
+export async function basicsDemo(): Promise<void> {
+    const language = "JS.Net";
+    let version: number = 1.0;
+    let releases = 3;
+    const tags: string[] = ["javascript", "typescript", "dotnet"];
+
+    console.log(`Welcome to ${language} v${version.toFixed(1)}`);
+    console.log("Tags:", tags, "count:", tags.length);
+
+    releases += 1;
+    console.log(`Releases so far: ${releases}`);
+
+    // `dynamic` opts into late binding when you really need it.
+    dynamic anything = 42;
+    anything = "now a string";
+    console.log("dynamic value:", anything);
+
+    // Nullable types and the ?? operator.
+    let nickname: string | null = null;
+    console.log("nickname:", nickname ?? "(none)");
+
+    // JavaScript truthiness works on any value.
+    const empty = "";
+    if (!empty) console.log("an empty string is falsy");
+    console.log("typeof:", typeof version, typeof language, typeof true);
+}

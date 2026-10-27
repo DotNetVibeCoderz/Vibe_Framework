@@ -1,0 +1,10 @@
+// JS.Net Gallery for Windows Forms — dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+import System.Windows.Forms;
+
+@STAThread
+export function main(): void {
+    Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+    Application.EnableVisualStyles();
+    Application.SetCompatibleTextRenderingDefault(false);
+    Application.Run(new GalleryForm());
+}

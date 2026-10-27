@@ -1,0 +1,86 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "function ${1:name}(${2:params}): ${3:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Function declaration"
+  },
+  "Async function": {
+    "prefix": "afn",
+    "body": [
+      "async function ${1:name}(${2:params}): Promise<${3:void}> {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Async function"
+  },
+  "Class": {
+    "prefix": "cls",
+    "body": [
+      "export class ${1:Name} {",
+      "\tconstructor(${2:private readonly value: string}) {}",
+      "",
+      "\t$0",
+      "}"
+    ],
+    "description": "Class with parameter properties"
+  },
+  "Interface": {
+    "prefix": "iface",
+    "body": [
+      "export interface ${1:Name} {",
+      "\t${2:id}: ${3:int};",
+      "}"
+    ],
+    "description": "Interface"
+  },
+  "For of": {
+    "prefix": "forof",
+    "body": [
+      "for (const ${1:item} of ${2:items}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "for...of loop"
+  },
+  "Console log": {
+    "prefix": "log",
+    "body": [
+      "console.log($1);"
+    ],
+    "description": "console.log"
+  },
+  "Try catch": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t$1",
+      "} catch (e) {",
+      "\tconsole.error(e.message);",
+      "}"
+    ],
+    "description": "try/catch"
+  },
+  "Service": {
+    "prefix": "service",
+    "body": [
+      "@Service",
+      "export class ${1:Name}Service {",
+      "\t$0",
+      "}"
+    ],
+    "description": "DI service"
+  },
+  "AI function": {
+    "prefix": "aifn",
+    "body": [
+      "ai function ${1:summarize}(${2:text}: string): Promise<string> {",
+      "\t`${3:Summarize}: \\${${2:text}}`",
+      "}"
+    ],
+    "description": "AI-native function"
+  }
+}

@@ -1,0 +1,25 @@
+@page "/playground"
+
+<PageTitle>Playground · JS.Net Gallery</PageTitle>
+
+<section class="sample-head">
+    <p class="eyebrow">Build with it</p>
+    <h1>Playground</h1>
+    <p class="lede">Edit JS.Net and run it on the server. The compiler, Roslyn and CoreCLR do the same work as <code>dotnet build</code>, in memory. Intended for local use.</p>
+</section>
+
+<section class="workbench playground">
+    <div class="source">
+        <label class="sr-only" for="editor">JS.Net source</label>
+        <textarea id="editor" class="editor" spellcheck="false" @bind="code" @bind:event="oninput"></textarea>
+    </div>
+    <div class="run">
+        <button class="run-btn" @onclick="run" disabled="@running">@(running ? "Running…" : "Run")</button>
+        <p class="run-meta @(ok ? "ok" : "bad")">@status</p>
+        <pre class="console" aria-live="polite">@output</pre>
+        <details class="lowered">
+            <summary>Lowered C#</summary>
+            <CodeView Code="@lowered" />
+        </details>
+    </div>
+</section>

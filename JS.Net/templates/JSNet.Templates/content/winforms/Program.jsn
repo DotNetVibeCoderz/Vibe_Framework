@@ -1,0 +1,10 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import System.Windows.Forms;
+
+@STAThread
+export function main(): void {
+    Application.EnableVisualStyles();
+    Application.SetHighDpiMode(HighDpiMode.SystemAware);
+    Application.Run(new MainForm());
+}

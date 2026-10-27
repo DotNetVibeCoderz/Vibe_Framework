@@ -1,0 +1,31 @@
+<Solution>
+  <Folder Name="/gallery/">
+    <Project Path="gallery/JSNet.Gallery.Avalonia/JSNet.Gallery.Avalonia.csproj" />
+    <Project Path="gallery/JSNet.Gallery.Samples/JSNet.Gallery.Samples.csproj" />
+    <Project Path="gallery/JSNet.Gallery.Web/JSNet.Gallery.Web.csproj" />
+    <Project Path="gallery/JSNet.Gallery.WinForms/JSNet.Gallery.WinForms.csproj" />
+    <Project Path="gallery/JSNet.Gallery.Wpf/JSNet.Gallery.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/HelloJsNet/HelloJsNet.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/JSNet.AI/JSNet.AI.csproj" />
+    <Project Path="src/JSNet.Cli/JSNet.Cli.csproj" />
+    <Project Path="src/JSNet.CodeGen/JSNet.CodeGen.csproj" />
+    <Project Path="src/JSNet.Compiler/JSNet.Compiler.csproj" />
+    <Project Path="src/JSNet.LanguageServer/JSNet.LanguageServer.csproj" />
+    <Project Path="src/JSNet.Parser/JSNet.Parser.csproj" />
+    <Project Path="src/JSNet.Runtime/JSNet.Runtime.csproj" />
+    <Project Path="src/JSNet.Scripting/JSNet.Scripting.csproj" />
+    <Project Path="src/JSNet.Sdk/JSNet.Sdk.csproj" />
+    <Project Path="src/JSNet.Semantics/JSNet.Semantics.csproj" />
+    <Project Path="src/JSNet.Syntax/JSNet.Syntax.csproj" />
+  </Folder>
+  <Folder Name="/templates/">
+    <Project Path="templates/JSNet.Templates/JSNet.Templates.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JSNet.Tests/JSNet.Tests.csproj" />
+  </Folder>
+</Solution>

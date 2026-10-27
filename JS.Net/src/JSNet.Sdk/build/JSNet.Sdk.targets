@@ -1,0 +1,69 @@
+<Project>
+  <!--
+    JS.Net build integration.
+    1. Collect **/*.jsn as JSNetCompile items.
+    2. JSNetGenerate: run the jsnet compiler (incremental) → obj/<cfg>/<tfm>/jsnet/*.g.cs
+    3. JSNetAddGenerated: add the generated C# to @(Compile); Roslyn produces IL, PDB (mapped to .jsn via #line),
+       NativeAOT output, analyzers and IDE support.
+    Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+  -->
+  <PropertyGroup>
+    <JSNetGeneratedDir Condition="'$(JSNetGeneratedDir)' == ''">$(IntermediateOutputPath)jsnet\</JSNetGeneratedDir>
+    <JSNetCompilerPath Condition="'$(JSNetCompilerPath)' == ''">$(MSBuildThisFileDirectory)..\tools\jsnet.dll</JSNetCompilerPath>
+    <JSNetDotnetHost Condition="'$(JSNetDotnetHost)' == '' and '$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</JSNetDotnetHost>
+    <JSNetDotnetHost Condition="'$(JSNetDotnetHost)' == ''">dotnet</JSNetDotnetHost>
+    <JSNetIsLibrary Condition="'$(JSNetIsLibrary)' == '' and '$(OutputType)' == 'Library'">true</JSNetIsLibrary>
+    <JSNetEmitLineDirectives Condition="'$(JSNetEmitLineDirectives)' == ''">true</JSNetEmitLineDirectives>
+    <JSNetRootNamespace Condition="'$(JSNetRootNamespace)' == ''">$(RootNamespace)</JSNetRootNamespace>
+    <JSNetRootNamespace Condition="'$(JSNetRootNamespace)' == ''">$(MSBuildProjectName.Replace('-', '_').Replace(' ', '_'))</JSNetRootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EnableDefaultJSNetItems)' == 'true'">
+    <JSNetCompile Include="**\*.jsn" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder);@(JSNetCompile)" />
+    <None Remove="@(JSNetCompile)" />
+  </ItemGroup>
+
+  <!-- Implicit runtime references (package flavour). In-repo builds use project references instead. -->
+  <ItemGroup Condition="'$(JSNetUseProjectReferences)' != 'true'">
+    <PackageReference Include="JSNet.Runtime" Version="$(JSNetSdkVersion)" IsImplicitlyDefined="true" Condition="'$(JSNetDisableImplicitRuntimeReference)' != 'true'" />
+    <PackageReference Include="JSNet.AI" Version="$(JSNetSdkVersion)" IsImplicitlyDefined="true" Condition="'$(JSNetEnableAI)' == 'true'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Any change to the compiler (e.g. an SDK update) invalidates the generated code. -->
+    <_JSNetCompilerFiles Include="$([System.IO.Path]::GetDirectoryName('$(JSNetCompilerPath)'))\JSNet*.dll;$(JSNetCompilerPath)" />
+  </ItemGroup>
+
+  <Target Name="JSNetGenerate"
+          BeforeTargets="BeforeCompile;CoreCompile;XamlPreCompile"
+          Condition="'@(JSNetCompile)' != ''"
+          Inputs="@(JSNetCompile);$(MSBuildProjectFullPath);@(_JSNetCompilerFiles)"
+          Outputs="$(JSNetGeneratedDir)jsnet.stamp">
+    <PropertyGroup>
+      <_JSNetResponseFile>$(JSNetGeneratedDir)jsnet.rsp</_JSNetResponseFile>
+      <_JSNetArgs>compile --out &quot;$(JSNetGeneratedDir.TrimEnd('\'))&quot; --root-namespace &quot;$(JSNetRootNamespace)&quot; --project-dir &quot;$(MSBuildProjectDirectory)&quot;</_JSNetArgs>
+      <_JSNetArgs Condition="'$(JSNetIsLibrary)' == 'true'">$(_JSNetArgs) --library</_JSNetArgs>
+      <_JSNetArgs Condition="'$(JSNetEmitLineDirectives)' != 'true'">$(_JSNetArgs) --no-line</_JSNetArgs>
+      <_JSNetArgs Condition="'$(JSNetNoWarn)' != ''">$(_JSNetArgs) --nowarn &quot;$(JSNetNoWarn)&quot;</_JSNetArgs>
+    </PropertyGroup>
+    <MakeDir Directories="$(JSNetGeneratedDir)" />
+    <WriteLinesToFile File="$(_JSNetResponseFile)" Lines="@(JSNetCompile->'%(FullPath)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Error Condition="!Exists('$(JSNetCompilerPath)')" Text="JS.Net compiler not found at '$(JSNetCompilerPath)'." Code="JSN3004" />
+    <Exec Command="&quot;$(JSNetDotnetHost)&quot; exec &quot;$(JSNetCompilerPath)&quot; $(_JSNetArgs) @&quot;$(_JSNetResponseFile)&quot;"
+          StandardOutputImportance="low" IgnoreExitCode="true" />
+    <Touch Files="$(JSNetGeneratedDir)jsnet.stamp" AlwaysCreate="true" />
+  </Target>
+
+  <Target Name="JSNetAddGenerated" AfterTargets="JSNetGenerate" BeforeTargets="BeforeCompile;CoreCompile;XamlPreCompile" Condition="'@(JSNetCompile)' != ''">
+    <ItemGroup>
+      <_JSNetGenerated Include="$(JSNetGeneratedDir)*.g.cs" />
+      <Compile Remove="@(_JSNetGenerated)" />
+      <Compile Include="@(_JSNetGenerated)" />
+      <FileWrites Include="@(_JSNetGenerated);$(JSNetGeneratedDir)jsnet.stamp;$(JSNetGeneratedDir)jsnet.rsp" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="JSNetClean" AfterTargets="Clean">
+    <RemoveDir Directories="$(JSNetGeneratedDir)" />
+  </Target>
+</Project>

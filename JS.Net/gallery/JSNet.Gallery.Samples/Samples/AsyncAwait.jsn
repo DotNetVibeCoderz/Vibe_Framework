@@ -1,0 +1,23 @@
+// async/await compiles to Task-based async methods. Promise.all maps to Task.WhenAll.
+
+async function download(file: string, ms: int): Promise<string> {
+    await delay(ms);
+    return `${file} (${ms} ms)`;
+}
+
+export async function asyncDemo(): Promise<void> {
+    const started = Date.now();
+    const results = await Promise.all([
+        download("report.pdf", 120),
+        download("photo.png", 80),
+        download("data.csv", 40),
+    ]);
+    console.log("downloaded in parallel:", results);
+    console.log(`elapsed ≈ ${Math.round((Date.now() - started) / 10) * 10} ms (not 240)`);
+
+    const winner = await Promise.race([download("mirror-a", 60), download("mirror-b", 20)]);
+    console.log("fastest mirror:", winner);
+
+    const value = await new Promise<int>(resolve => setTimeout(() => resolve(7), 30));
+    console.log("resolved from setTimeout:", value);
+}

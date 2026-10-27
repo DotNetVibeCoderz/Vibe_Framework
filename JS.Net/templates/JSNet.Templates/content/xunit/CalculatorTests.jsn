@@ -1,0 +1,21 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Xunit;
+
+function add(a: number, b: number): number {
+    return a + b;
+}
+
+export class CalculatorTests {
+    @Fact
+    addsNumbers(): void {
+        Assert.Equal(4.0, add(2, 2));
+    }
+
+    @Theory
+    @InlineData(1.0, 2.0, 3.0)
+    @InlineData(-1.0, 1.0, 0.0)
+    addsMany(a: number, b: number, expected: number): void {
+        Assert.Equal(expected, add(a, b));
+    }
+}

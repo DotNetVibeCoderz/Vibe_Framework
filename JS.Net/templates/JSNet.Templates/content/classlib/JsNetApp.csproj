@@ -1,0 +1,5 @@
+<Project Sdk="JSNet.Sdk/JSNET_SDK_VERSION">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,91 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JSNet.Gallery.Avalonia.MainWindow"
+        Title="JS.Net Gallery — Avalonia" Width="1320" Height="820" MinWidth="960" MinHeight="600"
+        Background="#120F33" Foreground="#E9E5FF" Icon="/icon.png" WindowStartupLocation="CenterScreen">
+    <Grid ColumnDefinitions="250,*">
+        <Border Background="#1E1A5C">
+            <DockPanel Margin="14,18">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="4,0,0,14">
+                    <Image Source="/icon.png" Width="34" Height="34" />
+                    <TextBlock VerticalAlignment="Center" FontSize="19">
+                        <Run Text="JS.Net" Foreground="#FBBF24" FontWeight="Bold" /><Run Text=" Gallery" />
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock x:Name="Credit" DockPanel.Dock="Bottom" TextWrapping="Wrap" FontSize="11" Foreground="#B9AEF5" Margin="6,12,6,0" />
+                <ScrollViewer><StackPanel x:Name="Nav" /></ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Grid x:Name="SamplesView" Grid.Column="1" Margin="36,28" RowDefinitions="Auto,*">
+            <StackPanel>
+                <TextBlock x:Name="Eyebrow" Foreground="#FBBF24" FontWeight="SemiBold" FontSize="11.5" />
+                <TextBlock x:Name="TitleText" FontWeight="Bold" FontSize="38" Margin="0,6,0,4" />
+                <TextBlock x:Name="Summary" Foreground="#D6D0FB" FontSize="15" TextWrapping="Wrap" Margin="0,0,0,18" />
+            </StackPanel>
+            <Grid Grid.Row="1" ColumnDefinitions="1.6*,18,*">
+                <Border Background="#1E1A5C" CornerRadius="14" BorderBrush="#24FFFFFF" BorderThickness="1" ClipToBounds="True">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                            <ToggleButton x:Name="SourceTab" Classes="tab" IsChecked="True" />
+                            <ToggleButton x:Name="LoweredTab" Classes="tab" Content="Lowered C#" />
+                        </StackPanel>
+                        <Border Background="#0D0B26">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                                <SelectableTextBlock x:Name="CodeBlock" Margin="18" FontFamily="Cascadia Mono, Consolas, monospace"
+                                                     FontSize="13" LineHeight="20" Foreground="#E4E0FF" />
+                            </ScrollViewer>
+                        </Border>
+                    </DockPanel>
+                </Border>
+                <DockPanel Grid.Column="2">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="14" Margin="0,0,0,10">
+                        <Button x:Name="RunButton" Classes="run" Content="Run sample" />
+                        <TextBlock x:Name="RunMeta" VerticalAlignment="Center" FontSize="12" Foreground="#6EE7B7" />
+                    </StackPanel>
+                    <Border Background="#07061A" CornerRadius="14" BorderBrush="#556EE7B7" BorderThickness="1">
+                        <ScrollViewer>
+                            <SelectableTextBlock x:Name="Output" Margin="16" FontFamily="Cascadia Mono, Consolas, monospace"
+                                                 FontSize="12.5" Foreground="#6EE7B7" TextWrapping="Wrap" Text="Output appears here." />
+                        </ScrollViewer>
+                    </Border>
+                </DockPanel>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="ComponentsView" Grid.Column="1" Margin="36,28" IsVisible="False" RowDefinitions="Auto,Auto,*" ColumnDefinitions="*,18,*">
+            <StackPanel Grid.ColumnSpan="3" Margin="0,0,0,18">
+                <TextBlock Text="BUILD WITH IT" Foreground="#FBBF24" FontWeight="SemiBold" FontSize="11.5" />
+                <TextBlock Text="UI components" FontWeight="Bold" FontSize="38" Margin="0,6,0,4" />
+                <TextBlock Text="TodoList, ChartData and LifeBoard are JS.Net classes; this window draws them with Avalonia." Foreground="#D6D0FB" FontSize="15" />
+            </StackPanel>
+            <Border Grid.Row="1" Background="#1E1A5C" CornerRadius="14" Padding="20" Height="280">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Todo list" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" />
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button x:Name="AddTodo" DockPanel.Dock="Right" Classes="run" Content="Add" Margin="8,0,0,0" />
+                        <TextBox x:Name="TodoInput" Watermark="Add a task" />
+                    </DockPanel>
+                    <TextBlock x:Name="TodoSummary" DockPanel.Dock="Bottom" Foreground="#B9AEF5" Margin="0,8,0,0" />
+                    <ScrollViewer><StackPanel x:Name="TodoItems" /></ScrollViewer>
+                </DockPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="2" Background="#1E1A5C" CornerRadius="14" Padding="20" Height="280">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Revenue by region" FontWeight="Bold" FontSize="18" Margin="0,0,0,10" />
+                    <Canvas x:Name="Chart" />
+                </DockPanel>
+            </Border>
+            <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#1E1A5C" CornerRadius="14" Padding="20" Margin="0,18,0,0">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button x:Name="PlayLife" DockPanel.Dock="Right" Classes="run" Content="Play" />
+                        <TextBlock Text="Game of Life" FontWeight="Bold" FontSize="18" />
+                        <TextBlock x:Name="LifeStatus" Foreground="#B9AEF5" Margin="14,4,0,0" />
+                    </DockPanel>
+                    <Canvas x:Name="LifeCanvas" ClipToBounds="True" />
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,246 @@
+// JS.Net Gallery for Avalonia — code-behind written in JS.Net.
+// Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Avalonia;
+import Avalonia.Controls;
+import Avalonia.Controls.Documents;
+import Avalonia.Controls.Primitives;
+import Avalonia.Media;
+import Avalonia.Media.Imaging;
+import Avalonia.Threading;
+import Box = Avalonia.Controls.Shapes.Rectangle;
+import JSNet.Gallery.Samples;
+
+export partial class MainWindow extends Window {
+    private current: Sample | null = null;
+    private navButtons = new Map<string, ToggleButton>();
+    private todos = new TodoList();
+    private life = LifeBoard.random(48, 20, 7);
+    private lifeTimer = new DispatcherTimer();
+
+    constructor() {
+        super();
+        this.InitializeComponent();
+        this.Credit.Text = Catalog.credit;
+        this.buildNav();
+
+        this.SourceTab.Click += (s, e) => this.setLowered(false);
+        this.LoweredTab.Click += (s, e) => this.setLowered(true);
+        this.RunButton.Click += async (s, e) => await this.run();
+        this.AddTodo.Click += (s, e) => { this.todos.add(this.TodoInput.Text ?? ""); this.TodoInput.Text = ""; this.renderTodos(); };
+        this.PlayLife.Click += (s, e) => this.toggleLife();
+        this.lifeTimer.Interval = TimeSpan.FromMilliseconds(120);
+        this.lifeTimer.Tick += (s, e) => { this.life.step(); this.renderLife(); };
+        this.LifeCanvas.SizeChanged += (s, e) => this.renderLife();
+        this.Chart.SizeChanged += (s, e) => this.renderChart();
+        this.Opened += async (s, e) => await this.onOpened();
+
+        this.select("basics");
+    }
+
+    private buildNav(): void {
+        for (const category of Catalog.categories) {
+            this.Nav.Children.Add(MainWindow.groupLabel(category));
+            for (const sample of Catalog.samples.where(x => x.category == category)) {
+                const button = MainWindow.navButton(sample.title);
+                button.Click += (s, e) => this.select(sample.id);
+                this.navButtons.set(sample.id, button);
+                this.Nav.Children.Add(button);
+            }
+        }
+        this.Nav.Children.Add(MainWindow.groupLabel("Build with it"));
+        const components = MainWindow.navButton("UI components");
+        components.Click += (s, e) => this.showComponents();
+        this.navButtons.set("components", components);
+        this.Nav.Children.Add(components);
+    }
+
+    private static navButton(text: string): ToggleButton {
+        const button = new ToggleButton();
+        button.Content = text;
+        button.Classes.Add("nav");
+        return button;
+    }
+
+    private static groupLabel(text: string): TextBlock {
+        const label = new TextBlock();
+        label.Text = text.ToUpperInvariant();
+        label.FontSize = 10.5;
+        label.FontWeight = FontWeight.SemiBold;
+        label.Foreground = MainWindow.brush(Palette.lavender);
+        label.Margin = new Thickness(10, 16, 0, 4);
+        return label;
+    }
+
+    private highlightNav(id: string): void {
+        for (const [key, button] of this.navButtons) button.IsChecked = key == id;
+    }
+
+    select(id: string): void {
+        const sample = Catalog.find(id);
+        if (sample == null) return;
+        this.current = sample;
+        this.highlightNav(id);
+        this.SamplesView.IsVisible = true;
+        this.ComponentsView.IsVisible = false;
+        this.Eyebrow.Text = sample.category.ToUpperInvariant();
+        this.TitleText.Text = sample.title;
+        this.Summary.Text = sample.summary;
+        this.SourceTab.Content = sample.file;
+        this.Output.Text = "Output appears here.";
+        this.RunMeta.Text = "";
+        this.setLowered(false);
+    }
+
+    private setLowered(lowered: bool): void {
+        this.SourceTab.IsChecked = !lowered;
+        this.LoweredTab.IsChecked = lowered;
+        if (this.current == null) return;
+        const code = lowered ? Catalog.lowered(this.current.file) : Catalog.source(this.current.file);
+        const inlines = new InlineCollection();
+        for (const span of Highlighter.highlight(code)) {
+            const run = new Run(span.text);
+            run.Foreground = MainWindow.brush(Palette.colorFor(span.kind));
+            if (span.kind == TokenClass.Comment) run.FontStyle = FontStyle.Italic;
+            if (span.kind == TokenClass.Keyword) run.FontWeight = FontWeight.SemiBold;
+            inlines.Add(run);
+        }
+        this.CodeBlock.Inlines = inlines;
+    }
+
+    async run(): Promise<void> {
+        if (this.current == null) return;
+        this.RunButton.IsEnabled = false;
+        this.RunButton.Content = "Running…";
+        const result = await Catalog.runSample(this.current.id);
+        this.Output.Text = result.ok ? result.output : result.error;
+        this.RunMeta.Text = `${result.ok ? "Exited normally" : "Threw an exception"} · ${result.milliseconds.toFixed(0)} ms`;
+        this.RunMeta.Foreground = MainWindow.brush(result.ok ? Palette.mint : Palette.rose);
+        this.RunButton.Content = "Run sample";
+        this.RunButton.IsEnabled = true;
+    }
+
+    static brush(hex: string): IBrush {
+        return new SolidColorBrush(Color.Parse(hex));
+    }
+
+    // ------------------------------------------------------------------ components
+
+    private showComponents(): void {
+        this.highlightNav("components");
+        this.SamplesView.IsVisible = false;
+        this.ComponentsView.IsVisible = true;
+        this.renderTodos();
+        Dispatcher.UIThread.Post(() => { this.renderChart(); this.renderLife(); }, DispatcherPriority.Loaded);
+    }
+
+    private renderTodos(): void {
+        this.TodoItems.Children.Clear();
+        for (let i = 0; i < this.todos.items.length; i++) {
+            const index = i;
+            const item = this.todos.items[i];
+            const box = new CheckBox();
+            box.Content = item.title;
+            box.IsChecked = item.done;
+            box.Foreground = MainWindow.brush(item.done ? Palette.lavender : Palette.mist);
+            box.Click += (s, e) => { this.todos.toggle(index); this.renderTodos(); };
+            this.TodoItems.Children.Add(box);
+        }
+        this.TodoSummary.Text = this.todos.summary;
+    }
+
+    private renderChart(): void {
+        this.Chart.Children.Clear();
+        const points = ChartData.revenueByRegion();
+        const width = this.Chart.Bounds.Width;
+        const height = this.Chart.Bounds.Height - 24;
+        if (width <= 0 || height <= 0) return;
+        const max = points.max(p => p.value);
+        const slot = width / points.length;
+        points.forEach((p, i) => {
+            const barHeight = p.value / max * (height - 24);
+            const bar = new Box();
+            bar.Width = slot * 0.6;
+            bar.Height = barHeight;
+            bar.RadiusX = 4;
+            bar.RadiusY = 4;
+            bar.Fill = MainWindow.brush(i == 0 ? Palette.yolk : Palette.violet);
+            Canvas.SetLeft(bar, i * slot + slot * 0.2);
+            Canvas.SetTop(bar, height - barHeight);
+            this.Chart.Children.Add(bar);
+            this.Chart.Children.Add(MainWindow.label(p.label, i * slot + slot * 0.2, height + 4, Palette.lavender));
+            this.Chart.Children.Add(MainWindow.label(p.value.toFixed(0), i * slot + slot * 0.2, height - barHeight - 20, Palette.mist));
+        });
+    }
+
+    private static label(text: string, x: number, y: number, color: string): TextBlock {
+        const t = new TextBlock();
+        t.Text = text;
+        t.Foreground = MainWindow.brush(color);
+        t.FontSize = 12;
+        Canvas.SetLeft(t, x);
+        Canvas.SetTop(t, y);
+        return t;
+    }
+
+    private renderLife(): void {
+        this.LifeCanvas.Children.Clear();
+        const w = this.LifeCanvas.Bounds.Width;
+        const h = this.LifeCanvas.Bounds.Height;
+        if (w <= 0 || h <= 0) return;
+        const size = Math.min(w / this.life.width, h / this.life.height);
+        const alive = MainWindow.brush(Palette.yolk);
+        const dead = MainWindow.brush("#1AFFFFFF");
+        for (let y = 0; y < this.life.height; y++) {
+            for (let x = 0; x < this.life.width; x++) {
+                const cell = new Box();
+                cell.Width = size - 2;
+                cell.Height = size - 2;
+                cell.RadiusX = 2;
+                cell.RadiusY = 2;
+                cell.Fill = this.life.get(x, y) ? alive : dead;
+                Canvas.SetLeft(cell, x * size);
+                Canvas.SetTop(cell, y * size);
+                this.LifeCanvas.Children.Add(cell);
+            }
+        }
+        this.LifeStatus.Text = `generation ${this.life.generation} · population ${this.life.population}`;
+    }
+
+    private toggleLife(): void {
+        if (this.lifeTimer.IsEnabled) {
+            this.lifeTimer.Stop();
+            this.PlayLife.Content = "Play";
+        } else {
+            this.lifeTimer.Start();
+            this.PlayLife.Content = "Pause";
+        }
+    }
+
+    // ------------------------------------------------------------------ screenshots for the docs
+
+    /** `--screenshot <file.png> [--sample <id>] [--components]` renders the window to a PNG and exits. */
+    private async onOpened(): Promise<void> {
+        const args = Environment.GetCommandLineArgs();
+        const index = Array.IndexOf(args, "--screenshot");
+        if (index < 0 || index + 1 >= args.Length) return;
+        const sampleIndex = Array.IndexOf(args, "--sample");
+        if (args.Contains("--components")) {
+            this.showComponents();
+            for (let i = 0; i < 12; i++) this.life.step();
+        } else if (sampleIndex > 0) {
+            this.select(args[sampleIndex + 1]);
+            await this.run();
+        }
+        await delay(800);
+        this.renderLife();
+        await delay(300);
+        const scale = this.RenderScaling;
+        const size = new PixelSize((this.Bounds.Width * scale) as int, (this.Bounds.Height * scale) as int);
+        using (const bitmap = new RenderTargetBitmap(size, new Vector(96 * scale, 96 * scale))) {
+            bitmap.Render(this);
+            bitmap.Save(args[index + 1]);
+        }
+        this.Close();
+    }
+}

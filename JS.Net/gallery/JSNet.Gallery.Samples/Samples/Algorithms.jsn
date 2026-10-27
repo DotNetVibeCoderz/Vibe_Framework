@@ -1,0 +1,38 @@
+// Classic algorithms with typed numbers compile to tight IL loops.
+
+function quickSort(xs: int[]): int[] {
+    if (xs.length <= 1) return xs;
+    const [pivot] = [xs[0]];
+    const rest = xs.slice(1);
+    return [...quickSort(rest.filter(x => x < pivot).toArray()), pivot, ...quickSort(rest.filter(x => x >= pivot).toArray())];
+}
+
+function sieve(limit: int): int[] {
+    const composite = new bool[limit + 1];
+    const primes = new Array<int>();
+    for (let i = 2; i <= limit; i++) {
+        if (composite[i]) continue;
+        primes.push(i);
+        for (let j = i * i; j <= limit; j += i) composite[j] = true;
+    }
+    return primes.toArray();
+}
+
+function binarySearch(sorted: int[], target: int): int {
+    let lo = 0;
+    let hi = sorted.length - 1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (sorted[mid] == target) return mid;
+        if (sorted[mid] < target) lo = mid + 1; else hi = mid - 1;
+    }
+    return -1;
+}
+
+export async function algorithmsDemo(): Promise<void> {
+    const sorted = quickSort([38, 27, 43, 3, 9, 82, 10]);
+    console.log("quickSort:", sorted);
+    const primes = sieve(100);
+    console.log(`primes ≤ 100 (${primes.length}):`, primes.slice(0, 12), "…");
+    console.log("binarySearch(43):", binarySearch(sorted, 43));
+}

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net Language Server Protocol implementation (diagnostics, completion, hover, symbols, go-to-definition, formatting).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Compiler\JSNet.Compiler.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Gravicode Studios (Kang Fadhil)",
+  "classifications": [
+    "JS.Net",
+    "Web",
+    "Blazor"
+  ],
+  "identity": "JSNet.Templates.blazor",
+  "groupIdentity": "JSNet.blazor",
+  "name": "JS.Net Blazor Web App",
+  "description": "A Blazor Web App (interactive server) with component logic written in JS.Net. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.",
+  "shortName": [
+    "jsnet-blazor"
+  ],
+  "sourceName": "JsNetApp",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "JS.Net",
+    "type": "project"
+  },
+  "symbols": {
+    "sdkVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "0.1.0",
+      "replaces": "JSNET_SDK_VERSION",
+      "description": "JSNet.Sdk / JSNet.Runtime version."
+    }
+  }
+}

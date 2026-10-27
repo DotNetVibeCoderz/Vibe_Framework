@@ -1,0 +1,18 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Microsoft.AspNetCore.Builder;
+import Microsoft.Extensions.DependencyInjection;
+import Microsoft.Extensions.Hosting;
+import JsNetApp.Components;
+
+const builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+const app = builder.Build();
+if (!app.Environment.IsDevelopment()) {
+    app.UseExceptionHandler("/Error", true);
+}
+app.UseAntiforgery();
+app.MapStaticAssets();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+app.Run();

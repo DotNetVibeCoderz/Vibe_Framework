@@ -1,0 +1,61 @@
+@page "/components"
+@implements IDisposable
+
+<PageTitle>UI components · JS.Net Gallery</PageTitle>
+
+<section class="sample-head">
+    <p class="eyebrow">Build with it</p>
+    <h1>UI components</h1>
+    <p class="lede">The logic below lives in <code>Components.jsn</code> and <code>GameOfLife.jsn</code>; Blazor only renders it. The desktop galleries render the same classes with WPF, WinForms and Avalonia controls.</p>
+</section>
+
+<section class="widgets">
+    <article class="widget">
+        <h2>Todo list</h2>
+        <form class="todo-add" @onsubmit="add">
+            <label class="sr-only" for="todo">New task</label>
+            <input id="todo" @bind="draft" placeholder="Add a task" autocomplete="off" />
+            <button type="submit">Add</button>
+        </form>
+        <ul class="todos">
+            @for (var i = 0; i < todos.items.Count; i++)
+            {
+                var index = i;
+                var item = todos.items[i];
+                <li class="@(item.done ? "done" : "")">
+                    <label><input type="checkbox" checked="@item.done" @onchange="() => toggle(index)" /> @item.title</label>
+                    <button class="icon" aria-label="Remove @item.title" @onclick="() => remove(index)">×</button>
+                </li>
+            }
+        </ul>
+        <p class="widget-foot">@todos.summary <button class="link" @onclick="clearDone">Clear done</button></p>
+    </article>
+
+    <article class="widget">
+        <h2>Revenue by region</h2>
+        <svg viewBox="0 0 320 180" role="img" aria-label="Bar chart of revenue by region">
+            @foreach (var b in bars)
+            {
+                <g>
+                    <rect x="@b.x" y="@b.y" width="@b.width" height="@b.height" rx="3" class="bar" />
+                    <text x="@(b.x + b.width / 2)" y="172" class="axis" text-anchor="middle">@b.label</text>
+                    <text x="@(b.x + b.width / 2)" y="@(b.y - 6)" class="value" text-anchor="middle">@b.value.ToString("0")</text>
+                </g>
+            }
+        </svg>
+    </article>
+
+    <article class="widget widget-wide">
+        <h2>Game of Life</h2>
+        <div class="life" style="grid-template-columns: repeat(@life.width, 1fr)">
+            @for (var i = 0; i < life.cells.Length; i++)
+            {
+                <span class="@(life.cells[i] ? "alive" : "")"></span>
+            }
+        </div>
+        <p class="widget-foot">Generation @life.generation · population @life.population
+            <button class="link" @onclick="togglePlay">@(playing ? "Pause" : "Play")</button>
+            <button class="link" @onclick="reseed">Reseed</button>
+        </p>
+    </article>
+</section>

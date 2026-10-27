@@ -1,0 +1,16 @@
+import Avalonia.Controls;
+import Avalonia.Interactivity;
+
+export partial class MainWindow extends Window {
+    private clicks = 0;
+
+    constructor() {
+        super();
+        this.InitializeComponent();
+    }
+
+    onClick(sender: object, e: RoutedEventArgs): void {
+        this.clicks++;
+        this.CounterText.Text = `Clicked ${this.clicks} times`;
+    }
+}

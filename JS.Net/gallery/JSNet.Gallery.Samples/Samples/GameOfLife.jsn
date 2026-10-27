@@ -1,0 +1,71 @@
+// Use case: Conway's Game of Life. The Components page renders the same LifeBoard class natively.
+
+export class LifeBoard {
+    cells: bool[];
+    generation: int = 0;
+
+    constructor(public readonly width: int, public readonly height: int) {
+        this.cells = new bool[width * height];
+    }
+
+    static glider(width: int, height: int): LifeBoard {
+        const b = new LifeBoard(width, height);
+        for (const [x, y] of [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]) b.set(x, y, true);
+        return b;
+    }
+
+    static random(width: int, height: int, seed: int): LifeBoard {
+        const b = new LifeBoard(width, height);
+        const rng = new Random(seed);
+        for (let i = 0; i < b.cells.length; i++) b.cells[i] = rng.NextDouble() < 0.3;
+        return b;
+    }
+
+    get(x: int, y: int): bool {
+        const wx = (x + this.width) % this.width;
+        const wy = (y + this.height) % this.height;
+        return this.cells[wy * this.width + wx];
+    }
+
+    set(x: int, y: int, alive: bool): void {
+        this.cells[y * this.width + x] = alive;
+    }
+
+    get population(): int { return this.cells.count(c => c); }
+
+    step(): void {
+        const next = new bool[this.cells.length];
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                let n = 0;
+                for (let dy = -1; dy <= 1; dy++)
+                    for (let dx = -1; dx <= 1; dx++)
+                        if ((dx != 0 || dy != 0) && this.get(x + dx, y + dy)) n++;
+                const alive = this.get(x, y);
+                next[y * this.width + x] = alive ? n == 2 || n == 3 : n == 3;
+            }
+        }
+        this.cells = next;
+        this.generation++;
+    }
+
+    render(): string {
+        const rows = new Array<string>();
+        for (let y = 0; y < this.height; y++) {
+            let row = "";
+            for (let x = 0; x < this.width; x++) row += this.get(x, y) ? "■" : "·";
+            rows.push(row);
+        }
+        return rows.join("\n");
+    }
+}
+
+export async function lifeDemo(): Promise<void> {
+    const board = LifeBoard.glider(8, 6);
+    for (let i = 0; i < 3; i++) {
+        console.log(`generation ${board.generation} (population ${board.population})`);
+        console.log(board.render());
+        board.step();
+        board.step();
+    }
+}

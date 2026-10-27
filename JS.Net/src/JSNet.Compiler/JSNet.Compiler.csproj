@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net compiler driver: parses, binds and lowers .jsn files for the Roslyn backend.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Parser\JSNet.Parser.csproj" />
+    <ProjectReference Include="..\JSNet.CodeGen\JSNet.CodeGen.csproj" />
+  </ItemGroup>
+</Project>

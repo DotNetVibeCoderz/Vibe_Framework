@@ -1,0 +1,7 @@
+export class Greeter {
+    constructor(private readonly name: string) {}
+
+    greet(): string {
+        return `Hello from ${this.name}! 👋`;
+    }
+}

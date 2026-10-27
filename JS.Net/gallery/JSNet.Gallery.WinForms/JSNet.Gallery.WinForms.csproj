@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- JS.Net Gallery for Windows Forms: the whole UI is built in JS.Net code (no designer files). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>JSNet.Gallery.WinForms</RootNamespace>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <JSNetNoWarn>JSN2001;JSN2002</JSNetNoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Gallery.Samples\JSNet.Gallery.Samples.csproj" />
+    <EmbeddedResource Include="icon.png" LogicalName="icon.png" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,68 @@
+// Syntax highlighting for every front-end, built on the real JS.Net lexer.
+
+import JSNet.Syntax;
+
+export enum TokenClass { Plain, Keyword, Type, String, Number, Comment, Punctuation, Function, Decorator }
+
+export class CodeSpan {
+    constructor(public readonly text: string, public readonly kind: TokenClass) {}
+}
+
+const contextual = new Set<string>(["async", "await", "of", "as", "from", "get", "set", "static", "public", "private", "protected",
+    "readonly", "abstract", "override", "type", "namespace", "ai", "prompt", "dynamic", "using", "partial", "declare", "is"]);
+
+const typeNames = new Set<string>(["number", "int", "long", "string", "bool", "boolean", "any", "object", "Promise", "Array", "Map", "Set", "Iterable"]);
+
+export class Highlighter {
+    static highlight(code: string): CodeSpan[] {
+        const spans = new Array<CodeSpan>();
+        const source = new SourceText(code);
+        const tokens = Lexer.Tokenize(source, new DiagnosticBag());
+        let pos = 0;
+        for (let i = 0; i < tokens.Count; i++) {
+            const t = tokens[i];
+            if (t.Kind == TokenKind.EndOfFile) break;
+            if (t.Span.Start > pos) Highlighter.trivia(code.substring(pos, t.Span.Start), spans);
+            const next = i + 1 < tokens.Count ? tokens[i + 1] : t;
+            spans.push(new CodeSpan(t.Text, Highlighter.classify(t, next, i > 0 ? tokens[i - 1] : t)));
+            pos = t.Span.End;
+        }
+        if (pos < code.length) Highlighter.trivia(code.substring(pos), spans);
+        return spans.toArray();
+    }
+
+    private static classify(t: Token, next: Token, prev: Token): TokenClass {
+        switch (t.Kind) {
+            case TokenKind.Keyword: return TokenClass.Keyword;
+            case TokenKind.String: return TokenClass.String;
+            case TokenKind.Template: return TokenClass.String;
+            case TokenKind.Number: return TokenClass.Number;
+            case TokenKind.Punctuator: return t.Text == "@" ? TokenClass.Decorator : TokenClass.Punctuation;
+        }
+        if (prev.Text == "@") return TokenClass.Decorator;
+        if (contextual.has(t.Text) && next.Kind != TokenKind.Punctuator) return TokenClass.Keyword;
+        if (typeNames.has(t.Text) || (t.Text.length > 0 && Char.IsUpper(t.Text[0]))) return TokenClass.Type;
+        if (next.Text == "(") return TokenClass.Function;
+        return TokenClass.Plain;
+    }
+
+    /** Whitespace and comments between tokens. */
+    private static trivia(text: string, spans: List<CodeSpan>): void {
+        let i = 0;
+        while (i < text.length) {
+            const lineComment = text.IndexOf("//", i);
+            const blockComment = text.IndexOf("/*", i);
+            let start = lineComment;
+            if (start < 0 || (blockComment >= 0 && blockComment < start)) start = blockComment;
+            if (start < 0) {
+                spans.push(new CodeSpan(text.substring(i), TokenClass.Plain));
+                return;
+            }
+            if (start > i) spans.push(new CodeSpan(text.substring(i, start), TokenClass.Plain));
+            let end = start == lineComment ? text.IndexOf("\n", start) : text.IndexOf("*/", start) + 2;
+            if (end < start + 2) end = text.length;
+            spans.push(new CodeSpan(text.substring(start, end), TokenClass.Comment));
+            i = end;
+        }
+    }
+}

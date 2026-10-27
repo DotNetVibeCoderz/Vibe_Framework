@@ -1,0 +1,16 @@
+import System.Threading;
+import Microsoft.Extensions.Hosting;
+import Microsoft.Extensions.Logging;
+
+export class Worker extends BackgroundService {
+    constructor(private readonly logger: ILogger<Worker>) {
+        super();
+    }
+
+    protected override async ExecuteAsync(stoppingToken: CancellationToken): Promise<void> {
+        while (!stoppingToken.IsCancellationRequested) {
+            this.logger.LogInformation("JS.Net worker running at: {time}", DateTimeOffset.Now);
+            await Task.Delay(1000, stoppingToken);
+        }
+    }
+}

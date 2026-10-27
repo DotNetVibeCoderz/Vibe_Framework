@@ -1,0 +1,7 @@
+<Project>
+  <!-- In-repo flavour of JSNet.Sdk: projects under samples/ and gallery/ build against the source tree. -->
+  <PropertyGroup>
+    <JSNetUseProjectReferences>true</JSNetUseProjectReferences>
+  </PropertyGroup>
+  <Import Project="$(JSNetRepoRoot)src\JSNet.Sdk\build\JSNet.Sdk.props" />
+</Project>

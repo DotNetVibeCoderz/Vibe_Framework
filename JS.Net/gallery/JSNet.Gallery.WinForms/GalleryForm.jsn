@@ -1,0 +1,510 @@
+// JS.Net Gallery for Windows Forms — every control below is created from JS.Net.
+// Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import System.Drawing;
+import System.Drawing.Drawing2D;
+import System.Windows.Forms;
+import JSNet.Gallery.Samples;
+
+export class GalleryForm extends Form {
+    private current: Sample | null = null;
+    private navButtons = new Map<string, Button>();
+    private todos = new TodoList();
+    private life = LifeBoard.random(48, 20, 7);
+    private lifeTimer = new System.Windows.Forms.Timer();
+
+    private samplesView = new Panel();
+    private componentsView = new Panel();
+    private eyebrow = new Label();
+    private title = new Label();
+    private summary = new Label();
+    private sourceTab = new Button();
+    private loweredTab = new Button();
+    private codeBox = new RichTextBox();
+    private runButton = new Button();
+    private runMeta = new Label();
+    private output = new RichTextBox();
+    private todoList = new CheckedListBox();
+    private todoInput = new TextBox();
+    private todoSummary = new Label();
+    private chart = new Surface();
+    private lifePanel = new Surface();
+    private lifeStatus = new Label();
+    private playButton = new Button();
+    private populatingTodos: bool = false;
+
+    constructor() {
+        super();
+        this.Text = "JS.Net Gallery — WinForms";
+        this.ClientSize = new Size(1320, 820);
+        this.MinimumSize = new Size(980, 640);
+        this.StartPosition = FormStartPosition.CenterScreen;
+        this.BackColor = GalleryForm.color(Palette.midnight);
+        this.ForeColor = GalleryForm.color(Palette.mist);
+        this.Font = new Font("Segoe UI", 10);
+        this.Icon = Icon.FromHandle(GalleryForm.logo().GetHicon());
+
+        this.Controls.Add(this.buildSamplesView());
+        this.Controls.Add(this.buildComponentsView());
+        this.Controls.Add(this.buildRail());
+
+        this.lifeTimer.Interval = 120;
+        this.lifeTimer.Tick += (s, e) => { this.life.step(); this.lifePanel.Invalidate(); this.updateLifeStatus(); };
+        this.Shown += async (s, e) => await this.onShown();
+        this.select("basics");
+    }
+
+    static color(hex: string): Color { return ColorTranslator.FromHtml(hex); }
+
+    static logo(): Bitmap {
+        const stream = (typeof GalleryForm).Assembly.GetManifestResourceStream("icon.png");
+        return new Bitmap(stream);
+    }
+
+    // ------------------------------------------------------------------ layout
+
+    private buildRail(): Control {
+        const rail = new Panel();
+        rail.Dock = DockStyle.Left;
+        rail.Width = 250;
+        rail.BackColor = GalleryForm.color(Palette.indigo);
+        rail.Padding = new Padding(14, 18, 14, 14);
+
+        const nav = new FlowLayoutPanel();
+        nav.Dock = DockStyle.Fill;
+        nav.FlowDirection = FlowDirection.TopDown;
+        nav.WrapContents = false;
+        nav.AutoScroll = true;
+
+        for (const category of Catalog.categories) {
+            nav.Controls.Add(GalleryForm.groupLabel(category));
+            for (const sample of Catalog.samples.where(x => x.category == category)) {
+                const button = GalleryForm.navButton(sample.title);
+                button.Click += (s, e) => this.select(sample.id);
+                this.navButtons.set(sample.id, button);
+                nav.Controls.Add(button);
+            }
+        }
+        nav.Controls.Add(GalleryForm.groupLabel("Build with it"));
+        const components = GalleryForm.navButton("UI components");
+        components.Click += (s, e) => this.showComponents();
+        this.navButtons.set("components", components);
+        nav.Controls.Add(components);
+
+        const brand = new Label();
+        brand.Dock = DockStyle.Top;
+        brand.Height = 52;
+        brand.Text = "      JS.Net Gallery";
+        brand.Font = new Font("Segoe UI Semibold", 15);
+        brand.ForeColor = GalleryForm.color(Palette.yolk);
+        brand.Image = new Bitmap(GalleryForm.logo(), new Size(34, 34));
+        brand.ImageAlign = ContentAlignment.MiddleLeft;
+        brand.TextAlign = ContentAlignment.MiddleLeft;
+
+        const credit = new Label();
+        credit.Dock = DockStyle.Bottom;
+        credit.Height = 40;
+        credit.Text = Catalog.credit;
+        credit.Font = new Font("Segoe UI", 8);
+        credit.ForeColor = GalleryForm.color(Palette.lavender);
+
+        rail.Controls.Add(nav);
+        rail.Controls.Add(credit);
+        rail.Controls.Add(brand);
+        return rail;
+    }
+
+    private static groupLabel(text: string): Label {
+        const label = new Label();
+        label.Text = text.ToUpperInvariant();
+        label.Font = new Font("Segoe UI Semibold", 8);
+        label.ForeColor = GalleryForm.color(Palette.lavender);
+        label.Margin = new Padding(8, 14, 0, 2);
+        label.AutoSize = true;
+        return label;
+    }
+
+    private static navButton(text: string): Button {
+        const button = new Button();
+        button.Text = text;
+        button.Width = 200;
+        button.Height = 32;
+        button.UseMnemonic = false;
+        button.TextAlign = ContentAlignment.MiddleLeft;
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.MouseOverBackColor = GalleryForm.color("#2E2878");
+        button.ForeColor = GalleryForm.color(Palette.mist);
+        button.Cursor = Cursors.Hand;
+        button.Margin = new Padding(0, 1, 0, 1);
+        return button;
+    }
+
+    private static accentButton(text: string): Button {
+        const button = new Button();
+        button.Text = text;
+        button.AutoSize = true;
+        button.Padding = new Padding(14, 6, 14, 6);
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 0;
+        button.BackColor = GalleryForm.color(Palette.yolk);
+        button.ForeColor = GalleryForm.color(Palette.midnight);
+        button.Font = new Font("Segoe UI Semibold", 11);
+        button.Cursor = Cursors.Hand;
+        return button;
+    }
+
+    private static tabButton(text: string): Button {
+        const button = new Button();
+        button.Text = text;
+        button.AutoSize = true;
+        button.Padding = new Padding(10, 4, 10, 4);
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 0;
+        button.Font = new Font("Cascadia Mono", 9.5f);
+        button.Cursor = Cursors.Hand;
+        return button;
+    }
+
+    private header(eyebrow: Label, title: Label, summary: Label): Panel {
+        const head = new Panel();
+        head.Dock = DockStyle.Top;
+        head.Height = 118;
+        eyebrow.Font = new Font("Segoe UI Semibold", 8.5f);
+        eyebrow.ForeColor = GalleryForm.color(Palette.yolk);
+        eyebrow.SetBounds(0, 0, 900, 20);
+        title.Font = new Font("Segoe UI Semibold", 26);
+        title.SetBounds(-4, 20, 1000, 52);
+        summary.ForeColor = GalleryForm.color("#D6D0FB");
+        summary.Font = new Font("Segoe UI", 11);
+        summary.SetBounds(0, 76, 1000, 28);
+        head.Controls.Add(eyebrow);
+        head.Controls.Add(title);
+        head.Controls.Add(summary);
+        return head;
+    }
+
+    private buildSamplesView(): Control {
+        const view = this.samplesView;
+        view.Dock = DockStyle.Fill;
+        view.Padding = new Padding(34, 26, 34, 26);
+
+        const grid = new TableLayoutPanel();
+        grid.Dock = DockStyle.Fill;
+        grid.ColumnCount = 2;
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 61));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 39));
+
+        // Code card
+        const card = new Panel();
+        card.Dock = DockStyle.Fill;
+        card.BackColor = GalleryForm.color(Palette.indigo);
+        card.Margin = new Padding(0, 0, 16, 0);
+        const tabs = new FlowLayoutPanel();
+        tabs.Dock = DockStyle.Top;
+        tabs.Height = 40;
+        tabs.Padding = new Padding(6, 4, 0, 0);
+        this.sourceTab = GalleryForm.tabButton("source");
+        this.loweredTab = GalleryForm.tabButton("Lowered C#");
+        this.sourceTab.Click += (s, e) => this.setLowered(false);
+        this.loweredTab.Click += (s, e) => this.setLowered(true);
+        tabs.Controls.Add(this.sourceTab);
+        tabs.Controls.Add(this.loweredTab);
+        this.codeBox.Dock = DockStyle.Fill;
+        this.codeBox.ReadOnly = true;
+        this.codeBox.BorderStyle = BorderStyle.None;
+        this.codeBox.BackColor = GalleryForm.color(Palette.codeBackground);
+        this.codeBox.ForeColor = GalleryForm.color("#E4E0FF");
+        this.codeBox.Font = new Font("Cascadia Mono", 10);
+        this.codeBox.WordWrap = false;
+        this.codeBox.DetectUrls = false;
+        const codeHost = new Panel();
+        codeHost.Dock = DockStyle.Fill;
+        codeHost.Padding = new Padding(14, 10, 4, 4);
+        codeHost.BackColor = GalleryForm.color(Palette.codeBackground);
+        codeHost.Controls.Add(this.codeBox);
+        card.Controls.Add(codeHost);
+        card.Controls.Add(tabs);
+
+        // Run column
+        const runColumn = new Panel();
+        runColumn.Dock = DockStyle.Fill;
+        const runBar = new FlowLayoutPanel();
+        runBar.Dock = DockStyle.Top;
+        runBar.Height = 52;
+        this.runButton = GalleryForm.accentButton("Run sample");
+        this.runButton.Click += async (s, e) => await this.run();
+        this.runMeta.AutoSize = true;
+        this.runMeta.Margin = new Padding(12, 12, 0, 0);
+        this.runMeta.ForeColor = GalleryForm.color(Palette.mint);
+        runBar.Controls.Add(this.runButton);
+        runBar.Controls.Add(this.runMeta);
+        this.output.Dock = DockStyle.Fill;
+        this.output.ReadOnly = true;
+        this.output.BorderStyle = BorderStyle.None;
+        this.output.BackColor = GalleryForm.color(Palette.consoleBackground);
+        this.output.ForeColor = GalleryForm.color(Palette.mint);
+        this.output.Font = new Font("Cascadia Mono", 9.5f);
+        const outputHost = new Panel();
+        outputHost.Dock = DockStyle.Fill;
+        outputHost.Padding = new Padding(14);
+        outputHost.BackColor = GalleryForm.color(Palette.consoleBackground);
+        outputHost.Controls.Add(this.output);
+        runColumn.Controls.Add(outputHost);
+        runColumn.Controls.Add(runBar);
+
+        grid.Controls.Add(card, 0, 0);
+        grid.Controls.Add(runColumn, 1, 0);
+        view.Controls.Add(grid);
+        view.Controls.Add(this.header(this.eyebrow, this.title, this.summary));
+        return view;
+    }
+
+    private buildComponentsView(): Control {
+        const view = this.componentsView;
+        view.Dock = DockStyle.Fill;
+        view.Padding = new Padding(34, 26, 34, 26);
+        view.Visible = false;
+
+        const grid = new TableLayoutPanel();
+        grid.Dock = DockStyle.Fill;
+        grid.ColumnCount = 2;
+        grid.RowCount = 2;
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 290));
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        // Todo card
+        const todo = GalleryForm.card("Todo list");
+        const addRow = new Panel();
+        addRow.Dock = DockStyle.Top;
+        addRow.Height = 40;
+        const add = GalleryForm.accentButton("Add");
+        add.Dock = DockStyle.Right;
+        add.Click += (s, e) => { this.todos.add(this.todoInput.Text); this.todoInput.Text = ""; this.renderTodos(); };
+        this.todoInput.Dock = DockStyle.Fill;
+        this.todoInput.BackColor = GalleryForm.color(Palette.codeBackground);
+        this.todoInput.ForeColor = GalleryForm.color(Palette.mist);
+        this.todoInput.BorderStyle = BorderStyle.FixedSingle;
+        this.todoInput.PlaceholderText = "Add a task";
+        addRow.Controls.Add(this.todoInput);
+        addRow.Controls.Add(add);
+        this.todoList.Dock = DockStyle.Fill;
+        this.todoList.BorderStyle = BorderStyle.None;
+        this.todoList.BackColor = GalleryForm.color(Palette.indigo);
+        this.todoList.ForeColor = GalleryForm.color(Palette.mist);
+        this.todoList.CheckOnClick = true;
+        this.todoList.ItemCheck += (s, e) => {
+            if (this.populatingTodos) return;
+            const index = e.Index;
+            this.BeginInvoke(() => { this.todos.toggle(index); this.todoSummary.Text = this.todos.summary; });
+        };
+        this.todoSummary.Dock = DockStyle.Bottom;
+        this.todoSummary.ForeColor = GalleryForm.color(Palette.lavender);
+        todo.Controls.Add(this.todoSummary);
+        todo.Controls.Add(addRow);
+        todo.Controls.Add(this.todoList);
+        GalleryForm.finishCard(todo, this.todoList);
+
+        // Chart card
+        const chartCard = GalleryForm.card("Revenue by region");
+        this.chart.Dock = DockStyle.Fill;
+        this.chart.Paint += (s, e) => this.paintChart(e.Graphics);
+        chartCard.Controls.Add(this.chart);
+        GalleryForm.finishCard(chartCard, this.chart);
+
+        // Life card
+        const lifeCard = GalleryForm.card("Game of Life");
+        const lifeBar = new FlowLayoutPanel();
+        lifeBar.Dock = DockStyle.Top;
+        lifeBar.Height = 46;
+        this.playButton = GalleryForm.accentButton("Play");
+        this.playButton.Click += (s, e) => this.toggleLife();
+        this.lifeStatus.AutoSize = true;
+        this.lifeStatus.Margin = new Padding(12, 10, 0, 0);
+        this.lifeStatus.ForeColor = GalleryForm.color(Palette.lavender);
+        lifeBar.Controls.Add(this.playButton);
+        lifeBar.Controls.Add(this.lifeStatus);
+        this.lifePanel.Dock = DockStyle.Fill;
+        this.lifePanel.Paint += (s, e) => this.paintLife(e.Graphics);
+        lifeCard.Controls.Add(lifeBar);
+        lifeCard.Controls.Add(this.lifePanel);
+        GalleryForm.finishCard(lifeCard, this.lifePanel);
+
+        grid.Controls.Add(todo, 0, 0);
+        grid.Controls.Add(chartCard, 1, 0);
+        grid.Controls.Add(lifeCard, 0, 1);
+        grid.SetColumnSpan(lifeCard, 2);
+        view.Controls.Add(grid);
+        const eyebrow = new Label();
+        const title = new Label();
+        const summary = new Label();
+        eyebrow.Text = "BUILD WITH IT";
+        title.Text = "UI components";
+        summary.Text = "TodoList, ChartData and LifeBoard are JS.Net classes; this form draws them with GDI+.";
+        view.Controls.Add(this.header(eyebrow, title, summary));
+        return view;
+    }
+
+    /** WinForms docks from the back of the z-order: heading outermost, fill control last. */
+    private static finishCard(card: Panel, fill: Control): void {
+        card.Controls[0].SendToBack();
+        fill.BringToFront();
+    }
+
+    private static card(heading: string): Panel {
+        const card = new Panel();
+        card.Dock = DockStyle.Fill;
+        card.BackColor = GalleryForm.color(Palette.indigo);
+        card.Padding = new Padding(18, 12, 18, 14);
+        card.Margin = new Padding(0, 0, 14, 14);
+        const label = new Label();
+        label.Text = heading;
+        label.Dock = DockStyle.Top;
+        label.Height = 36;
+        label.Font = new Font("Segoe UI Semibold", 13);
+        card.Controls.Add(label);
+        return card;
+    }
+
+    // ------------------------------------------------------------------ behaviour
+
+    private highlightNav(id: string): void {
+        for (const [key, button] of this.navButtons) {
+            button.BackColor = key == id ? GalleryForm.color(Palette.violet) : Color.Transparent;
+        }
+    }
+
+    select(id: string): void {
+        const sample = Catalog.find(id);
+        if (sample == null) return;
+        this.current = sample;
+        this.highlightNav(id);
+        this.samplesView.Visible = true;
+        this.componentsView.Visible = false;
+        this.eyebrow.Text = sample.category.ToUpperInvariant();
+        this.title.Text = sample.title;
+        this.summary.Text = sample.summary;
+        this.sourceTab.Text = sample.file;
+        this.output.Text = "Output appears here.";
+        this.runMeta.Text = "";
+        this.setLowered(false);
+    }
+
+    private setLowered(lowered: bool): void {
+        if (this.current == null) return;
+        this.sourceTab.ForeColor = GalleryForm.color(lowered ? Palette.lavender : Palette.yolk);
+        this.loweredTab.ForeColor = GalleryForm.color(lowered ? Palette.yolk : Palette.lavender);
+        const code = lowered ? Catalog.lowered(this.current.file) : Catalog.source(this.current.file);
+        this.codeBox.SuspendLayout();
+        this.codeBox.Clear();
+        for (const span of Highlighter.highlight(code)) {
+            this.codeBox.SelectionStart = this.codeBox.TextLength;
+            this.codeBox.SelectionColor = GalleryForm.color(Palette.colorFor(span.kind));
+            this.codeBox.AppendText(span.text.Replace("\r", ""));
+        }
+        this.codeBox.SelectionStart = 0;
+        this.codeBox.ResumeLayout();
+    }
+
+    async run(): Promise<void> {
+        if (this.current == null) return;
+        this.runButton.Enabled = false;
+        this.runButton.Text = "Running…";
+        const result = await Catalog.runSample(this.current.id);
+        this.output.Text = (result.ok ? result.output : result.error).Replace("\n", "\r\n");
+        this.runMeta.Text = `${result.ok ? "Exited normally" : "Threw an exception"} · ${result.milliseconds.toFixed(0)} ms`;
+        this.runMeta.ForeColor = GalleryForm.color(result.ok ? Palette.mint : Palette.rose);
+        this.runButton.Text = "Run sample";
+        this.runButton.Enabled = true;
+    }
+
+    private showComponents(): void {
+        this.highlightNav("components");
+        this.samplesView.Visible = false;
+        this.componentsView.Visible = true;
+        this.renderTodos();
+        this.updateLifeStatus();
+    }
+
+    private renderTodos(): void {
+        this.populatingTodos = true;
+        this.todoList.Items.Clear();
+        for (const item of this.todos.items) this.todoList.Items.Add(item.title, item.done);
+        this.populatingTodos = false;
+        this.todoSummary.Text = this.todos.summary;
+    }
+
+    private paintChart(g: Graphics): void {
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        const points = ChartData.revenueByRegion();
+        const width = this.chart.ClientSize.Width;
+        const height = this.chart.ClientSize.Height - 24;
+        const max = points.max(p => p.value);
+        const slot = width / points.length;
+        using (const font = new Font("Segoe UI", 9)) {
+            points.forEach((p, i) => {
+                const barHeight = p.value / max * (height - 28);
+                const x = (i * slot + slot * 0.2) as float;
+                const y = (height - barHeight) as float;
+                using (const brush = new SolidBrush(GalleryForm.color(i == 0 ? Palette.yolk : Palette.violet))) {
+                    g.FillRectangle(brush, x, y, (slot * 0.6) as float, barHeight as float);
+                }
+                TextRenderer.DrawText(g, p.label, font, new Point(x as int, height + 4), GalleryForm.color(Palette.lavender));
+                TextRenderer.DrawText(g, p.value.toFixed(0), font, new Point(x as int, (y - 20) as int), GalleryForm.color(Palette.mist));
+            });
+        }
+    }
+
+    private paintLife(g: Graphics): void {
+        const w = this.lifePanel.ClientSize.Width;
+        const h = this.lifePanel.ClientSize.Height;
+        const size = Math.floor(Math.min(w / this.life.width, h / this.life.height));
+        using (const alive = new SolidBrush(GalleryForm.color(Palette.yolk))) {
+            using (const dead = new SolidBrush(GalleryForm.color("#2A2470"))) {
+                for (let y = 0; y < this.life.height; y++) {
+                    for (let x = 0; x < this.life.width; x++) {
+                        g.FillRectangle(this.life.get(x, y) ? alive : dead, (x * size) as float, (y * size) as float, (size - 2) as float, (size - 2) as float);
+                    }
+                }
+            }
+        }
+    }
+
+    private updateLifeStatus(): void {
+        this.lifeStatus.Text = `generation ${this.life.generation} · population ${this.life.population}`;
+    }
+
+    private toggleLife(): void {
+        this.lifeTimer.Enabled = !this.lifeTimer.Enabled;
+        this.playButton.Text = this.lifeTimer.Enabled ? "Pause" : "Play";
+    }
+
+    // ------------------------------------------------------------------ screenshots for the docs
+
+    /** `--screenshot <file.png> [--sample <id>] [--components]` captures the window and exits. */
+    private async onShown(): Promise<void> {
+        const args = Environment.GetCommandLineArgs();
+        const index = Array.IndexOf(args, "--screenshot");
+        if (index < 0 || index + 1 >= args.Length) return;
+        this.TopMost = true;
+        const sampleIndex = Array.IndexOf(args, "--sample");
+        if (args.Contains("--components")) {
+            for (let i = 0; i < 12; i++) this.life.step();
+            this.showComponents();
+        } else if (sampleIndex > 0) {
+            this.select(args[sampleIndex + 1]);
+            await this.run();
+        }
+        await delay(900);
+        const bounds = this.RectangleToScreen(this.ClientRectangle);
+        using (const bitmap = new Bitmap(bounds.Width, bounds.Height)) {
+            using (const g = Graphics.FromImage(bitmap)) {
+                g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+            }
+            bitmap.Save(args[index + 1], System.Drawing.Imaging.ImageFormat.Png);
+        }
+        this.Close();
+    }
+}

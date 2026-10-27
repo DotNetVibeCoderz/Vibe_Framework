@@ -1,0 +1,54 @@
+import Microsoft.AspNetCore.Components;
+import JSNet.Gallery.Samples;
+
+export class Bar {
+    constructor(public label: string, public value: number, public x: number, public y: number, public width: number, public height: number) {}
+}
+
+export partial class ComponentsPage extends ComponentBase implements IDisposable {
+    todos = new TodoList();
+    draft: string = "";
+    bars: Bar[] = ComponentsPage.layoutBars(ChartData.revenueByRegion());
+    life = LifeBoard.random(36, 18, 7);
+    playing: bool = false;
+    private timer: int = 0;
+
+    add(): void {
+        this.todos.add(this.draft);
+        this.draft = "";
+    }
+
+    toggle(index: int): void { this.todos.toggle(index); }
+    remove(index: int): void { this.todos.remove(index); }
+    clearDone(): void { this.todos.clearDone(); }
+
+    togglePlay(): void {
+        this.playing = !this.playing;
+        if (this.playing) {
+            this.timer = setInterval(() => {
+                this.life.step();
+                this.InvokeAsync(() => this.StateHasChanged());
+            }, 120);
+        } else {
+            clearInterval(this.timer);
+        }
+    }
+
+    reseed(): void {
+        this.life = LifeBoard.random(36, 18, Random.Shared.Next(1000));
+    }
+
+    Dispose(): void {
+        clearInterval(this.timer);
+    }
+
+    /** Lays bars out in a 320×180 viewBox. */
+    static layoutBars(points: BarPoint[]): Bar[] {
+        const max = points.max(p => p.value);
+        const slot = 300 / points.length;
+        return points.map((p, i) => {
+            const height = p.value / max * 120;
+            return new Bar(p.label, p.value, 10 + i * slot + slot * 0.18, 150 - height, slot * 0.64, height);
+        }).toArray();
+    }
+}

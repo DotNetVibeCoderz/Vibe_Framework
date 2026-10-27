@@ -1,0 +1,30 @@
+Name: Js.Net
+
+Deskripsi: JS.Net adalah bahasa pemrograman modern di atas platform .NET yang menggabungkan sintaks JavaScript/TypeScript, performa .NET, interoperabilitas CLR, dan integrasi penuh dengan seluruh ekosistem .NET.
+
+Features
+---
+Desain dan fitur bisa lihat di file @architecture-design.md
+
+---
+Notes:
+- Dibangun dengan .NET 10, Rust (untuk compiler, supporting tools, dsb. dengan performance tinggi) 
+- Buatkan .NET project template untuk console, web/webapi/blazor, desktop (wpf, winform), avalonia, dan lainnya yang diperlukan
+- Optimasi kode dengan best practice, best performance dan efisiensi memory
+- Dokumentasi yang lengkap, jelas, mudah dengan dua Bahasa (English dan Bahasa Indonesia)
+- Tambahkan screenshot-nya ke readme dan docs
+- Tambahkan info pada dokumentasi dan aplikasi: Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil
+- PLAN.md untuk roadmap pengembangan, dan Progress.md untuk tracking development
+- Tambahkan Js.Net Gallery yaitu gallery penggunaan komponen dengan berbagai use case, tersedia sample code dibuat UI UX-nya yang keren dan professional dibantu dengan skill 'frontend-design' baik untuk target web dengan Blazor dan desktop dengan Avalonia UI, Wpf, Winform
+- untuk publish nuget api key ada di 'C:\Users\mifma\Documents\CodeSandbox\PackageCredentials.txt'
+- nuget-nya buatkan icon yang keren
+- jika diperlukan bisa memanfaatkan rea mcp untuk memahami infrastruktur .NET
+
+Supporting Library (untuk gallery jika diperlukan):
+Reinforcement Learning -> https://github.com/DotNetVibeCoderz/Vibe_Library/tree/main/RLNet
+Visulization Library -> https://github.com/DotNetVibeCoderz/Vibe_Charting/tree/main/Visual.Net
+multiplatform 3D graphics engine -> https://github.com/DotNetVibeCoderz/Vibe_Graphics/tree/main/ThreeNet
+Numpy, Pandas, Scikit Learn, Scipy -> https://github.com/DotNetVibeCoderz/Vibe_ML/tree/main/GravicodeScience
+Hugging Face support -> https://github.com/DotNetVibeCoderz/Vibe_ML/tree/main/HF.Net
+Google Media Pipe -> https://github.com/DotNetVibeCoderz/Vibe_ML/tree/main/MediaPipeNet
+IoT Support -> https://github.com/DotNetVibeCoderz/Vibe_IoT/tree/main/IoTComNet 

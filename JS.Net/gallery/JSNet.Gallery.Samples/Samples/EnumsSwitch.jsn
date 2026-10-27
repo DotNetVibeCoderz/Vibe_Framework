@@ -1,0 +1,34 @@
+// Enums (numeric → CLR enum, string → constants) and switch with fall-through and non-constant cases.
+
+export enum Priority { Low, Medium, High, Critical }
+
+export enum Status { Open = "open", Closed = "closed" }
+
+function label(p: Priority): string {
+    switch (p) {
+        case Priority.Low:
+            return "can wait";
+        case Priority.Medium:
+        case Priority.High:
+            return "plan it";
+        default:
+            return "drop everything";
+    }
+}
+
+function grade(score: int): string {
+    switch (true) {
+        case score >= 90: return "A";
+        case score >= 80: return "B";
+        case score >= 70: return "C";
+        default: return "keep going";
+    }
+}
+
+export async function enumsDemo(): Promise<void> {
+    for (const p of [Priority.Low, Priority.High, Priority.Critical]) {
+        console.log(`${p} → ${label(p)}`);
+    }
+    console.log("status constant:", Status.Open);
+    console.log("grades:", [95, 83, 71, 40].map(s => grade(s)));
+}

@@ -1,0 +1,119 @@
+# Build and test JS.Net: the compiler, runtime, SDK, CLI, language server, the Rust jsnet-tools,
+# the gallery (Blazor, WPF, WinForms, Avalonia) and every NuGet package — then install the packages
+# into a clean folder and build a project from every template, exactly as a user would.
+#
+# Runs on Windows because the gallery and two of the templates are WPF and WinForms.
+#
+# ## Where this file lives
+#
+# JS.Net is a subdirectory of the Vibe_Framework monorepo, and GitHub only runs workflows found in
+# `.github/workflows/` at the repository root. The job finds the JS.Net directory itself, so the file
+# also works in a standalone checkout.
+
+name: JS.Net CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'JS.Net/**'
+      - '.github/workflows/jsnet-*.yml'
+  pull_request:
+    paths:
+      - 'JS.Net/**'
+      - '.github/workflows/jsnet-*.yml'
+  workflow_dispatch:
+  # The publish workflow runs this at the release version and pushes the packages it built:
+  # what is published is exactly what was tested.
+  workflow_call:
+    inputs:
+      version:
+        description: 'Package version'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jsnet-ci-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the JS.Net directory
+        id: loc
+        run: |
+          if (Test-Path JSNet.slnx) { $dir = "." }
+          elseif (Test-Path JS.Net/JSNet.slnx) { $dir = "JS.Net" }
+          else { Write-Output "::error::cannot find JSNet.slnx at the root or under JS.Net/"; exit 1 }
+          "dir=$dir" >> $env:GITHUB_OUTPUT
+
+      - name: Resolve the version
+        id: ver
+        run: |
+          $version = "${{ inputs.version }}"
+          if (-not $version) { $version = "0.0.0-ci.${{ github.run_number }}" }
+          if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') {
+            Write-Output "::error::'$version' is not a semantic version"; exit 1
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ steps.loc.outputs.dir }}/rust/jsnet-tools
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build, test and pack
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: ./build/pack.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Check the packages
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: |
+          $expected = "JSNet.Runtime", "JSNet.AI", "JSNet.Sdk", "JSNet.Cli", "JSNet.Templates"
+          foreach ($id in $expected) {
+            $file = "artifacts/packages/$id.${{ steps.ver.outputs.version }}.nupkg"
+            if (-not (Test-Path $file)) { Write-Output "::error::missing $file"; exit 1 }
+          }
+          Get-ChildItem artifacts/packages
+
+      - name: Create, build and run projects from the packages
+        working-directory: ${{ steps.loc.outputs.dir }}
+        run: ./build/smoke.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Package the VS Code extension
+        working-directory: ${{ steps.loc.outputs.dir }}/vscode/jsnet-vscode
+        run: |
+          npm ci --no-audit --no-fund
+          npx vsce package --allow-missing-repository -o ../../artifacts/jsnet-vscode.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jsnet-vscode-${{ steps.ver.outputs.version }}
+          path: ${{ steps.loc.outputs.dir }}/artifacts/jsnet-vscode.vsix
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jsnet-packages-${{ steps.ver.outputs.version }}
+          path: ${{ steps.loc.outputs.dir }}/artifacts/packages/*.nupkg
+          if-no-files-found: error

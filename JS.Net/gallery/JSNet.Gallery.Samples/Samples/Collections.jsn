@@ -1,0 +1,28 @@
+// Arrays, Map, Set and LINQ. map/filter/reduce are eager (JavaScript), where/select are lazy (LINQ).
+
+interface Employee { name: string; team: string; salary: number; }
+
+export async function collectionsDemo(): Promise<void> {
+    const staff: Employee[] = [
+        { name: "Ayu", team: "Platform", salary: 120 },
+        { name: "Bima", team: "Platform", salary: 105 },
+        { name: "Citra", team: "Design", salary: 98 },
+        { name: "Dewi", team: "AI", salary: 135 },
+        { name: "Eko", team: "AI", salary: 128 },
+    ];
+
+    const payroll = staff.reduce((sum, e) => sum + e.salary, 0);
+    console.log("payroll:", payroll);
+    console.log("seniors:", staff.filter(e => e.salary > 110).map(e => e.name));
+
+    for (const g of staff.groupBy(e => e.team)) {
+        console.log(`  ${g.Key.padEnd(9)} ${g.count()} people, avg ${g.average(e => e.salary).toFixed(1)}`);
+    }
+
+    const teams = new Set<string>();
+    staff.forEach(e => teams.add(e.team));
+    console.log("teams:", teams.size, teams.has("AI"));
+
+    const sorted = staff.map(e => e.name).sort().reverse();
+    console.log("names Z→A:", sorted.join(", "));
+}

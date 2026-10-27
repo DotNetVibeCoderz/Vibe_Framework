@@ -1,0 +1,26 @@
+<Project>
+  <!-- Shared settings for every project in the JS.Net repository. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Release builds pass -p:JSNetVersion=x.y.z (see build/pack.ps1 and .github/workflows/jsnet-*.yml). -->
+    <JSNetVersion Condition="'$(JSNetVersion)' == ''">0.1.0</JSNetVersion>
+    <Version>$(JSNetVersion)</Version>
+    <Authors>Gravicode Studios (Kang Fadhil)</Authors>
+    <Company>Gravicode Studios</Company>
+    <Product>JS.Net</Product>
+    <Copyright>© Gravicode Studios. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Framework/tree/main/JS.Net</PackageProjectUrl>
+    <PackageTags>jsnet;javascript;typescript;language;compiler;dotnet</PackageTags>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\packages</PackageOutputPath>
+    <IsPackable>false</IsPackable>
+    <JSNetRepoRoot>$(MSBuildThisFileDirectory)</JSNetRepoRoot>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Packaging project for the JSNet.Sdk MSBuild project SDK. It bundles the jsnet compiler (framework-dependent)
+    under tools/ plus the Sdk/ and build/ MSBuild files.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>JSNet.Sdk</PackageId>
+    <PackageType>MSBuildSdk</PackageType>
+    <Description>MSBuild project SDK for JS.Net: &lt;Project Sdk="JSNet.Sdk/$(JSNetVersion)"&gt; compiles .jsn files to IL via the Roslyn backend. Supports console, library, ASP.NET Core, Blazor, WPF, WinForms, Avalonia and NativeAOT. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <JSNetToolsStaging>$(BaseIntermediateOutputPath)tools-staging\</JSNetToolsStaging>
+    <JSNetRustTool>$(JSNetRepoRoot)rust\jsnet-tools\target\release\jsnet-tools.exe</JSNetRustTool>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Sdk\**" Pack="true" PackagePath="Sdk\" />
+    <None Include="build\JSNet.Sdk.props;build\JSNet.Sdk.targets" Pack="true" PackagePath="build\" />
+  </ItemGroup>
+
+  <Target Name="JSNetStageTools" BeforeTargets="_GetPackageFiles;GenerateNuspec">
+    <RemoveDir Directories="$(JSNetToolsStaging)" />
+    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\JSNet.Cli\JSNet.Cli.csproj&quot; -c $(Configuration) -o &quot;$(JSNetToolsStaging)tools&quot; -p:UseAppHost=false -nologo -v q" />
+    <Copy SourceFiles="$(JSNetRustTool)" DestinationFolder="$(JSNetToolsStaging)tools\native\" Condition="Exists('$(JSNetRustTool)')" />
+    <WriteLinesToFile File="$(JSNetToolsStaging)JSNet.Sdk.Version.props" Overwrite="true"
+                      Lines="&lt;Project&gt;&lt;PropertyGroup&gt;&lt;JSNetSdkVersion Condition=&quot;'%24(JSNetSdkVersion)' == ''&quot;&gt;$(PackageVersion)&lt;/JSNetSdkVersion&gt;&lt;/PropertyGroup&gt;&lt;/Project&gt;" />
+    <ItemGroup>
+      <None Include="$(JSNetToolsStaging)tools\**" Pack="true" PackagePath="tools\" />
+      <None Include="$(JSNetToolsStaging)JSNet.Sdk.Version.props" Pack="true" PackagePath="build\" />
+    </ItemGroup>
+  </Target>
+</Project>

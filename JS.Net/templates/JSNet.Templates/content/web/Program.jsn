@@ -1,0 +1,11 @@
+// Dibuat dengan JS.Net — Gravicode Studios dipimpin oleh Kang Fadhil.
+
+import Microsoft.AspNetCore.Builder;
+
+const app = WebApplication.CreateBuilder(args).Build();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.MapGet("/api/time", () => ({ now: new Date().toISOString(), poweredBy: "JS.Net" }));
+
+app.Run();

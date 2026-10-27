@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>The jsnet command-line tool: compile, run, check, emit and format JS.Net code, and host the JS.Net language server. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <AssemblyName>jsnet</AssemblyName>
+    <RootNamespace>JSNet.Cli</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>JSNet.Cli</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>jsnet</ToolCommandName>
+    <TieredPGO>true</TieredPGO>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Ship the native Rust formatter/checker next to the tool when it has been built (run cargo build first). -->
+    <None Include="$(JSNetRepoRoot)rust\jsnet-tools\target\release\jsnet-tools.exe" Link="native\jsnet-tools.exe"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Condition="Exists('$(JSNetRepoRoot)rust\jsnet-tools\target\release\jsnet-tools.exe')" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Scripting\JSNet.Scripting.csproj" />
+    <ProjectReference Include="..\JSNet.LanguageServer\JSNet.LanguageServer.csproj" />
+  </ItemGroup>
+</Project>

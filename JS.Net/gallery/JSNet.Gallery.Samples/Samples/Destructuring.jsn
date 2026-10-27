@@ -1,0 +1,25 @@
+// Destructuring, spread and template literals.
+
+export async function destructuringDemo(): Promise<void> {
+    const user = { name: "Kang Fadhil", role: "Lead", city: "Bandung" };
+    const { name, role } = user;
+    console.log(`${name} — ${role}`);
+
+    const [first, second] = ["alpha", "beta", "gamma"];
+    console.log("first two:", first, second);
+
+    let a = 1;
+    let b = 2;
+    [a, b] = [b, a];
+    console.log("swapped:", a, b);
+
+    const head = [1, 2, 3];
+    const all = [0, ...head, 4];
+    console.log("spread:", all, "max:", Math.max(...all));
+
+    const scores = new Map<string, int>();
+    scores.set("ana", 90).set("budi", 75);
+    for (const [student, score] of scores) {
+        console.log(`  ${student.padEnd(6)} ${"█".repeat(score / 10)} ${score}`);
+    }
+}

@@ -1,0 +1,26 @@
+// Generators (function*) compile to lazy IEnumerable<T> iterators; LINQ-style operators stay lazy.
+
+function* naturals(): Iterable<int> {
+    let n = 1;
+    while (true) yield n++;
+}
+
+function* fibonacci(): Iterable<long> {
+    let a = 0L;
+    let b = 1L;
+    while (true) {
+        yield a;
+        [a, b] = [b, a + b];
+    }
+}
+
+export async function generatorsDemo(): Promise<void> {
+    const evenSquares = naturals()
+        .select(n => n * n)
+        .where(n => n % 2 == 0)
+        .take(5)
+        .toList();
+    console.log("first even squares:", evenSquares);
+    console.log("fibonacci:", fibonacci().take(12).toList());
+    console.log("first fib above 1,000,000:", fibonacci().first(f => f > 1000000L));
+}
