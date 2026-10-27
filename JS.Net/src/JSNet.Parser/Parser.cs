@@ -228,6 +228,7 @@ public sealed class Parser
                     Advance();
                     return ParseFunctionDeclaration(start, modifiers, isAi: true);
                 case "prompt" when next.Kind == TokenKind.Identifier && PeekTok(2).Is("{"): return ParsePrompt(start);
+                case "rule" when next.Kind == TokenKind.Identifier && PeekTok(2).Is("{"): return ParseClass(start, ClassKind.Class, isRule: true);
                 case "dynamic" when next.Kind == TokenKind.Identifier && !next.NewLineBefore: return ParseVariableStatementWithSemicolon(start);
                 case "using" when next.Is("(") || (next.Kind is TokenKind.Identifier && PeekTok(2).Is("=")) || next.Text is "const" or "let":
                     return ParseUsing(start);
@@ -777,12 +778,12 @@ public sealed class Parser
         }, start);
     }
 
-    private ClassDeclaration ParseClass(int start, ClassKind kind, bool nameOptional = false)
+    private ClassDeclaration ParseClass(int start, ClassKind kind, bool nameOptional = false, bool isRule = false)
     {
-        Advance(); // class/struct/record
+        Advance(); // class/struct/record/rule
         string name = nameOptional && Cur.Kind != TokenKind.Identifier ? string.Empty : ExpectIdentifier();
         var typeParams = ParseTypeParameters();
-        TypeNode? extends = null;
+        TypeNode? extends = isRule ? new NamedType("global::JSNet.Analyzers.Rule", []) : null;
         var implements = new List<TypeNode>();
         if (Eat("extends")) extends = ParseType();
         if (Eat("implements"))
@@ -793,6 +794,7 @@ public sealed class Parser
         return Finish(new ClassDeclaration(name, members)
         {
             Kind = kind,
+            IsRule = isRule,
             TypeParameters = typeParams,
             Extends = extends,
             Implements = implements,
@@ -1150,8 +1152,8 @@ public sealed class Parser
         }
         if (Cur.Kind == TokenKind.String)
         {
-            Advance();
-            return Finish(new NamedType("string", []), start);
+            string literal = Advance().Value ?? string.Empty;
+            return Finish(new NamedType("string", []) { LiteralValue = literal }, start);
         }
         if (Cur.Kind == TokenKind.Number)
         {

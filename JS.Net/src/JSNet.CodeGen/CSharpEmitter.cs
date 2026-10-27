@@ -66,6 +66,11 @@ public sealed partial class CSharpEmitter
             _w.WriteLine($"global using {CSharpNames.Id(alias.Name)} = {MapType(alias.Type)};");
         }
         foreach (var import in _unit.Statements.OfType<ImportDeclaration>()) EmitImport(import);
+        if (_unit.Statements.OfType<ClassDeclaration>().Any(c => c.IsRule))
+        {
+            _w.WriteLine("using JSNet.Syntax;");
+            _w.WriteLine("using JSNet.Analyzers;");
+        }
         _w.WriteLine($"using {_ctx.Namespace};");
 
         var functions = _unit.Statements.OfType<FunctionDeclaration>().Where(f => (f.Modifiers & Modifiers.Declare) == 0).ToList();
@@ -505,6 +510,15 @@ public sealed partial class CSharpEmitter
         foreach (var m in c.Members)
         {
             if ((m.Modifiers & Modifiers.Declare) != 0) continue;
+            // rule metadata: `id: "APP001";` (literal type, TypeScript style) or `id = "APP001";`
+            if (c.IsRule && m.Kind == MemberKind.Field && m.Name is "id" or "severity" or "description"
+                && (m.Init is not null || m.Type is NamedType { LiteralValue: not null }))
+            {
+                Line(m);
+                string value = m.Init is not null ? Expr(m.Init, "string") : CSharpNames.StringLiteral(((NamedType)m.Type!).LiteralValue!);
+                _w.WriteLine($"public override string {m.Name} => {value};");
+                continue;
+            }
             switch (m.Kind)
             {
                 case MemberKind.Field: EmitField(m); break;
@@ -593,7 +607,7 @@ public sealed partial class CSharpEmitter
         if (m.IsStatic) sb.Append("static ");
         bool isAbstract = (m.Modifiers & Modifiers.Abstract) != 0 || (m.Body is null && (c.Modifiers & Modifiers.Abstract) != 0);
         if (isAbstract) sb.Append("abstract ");
-        else if ((m.Modifiers & Modifiers.Override) != 0 || (!m.IsStatic && _model.OverridesProjectMethod(c, m))) sb.Append("override ");
+        else if ((m.Modifiers & Modifiers.Override) != 0 || (!m.IsStatic && _model.OverridesProjectMethod(c, m)) || (c.IsRule && m.Name == "check")) sb.Append("override ");
         else if ((m.Modifiers & Modifiers.Virtual) != 0) sb.Append("virtual ");
         else if (extended && !m.IsStatic && (m.Modifiers & Modifiers.Private) == 0 && c.Kind != ClassKind.Struct) sb.Append("virtual ");
         if ((m.Modifiers & Modifiers.Sealed) != 0) sb.Append("sealed ");

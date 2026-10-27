@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Custom JS.Net analyzer rules, written in JS.Net. Outside this repo reference the JSNet.Analyzers package. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(JSNetRepoRoot)src\JSNet.Analyzers\JSNet.Analyzers.csproj" />
+  </ItemGroup>
+</Project>

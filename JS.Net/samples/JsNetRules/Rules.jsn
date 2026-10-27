@@ -1,0 +1,19 @@
+// Team rules for JS.Net code, compiled into an analyzer assembly.
+
+rule NoConsoleLog {
+    id: "TEAM001";
+    severity: "warning";
+    description: "Use a logger instead of console.log in production code";
+    check(node: Node, ctx: RuleContext): void {
+        if (node instanceof CallExpression && ctx.text(node.Callee) == "console.log") ctx.report(node);
+    }
+}
+
+rule NoTodoNames {
+    id: "TEAM002";
+    check(node: Node, ctx: RuleContext): void {
+        if (node instanceof FunctionDeclaration && node.Name.toLowerCase().includes("todo")) {
+            ctx.report(node, `Function '${node.Name}' looks unfinished`);
+        }
+    }
+}

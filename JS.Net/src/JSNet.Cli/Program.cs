@@ -119,6 +119,7 @@ public static class Program
         string? outDir = null, rootNs = null, projectDir = null;
         bool library = false, lines = true;
         var nowarn = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var rules = new List<JSNet.Analyzers.Rule>();
         var files = new List<string>();
         for (int i = 0; i < args.Count; i++)
         {
@@ -129,6 +130,9 @@ public static class Program
                 case "--project-dir": projectDir = args[++i]; break;
                 case "--library": library = true; break;
                 case "--no-line": lines = false; break;
+                case "--analyzer":
+                    rules.AddRange(JSNet.Analyzers.RuleRunner.Load(args[++i]));
+                    break;
                 case "--nowarn":
                     foreach (var c in args[++i].Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) nowarn.Add(c);
                     break;
@@ -149,6 +153,7 @@ public static class Program
             IsLibrary = library,
             EmitLineDirectives = lines,
             SuppressedDiagnostics = nowarn,
+            Rules = rules,
         });
         PrintDiagnostics(result.Diagnostics);
         if (!result.Success) return 1;
@@ -217,8 +222,15 @@ public static class Program
 
     private static int Check(string[] args)
     {
-        var files = ExpandInputs(args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))).ToList();
-        var result = JsNetCompiler.CompileFiles(files, new JsNetCompilationOptions { IsLibrary = args.Contains("--library") });
+        var rules = new List<JSNet.Analyzers.Rule>();
+        var inputs = new List<string>();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--analyzer") rules.AddRange(JSNet.Analyzers.RuleRunner.Load(args[++i]));
+            else if (!args[i].StartsWith("--", StringComparison.Ordinal)) inputs.Add(args[i]);
+        }
+        var files = ExpandInputs(inputs).ToList();
+        var result = JsNetCompiler.CompileFiles(files, new JsNetCompilationOptions { IsLibrary = args.Contains("--library"), Rules = rules });
         PrintDiagnostics(result.Diagnostics);
         int errors = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
         int warnings = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);

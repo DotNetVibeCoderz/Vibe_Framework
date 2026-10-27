@@ -37,7 +37,7 @@
   <Target Name="JSNetGenerate"
           BeforeTargets="BeforeCompile;CoreCompile;XamlPreCompile"
           Condition="'@(JSNetCompile)' != ''"
-          Inputs="@(JSNetCompile);$(MSBuildProjectFullPath);@(_JSNetCompilerFiles)"
+          Inputs="@(JSNetCompile);$(MSBuildProjectFullPath);@(_JSNetCompilerFiles);@(JSNetAnalyzer)"
           Outputs="$(JSNetGeneratedDir)jsnet.stamp">
     <PropertyGroup>
       <_JSNetResponseFile>$(JSNetGeneratedDir)jsnet.rsp</_JSNetResponseFile>
@@ -45,6 +45,7 @@
       <_JSNetArgs Condition="'$(JSNetIsLibrary)' == 'true'">$(_JSNetArgs) --library</_JSNetArgs>
       <_JSNetArgs Condition="'$(JSNetEmitLineDirectives)' != 'true'">$(_JSNetArgs) --no-line</_JSNetArgs>
       <_JSNetArgs Condition="'$(JSNetNoWarn)' != ''">$(_JSNetArgs) --nowarn &quot;$(JSNetNoWarn)&quot;</_JSNetArgs>
+      <_JSNetArgs Condition="'@(JSNetAnalyzer)' != ''">$(_JSNetArgs) @(JSNetAnalyzer->'--analyzer &quot;%(FullPath)&quot;', ' ')</_JSNetArgs>
     </PropertyGroup>
     <MakeDir Directories="$(JSNetGeneratedDir)" />
     <WriteLinesToFile File="$(_JSNetResponseFile)" Lines="@(JSNetCompile->'%(FullPath)')" Overwrite="true" WriteOnlyWhenDifferent="true" />

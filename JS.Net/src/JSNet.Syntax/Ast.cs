@@ -18,6 +18,8 @@ public sealed class NamedType(string name, List<TypeNode> typeArgs) : TypeNode
 {
     public string Name { get; } = name;
     public List<TypeNode> TypeArgs { get; } = typeArgs;
+    /// <summary>For string literal types (<c>"warning"</c>): the literal value.</summary>
+    public string? LiteralValue { get; init; }
 }
 
 public sealed class ArrayType(TypeNode element) : TypeNode
@@ -487,6 +489,8 @@ public sealed class ClassDeclaration(string name, List<ClassMember> members) : S
     public string Name { get; set; } = name;
     public List<ClassMember> Members { get; } = members;
     public ClassKind Kind { get; init; }
+    /// <summary><c>rule Name { ... }</c>: an analyzer rule deriving from <c>JSNet.Analyzers.Rule</c>.</summary>
+    public bool IsRule { get; init; }
     public List<TypeParameter> TypeParameters { get; init; } = [];
     public TypeNode? Extends { get; init; }
     public List<TypeNode> Implements { get; init; } = [];

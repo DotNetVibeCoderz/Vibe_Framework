@@ -8,9 +8,12 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/HelloJsNet/HelloJsNet.csproj" />
+    <Project Path="samples/JsNetRules/JsNetRules.csproj" />
+    <Project Path="samples/RulesDemo/RulesDemo.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/JSNet.AI/JSNet.AI.csproj" />
+    <Project Path="src/JSNet.Analyzers/JSNet.Analyzers.csproj" />
     <Project Path="src/JSNet.Cli/JSNet.Cli.csproj" />
     <Project Path="src/JSNet.CodeGen/JSNet.CodeGen.csproj" />
     <Project Path="src/JSNet.Compiler/JSNet.Compiler.csproj" />

@@ -1,0 +1,4 @@
+function todoLater(): void {}
+
+todoLater();
+console.log("RulesDemo ran; see the TEAM001/TEAM002 warnings from the build.");

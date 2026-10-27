@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>JS.Net analyzer API: write custom rules in JS.Net with `rule Name { ... }` declarations and load them into the compiler. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>JSNet.Analyzers</PackageId>
+    <NoWarn>$(NoWarn);CS8981;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JSNet.Syntax\JSNet.Syntax.csproj" />
+  </ItemGroup>
+</Project>

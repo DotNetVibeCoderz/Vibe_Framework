@@ -14,6 +14,8 @@ public sealed class JsNetCompilationOptions
     public bool IsLibrary { get; init; }
     public bool EmitLineDirectives { get; init; } = true;
     public IReadOnlySet<string> SuppressedDiagnostics { get; init; } = new HashSet<string>();
+    /// <summary>Custom analyzer rules (from <c>rule</c> declarations compiled into analyzer assemblies).</summary>
+    public IReadOnlyList<JSNet.Analyzers.Rule> Rules { get; init; } = [];
 }
 
 /// <summary>A generated C# file. <see cref="HintName"/> is a unique, path-safe file name.</summary>
@@ -83,6 +85,7 @@ public static class JsNetCompiler
 
         // 2. Bind (project-wide).
         var model = Binder.Bind(units, diagnostics, options.IsLibrary);
+        JSNet.Analyzers.RuleRunner.Run(options.Rules, units, diagnostics);
 
         // 3. Emit (parallel; the semantic model is read-only from here on).
         string projectDir = options.ProjectDirectory ?? CommonDirectory(sources.Select(s => s.Path));
