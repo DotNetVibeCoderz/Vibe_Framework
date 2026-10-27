@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Reactive programming for JS.Net: RxJS-style operators (map, filter, debounceTime, scan, mergeWith, subscribe) on System.Reactive observables. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);CS8981;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
+    <ProjectReference Include="..\JSNet.Runtime\JSNet.Runtime.csproj" />
+  </ItemGroup>
+</Project>

@@ -61,6 +61,11 @@ if (Test-Path artifacts/packages) { Remove-Item artifacts/packages/*.nupkg -Erro
 $packages = @(
     "src/JSNet.Runtime/JSNet.Runtime.csproj",
     "src/JSNet.AI/JSNet.AI.csproj",
+    "src/JSNet.Analyzers/JSNet.Analyzers.csproj",
+    "src/JSNet.Web/JSNet.Web.csproj",
+    "src/JSNet.EntityFramework/JSNet.EntityFramework.csproj",
+    "src/JSNet.Blazor/JSNet.Blazor.csproj",
+    "src/JSNet.Reactive/JSNet.Reactive.csproj",
     "src/JSNet.Sdk/JSNet.Sdk.csproj",
     "src/JSNet.Cli/JSNet.Cli.csproj",
     "$staging/JSNet.Templates.csproj"

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Entity Framework Core for JS.Net: async lower-case query operators (toListAsync, firstOrDefaultAsync, ...), include, and DbContext helpers. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);CS8981;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <ProjectReference Include="..\JSNet.Runtime\JSNet.Runtime.csproj" />
+  </ItemGroup>
+</Project>

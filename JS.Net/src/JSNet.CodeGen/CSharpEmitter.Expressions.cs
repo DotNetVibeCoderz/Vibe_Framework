@@ -11,6 +11,9 @@ public sealed partial class CSharpEmitter
 
     private const int PrecPrimary = 16, PrecUnary = 14, PrecConditional = 2, PrecAssign = 1;
 
+    /// <summary>Nesting depth of expression-bodied arrow functions (candidates for LINQ expression trees).</summary>
+    private int _expressionLambdaDepth;
+
     private static readonly HashSet<string> MathConstants = new(StringComparer.Ordinal) { "PI", "E", "LN2", "LN10", "LOG2E", "LOG10E", "SQRT2", "SQRT1_2" };
 
     private static int BinaryPrecedence(string op) => op switch
@@ -49,6 +52,9 @@ public sealed partial class CSharpEmitter
         }
         if (TypeOf(e) == "bool" || e is BinaryExpression { Operator: "==" or "!=" or "===" or "!==" or "<" or ">" or "<=" or ">=" } or IsTypeExpression)
             return Expr(e);
+        // Expression-bodied arrows may become expression trees (LINQ providers such as EF Core): keep conditions
+        // of unknown type as plain booleans so they stay translatable.
+        if (_expressionLambdaDepth > 0 && TypeOf(e) is null) return Expr(e);
         return $"{Rt}JS.truthy({Expr(e)})";
     }
 
@@ -338,7 +344,9 @@ public sealed partial class CSharpEmitter
         if (f.Body is Expression body && prologue.Count == 0)
         {
             _returnTypes.Push(returnTarget);
+            _expressionLambdaDepth++;
             string code = body is ObjectExpression ? $"({Expr(body, returnTarget)})" : Paren(body, PrecAssign, returnTarget);
+            _expressionLambdaDepth--;
             _returnTypes.Pop();
             result = $"{prefix}{ps} => {code}";
         }
@@ -411,6 +419,8 @@ public sealed partial class CSharpEmitter
             {
                 if (TypeOf(b.Left) == "bool" && TypeOf(b.Right) == "bool")
                     break;
+                if (_expressionLambdaDepth > 0 && TypeOf(b.Left) is null or "bool" && TypeOf(b.Right) is null or "bool")
+                    return ($"{CondP(b.Left, BinaryPrecedence(op))} {op} {CondP(b.Right, BinaryPrecedence(op) + 1)}", BinaryPrecedence(op));
                 if (op == "&&") return ($"{Rt}JS.truthy({Expr(b.Left)}) ? {Paren(b.Right, PrecConditional + 1)} : default", PrecConditional);
                 string tmp = Tmp("or");
                 return ($"{Paren(b.Left, 10)} is var {tmp} && {Rt}JS.truthy({tmp}) ? {tmp} : {Paren(b.Right, PrecConditional)}", PrecConditional);

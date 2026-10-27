@@ -89,7 +89,7 @@ jobs:
       - name: Check the packages
         working-directory: ${{ steps.loc.outputs.dir }}
         run: |
-          $expected = "JSNet.Runtime", "JSNet.AI", "JSNet.Sdk", "JSNet.Cli", "JSNet.Templates"
+          $expected = "JSNet.Runtime", "JSNet.AI", "JSNet.Analyzers", "JSNet.Web", "JSNet.EntityFramework", "JSNet.Blazor", "JSNet.Reactive", "JSNet.Sdk", "JSNet.Cli", "JSNet.Templates"
           foreach ($id in $expected) {
             $file = "artifacts/packages/$id.${{ steps.ver.outputs.version }}.nupkg"
             if (-not (Test-Path $file)) { Write-Output "::error::missing $file"; exit 1 }

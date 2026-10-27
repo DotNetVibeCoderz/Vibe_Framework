@@ -8,11 +8,18 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.81.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <!-- Patched native SQLite (GHSA-2m69-gcr7-jv3q) instead of the transitive 2.1.11. -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.14" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\JSNet.Scripting\JSNet.Scripting.csproj" />
     <ProjectReference Include="..\..\src\JSNet.AI\JSNet.AI.csproj" />
     <ProjectReference Include="..\..\src\JSNet.LanguageServer\JSNet.LanguageServer.csproj" />
+    <ProjectReference Include="..\..\src\JSNet.Web\JSNet.Web.csproj" />
+    <ProjectReference Include="..\..\src\JSNet.EntityFramework\JSNet.EntityFramework.csproj" />
+    <ProjectReference Include="..\..\src\JSNet.Blazor\JSNet.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\JSNet.Reactive\JSNet.Reactive.csproj" />
     <ProjectReference Include="..\..\gallery\JSNet.Gallery.Samples\JSNet.Gallery.Samples.csproj" />
   </ItemGroup>
   <ItemGroup>

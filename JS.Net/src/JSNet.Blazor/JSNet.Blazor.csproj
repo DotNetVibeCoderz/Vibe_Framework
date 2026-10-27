@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Blazor for JS.Net: JsComponent base class with setState, mounted hooks, auto-disposed timers and navigation. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);CS8981;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\JSNet.Runtime\JSNet.Runtime.csproj" />
+  </ItemGroup>
+</Project>

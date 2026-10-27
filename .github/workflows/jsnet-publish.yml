@@ -1,5 +1,5 @@
-# Publish the JS.Net packages to nuget.org: JSNet.Runtime, JSNet.AI, JSNet.Sdk, JSNet.Cli and
-# JSNet.Templates.
+# Publish the JS.Net packages to nuget.org: JSNet.Runtime, JSNet.AI, JSNet.Analyzers, JSNet.Web,
+# JSNet.EntityFramework, JSNet.Blazor, JSNet.Reactive, JSNet.Sdk, JSNet.Cli and JSNet.Templates.
 #
 # Tags are prefixed `jsnet-v` because this lives in a monorepo: a bare `v1.2.3` would fire for a
 # release of any other project in Vibe_Framework.
@@ -81,7 +81,7 @@ jobs:
       - name: Check the packages
         run: |
           ls -la packages
-          for id in JSNet.Runtime JSNet.AI JSNet.Sdk JSNet.Cli JSNet.Templates; do
+          for id in JSNet.Runtime JSNet.AI JSNet.Analyzers JSNet.Web JSNet.EntityFramework JSNet.Blazor JSNet.Reactive JSNet.Sdk JSNet.Cli JSNet.Templates; do
             f="packages/$id.${{ needs.version.outputs.version }}.nupkg"
             if [ ! -f "$f" ]; then echo "::error::missing $f"; exit 1; fi
           done
@@ -92,8 +92,8 @@ jobs:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           if [ -z "$NUGET_API_KEY" ]; then echo "::error::the NUGET_API_KEY secret is not set"; exit 1; fi
-          # Dependencies first: the SDK references JSNet.Runtime/JSNet.AI, templates reference the SDK.
-          for id in JSNet.Runtime JSNet.AI JSNet.Sdk JSNet.Cli JSNet.Templates; do
+          # Dependencies first: libraries before the SDK (which references JSNet.Runtime/JSNet.AI), templates last.
+          for id in JSNet.Runtime JSNet.AI JSNet.Analyzers JSNet.Web JSNet.EntityFramework JSNet.Blazor JSNet.Reactive JSNet.Sdk JSNet.Cli JSNet.Templates; do
             dotnet nuget push "packages/$id.${{ needs.version.outputs.version }}.nupkg" \
               --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done

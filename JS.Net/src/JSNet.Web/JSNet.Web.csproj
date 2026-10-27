@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>ASP.NET Core for JS.Net: Express-style routing (app.get/post/put/delete), middleware, JSON/text results and listen(). Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);CS8981;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\JSNet.Runtime\JSNet.Runtime.csproj" />
+  </ItemGroup>
+</Project>

@@ -14,16 +14,20 @@
   <Folder Name="/src/">
     <Project Path="src/JSNet.AI/JSNet.AI.csproj" />
     <Project Path="src/JSNet.Analyzers/JSNet.Analyzers.csproj" />
+    <Project Path="src/JSNet.Blazor/JSNet.Blazor.csproj" />
     <Project Path="src/JSNet.Cli/JSNet.Cli.csproj" />
     <Project Path="src/JSNet.CodeGen/JSNet.CodeGen.csproj" />
     <Project Path="src/JSNet.Compiler/JSNet.Compiler.csproj" />
+    <Project Path="src/JSNet.EntityFramework/JSNet.EntityFramework.csproj" />
     <Project Path="src/JSNet.LanguageServer/JSNet.LanguageServer.csproj" />
     <Project Path="src/JSNet.Parser/JSNet.Parser.csproj" />
+    <Project Path="src/JSNet.Reactive/JSNet.Reactive.csproj" />
     <Project Path="src/JSNet.Runtime/JSNet.Runtime.csproj" />
     <Project Path="src/JSNet.Scripting/JSNet.Scripting.csproj" />
     <Project Path="src/JSNet.Sdk/JSNet.Sdk.csproj" />
     <Project Path="src/JSNet.Semantics/JSNet.Semantics.csproj" />
     <Project Path="src/JSNet.Syntax/JSNet.Syntax.csproj" />
+    <Project Path="src/JSNet.Web/JSNet.Web.csproj" />
   </Folder>
   <Folder Name="/templates/">
     <Project Path="templates/JSNet.Templates/JSNet.Templates.csproj" />
