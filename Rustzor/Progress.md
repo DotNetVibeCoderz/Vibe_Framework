@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what was built and how it was checked.
 
+## 2026-10-28: VS Code extension on the Marketplace
+
+- `GravicodeStudios.rustzor` 0.1.0 is published (the `.vsix` from CI, the same
+  manifest that was rejected on 2026-10-11 as "suspicious content"). `vsce
+  publish` succeeded and the Marketplace query API lists it as public, version
+  0.1.0, under the verified Gravicode Studios publisher. The tooling docs now
+  install it from the Marketplace.
+
 ## 2026-10-23: release 0.1.0-preview.3
 
 - All 45 packages at `0.1.0-preview.3`, the first release since all thirteen

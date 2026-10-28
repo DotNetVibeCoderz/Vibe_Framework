@@ -76,7 +76,7 @@ Extension **Rustzor** (`tools/vscode-rustzor`) membawa CLI ke dalam editor:
 - Tombol **Rustzor: serve** di status bar saat workspace berisi aplikasi Rustzor, serta Serve, Publish, dan Add Package pada file `.csproj` di explorer.
 - Snippet: `rzpage`, `rzcomp`, `rzlayout`, `rzgrid`, `rzmodal`, `rztimer` (Razor); `rzprogram`, `rzjs`, `rzjsobject`, `rzfetch`, `rzsignalr`, `rzproto`, `rzsqlite` (C#); `rzmodule`, `rzop` (JavaScript).
 
-Instal dari file `.vsix` yang di-build oleh CI (tampilan Extensions, menu `…`, **Install from VSIX**), atau dari Marketplace setelah extension ini terdaftar di sana.
+Instal dari Marketplace: cari **Rustzor** di tampilan Extensions, atau jalankan `code --install-extension GravicodeStudios.rustzor`. File `.vsix` yang di-build oleh CI juga bisa diinstal manual (tampilan Extensions, menu `…`, **Install from VSIX**).
 
 ## Katalog package
 

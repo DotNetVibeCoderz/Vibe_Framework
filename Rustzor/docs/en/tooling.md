@@ -76,7 +76,7 @@ The **Rustzor** extension (`tools/vscode-rustzor`) puts the CLI into the editor:
 - A **Rustzor: serve** button in the status bar when the workspace has a Rustzor app, and Serve, Publish and Add Package on a `.csproj` in the explorer.
 - Snippets: `rzpage`, `rzcomp`, `rzlayout`, `rzgrid`, `rzmodal`, `rztimer` (Razor); `rzprogram`, `rzjs`, `rzjsobject`, `rzfetch`, `rzsignalr`, `rzproto`, `rzsqlite` (C#); `rzmodule`, `rzop` (JavaScript).
 
-Install it from the `.vsix` that CI builds (Extensions view, `…` menu, **Install from VSIX**), or from the Marketplace once it is listed there.
+Install it from the Marketplace: search for **Rustzor** in the Extensions view, or run `code --install-extension GravicodeStudios.rustzor`. The `.vsix` that CI builds also installs by hand (Extensions view, `…` menu, **Install from VSIX**).
 
 ## The package catalog
 
