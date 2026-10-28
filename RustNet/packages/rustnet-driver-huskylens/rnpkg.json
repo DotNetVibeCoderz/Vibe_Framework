@@ -1,0 +1,8 @@
+{
+  "name": "rustnet-driver-huskylens",
+  "version": "0.1.0",
+  "description": "DFRobot HuskyLens AI vision sensor over UART or I2C: knock, switch algorithm, request blocks/arrows (all, learned, by ID), learn/forget, custom names and on-screen text",
+  "authors": ["RustNet community"],
+  "files": ["*.cs"],
+  "dependencies": { "rustnet-driver-bus": "0.1.0" }
+}

@@ -228,7 +228,8 @@ public static class BoardCatalog
             Name = "Netduino 3 WiFi",
             Chip = "stm32",
             WorkspaceDir = "runtime/firmware-stm32",
-            BuildArgs = "build --release",
+            // The crate's default features build the Nucleo-F401RE image.
+            BuildArgs = "build --release --no-default-features --features board-netduino3-wifi,app-blink",
             BinaryName = "rustnet-firmware-stm32",
             Flash = FlashKind.Dfu,
             Requires = "cargo-binutils (rust-objcopy) and dfu-util",

@@ -157,14 +157,27 @@ Interlocked + Task subset, GC coverage for all new heap shapes.
         unreadable at every clock rate with the card reporting no error: a
         healthy controller in front of dead storage. Written but unproven;
         needs a second card
-  - [~] **a real filesystem** — the reserved sector now holds a
+  - [x] **a real filesystem** — the reserved sector now holds a
         `rustnet-flashfs` store (the same named-blob log as the K210, RP2040
         and Meadow ports), so `RustNet.IO.FileSystem` works and the key/app live
         as `/.sys/*` files; the old record log is migrated once at boot. File
         budget 16 KB on the F401RE / 32 KB on the F427, because compaction must
         hold the other live files in RAM. Compaction now reserves all its RAM
         *before* erasing (a flashfs fix that also protects the other ports).
-        **Compile-verified for both boards; not yet run on hardware**
+        **Verified on a Netduino 3 WiFi (2026-10-28)**: an old store
+        migrated with key and app intact; 3000 file rewrites (`demo/FlashStress`)
+        compacted the sector mid-run, all read back correct, and key + app
+        survived a reboot. The bench also found and fixed: a stored app that
+        writes at boot froze USB enumeration (the firmware now waits for the
+        host first); a panic left the port dead (crash notes + safe mode, as on
+        the Pico); `reboot` reset before replying and could not reach DFU
+        (`reboot --bootloader` now does, no button); and the GC let promoted
+        large arrays pile up (a byte trigger for minor *and* major collections,
+        an eighth of the heap on these boards). **The Nucleo-F401RE too**: the
+        old record log migrated (3 records), the same 3000-rewrite stress passed
+        on its 64 KB heap with a compaction mid-run, key + app survived a
+        reboot. A managed `byte[]` still costs 16 bytes per element, which caps
+        what an app can buffer in 64–96 KB
   - [-] **WiFi — won't do.** The Netduino's radio is a TI CC3100 on SPI1, which speaks
         SimpleLink's proprietary binary protocol rather than AT commands.
         There is no Rust driver for it, and nanoFramework's own port of this

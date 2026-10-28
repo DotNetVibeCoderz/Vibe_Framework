@@ -32,8 +32,10 @@ retired from `main`).
 | USART (config, tx, rx) | **live** — USART1/2/6 and UART7/8, pin muxing included |
 | Delay / monotonic clock | **live** — DWT cycle counter |
 | Everything else in the HAL | `NotSupported`, integration point named in the source |
-| Persistent storage | **compile-verified, not yet run on hardware** — `rustnet-flashfs` in the reserved flash sector; key and app restored at boot, so an uploaded app runs again after a power cycle |
-| `RustNet.IO.FileSystem` | **compile-verified, not yet run on hardware** — all ten calls, over the same sector; budget 16 KB (F401RE) / 32 KB (F427) |
+| Persistent storage | **runs on both boards** — `rustnet-flashfs` in the reserved flash sector; key and app restored at boot, migrated from the old record log (seen on the F401RE: 3 records), and carried through compaction (`demo/FlashStress`: 3000 rewrites, sector compacted mid-run, then a reboot — Netduino in 69 s, F401RE in 117 s) |
+| `RustNet.IO.FileSystem` | **runs on both boards** — write/read/delete over the same sector; budget 16 KB (F401RE) / 32 KB (F427). The GC collects after an eighth of the heap in new allocation; a managed `byte[]` is 16 bytes per element, so keep buffers small |
+| Crash notes + safe mode | **runs on both boards** — a panic or hard fault notes where (and, for an allocation failure, how much was asked for and what was free) in `.uninit` RAM and resets; the next boot logs it and does not start the app (`src/crash.rs`) |
+| DFU on command | **runs on the Netduino** — `rustnet reboot --bootloader` (and `rustnet firmware flash --board netduino3 --device serial:COMn`) enter the ROM bootloader with no button (`src/dfu.rs`, ported from the Meadow) |
 | USB CDC transport | **live** on the Netduino — RNDP over the board's own USB, no adapter |
 | SPI | **live** — SPI1/2/3, register level |
 | microSD block device | **driver written, unproven** — see below |
@@ -285,7 +287,7 @@ cargo install probe-rs-tools --locked
 
 cd runtime/firmware-stm32
 cargo build --release                                                    # Nucleo-F401RE
-cargo build --release --no-default-features --features board-netduino3-wifi
+cargo build --release --no-default-features --features board-netduino3-wifi,app-blink
 
 # `probe-rs run` waits for RTT, which this binary does not emit — use
 # download + reset instead.
@@ -306,7 +308,7 @@ combination, then:
 rustup component add llvm-tools
 cargo install cargo-binutils --locked
 
-cargo build --release --no-default-features --features board-netduino3-wifi
+cargo build --release --no-default-features --features board-netduino3-wifi,app-blink
 rust-objcopy -O binary target/thumbv7em-none-eabihf/release/rustnet-firmware-stm32 fw.bin
 ```
 

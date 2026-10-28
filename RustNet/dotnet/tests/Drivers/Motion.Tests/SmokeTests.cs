@@ -121,5 +121,8 @@ public class SmokeTests
     public void Vc0706() => Smoke("vc0706", DriversApp.CameraSmoke.RunVc0706);
 
     [Fact]
+    public void HuskyLens() => Smoke("huskylens", DriversApp.HuskyLensSmoke.Run);
+
+    [Fact]
     public void Arducam() => Smoke("arducam", DriversApp.CameraSmoke.RunArduCam);
 }

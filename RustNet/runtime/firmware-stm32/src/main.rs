@@ -168,6 +168,8 @@ mod board {
     }
 }
 
+mod crash;
+mod dfu;
 mod rndp;
 #[cfg(feature = "board-netduino3-wifi")]
 mod sdcard;
@@ -293,14 +295,24 @@ fn signal_forever(n: u32) -> ! {
 
 /// Rust panic — including an allocation failure, which panics by default.
 #[panic_handler]
-fn on_panic(_: &core::panic::PanicInfo) -> ! {
+fn on_panic(info: &core::panic::PanicInfo) -> ! {
+    // Noted and reset into safe mode (crash.rs), so the board stays reachable;
+    // the blink code is the fallback when it keeps crashing.
+    let (line, file) = info.location().map(|l| (l.line(), crash::file_tag(l.file()))).unwrap_or((0, 0));
+    crash::record_alloc(crash::requested_size(info), heap_used() as u32, heap_free() as u32);
+    if crash::record(true, line, file) {
+        cortex_m::peripheral::SCB::sys_reset();
+    }
     led_init();
     signal_forever(5)
 }
 
 /// Bad memory access or, most likely here, a stack overflow.
 #[exception]
-unsafe fn HardFault(_: &ExceptionFrame) -> ! {
+unsafe fn HardFault(frame: &ExceptionFrame) -> ! {
+    if crash::record(false, frame.pc(), 0) {
+        cortex_m::peripheral::SCB::sys_reset();
+    }
     led_init();
     signal_forever(8)
 }
@@ -393,11 +405,47 @@ impl FirmwareHost {
     /// Answer any pending RNDP traffic. Takes the service out of `self` for
     /// the call so it can borrow the rest of the host; the move is a couple of
     /// pointers, not an allocation.
+    /// Before the app gets the core: service USB until the host has
+    /// configured the device, or `max_ms` passes (no host attached).
+    ///
+    /// A flash erase freezes the whole core for about a second, USB polling
+    /// included. A stored app that writes files from its first instruction —
+    /// and the stored app runs on every power-up — erased the storage sector
+    /// while Windows was still asking for descriptors, so the board came up as
+    /// "Device Descriptor Request Failed" on every replug and could only be
+    /// recovered over DFU. Enumeration takes a few hundred milliseconds.
+    pub(crate) fn wait_for_usb_host(&mut self, max_ms: u32) {
+        #[cfg(feature = "board-netduino3-wifi")]
+        for _ in 0..max_ms {
+            match &mut self.usb {
+                Some(usb) if !usb.configured() => usb.service(),
+                _ => return,
+            }
+            self.poll_rndp();
+            self.board.delay().delay_ms(1);
+        }
+        #[cfg(not(feature = "board-netduino3-wifi"))]
+        let _ = max_ms;
+    }
+
     pub(crate) fn poll_rndp(&mut self) {
         self.console_service();
         let mut service = core::mem::take(&mut self.rndp);
         service.poll(self);
+        let (reboot, to_bootloader) = (service.reboot_requested, service.reboot_to_bootloader);
         self.rndp = service;
+        if reboot {
+            // The reply is queued, not delivered: keep the bus serviced for a
+            // moment so the host collects it before the reset.
+            for _ in 0..100 {
+                self.console_service();
+                self.board.delay().delay_ms(1);
+            }
+            if to_bootloader {
+                dfu::arm();
+            }
+            cortex_m::peripheral::SCB::sys_reset();
+        }
     }
 
     /// Load the provisioned key and any stored application out of flash.
@@ -705,6 +753,9 @@ impl FirmwareHost {
 
 #[entry]
 fn main() -> ! {
+    // A `reboot 01` before the reset: hand the chip, still at its reset
+    // defaults, to the ROM's DFU bootloader (dfu.rs).
+    dfu::check_and_jump();
     // Boot progress is blinked out as 1, 2, 3, 4 then 6 flashes with pauses
     // between. Whichever count the sequence stops at names the step that hung
     // — the only debugging channel available with no probe on this board.
@@ -767,6 +818,7 @@ fn main() -> ! {
 
     rndp::start_receiving();
     signal(6); // console up and RNDP listening; the application runs next
+    host.wait_for_usb_host(3_000);
 
     // The application starts as the one compiled in, and is replaced whenever
     // `rustnet flash` lands a new one. Swapping means rebuilding the
@@ -780,6 +832,11 @@ fn main() -> ! {
     probe_sd(&mut host);
 
     let restored = host.restore_persisted();
+    // A crash in the last run: say where, and leave the stored app stopped
+    // — it may well be what crashed.
+    if crash::take_report(&mut host) {
+        host.stop_app();
+    }
     let mut app: Vec<u8> = restored.unwrap_or_else(|| APP_RNX.to_vec());
     loop {
         let (returned, next) = run_app(&app, host);
@@ -870,6 +927,11 @@ fn run_app(app: &[u8], host: FirmwareHost) -> (FirmwareHost, Option<Vec<u8>>) {
     );
 
     let mut interp = Interpreter::new(&module, host);
+    // A small heap: collect after an eighth of it in new allocation (8 KB on
+    // the F401RE, 12 KB on the Netduino) rather than the default 32 KB. With
+    // 16 KB the F401RE still ran out under a file-rewrite loop: the nursery
+    // plus uncollected garbage could reach ~48 KB of a 64 KB heap.
+    interp.heap.set_byte_budget(board::HEAP_SIZE as u64 / 8);
 
     // The bare-metal service loop: answer the tools, then hand the application
     // a slice of fuel. Cooperative and single-threaded — no RTOS, no executor.

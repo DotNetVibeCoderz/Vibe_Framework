@@ -28,6 +28,7 @@
     <Compile Include="$(DriverPackages)rustnet-driver-bg95\*.cs" Link="pkg\bg95\%(Filename)%(Extension)" />
     <Compile Include="$(DriverPackages)rustnet-driver-amg8833\*.cs" Link="pkg\amg8833\%(Filename)%(Extension)" />
     <Compile Include="$(DriverPackages)rustnet-driver-mlx90640\*.cs" Link="pkg\mlx90640\%(Filename)%(Extension)" />
+    <Compile Include="$(DriverPackages)rustnet-driver-huskylens\*.cs" Link="pkg\huskylens\%(Filename)%(Extension)" />
     <Compile Include="$(DriverPackages)rustnet-driver-vc0706\*.cs" Link="pkg\vc0706\%(Filename)%(Extension)" />
     <Compile Include="$(DriverPackages)rustnet-driver-arducam\*.cs" Link="pkg\arducam\%(Filename)%(Extension)" />
   </ItemGroup>

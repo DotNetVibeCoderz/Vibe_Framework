@@ -6,6 +6,13 @@ use crate::value::{HeapObject, HeapRef, Value};
 /// adaptive nursery threshold never drops below.
 const GC_MIN_THRESHOLD: usize = 1024;
 
+/// Estimated bytes allocated that also trigger a collection, whatever the
+/// object count. Counting objects alone let a loop that allocates one large
+/// array per pass — a 512-byte `byte[]` is 8 KB here, 16 bytes per element —
+/// fill a 96 KB microcontroller heap long before 1024 objects were reached;
+/// the allocator then failed and the firmware panicked.
+const GC_BYTE_BUDGET: u64 = 32 * 1024;
+
 /// Generational mark-sweep GC heap.
 ///
 /// Objects are born **young**. A *minor* collection marks only young objects —
@@ -36,11 +43,22 @@ pub struct Heap {
     /// All false between collections.
     marks: Vec<bool>,
     allocs_since_gc: usize,
+    /// Estimated bytes allocated since the last collection.
+    bytes_since_gc: u64,
+    /// Bytes between collections; a firmware with a small heap may lower it.
+    pub gc_byte_budget: u64,
     /// Allocations between collections (the nursery size).
     pub gc_threshold: usize,
     old_count: usize,
     /// Old-generation size that triggers the next major collection.
     major_threshold: usize,
+    /// Estimated bytes in the old generation, and the figure that triggers a
+    /// major collection by size. Counting objects alone missed the case that
+    /// filled a 96 KB Netduino heap: a large array still referenced when a
+    /// minor collection runs is promoted, dies a moment later, and as one
+    /// object among thousands never moved the count toward a major.
+    old_bytes: u64,
+    major_bytes_threshold: u64,
     pub collections: u64,
     pub minor_collections: u64,
     pub major_collections: u64,
@@ -61,9 +79,13 @@ impl Heap {
             free: Vec::new(),
             marks: Vec::new(),
             allocs_since_gc: 0,
+            bytes_since_gc: 0,
+            gc_byte_budget: GC_BYTE_BUDGET,
             gc_threshold: GC_MIN_THRESHOLD,
             old_count: 0,
             major_threshold: GC_MIN_THRESHOLD * 4,
+            old_bytes: 0,
+            major_bytes_threshold: GC_BYTE_BUDGET,
             collections: 0,
             minor_collections: 0,
             major_collections: 0,
@@ -74,6 +96,7 @@ impl Heap {
 
     pub fn alloc(&mut self, obj: HeapObject) -> HeapRef {
         self.allocs_since_gc += 1;
+        self.bytes_since_gc += approx_size(&obj);
         let idx = if let Some(idx) = self.free.pop() {
             self.slots[idx as usize] = Some(obj);
             self.old[idx as usize] = false;
@@ -130,29 +153,28 @@ impl Heap {
         self.old_count
     }
 
-    pub fn used_bytes(&self) -> u64 {
-        self.slots
-            .iter()
-            .flatten()
-            .map(|o| match o {
-                HeapObject::Str(s) => 24 + s.len() as u64,
-                HeapObject::Array { data, .. } => 24 + 16 * data.len() as u64,
-                HeapObject::Object { fields, .. } => 24 + 16 * fields.len() as u64,
-                HeapObject::ListObj(data) => 24 + 16 * data.len() as u64,
-                HeapObject::MapObj(pairs) => 24 + 32 * pairs.len() as u64,
-                _ => 24,
-            })
-            .sum()
+    /// Collect after `bytes` of new allocation, and treat the same figure as
+    /// the old generation's floor for a major collection. Firmwares with a
+    /// small heap lower it (the Netduino and the Pico use 16 KB).
+    pub fn set_byte_budget(&mut self, bytes: u64) {
+        self.gc_byte_budget = bytes;
+        self.major_bytes_threshold = self.major_bytes_threshold.min(bytes.max(self.old_bytes.saturating_mul(2)));
     }
 
+    pub fn used_bytes(&self) -> u64 {
+        self.slots.iter().flatten().map(approx_size).sum()
+    }
+
+    /// Due by object count, or by the bytes those objects take. (Growth of a
+    /// list after it was allocated is not counted; allocation is.)
     pub fn should_collect(&self) -> bool {
-        self.allocs_since_gc >= self.gc_threshold
+        self.allocs_since_gc >= self.gc_threshold || self.bytes_since_gc >= self.gc_byte_budget
     }
 
     /// Collect garbage: a minor collection, or a major one when the old
     /// generation has grown past its threshold.
     pub fn collect(&mut self, roots: impl Iterator<Item = HeapRef>) {
-        if self.old_count >= self.major_threshold {
+        if self.old_count >= self.major_threshold || self.old_bytes >= self.major_bytes_threshold {
             self.collect_full(roots);
         } else {
             self.collect_minor(roots);
@@ -173,10 +195,12 @@ impl Heap {
             }
         }
         let mut live = 0usize;
+        let mut live_bytes = 0u64;
         for (i, slot) in self.slots.iter_mut().enumerate() {
-            if slot.is_some() {
+            if let Some(obj) = slot {
                 if self.marks[i] {
                     live += 1;
+                    live_bytes += approx_size(obj);
                     self.marks[i] = false;
                     self.old[i] = true;
                 } else {
@@ -191,6 +215,8 @@ impl Heap {
         self.old_count = live;
         self.max_major_work = self.max_major_work.max(self.slots.len() + live);
         self.major_threshold = live.saturating_mul(2).max(GC_MIN_THRESHOLD * 4);
+        self.old_bytes = live_bytes;
+        self.major_bytes_threshold = live_bytes.saturating_mul(2).max(self.gc_byte_budget);
         self.finish_collection(live);
         self.major_collections += 1;
     }
@@ -221,10 +247,11 @@ impl Heap {
         let work = self.young.len() + self.remembered_list.len();
         for &r in &self.young {
             let i = r as usize;
-            if self.slots[i].is_none() {
+            let Some(obj) = &self.slots[i] else {
                 continue;
-            }
+            };
             if self.marks[i] {
+                self.old_bytes += approx_size(obj);
                 self.marks[i] = false;
                 self.old[i] = true;
                 survivors += 1;
@@ -246,11 +273,25 @@ impl Heap {
 
     fn finish_collection(&mut self, _survivors: usize) {
         self.allocs_since_gc = 0;
+        self.bytes_since_gc = 0;
         self.collections += 1;
         // The nursery stays small whatever the program keeps: a minor
         // collection's pause is bounded by it. What grows with the live data
         // is the major threshold (twice the old generation after a major).
         self.gc_threshold = GC_MIN_THRESHOLD;
+    }
+}
+
+/// Rough heap footprint of an object — what `used_bytes` reports and what
+/// the byte trigger counts.
+fn approx_size(obj: &HeapObject) -> u64 {
+    match obj {
+        HeapObject::Str(s) => 24 + s.len() as u64,
+        HeapObject::Array { data, .. } => 24 + 16 * data.len() as u64,
+        HeapObject::Object { fields, .. } => 24 + 16 * fields.len() as u64,
+        HeapObject::ListObj(data) => 24 + 16 * data.len() as u64,
+        HeapObject::MapObj(pairs) => 24 + 32 * pairs.len() as u64,
+        _ => 24,
     }
 }
 
@@ -308,6 +349,37 @@ impl Default for Heap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn promoted_large_arrays_bring_on_a_major_collection() {
+        // The Netduino case: each pass allocates an 8 KB array that is still
+        // referenced when the minor collection runs, so it is promoted — and
+        // garbage by the next pass. The old generation must not keep them.
+        let mut heap = Heap::new();
+        let mut live = None;
+        for _ in 0..200 {
+            let a = heap.alloc(HeapObject::Array { elem: crate::value::ElemType::Ref, data: vec![Value::I32(0); 512] });
+            live = Some(a);
+            if heap.should_collect() {
+                heap.collect(live.into_iter());
+            }
+        }
+        assert!(heap.major_collections > 0, "no major collection ran");
+        assert!(heap.used_bytes() <= 3 * GC_BYTE_BUDGET, "{} bytes still held", heap.used_bytes());
+    }
+
+    #[test]
+    fn large_arrays_trigger_a_collection_before_the_object_count_does() {
+        // Four 512-element arrays are 4 objects but ~32 KB: on a 96 KB
+        // microcontroller heap a collection has to be due by then.
+        let mut heap = Heap::new();
+        for _ in 0..3 {
+            heap.alloc(HeapObject::Array { elem: crate::value::ElemType::Ref, data: vec![Value::I32(0); 512] });
+            assert!(!heap.should_collect());
+        }
+        heap.alloc(HeapObject::Array { elem: crate::value::ElemType::Ref, data: vec![Value::I32(0); 512] });
+        assert!(heap.should_collect(), "{} bytes since the last collection", heap.bytes_since_gc);
+    }
 
     #[test]
     fn nursery_stays_small_while_the_major_threshold_tracks_the_old_generation() {

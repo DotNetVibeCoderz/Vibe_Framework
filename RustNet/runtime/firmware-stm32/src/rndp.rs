@@ -164,6 +164,10 @@ pub struct Rndp {
     pub app_name: String,
     /// Size of the loaded RNX, likewise.
     pub app_size: usize,
+    /// Set by `reboot`; acted on by the main loop once the reply is out.
+    pub reboot_requested: bool,
+    /// `reboot 01`: into the ROM's DFU bootloader instead (dfu.rs).
+    pub reboot_to_bootloader: bool,
 }
 
 impl Default for Rndp {
@@ -181,6 +185,8 @@ impl Rndp {
             pending_app: None,
             app_name: String::from(APP_NAME),
             app_size: crate::APP_RNX.len(),
+            reboot_requested: false,
+            reboot_to_bootloader: false,
         }
     }
 
@@ -247,7 +253,10 @@ impl Rndp {
                         self.rx.shrink_to_fit();
                     }
                     let response = match self.dispatch(&frame, host) {
-                        Ok(payload) => Frame::ok(payload),
+                        Ok(payload) => {
+                            crate::crash::healthy();
+                            Frame::ok(payload)
+                        }
                         Err(message) => Frame::err(message),
                     };
                     host.write_raw(&response.encode());
@@ -337,7 +346,14 @@ impl Rndp {
                 Ok(host.log_tail(max).into_bytes())
             }
 
-            CMD_REBOOT => cortex_m::peripheral::SCB::sys_reset(),
+            // Recorded, not done: resetting here destroyed the reply, and the
+            // tool reported a device that did not answer. A payload of `01`
+            // asks for the ROM bootloader, so a reflash needs no button.
+            CMD_REBOOT => {
+                self.reboot_requested = true;
+                self.reboot_to_bootloader = frame.payload.first() == Some(&1);
+                Ok(Vec::new())
+            }
 
             CMD_PROVISION_KEY => {
                 if frame.payload.is_empty() {

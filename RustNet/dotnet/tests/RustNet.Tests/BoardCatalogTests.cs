@@ -104,6 +104,16 @@ public class BoardCatalogTests
     }
 
     [Fact]
+    public void NetduinoBuildsTheNetduinoImage()
+    {
+        // firmware-stm32's default features are the Nucleo-F401RE: a plain
+        // `build --release` there produces an image for the wrong chip.
+        string args = BoardCatalog.Find("netduino3")!.BuildArgs;
+        Assert.Contains("--no-default-features", args);
+        Assert.Contains("board-netduino3-wifi", args);
+    }
+
+    [Fact]
     public void DfuBoardsObjcopyBeforeTheyFlash()
     {
         // dfu-util writes a raw image to an address; handing it an ELF would

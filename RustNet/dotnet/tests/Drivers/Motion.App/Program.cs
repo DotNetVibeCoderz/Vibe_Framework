@@ -42,6 +42,7 @@ public static class Program
         Check.Run("mlx90640", Mlx90640Smoke.Run);
         Check.Run("vc0706", CameraSmoke.RunVc0706);
         Check.Run("arducam", CameraSmoke.RunArduCam);
+        Check.Run("huskylens", HuskyLensSmoke.Run);
         Console.WriteLine($"drivers finished passed={Check.Passed} failed={Check.Failed}");
     }
 }

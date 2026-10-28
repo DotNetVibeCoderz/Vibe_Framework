@@ -66,6 +66,11 @@ impl UsbConsole {
         Self { device, serial }
     }
 
+    /// The host has finished enumerating us (SET_CONFIGURATION arrived).
+    pub fn configured(&self) -> bool {
+        self.device.state() == UsbDeviceState::Configured
+    }
+
     /// Answer whatever the host is asking. Cheap, and safe to call often.
     pub fn service(&mut self) {
         self.device.poll(&mut [&mut self.serial]);

@@ -13,7 +13,7 @@ CATEGORIES = {
                     "ms5611", "pmsa003i", "scd30", "scd4x", "sgp40", "sht3x", "sht4x", "si1145", "soilmoisture",
                     "tcs34725", "temt6000", "thermistor", "tmp102", "tsl2591", "veml7700"],
     "Motion, distance, power, input, GNSS and imaging": [
-        "adxl", "amg8833", "arducam", "bg95", "bmi270", "bno055", "flowmeter", "hx711", "ina", "input", "lsm303agr",
+        "adxl", "amg8833", "arducam", "bg95", "bmi270", "bno055", "flowmeter", "huskylens", "hx711", "ina", "input", "lsm303agr",
         "lsm6dsox", "magnetometer", "max1704x", "mlx90640", "mpr121", "mpu6050", "mt3339", "nau7802", "touch",
         "ublox", "ultrasonic", "vc0706", "vl53l0x"],
     "Displays": ["display-core", "segments", "tm1637", "charlcd", "mono-display", "tft", "epaper"],

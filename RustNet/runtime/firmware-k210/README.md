@@ -158,13 +158,17 @@ rustnet flash .../Showcase.dll --name showcase --chip k210 \
     --key keys/rustnet-signing.key --start --device serial:COMn
 ```
 
-Measured on the board, at 390 MHz:
+Measured on the board, at 390 MHz (first column: the original interpreter;
+second: after the 2026-10 scheduler fix and fast path, RustNet 0.3.0):
 
-| Scene | ms/frame | fps |
-|---|---|---|
-| starfield | 54 | 18 |
-| 3D solids | 46 | 21 |
-| burning title | ~150 | ~7 |
+| Scene | ms/frame then | ms/frame now | fps now |
+|---|---|---|---|
+| starfield | 54 | 44 | 22 |
+| 3D solids | 46 | 42 | 23 |
+| burning title | ~150 | 77 | 12 |
+
+The fire is the scene that is mostly interpreter, and it halved; the other
+two are mostly panel transfer and moved less.
 
 Those numbers are printed by the app itself into `rustnet logs`, which is the
 point: the demo reports on its own performance rather than leaving it to be
@@ -177,6 +181,21 @@ guessed at. Two things they taught, both of which shaped the code:
   than a host call. That is not the ratio one expects. Calling a one-line
   shading helper per cell made the fire measurably *slower* than not merging
   runs at all; the arithmetic is now inlined into the loop that already runs.
+
+Those two figures predate the interpreter fixes. `demo/CostBench` measures
+the model directly — an empty loop, a static call and the cheapest host call,
+net of the loop — and on this board it reads:
+
+| | before | RustNet 0.3.0 |
+|---|---|---|
+| empty `for` iteration | 23.2 µs | **5.9 µs** |
+| static managed call | 7.7 µs | **6.2 µs** |
+| host call (`Board.UserLed()`) | 151.7 µs | 153.5 µs |
+
+The loop was paying for the scheduler bug (a clock read per instruction).
+**Host dispatch is now the cost that matters**: about 25 static calls' worth,
+because the firmware still matches the canonical name as a string on every
+call. Batch work per host call, as the fire's runs do.
 
 And one bug those numbers caught, which no test would have: **a receive left
 its frame count in `ctrlr1`, and the next transmit inherited it.** A single

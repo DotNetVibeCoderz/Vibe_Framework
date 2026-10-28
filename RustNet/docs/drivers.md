@@ -2,7 +2,7 @@
 
 Generated from `packages/*/rnpkg.json` by `packages/make_catalog.py` — do not edit by hand.
 
-89 source packages, installed with `rustnet pkg install <name>` (see
+90 source packages, installed with `rustnet pkg install <name>` (see
 [packages.md](packages.md)). Every driver talks to hardware through `rustnet-driver-bus`, and every
 one is exercised against register-level simulators holding datasheet values, both on the desktop
 CLR and on the virtual device's interpreter (`dotnet/tests/Drivers/`). Authoring rules and the
@@ -58,6 +58,7 @@ C# dialect drivers are written in: [packages/README.md](../packages/README.md).
 | `rustnet-driver-bmi270` | Bosch BMI270 6-axis IMU over I2C: init with the user-supplied Bosch config file, accelerometer, gyroscope and temperature reads |
 | `rustnet-driver-bno055` | Bosch BNO055 absolute orientation sensor: Euler angles, quaternion, linear acceleration, gravity, calibration status and offsets over I2C |
 | `rustnet-driver-flowmeter` | Hall-effect liquid flow sensors (YF-S201, YF-S401, YF-B1/B5/B6/B7 and any K-factor sensor): pulse counting to L/min and total litres |
+| `rustnet-driver-huskylens` | DFRobot HuskyLens AI vision sensor over UART or I2C: knock, switch algorithm, request blocks/arrows (all, learned, by ID), learn/forget, custom names and on-screen text |
 | `rustnet-driver-hx711` | Avia HX711 24-bit load-cell ADC, bit-banged over two GPIOs, with gain/channel selection, tare and scale |
 | `rustnet-driver-ina` | TI power/current monitors over I2C: INA219 (external shunt, calibration), INA228 (20-bit, energy/charge), INA260 (integrated 2 mOhm shunt) |
 | `rustnet-driver-input` | GPIO human input: scanned matrix keypads and analog two-axis joysticks with button and deadzone |

@@ -911,6 +911,9 @@ fn run_app(app: &[u8], host: FirmwareHost) -> (FirmwareHost, Option<Vec<u8>>) {
     );
 
     let mut interp = Interpreter::new(&module, host);
+    // A small heap: collect after 16 KB of new allocation rather than the
+    // default 32 KB, which on its own is a third of what an app gets here.
+    interp.heap.set_byte_budget(16 * 1024);
     // Fuel slices rather than one long run: the same cooperative shape the
     // other bare-metal ports use, so the service loop has somewhere to sit.
     loop {

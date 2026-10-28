@@ -13,6 +13,7 @@ Tracking checklist for the feature roadmap in [PLAN.md](PLAN.md).
 - [x] **RNDP over the Netduino's native USB (CDC)** — no serial adapter; one PLL feeds both the 168 MHz core and USB's 48 MHz ✅
 - [~] microSD block device — card identifies but its storage is unreadable; driver written, unproven, needs a second card 🟡
 - [~] **Filesystem** (`RustNet.IO.FileSystem`) on `rustnet-flashfs` in the reserved sector; key/app as `/.sys/*`, old log migrated at boot; 16 KB (F401RE) / 32 KB (F427) file budget — compile-verified, not yet on hardware 🟡
+- [x] Netduino 3 WiFi + Nucleo-F401RE bench (2026-10-28): flashfs store migrated (F401RE: 3 legacy records) + compacted under a 3000-rewrite stress, key/app survive reboot on both ✅; fixed on the way: wait for USB enumeration before the app, crash notes + safe mode, DFU on command, GC byte triggers (minor + major, an eighth of the heap) ✅
 - [-] WiFi (CC3100) — won't do (no SimpleLink driver; ESP-AT companion is the route) — see Networking
 
 ## Bare metal (Kendryte K210, RV64GC)
@@ -303,7 +304,9 @@ one real bug it found.
 
 ### Community peripheral library (v1.3+) — shipped via `rustnet pkg`
 Managed `RustNet.*` drivers over the HAL buses, contributed/versioned apart
-from the core. **89 packages written (2026-10-20)**, every listed chip covered
+from the core. **89 packages written (2026-10-20)**, plus **`rustnet-driver-huskylens`** (2026-10-28: DFRobot
+HuskyLens over UART/I2C; protocol frames checked against DFRobot's documented examples, simulator
+scenario green on the CLR and the interpreter; not yet wired to a live sensor), every listed chip covered
 (BMI270 config blob and ArduCAM sensor tables are user-supplied), 1,467
 datasheet-value checks green on the CLR and on the interpreter (E2E
 `DriverPackagesRunOnTheDevice`). Not yet verified on real hardware 🟡.

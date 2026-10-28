@@ -51,6 +51,10 @@ to RNX or behave differently. The MetadataProcessor reports the first group.
   or keep a lookup table as a hex `string` constant and decode it on first use.
 - **Classes only** — no user `struct`s (by-value copies are not modelled).
 - **No `ref`/`out` parameters** between methods. Return an object or an array.
+- **No overloads that differ only in class-typed parameters**: on the device
+  every class parameter is `object`, so `Foo(SerialDevice)` and
+  `Foo(I2cDevice)` are the same method and the MetadataProcessor refuses them.
+  Use a differently named factory (`HuskyLens.OnI2c(device)`).
 - **Catch clauses are untyped**: every `catch` catches everything. Use
   `catch (Exception ex) when (ex.Message …)` to discriminate.
 - **No `event` fields**: expose `Action<…>?` fields and invoke with `?.Invoke`.
